@@ -1,5 +1,5 @@
 
-use super::Renderer;
+use super::{Renderer, world::Camera};
 use super::world::World;
 
 use sdl2::event::Event;
@@ -25,7 +25,13 @@ impl Game {
     pub fn new() -> Self {
         Game {
             renderer: None,
-            world: None,
+            world: Some(World {
+                camera: Camera {
+                    x: 0.0,
+                    y: 0.0,
+                    scale: 1.0,
+                }
+            }),
             tick_time: 0,
             frame_count: 0,
             fps_counter: FPSCounter {
@@ -57,6 +63,19 @@ impl Game {
                         Event::Quit {..} |
                         Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                             break 'mainLoop
+                        },
+                        Event::MouseWheel { y, .. } => {
+                            if let Some(w) = &mut self.world {
+                                w.camera.scale *= 1.0 + 0.1 * y as f64;
+                            }
+                        },
+                        Event::MouseMotion{xrel, yrel, mousestate , ..} => {
+                            if mousestate.left() {
+                                if let Some(w) = &mut self.world {
+                                    w.camera.x += xrel as f64;
+                                    w.camera.y += yrel as f64;
+                                }
+                            }
                         },
                         _ => {}
                     }

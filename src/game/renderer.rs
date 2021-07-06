@@ -3,7 +3,7 @@ use std::{cell::RefCell};
 
 use sdl2::{pixels::Color, render::{Canvas}, video::Window};
 
-use super::{Game, Renderable};
+use super::{Game, Renderable, TransformStack};
 
 pub struct Renderer {
     pub sdl: sdl2::Sdl,
@@ -60,7 +60,7 @@ impl Renderer {
         }
 
         if let Some(w) = &game.world {
-            w.render(canvas, game);
+            w.render(canvas, &mut TransformStack::new(), game);
         }
         
     }
