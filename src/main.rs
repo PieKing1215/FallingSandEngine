@@ -23,13 +23,13 @@ fn main() {
 
     let sdl_video = r_video.unwrap();
 
-    let sdl_video = sdl_context.video().unwrap();
     let window = sdl_video.window("Window", 800, 600)
-        .opengl() // this line DOES NOT enable opengl, but allows you to create/get an OpenGL context from your window.
+        .opengl() // allow getting opengl context
         .build()
         .unwrap();
 
     let mut canvas = window.into_canvas()
+        .index(find_opengl_driver().unwrap()) // explicitly use opengl
         .build()
         .unwrap();
 
@@ -76,6 +76,15 @@ fn main() {
 
     println!("Closing...");
 
+}
+
+fn find_opengl_driver() -> Option<u32> {
+    for (i, d) in sdl2::render::drivers().enumerate() {
+        if d.name == "opengl" {
+            return Some(i as u32);
+        }
+    }
+    None
 }
 
 fn init(){
