@@ -8,7 +8,7 @@ pub struct Game {
     renderer: Option<Renderer>,
     pub tick_time: u32,
     pub frame_count: u32,
-    fpsCounter: FPSCounter
+    fps_counter: FPSCounter
 }
 
 pub struct FPSCounter {
@@ -23,7 +23,7 @@ impl Game {
             renderer: None,
             tick_time: 0,
             frame_count: 0,
-            fpsCounter: FPSCounter {
+            fps_counter: FPSCounter {
                 frames: 0, 
                 last_update: Instant::now(), 
                 display_value: 0
@@ -76,12 +76,12 @@ impl Game {
             if let Some(r) = &self.renderer {
                 r.render(self);
                 self.frame_count += 1;
-                self.fpsCounter.frames += 1;
-                if now.saturating_duration_since(self.fpsCounter.last_update).as_millis() >= 1000 {
-                    self.fpsCounter.display_value = self.fpsCounter.frames;
-                    self.fpsCounter.frames = 0;
-                    self.fpsCounter.last_update = now;
-                    let set = r.canvas.as_ref().unwrap().borrow_mut().window_mut().set_title(format!("FallingSandRust ({} FPS)", self.fpsCounter.display_value).as_str());
+                self.fps_counter.frames += 1;
+                if now.saturating_duration_since(self.fps_counter.last_update).as_millis() >= 1000 {
+                    self.fps_counter.display_value = self.fps_counter.frames;
+                    self.fps_counter.frames = 0;
+                    self.fps_counter.last_update = now;
+                    let set = r.canvas.as_ref().unwrap().borrow_mut().window_mut().set_title(format!("FallingSandRust ({} FPS)", self.fps_counter.display_value).as_str());
                     if set.is_err() {
                         eprintln!("Failed to set window title.");
                     }

@@ -1,4 +1,3 @@
-use sdl2::pixels::Color;
 
 mod game;
 use game::Game;
