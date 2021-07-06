@@ -1,11 +1,15 @@
 
 use super::Renderer;
+use super::world::World;
+
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use std::time::{Duration, Instant};
 
+
 pub struct Game {
     renderer: Option<Renderer>,
+    pub world: Option<World>,
     pub tick_time: u32,
     pub frame_count: u32,
     fps_counter: FPSCounter
@@ -18,9 +22,10 @@ pub struct FPSCounter {
 }
 
 impl Game {
-    pub fn new() -> Game {
+    pub fn new() -> Self {
         Game {
             renderer: None,
+            world: None,
             tick_time: 0,
             frame_count: 0,
             fps_counter: FPSCounter {
@@ -32,16 +37,9 @@ impl Game {
     }
 
     pub fn init(&mut self) -> Result<(), String>  {
-        self.renderer = Some(Renderer::new());
+        let r = Renderer::create()?;
 
-        if let Some(r) = &mut self.renderer {
-            let initted = r.init();
-            if initted.is_err() {
-                return initted;
-            }
-        };
-
-
+        self.renderer = Some(r);
 
         return Ok(());
     }
@@ -49,7 +47,7 @@ impl Game {
     pub fn run(&mut self) {
         let mut prev_frame_time = std::time::Instant::now();
 
-        let mut event_pump = self.renderer.as_ref().map(|r| r.sdl.as_ref().unwrap().event_pump().unwrap());
+        let mut event_pump = self.renderer.as_ref().map(|r| r.sdl.event_pump().unwrap());
 
         'mainLoop: loop {
 
@@ -81,7 +79,7 @@ impl Game {
                     self.fps_counter.display_value = self.fps_counter.frames;
                     self.fps_counter.frames = 0;
                     self.fps_counter.last_update = now;
-                    let set = r.canvas.as_ref().unwrap().borrow_mut().window_mut().set_title(format!("FallingSandRust ({} FPS)", self.fps_counter.display_value).as_str());
+                    let set = r.canvas.borrow_mut().window_mut().set_title(format!("FallingSandRust ({} FPS)", self.fps_counter.display_value).as_str());
                     if set.is_err() {
                         eprintln!("Failed to set window title.");
                     }
