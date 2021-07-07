@@ -25,13 +25,7 @@ impl Game {
     pub fn new() -> Self {
         Game {
             renderer: None,
-            world: Some(World {
-                camera: Camera {
-                    x: 0.0,
-                    y: 0.0,
-                    scale: 1.0,
-                }
-            }),
+            world: Some(World::create()),
             tick_time: 0,
             frame_count: 0,
             fps_counter: FPSCounter {
@@ -72,8 +66,8 @@ impl Game {
                         Event::MouseMotion{xrel, yrel, mousestate , ..} => {
                             if mousestate.left() {
                                 if let Some(w) = &mut self.world {
-                                    w.camera.x += xrel as f64;
-                                    w.camera.y += yrel as f64;
+                                    w.camera.x -= (xrel as f64) / w.camera.scale;
+                                    w.camera.y -= (yrel as f64) / w.camera.scale;
                                 }
                             }
                         },
@@ -114,6 +108,10 @@ impl Game {
 
     fn tick(&mut self){
         self.tick_time += 1;
+
+        if let Some(w) = &mut self.world {
+            w.tick(self.tick_time);
+        }
     }
 
 }
