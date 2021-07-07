@@ -61,15 +61,24 @@ impl Renderable for World {
         self.chunk_handler.loaded_chunks.iter().for_each(|ch| {
             let rc = Rect::new(ch.chunk_x * CHUNK_SIZE as i32, ch.chunk_y * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
 
-            if rc.has_intersection(screen_zone) {
-                canvas.set_draw_color(Color::RGBA(64, 255, 64, 255));
-            }else if rc.has_intersection(active_zone) {
-                canvas.set_draw_color(Color::RGBA(255, 255, 64, 255));
-            }else if rc.has_intersection(load_zone) {
-                canvas.set_draw_color(Color::RGBA(255, 127, 64, 127));
-            }else {
-                canvas.set_draw_color(Color::RGBA(255, 64, 64, 64));
+            match ch.state {
+                super::ChunkState::Unknown => {
+                    canvas.set_draw_color(Color::RGBA(127, 64, 127, 64));
+                },
+                super::ChunkState::NotGenerated => {
+                    canvas.set_draw_color(Color::RGBA(127, 127, 127, 64));
+                },
+                super::ChunkState::Generating(stage) => {
+                    canvas.set_draw_color(Color::RGBA(64, (stage as f32 / 4.0 * 255.0) as u8, 255, 127));
+                },
+                super::ChunkState::Cached => {
+                    canvas.set_draw_color(Color::RGBA(255, 64, 64, 64));
+                },
+                super::ChunkState::Active => {
+                    canvas.set_draw_color(Color::RGBA(64, 255, 64, 127));
+                },
             }
+            canvas.fill_rect(transform.transform_rect(rc)).unwrap();
             canvas.draw_rect(transform.transform_rect(rc)).unwrap();
         });
 

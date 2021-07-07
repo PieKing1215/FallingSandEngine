@@ -1,7 +1,5 @@
 use sdl2::rect::Rect;
 
-use crate::game::Game;
-
 use super::Camera;
 
 
@@ -10,6 +8,16 @@ pub const CHUNK_SIZE: u16 = 128;
 pub struct Chunk {
     pub chunk_x: i32,
     pub chunk_y: i32,
+    pub state: ChunkState,
+}
+
+#[derive(Clone, Copy)]
+pub enum ChunkState {
+    Unknown,
+    NotGenerated,
+    Generating(u8), // stage
+    Cached,
+    Active,
 }
 
 pub struct ChunkHandler {
@@ -30,7 +38,11 @@ impl ChunkHandler {
 
     pub fn tick(&mut self, tick_time: u32, camera: &Camera){ // TODO: `camera` should be replaced with like a vec of entities or something
 
+        let unload_zone = self.get_unload_zone(camera);
         let load_zone = self.get_load_zone(camera);
+        let active_zone = self.get_active_zone(camera);
+        let screen_zone = self.get_screen_zone(camera);
+        
         for px in (load_zone.x .. load_zone.x + load_zone.w).step_by(CHUNK_SIZE.into()) {
             for py in (load_zone.y .. load_zone.y + load_zone.h).step_by(CHUNK_SIZE.into()) {
                 let chunk_pos = self.pixel_to_chunk_pos(px.into(), py.into());
@@ -38,28 +50,137 @@ impl ChunkHandler {
             }
         }
 
-        for _ in 0..10 {
+        for _ in 0..40 {
             // TODO: don't load queued chunks if they are no longer in range
             if let Some(to_load) = self.load_queue.pop() {
                 self.load_chunk(to_load.0, to_load.1);
             }
         }
 
-        let unload_zone = self.get_unload_zone(camera);
+        
+        if tick_time % 2 == 0 {
+            let mut keep_map = vec![true; self.loaded_chunks.len()];
+            for i in 0..self.loaded_chunks.len() {
+                let state = self.loaded_chunks[i].state; // copy
+                let rect = Rect::new(self.loaded_chunks[i].chunk_x * CHUNK_SIZE as i32, self.loaded_chunks[i].chunk_y * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
 
-        let mut keep_map = vec![true; self.loaded_chunks.len()];
-        for i in 0..self.loaded_chunks.len() {
-            let ch = &self.loaded_chunks[i];
-            let rect = Rect::new(ch.chunk_x * CHUNK_SIZE as i32, ch.chunk_y * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
+                match state {
+                    ChunkState::Cached => {
+                        if !rect.has_intersection(unload_zone) {
+                            self.unload_chunk(&self.loaded_chunks[i]);
+                            keep_map[i] = false;
+                        }else if rect.has_intersection(active_zone) {
+                            let chunk_x = self.loaded_chunks[i].chunk_x;
+                            let chunk_y = self.loaded_chunks[i].chunk_y;
+                            if [
+                                self.get_chunk(chunk_x - 1, chunk_y - 1),
+                                self.get_chunk(chunk_x, chunk_y - 1),
+                                self.get_chunk(chunk_x + 1, chunk_y - 1),
 
-            if !rect.has_intersection(unload_zone) {
-                self.unload_chunk(ch);
-                keep_map[i] = false;
+                                self.get_chunk(chunk_x - 1, chunk_y),
+                                self.get_chunk(chunk_x, chunk_y),
+                                self.get_chunk(chunk_x + 1, chunk_y),
+
+                                self.get_chunk(chunk_x - 1, chunk_y + 1),
+                                self.get_chunk(chunk_x, chunk_y + 1),
+                                self.get_chunk(chunk_x + 1, chunk_y + 1),
+                            ].iter().all(|ch| {
+                                if ch.is_none() {
+                                    return false;
+                                }
+
+                                let state = ch.unwrap().state;
+
+                                match state {
+                                    ChunkState::Cached | ChunkState::Active => true,
+                                    _ => false,
+                                }
+                            }) {
+                                self.loaded_chunks[i].state = ChunkState::Active;
+                            }
+                        }
+                    },
+                    ChunkState::Active => {
+                        if !rect.has_intersection(active_zone) {
+                            self.loaded_chunks[i].state = ChunkState::Cached;
+                        }
+                    }
+                    _ => {},
+                }
             }
+
+            let mut iter = keep_map.iter();
+            self.loaded_chunks.retain(|_| *iter.next().unwrap());
         }
 
-        let mut iter = keep_map.iter();
-        self.loaded_chunks.retain(|_| *iter.next().unwrap());
+        if tick_time % 4 == 0 {
+            let mut num_loaded_this_tick = 0;
+            let mut keep_map = vec![true; self.loaded_chunks.len()];
+            for i in 0..self.loaded_chunks.len() {
+                let state = self.loaded_chunks[i].state; // copy
+                let rect = Rect::new(self.loaded_chunks[i].chunk_x * CHUNK_SIZE as i32, self.loaded_chunks[i].chunk_y * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
+
+                match state {
+                    ChunkState::NotGenerated => {
+                        if !rect.has_intersection(unload_zone) {
+                            self.unload_chunk(&self.loaded_chunks[i]);
+                            keep_map[i] = false;
+                        }else if num_loaded_this_tick < 16 {
+                            // TODO: load from file
+                            self.loaded_chunks[i].state = ChunkState::Generating(0);
+                            num_loaded_this_tick += 1;
+                        }
+                    },
+                    ChunkState::Generating(stage) => {
+                        let chunk_x = self.loaded_chunks[i].chunk_x;
+                        let chunk_y = self.loaded_chunks[i].chunk_y;
+
+                        let max_stage = 4;
+
+                        if stage >= max_stage {
+                            self.loaded_chunks[i].state = ChunkState::Cached;
+                        } else {
+                            if [
+                                self.get_chunk(chunk_x - 1, chunk_y - 1),
+                                self.get_chunk(chunk_x, chunk_y - 1),
+                                self.get_chunk(chunk_x + 1, chunk_y - 1),
+
+                                self.get_chunk(chunk_x - 1, chunk_y),
+                                self.get_chunk(chunk_x, chunk_y),
+                                self.get_chunk(chunk_x + 1, chunk_y),
+
+                                self.get_chunk(chunk_x - 1, chunk_y + 1),
+                                self.get_chunk(chunk_x, chunk_y + 1),
+                                self.get_chunk(chunk_x + 1, chunk_y + 1),
+                            ].iter().all(|ch| {
+                                if ch.is_none() {
+                                    return false;
+                                }
+
+                                let state = ch.unwrap().state;
+
+                                match state {
+                                    ChunkState::Cached | ChunkState::Active => true,
+                                    ChunkState::Generating(st) if st >= stage => true,
+                                    _ => false,
+                                }
+                            }) {
+                                self.loaded_chunks[i].state = ChunkState::Generating(stage + 1);
+                            }
+
+                            if !rect.has_intersection(unload_zone) {
+                                self.unload_chunk(&self.loaded_chunks[i]);
+                                keep_map[i] = false;
+                            }
+                        }
+                    }
+                    _ => {},
+                }
+            }
+
+            let mut iter = keep_map.iter();
+            self.loaded_chunks.retain(|_| *iter.next().unwrap());
+        }
 
     }
 
@@ -87,6 +208,7 @@ impl ChunkHandler {
         let chunk = Chunk{
             chunk_x: chunk_x,
             chunk_y: chunk_y,
+            state: ChunkState::NotGenerated,
         };
         self.loaded_chunks.push(Box::new(chunk));
     }
@@ -124,10 +246,10 @@ impl ChunkHandler {
     }
 
     pub fn get_load_zone(&self, camera: &Camera) -> Rect {
-        self.get_zone(camera, (CHUNK_SIZE * 3).into())
+        self.get_zone(camera, (CHUNK_SIZE * 8).into())
     }
 
     pub fn get_unload_zone(&self, camera: &Camera) -> Rect {
-        self.get_zone(camera, (CHUNK_SIZE * 10).into())
+        self.get_zone(camera, (CHUNK_SIZE * 12).into())
     }
 }
