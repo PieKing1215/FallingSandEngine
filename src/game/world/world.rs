@@ -1,6 +1,6 @@
 use sdl2::{pixels::Color, rect::Rect};
 
-use crate::game::{Game, RenderCanvas, Renderable, TransformStack};
+use crate::game::{Fonts, Game, RenderCanvas, Renderable, Sdl2Context, TransformStack};
 
 use super::{CHUNK_SIZE, ChunkHandler};
 
@@ -16,6 +16,7 @@ pub struct Camera {
 }
 
 impl World {
+    #[profiling::function]
     pub fn create() -> Self {
         World {
             camera: Camera {
@@ -27,13 +28,15 @@ impl World {
         }
     }
 
+    #[profiling::function]
     pub fn tick(&mut self, tick_time: u32){
         self.chunk_handler.tick(tick_time, &self.camera);
     }
 }
 
 impl Renderable for World {
-    fn render(&self, canvas : &mut RenderCanvas, transform: &mut TransformStack, _game: &Game) {
+    #[profiling::function]
+    fn render(&self, canvas : &mut RenderCanvas, transform: &mut TransformStack, sdl: &Sdl2Context, fonts: &Fonts, _game: &Game) {
 
         // draw world
 
@@ -58,7 +61,7 @@ impl Renderable for World {
             }
         }
 
-        self.chunk_handler.loaded_chunks.iter().for_each(|ch| {
+        self.chunk_handler.loaded_chunks.iter().for_each(|(_i, ch)| {
             let rc = Rect::new(ch.chunk_x * CHUNK_SIZE as i32, ch.chunk_y * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
 
             match ch.state {
@@ -72,14 +75,37 @@ impl Renderable for World {
                     canvas.set_draw_color(Color::RGBA(64, (stage as f32 / 4.0 * 255.0) as u8, 255, 127));
                 },
                 super::ChunkState::Cached => {
-                    canvas.set_draw_color(Color::RGBA(255, 64, 64, 64));
+                    canvas.set_draw_color(Color::RGBA(255, 127, 64, 64));
                 },
                 super::ChunkState::Active => {
                     canvas.set_draw_color(Color::RGBA(64, 255, 64, 127));
                 },
             }
-            canvas.fill_rect(transform.transform_rect(rc)).unwrap();
-            canvas.draw_rect(transform.transform_rect(rc)).unwrap();
+            let rect = transform.transform_rect(rc);
+            canvas.fill_rect(rect).unwrap();
+            canvas.draw_rect(rect).unwrap();
+            
+            // let ind = self.chunk_handler.chunk_index(ch.chunk_x, ch.chunk_y);
+            // let tex = canvas.texture_creator();
+            // let txt_sf = fonts.pixel_operator
+            //     .render(format!("{}", ind).as_str())
+            //     .solid(Color::RGB(255, 255, 255)).unwrap();
+            // let txt_tex = tex.create_texture_from_surface(&txt_sf).unwrap();
+
+            // let aspect = txt_sf.width() as f32 / txt_sf.height() as f32;
+            // let mut txt_height = rect.height() as f32 * 0.75;
+            // let mut txt_width = (aspect * txt_height as f32) as u32;
+
+            // let max_width = (rect.w as f32 * 0.9) as u32;
+
+            // if txt_width > max_width as u32 {
+            //     txt_width = max_width as u32;
+            //     txt_height = 1.0 / aspect * txt_width as f32;
+            // }
+
+            // let txt_rec = Rect::new(rect.x + rect.w/2 - (txt_width as i32)/2, rect.y, txt_width, txt_height as u32);
+            // canvas.copy(&txt_tex, None, Some(txt_rec)).unwrap();
+
         });
 
         canvas.set_draw_color(Color::RGBA(0, 255, 0, 255));

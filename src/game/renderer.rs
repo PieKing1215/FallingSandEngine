@@ -1,22 +1,42 @@
 
 use std::{cell::RefCell};
 
-use sdl2::{pixels::Color, render::{Canvas}, video::Window};
+use sdl2::{VideoSubsystem, pixels::Color, render::{Canvas}, ttf::{Font, Sdl2TtfContext}, video::Window};
 
 use super::{Game, Renderable, TransformStack};
 
-pub struct Renderer {
-    pub sdl: sdl2::Sdl,
-    pub canvas: RefCell<Canvas<Window>>
+pub struct Renderer<'ttf> {
+    pub fonts: Option<Fonts<'ttf>>,
+    pub canvas: RefCell<Canvas<Window>>,
 }
 
-impl Renderer {
+pub struct Fonts<'ttf> {
+    pub pixel_operator: Font<'ttf, 'static>,
+}
 
-    pub fn create() -> Result<Self, String> {
+pub struct Sdl2Context {
+    pub sdl: sdl2::Sdl,
+    pub sdl_video: VideoSubsystem,
+    pub sdl_ttf: Sdl2TtfContext,
+}
+
+impl<'a> Renderer<'a> {
+
+    pub fn init_sdl() -> Result<Sdl2Context, String> {
         let sdl = sdl2::init()?;
         let sdl_video = sdl.video()?;
-    
-        let window = Box::new(sdl_video.window("FallingSandRust", 1200, 800)
+        let sdl_ttf = sdl2::ttf::init().map_err(|e| e.to_string()).unwrap();
+
+        Ok(Sdl2Context {
+            sdl, 
+            sdl_video, 
+            sdl_ttf,
+        })
+    }
+
+    pub fn create(sdl: &Sdl2Context) -> Result<Self, String> {
+        
+        let window = Box::new(sdl.sdl_video.window("FallingSandRust", 1200, 800)
             .opengl() // allow getting opengl context
             .build()
             .unwrap());
@@ -30,23 +50,23 @@ impl Renderer {
         canvas.borrow_mut().present();
 
         return Ok(Renderer {
-            sdl: sdl,
-            canvas: canvas,
+            fonts: None,
+            canvas,
         });
     }
 
-    pub fn render(&self, game: &Game){
+    pub fn render(&self, sdl: &Sdl2Context, game: &Game){
         let canvas: &mut Canvas<Window> = &mut self.canvas.borrow_mut();
 
         canvas.set_draw_color(Color::RGBA(0, 0, 0, 255));
         canvas.clear();
         
-        self.render_internal(canvas, game);
+        self.render_internal(canvas, sdl, game);
 
         canvas.present();
     }
 
-    fn render_internal(&self, canvas: &mut Canvas<Window>, game: &Game){
+    fn render_internal(&self, canvas: &mut Canvas<Window>, sdl: &Sdl2Context, game: &Game){
        canvas.set_draw_color(Color::RGBA(255, 0, 0, 255));
        canvas.draw_rect(sdl2::rect::Rect::new(40 + ((game.tick_time as f32 / 5.0).sin() * 20.0) as i32, 30 + ((game.tick_time as f32 / 5.0).cos().abs() * -10.0) as i32, 15, 15)).unwrap();
 
@@ -60,7 +80,7 @@ impl Renderer {
         }
 
         if let Some(w) = &game.world {
-            w.render(canvas, &mut TransformStack::new(), game);
+            w.render(canvas, &mut TransformStack::new(), sdl, &self.fonts.as_ref().unwrap(), game);
         }
         
     }

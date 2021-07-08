@@ -7,6 +7,11 @@ edition = "2018"
 
 [dependencies]
 gl = "0.14.0"
+profiling = "1.0.3"
+
+[features]
+#default = ["profile-with-tracy"]
+#profile-with-tracy = ["profiling/profile-with-tracy"]
 
 [dependencies.sdl2]
 version = "0.34"

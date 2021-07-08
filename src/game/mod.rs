@@ -94,5 +94,5 @@ struct Transform {
 }
 
 trait Renderable {
-    fn render(&self, canvas : &mut Canvas<Window>, transform: &mut TransformStack, game: &Game);
+    fn render(&self, canvas : &mut Canvas<Window>, transform: &mut TransformStack, sdl: &Sdl2Context, fonts: &Fonts, game: &Game);
 }

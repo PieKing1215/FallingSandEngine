@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use sdl2::rect::Rect;
 
 use super::Camera;
@@ -21,57 +23,69 @@ pub enum ChunkState {
 }
 
 pub struct ChunkHandler {
-    pub loaded_chunks: Vec<Box<Chunk>>,
+    pub loaded_chunks: HashMap<u32, Box<Chunk>>,
     load_queue: Vec<(i32, i32)>,
     /** The size of the "presentable" area (not necessarily the current window size) */
     pub screen_size: (u16, u16),
 }
 
 impl ChunkHandler {
+    #[profiling::function]
     pub fn new() -> Self {
         ChunkHandler {
-            loaded_chunks: vec![],
+            loaded_chunks: HashMap::new(),
             load_queue: vec![],
             screen_size: (1920, 1080),
         }
     }
 
+    #[profiling::function]
     pub fn tick(&mut self, tick_time: u32, camera: &Camera){ // TODO: `camera` should be replaced with like a vec of entities or something
-
+        
         let unload_zone = self.get_unload_zone(camera);
         let load_zone = self.get_load_zone(camera);
         let active_zone = self.get_active_zone(camera);
         let screen_zone = self.get_screen_zone(camera);
         
-        for px in (load_zone.x .. load_zone.x + load_zone.w).step_by(CHUNK_SIZE.into()) {
-            for py in (load_zone.y .. load_zone.y + load_zone.h).step_by(CHUNK_SIZE.into()) {
-                let chunk_pos = self.pixel_to_chunk_pos(px.into(), py.into());
-                self.queue_load_chunk(chunk_pos.0, chunk_pos.1);
+        {
+            profiling::scope!("queue chunk loading");
+            for px in (load_zone.x .. load_zone.x + load_zone.w).step_by(CHUNK_SIZE.into()) {
+                for py in (load_zone.y .. load_zone.y + load_zone.h).step_by(CHUNK_SIZE.into()) {
+                    let chunk_pos = self.pixel_to_chunk_pos(px.into(), py.into());
+                    self.queue_load_chunk(chunk_pos.0, chunk_pos.1);
+                }
             }
         }
 
-        for _ in 0..40 {
-            // TODO: don't load queued chunks if they are no longer in range
-            if let Some(to_load) = self.load_queue.pop() {
-                self.load_chunk(to_load.0, to_load.1);
+        {
+            profiling::scope!("chunk loading");
+            for _ in 0..40 {
+                // TODO: don't load queued chunks if they are no longer in range
+                if let Some(to_load) = self.load_queue.pop() {
+                    self.load_chunk(to_load.0, to_load.1);
+                }
             }
         }
 
-        
         if tick_time % 2 == 0 {
+            profiling::scope!("chunk update A");
+
             let mut keep_map = vec![true; self.loaded_chunks.len()];
-            for i in 0..self.loaded_chunks.len() {
-                let state = self.loaded_chunks[i].state; // copy
-                let rect = Rect::new(self.loaded_chunks[i].chunk_x * CHUNK_SIZE as i32, self.loaded_chunks[i].chunk_y * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
+            let keys = self.loaded_chunks.keys().clone().map(|i| *i).collect::<Vec<u32>>();
+            for i in 0..keys.len() {
+                let key = keys[i];
+                
+                let state = self.loaded_chunks.get(&key).unwrap().state; // copy
+                let rect = Rect::new(self.loaded_chunks.get(&key).unwrap().chunk_x * CHUNK_SIZE as i32, self.loaded_chunks.get(&key).unwrap().chunk_y * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
 
                 match state {
                     ChunkState::Cached => {
                         if !rect.has_intersection(unload_zone) {
-                            self.unload_chunk(&self.loaded_chunks[i]);
+                            self.unload_chunk(&self.loaded_chunks.get(&key).unwrap());
                             keep_map[i] = false;
                         }else if rect.has_intersection(active_zone) {
-                            let chunk_x = self.loaded_chunks[i].chunk_x;
-                            let chunk_y = self.loaded_chunks[i].chunk_y;
+                            let chunk_x = self.loaded_chunks.get(&key).unwrap().chunk_x;
+                            let chunk_y = self.loaded_chunks.get(&key).unwrap().chunk_y;
                             if [
                                 self.get_chunk(chunk_x - 1, chunk_y - 1),
                                 self.get_chunk(chunk_x, chunk_y - 1),
@@ -96,13 +110,13 @@ impl ChunkHandler {
                                     _ => false,
                                 }
                             }) {
-                                self.loaded_chunks[i].state = ChunkState::Active;
+                                self.loaded_chunks.get_mut(&key).unwrap().state = ChunkState::Active;
                             }
                         }
                     },
                     ChunkState::Active => {
                         if !rect.has_intersection(active_zone) {
-                            self.loaded_chunks[i].state = ChunkState::Cached;
+                            self.loaded_chunks.get_mut(&key).unwrap().state = ChunkState::Cached;
                         }
                     }
                     _ => {},
@@ -110,35 +124,39 @@ impl ChunkHandler {
             }
 
             let mut iter = keep_map.iter();
-            self.loaded_chunks.retain(|_| *iter.next().unwrap());
+            self.loaded_chunks.retain(|_, _| *iter.next().unwrap());
         }
 
-        if tick_time % 4 == 0 {
+        if tick_time % 2 == 0 {
+            profiling::scope!("chunk update B");
+
             let mut num_loaded_this_tick = 0;
             let mut keep_map = vec![true; self.loaded_chunks.len()];
-            for i in 0..self.loaded_chunks.len() {
-                let state = self.loaded_chunks[i].state; // copy
-                let rect = Rect::new(self.loaded_chunks[i].chunk_x * CHUNK_SIZE as i32, self.loaded_chunks[i].chunk_y * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
+            let keys = self.loaded_chunks.keys().clone().map(|i| *i).collect::<Vec<u32>>();
+            for i in 0..keys.len() {
+                let key = keys[i];
+                let state = self.loaded_chunks.get(&key).unwrap().state; // copy
+                let rect = Rect::new(self.loaded_chunks.get(&key).unwrap().chunk_x * CHUNK_SIZE as i32, self.loaded_chunks.get(&key).unwrap().chunk_y * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
 
                 match state {
                     ChunkState::NotGenerated => {
                         if !rect.has_intersection(unload_zone) {
-                            self.unload_chunk(&self.loaded_chunks[i]);
+                            self.unload_chunk(&self.loaded_chunks.get(&key).unwrap());
                             keep_map[i] = false;
                         }else if num_loaded_this_tick < 16 {
                             // TODO: load from file
-                            self.loaded_chunks[i].state = ChunkState::Generating(0);
+                            self.loaded_chunks.get_mut(&key).unwrap().state = ChunkState::Generating(0);
                             num_loaded_this_tick += 1;
                         }
                     },
                     ChunkState::Generating(stage) => {
-                        let chunk_x = self.loaded_chunks[i].chunk_x;
-                        let chunk_y = self.loaded_chunks[i].chunk_y;
+                        let chunk_x = self.loaded_chunks.get(&key).unwrap().chunk_x;
+                        let chunk_y = self.loaded_chunks.get(&key).unwrap().chunk_y;
 
                         let max_stage = 4;
 
                         if stage >= max_stage {
-                            self.loaded_chunks[i].state = ChunkState::Cached;
+                            self.loaded_chunks.get_mut(&key).unwrap().state = ChunkState::Cached;
                         } else {
                             if [
                                 self.get_chunk(chunk_x - 1, chunk_y - 1),
@@ -165,11 +183,11 @@ impl ChunkHandler {
                                     _ => false,
                                 }
                             }) {
-                                self.loaded_chunks[i].state = ChunkState::Generating(stage + 1);
+                                self.loaded_chunks.get_mut(&key).unwrap().state = ChunkState::Generating(stage + 1);
                             }
 
                             if !rect.has_intersection(unload_zone) {
-                                self.unload_chunk(&self.loaded_chunks[i]);
+                                self.unload_chunk(&self.loaded_chunks.get(&key).unwrap());
                                 keep_map[i] = false;
                             }
                         }
@@ -179,15 +197,17 @@ impl ChunkHandler {
             }
 
             let mut iter = keep_map.iter();
-            self.loaded_chunks.retain(|_| *iter.next().unwrap());
+            self.loaded_chunks.retain(|_, _| *iter.next().unwrap());
         }
 
     }
 
+    #[profiling::function]
     fn unload_chunk(&self, chunk: &Chunk){
         // write to file, free textures, etc
     }
 
+    #[profiling::function]
     pub fn queue_load_chunk(&mut self, chunk_x: i32, chunk_y: i32) -> bool {
         // make sure not loaded
         if self.is_chunk_loaded(chunk_x, chunk_y) {
@@ -204,51 +224,83 @@ impl ChunkHandler {
         return true;
     }
 
+    #[profiling::function]
     fn load_chunk(&mut self, chunk_x: i32, chunk_y: i32){
         let chunk = Chunk{
             chunk_x: chunk_x,
             chunk_y: chunk_y,
             state: ChunkState::NotGenerated,
         };
-        self.loaded_chunks.push(Box::new(chunk));
+        self.loaded_chunks.insert(self.chunk_index(chunk_x, chunk_y), Box::new(chunk));
     }
 
+    pub fn chunk_index(&self, chunk_x: i32, chunk_y: i32) -> u32 {
+        let int_to_nat = |i: i32| if i >= 0 {(2 * i) as u32}else{(-2 * i - 1) as u32};
+        let xx: u32 = int_to_nat(chunk_x);
+        let yy: u32 = int_to_nat(chunk_y);
+
+        // TODO: this multiply is the first thing to overflow if you go out too far
+        //          (though you need to go out ~32768 chunks (2^16 / 2)
+        return ((xx + yy) * (xx + yy + 1)) / 2 + yy;
+    }
+
+    pub fn chunk_index_inv(&self, index: u32) -> (i32, i32) {
+        let w = (((8 * index + 1) as f32).sqrt() - 1.0).floor() as u32 / 2;
+        let t = (w * w + w) / 2;
+        let yy = index - t;
+        let xx = w - yy;
+        let nat_to_int = |i: u32| if i % 2 == 0 {(i/2) as i32}else{-((i/2 + 1) as i32)};
+        let x = nat_to_int(xx);
+        let y = nat_to_int(yy);
+
+        return (x, y);
+    }
+
+    #[profiling::function]
     pub fn is_chunk_loaded(&self, chunk_x: i32, chunk_y: i32) -> bool {
-        self.loaded_chunks.iter().any(|ch| ch.chunk_x == chunk_x && ch.chunk_y == chunk_y)
+        self.loaded_chunks.contains_key(&self.chunk_index(chunk_x, chunk_y))
     }
 
+    #[profiling::function]
     pub fn is_pixel_loaded(&self, x: i64, y: i64) -> bool {
         let chunk_pos = self.pixel_to_chunk_pos(x, y);
         self.is_chunk_loaded(chunk_pos.0, chunk_pos.1)
     }
 
+    #[profiling::function]
     pub fn pixel_to_chunk_pos(&self, x: i64, y: i64) -> (i32, i32) {
         ((x as f64 / CHUNK_SIZE as f64).floor() as i32,
             (y as f64 / CHUNK_SIZE as f64).floor() as i32)
     }
 
+    #[profiling::function]
     pub fn get_chunk(&self, chunk_x: i32, chunk_y: i32) -> Option<&Box<Chunk>> {
-        self.loaded_chunks.iter().find(|ch| ch.chunk_x == chunk_x && ch.chunk_y == chunk_y)
+        self.loaded_chunks.get(&self.chunk_index(chunk_x, chunk_y))
     }
 
+    #[profiling::function]
     pub fn get_zone(&self, camera: &Camera, padding: u32) -> Rect {
         let width = self.screen_size.0 as u32 + padding * 2;
         let height = self.screen_size.1 as u32 + padding * 2;
         Rect::new(camera.x as i32 - (width / 2) as i32, camera.y as i32 - (height / 2) as i32, width, height)
     }
 
+    #[profiling::function]
     pub fn get_screen_zone(&self, camera: &Camera) -> Rect {
         self.get_zone(camera, 0)
     }
 
+    #[profiling::function]
     pub fn get_active_zone(&self, camera: &Camera) -> Rect {
         self.get_zone(camera, CHUNK_SIZE.into())
     }
 
+    #[profiling::function]
     pub fn get_load_zone(&self, camera: &Camera) -> Rect {
         self.get_zone(camera, (CHUNK_SIZE * 8).into())
     }
 
+    #[profiling::function]
     pub fn get_unload_zone(&self, camera: &Camera) -> Rect {
         self.get_zone(camera, (CHUNK_SIZE * 12).into())
     }

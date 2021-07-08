@@ -6,3 +6,6 @@
 # rust
 /target
 Cargo.lock
+
+# tools
+/Tracy-0.7.8

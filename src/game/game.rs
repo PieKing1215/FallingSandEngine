@@ -1,4 +1,5 @@
 
+use super::{Fonts, Sdl2Context};
 use super::{Renderer, world::Camera};
 use super::world::World;
 
@@ -7,8 +8,9 @@ use sdl2::keyboard::Keycode;
 use std::time::{Duration, Instant};
 
 
-pub struct Game {
-    renderer: Option<Renderer>,
+pub struct Game<'a> {
+    renderer: Option<Box<Renderer<'a>>>,
+    sdl: Option<&'a Sdl2Context>,
     pub world: Option<World>,
     pub tick_time: u32,
     pub frame_count: u32,
@@ -21,7 +23,8 @@ pub struct FPSCounter {
     pub display_value: u16
 }
 
-impl Game {
+impl<'a, 'b> Game<'a> {
+    #[profiling::function]
     pub fn new() -> Self {
         Game {
             renderer: None,
@@ -32,22 +35,33 @@ impl Game {
                 frames: 0, 
                 last_update: Instant::now(), 
                 display_value: 0
-            }
+            },
+            sdl: None,
         }
     }
 
-    pub fn init(&mut self) -> Result<(), String>  {
-        let r = Renderer::create()?;
-
+    #[profiling::function]
+    pub fn init(&'b mut self, sdl: &'a Sdl2Context) -> Result<(), String>  {
+        // 
+        let r = Box::new(Renderer::create(&sdl)?);
         self.renderer = Some(r);
+
+        let rm = self.renderer.as_mut().unwrap();
+        let pixel_operator2 = sdl.sdl_ttf.load_font("./assets/font/pixel_operator/PixelOperator.ttf", 16).unwrap();
+        let f = Some(Fonts {
+            pixel_operator: pixel_operator2,
+        });
+        rm.fonts = f;
+        self.sdl = Some(sdl);
 
         return Ok(());
     }
 
-    pub fn run(&mut self) {
+    #[profiling::function]
+    pub fn run(&mut self, sdl: &Sdl2Context) {
         let mut prev_frame_time = std::time::Instant::now();
 
-        let mut event_pump = self.renderer.as_ref().map(|r| r.sdl.event_pump().unwrap());
+        let mut event_pump = self.renderer.as_ref().map(|r| self.sdl.as_ref().unwrap().sdl.event_pump().unwrap());
 
         'mainLoop: loop {
 
@@ -85,7 +99,7 @@ impl Game {
 
             // render
             if let Some(r) = &self.renderer {
-                r.render(self);
+                r.render(sdl, self);
                 self.frame_count += 1;
                 self.fps_counter.frames += 1;
                 if now.saturating_duration_since(self.fps_counter.last_update).as_millis() >= 1000 {
@@ -99,6 +113,7 @@ impl Game {
                 }
             }
 
+            profiling::finish_frame!();
             // sleep
             ::std::thread::sleep(Duration::new(0, 1_000_000)); // 1ms sleep so the computer doesn't explode
         }
@@ -106,6 +121,7 @@ impl Game {
         println!("Closing...");
     }
 
+    #[profiling::function]
     fn tick(&mut self){
         self.tick_time += 1;
 
