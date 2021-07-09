@@ -1,16 +1,67 @@
-use std::collections::HashMap;
+use std::{cell::Cell, collections::HashMap};
 
-use sdl2::rect::Rect;
+use rand::Rng;
+use sdl2::{pixels::Color, rect::Rect, render::{TextureCreator, TextureValueError}, surface::Surface, video::WindowContext};
 
-use super::Camera;
+use crate::game::{RenderCanvas, Renderable};
+
+use super::{Camera, MaterialInstance};
 
 
 pub const CHUNK_SIZE: u16 = 128;
 
-pub struct Chunk {
+pub struct Chunk<'ch> {
     pub chunk_x: i32,
     pub chunk_y: i32,
     pub state: ChunkState,
+    pub pixels: Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
+    pub graphics: Option<ChunkGraphics<'ch>>,
+}
+
+impl<'ch> Chunk<'ch> {
+    pub fn new_empty(chunk_x: i32, chunk_y: i32) -> Self {
+        Self {
+            chunk_x,
+            chunk_y,
+            state: ChunkState::NotGenerated,
+            pixels: None,
+            graphics: None,
+        }
+    }
+
+    pub fn update_graphics(&mut self, texture_creator: &'ch TextureCreator<WindowContext>) -> Result<(), String> {
+        if self.graphics.is_none() {
+            let mut surf = Surface::new(CHUNK_SIZE as u32, CHUNK_SIZE as u32, sdl2::pixels::PixelFormatEnum::ARGB8888).unwrap();
+
+            let mut rng = rand::thread_rng();
+
+            let rect = surf.rect();
+            surf.fill_rect(rect, Color::RGB(rng.gen::<u8>(), rng.gen::<u8>(), rng.gen::<u8>())).unwrap();
+
+            let tex = texture_creator;
+            self.graphics = Some(ChunkGraphics {
+                texture: surf.as_texture(&tex).unwrap(),
+                surface: surf,
+                dirty: false,
+            });
+        }else {
+            self.graphics.as_mut().unwrap().update_texture(texture_creator).map_err(|e| e.to_string())?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Renderable for Chunk<'_> {
+    fn render(&self, canvas : &mut sdl2::render::Canvas<sdl2::video::Window>, transform: &mut crate::game::TransformStack, sdl: &crate::game::Sdl2Context, fonts: &crate::game::Fonts, game: &crate::game::Game) {
+        if let Some(gr) = &self.graphics {
+            gr.render(canvas, transform, sdl, fonts, game);
+        }else{
+            let chunk_rect = transform.transform_rect(Rect::new(0, 0, CHUNK_SIZE as u32, CHUNK_SIZE as u32));
+            canvas.set_draw_color(Color::RGB(127, 0, 0));
+            canvas.fill_rect(chunk_rect).unwrap();
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -22,20 +73,60 @@ pub enum ChunkState {
     Active,
 }
 
-pub struct ChunkHandler {
-    pub loaded_chunks: HashMap<u32, Box<Chunk>>,
+pub struct ChunkGraphics<'cg> {
+    surface: sdl2::surface::Surface<'cg>,
+    texture: sdl2::render::Texture<'cg>,
+    dirty: bool,
+}
+
+impl<'cg> ChunkGraphics<'cg> {
+    pub fn set(&mut self, x: u16, y: u16, color: Color) -> Result<(), String> {
+        if x < CHUNK_SIZE && y < CHUNK_SIZE {
+            self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
+            self.dirty = true;
+        }
+
+        Err("Invalid pixel coordinate".to_string())
+    }
+
+    pub fn update_texture(&mut self, texture_creator: &'cg TextureCreator<WindowContext>) -> Result<(), TextureValueError> {
+        if self.dirty {
+            self.texture = self.surface.as_texture(texture_creator)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Renderable for ChunkGraphics<'_> {
+    fn render(&self, canvas : &mut sdl2::render::Canvas<sdl2::video::Window>, transform: &mut crate::game::TransformStack, sdl: &crate::game::Sdl2Context, fonts: &crate::game::Fonts, game: &crate::game::Game) {
+        let chunk_rect = transform.transform_rect(Rect::new(0, 0, CHUNK_SIZE as u32, CHUNK_SIZE as u32));
+        canvas.copy(&self.texture, None, Some(chunk_rect)).unwrap();
+    }
+}
+
+pub struct ChunkHandler<'a> {
+    pub loaded_chunks: HashMap<u32, Box<Chunk<'a>>>,
     load_queue: Vec<(i32, i32)>,
     /** The size of the "presentable" area (not necessarily the current window size) */
     pub screen_size: (u16, u16),
 }
 
-impl ChunkHandler {
+impl<'a> ChunkHandler<'a> {
     #[profiling::function]
     pub fn new() -> Self {
         ChunkHandler {
             loaded_chunks: HashMap::new(),
             load_queue: vec![],
             screen_size: (1920, 1080),
+        }
+    }
+
+    pub fn update_chunk_graphics(&mut self, texture_creator: &'a TextureCreator<WindowContext>){
+        let keys = self.loaded_chunks.keys().clone().map(|i| *i).collect::<Vec<u32>>();
+        for i in 0..keys.len() {
+            let key = keys[i];
+            self.loaded_chunks.get_mut(&key).unwrap().update_graphics(texture_creator).unwrap();
         }
     }
 
@@ -226,11 +317,7 @@ impl ChunkHandler {
 
     #[profiling::function]
     fn load_chunk(&mut self, chunk_x: i32, chunk_y: i32){
-        let chunk = Chunk{
-            chunk_x: chunk_x,
-            chunk_y: chunk_y,
-            state: ChunkState::NotGenerated,
-        };
+        let chunk = Chunk::new_empty(chunk_x, chunk_y);
         self.loaded_chunks.insert(self.chunk_index(chunk_x, chunk_y), Box::new(chunk));
     }
 

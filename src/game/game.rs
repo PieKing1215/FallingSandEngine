@@ -3,15 +3,16 @@ use super::{Fonts, Sdl2Context};
 use super::{Renderer, world::Camera};
 use super::world::World;
 
+use sdl2::Sdl;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
+use sdl2::render::TextureCreator;
+use sdl2::video::WindowContext;
 use std::time::{Duration, Instant};
 
 
 pub struct Game<'a> {
-    renderer: Option<Box<Renderer<'a>>>,
-    sdl: Option<&'a Sdl2Context>,
-    pub world: Option<World>,
+    pub world: Option<World<'a>>,
     pub tick_time: u32,
     pub frame_count: u32,
     fps_counter: FPSCounter
@@ -27,7 +28,6 @@ impl<'a, 'b> Game<'a> {
     #[profiling::function]
     pub fn new() -> Self {
         Game {
-            renderer: None,
             world: Some(World::create()),
             tick_time: 0,
             frame_count: 0,
@@ -36,57 +36,54 @@ impl<'a, 'b> Game<'a> {
                 last_update: Instant::now(), 
                 display_value: 0
             },
-            sdl: None,
         }
     }
 
+    // #[profiling::function]
+    // pub fn init(&'b mut self, sdl: &'a Sdl2Context) -> Result<(), String>  {
+        
+    //     let r = Box::new(Renderer::create(&sdl)?);
+    //     self.renderer = Some(r);
+
+    //     let rm = self.renderer.as_mut().unwrap();
+    //     let pixel_operator2 = sdl.sdl_ttf.load_font("./assets/font/pixel_operator/PixelOperator.ttf", 16).unwrap();
+    //     let f = Some(Fonts {
+    //         pixel_operator: pixel_operator2,
+    //     });
+    //     rm.fonts = f;
+    //     self.sdl = Some(sdl);
+
+    //     return Ok(());
+    // }
+
     #[profiling::function]
-    pub fn init(&'b mut self, sdl: &'a Sdl2Context) -> Result<(), String>  {
-        // 
-        let r = Box::new(Renderer::create(&sdl)?);
-        self.renderer = Some(r);
-
-        let rm = self.renderer.as_mut().unwrap();
-        let pixel_operator2 = sdl.sdl_ttf.load_font("./assets/font/pixel_operator/PixelOperator.ttf", 16).unwrap();
-        let f = Some(Fonts {
-            pixel_operator: pixel_operator2,
-        });
-        rm.fonts = f;
-        self.sdl = Some(sdl);
-
-        return Ok(());
-    }
-
-    #[profiling::function]
-    pub fn run(&mut self, sdl: &Sdl2Context) {
+    pub fn run(&mut self, sdl: &Sdl2Context, renderer: Option<&Renderer>, texture_creator: &'a TextureCreator<WindowContext>) {
         let mut prev_frame_time = std::time::Instant::now();
 
-        let mut event_pump = self.renderer.as_ref().map(|r| self.sdl.as_ref().unwrap().sdl.event_pump().unwrap());
+        let mut event_pump = sdl.sdl.event_pump().unwrap();
 
         'mainLoop: loop {
 
-            if event_pump.is_some() {
-                for event in event_pump.as_mut().unwrap().poll_iter() {
-                    match event {
-                        Event::Quit {..} |
-                        Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                            break 'mainLoop
-                        },
-                        Event::MouseWheel { y, .. } => {
+            for event in event_pump.poll_iter() {
+                match event {
+                    Event::Quit {..} |
+                    Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
+                        break 'mainLoop
+                    },
+                    Event::MouseWheel { y, .. } => {
+                        if let Some(w) = &mut self.world {
+                            w.camera.scale *= 1.0 + 0.1 * y as f64;
+                        }
+                    },
+                    Event::MouseMotion{xrel, yrel, mousestate , ..} => {
+                        if mousestate.left() {
                             if let Some(w) = &mut self.world {
-                                w.camera.scale *= 1.0 + 0.1 * y as f64;
+                                w.camera.x -= (xrel as f64) / w.camera.scale;
+                                w.camera.y -= (yrel as f64) / w.camera.scale;
                             }
-                        },
-                        Event::MouseMotion{xrel, yrel, mousestate , ..} => {
-                            if mousestate.left() {
-                                if let Some(w) = &mut self.world {
-                                    w.camera.x -= (xrel as f64) / w.camera.scale;
-                                    w.camera.y -= (yrel as f64) / w.camera.scale;
-                                }
-                            }
-                        },
-                        _ => {}
-                    }
+                        }
+                    },
+                    _ => {}
                 }
             }
 
@@ -94,11 +91,11 @@ impl<'a, 'b> Game<'a> {
             let now = std::time::Instant::now();
             if now.saturating_duration_since(prev_frame_time).as_nanos() > 1_000_000_000 / 30 { // 30 ticks per second
                 prev_frame_time = now;
-                self.tick();
+                self.tick(texture_creator);
             }
 
             // render
-            if let Some(r) = &self.renderer {
+            if let Some(r) = renderer {
                 r.render(sdl, self);
                 self.frame_count += 1;
                 self.fps_counter.frames += 1;
@@ -122,11 +119,11 @@ impl<'a, 'b> Game<'a> {
     }
 
     #[profiling::function]
-    fn tick(&mut self){
+    fn tick(&mut self, texture_creator: &'a TextureCreator<WindowContext>){
         self.tick_time += 1;
 
         if let Some(w) = &mut self.world {
-            w.tick(self.tick_time);
+            w.tick(self.tick_time, texture_creator);
         }
     }
 

@@ -36,8 +36,8 @@ impl TransformStack {
     }
 
     pub fn translate<T: Into<f64>>(&mut self, x: T, y: T){
-        self.stack.last_mut().unwrap().translate_x += x.into() / self.stack.last_mut().unwrap().scale_x;
-        self.stack.last_mut().unwrap().translate_y += y.into() / self.stack.last_mut().unwrap().scale_y;
+        self.stack.last_mut().unwrap().translate_x += x.into();
+        self.stack.last_mut().unwrap().translate_y += y.into();
     }
 
     pub fn scale<T: Into<f64>>(&mut self, x: T, y: T){

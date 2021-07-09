@@ -1,7 +1,7 @@
 
 use std::{cell::RefCell};
 
-use sdl2::{VideoSubsystem, pixels::Color, render::{Canvas}, ttf::{Font, Sdl2TtfContext}, video::Window};
+use sdl2::{VideoSubsystem, pixels::Color, render::{Canvas, TextureCreator}, ttf::{Font, Sdl2TtfContext}, video::{Window, WindowContext}};
 
 use super::{Game, Renderable, TransformStack};
 
