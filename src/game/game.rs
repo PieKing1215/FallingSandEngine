@@ -62,6 +62,8 @@ impl<'a, 'b> Game<'a> {
 
         let mut event_pump = sdl.sdl.event_pump().unwrap();
 
+        let mut shift_key = false;
+
         'mainLoop: loop {
 
             for event in event_pump.poll_iter() {
@@ -70,9 +72,27 @@ impl<'a, 'b> Game<'a> {
                     Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                         break 'mainLoop
                     },
+                    Event::KeyDown { keycode: Some(Keycode::RShift | Keycode::LShift), .. } => {
+                        shift_key = true;
+                    },
+                    Event::KeyUp { keycode: Some(Keycode::RShift | Keycode::LShift), .. } => {
+                        shift_key = false;
+                    },
                     Event::MouseWheel { y, .. } => {
                         if let Some(w) = &mut self.world {
-                            w.camera.scale *= 1.0 + 0.1 * y as f64;
+                            if shift_key {
+                                let mut v = w.camera.scale + 0.1 * y as f64;
+                                if y > 0 {
+                                    v = v.ceil();
+                                }else {
+                                    v = v.floor();
+                                }
+
+                                v = v.clamp(1.0, 10.0);
+                                w.camera.scale = v;
+                            }else{
+                                w.camera.scale = (w.camera.scale * (1.0 + 0.1 * y as f64)).clamp(0.01, 10.0);
+                            }
                         }
                     },
                     Event::MouseMotion{xrel, yrel, mousestate , ..} => {
