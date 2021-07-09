@@ -75,4 +75,8 @@ impl WorldGenerator for TestGenerator {
             }
         }
     }
+
+    fn max_gen_stage(&self) -> u8 {
+        2
+    }
 }

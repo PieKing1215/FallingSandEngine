@@ -344,7 +344,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<'a, T> {
                         let chunk_x = self.loaded_chunks.get(&key).unwrap().chunk_x;
                         let chunk_y = self.loaded_chunks.get(&key).unwrap().chunk_y;
 
-                        let max_stage = 4;
+                        let max_stage = self.generator.max_gen_stage();
 
                         if stage >= max_stage {
                             self.loaded_chunks.get_mut(&key).unwrap().state = ChunkState::Cached;

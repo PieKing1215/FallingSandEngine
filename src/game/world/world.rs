@@ -65,7 +65,7 @@ impl Renderable for World<'_> {
 
         self.chunk_handler.loaded_chunks.iter().for_each(|(_i, ch)| {
             let culling = false;
-            let state_overlay = false;
+            let state_overlay = true;
 
             let rc = Rect::new(ch.chunk_x * CHUNK_SIZE as i32, ch.chunk_y * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
             if !culling || rc.has_intersection(screen_zone){
@@ -84,7 +84,7 @@ impl Renderable for World<'_> {
                         canvas.set_draw_color(Color::RGBA(127, 127, 127, 191));
                     },
                     super::ChunkState::Generating(stage) => {
-                        canvas.set_draw_color(Color::RGBA(64, (stage as f32 / 4.0 * 255.0) as u8, 255, 191));
+                        canvas.set_draw_color(Color::RGBA(64, (stage as f32 / self.chunk_handler.generator.max_gen_stage() as f32 * 255.0) as u8, 255, 191));
                     },
                     super::ChunkState::Cached => {
                         canvas.set_draw_color(Color::RGBA(255, 127, 64, 191));
