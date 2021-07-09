@@ -61,7 +61,7 @@ impl TransformStack {
         let pos = self.transform_int((rect.x, rect.y));
 
         let t = self.stack.last().unwrap();
-        Rect::new(pos.0, pos.1, (rect.w as f64 * t.scale_x) as u32, (rect.h as f64 * t.scale_y) as u32)
+        Rect::new(pos.0, pos.1, (rect.w as f64 * t.scale_x).ceil() as u32, (rect.h as f64 * t.scale_y).ceil() as u32)
     }
 
     pub fn inv_transform<T: Into<f64>>(&self, point: (T, T)) -> (f64, f64) {
