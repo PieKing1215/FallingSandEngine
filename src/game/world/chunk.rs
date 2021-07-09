@@ -1,7 +1,10 @@
-use std::{cell::Cell, collections::HashMap};
+use std::{borrow::BorrowMut, cell::Cell, collections::HashMap, process::Output, sync::Arc, thread::spawn};
 
+use futures::{Future, executor::{ThreadPool, block_on}, future::join_all, stream::select_all, task::SpawnExt};
+use lazy_static::lazy_static;
 use rand::Rng;
 use sdl2::{pixels::Color, rect::Rect, render::{TextureCreator, TextureValueError}, surface::Surface, video::WindowContext};
+use tokio::runtime::Runtime;
 
 use crate::game::{RenderCanvas, Renderable};
 
@@ -15,7 +18,7 @@ pub struct Chunk<'ch> {
     pub chunk_y: i32,
     pub state: ChunkState,
     pub pixels: Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
-    pub graphics: ChunkGraphics<'ch>,
+    pub graphics: Box<ChunkGraphics<'ch>>,
 }
 
 impl<'ch> Chunk<'ch> {
@@ -25,11 +28,19 @@ impl<'ch> Chunk<'ch> {
             chunk_y,
             state: ChunkState::NotGenerated,
             pixels: None,
-            graphics: ChunkGraphics {
+            graphics: Box::new(ChunkGraphics {
                 surface: Surface::new(CHUNK_SIZE as u32, CHUNK_SIZE as u32, sdl2::pixels::PixelFormatEnum::ARGB8888).unwrap(),
                 texture: None,
                 dirty: true,
-            },
+            }),
+        }
+    }
+
+    pub fn refresh(&mut self){
+        for x in 0..CHUNK_SIZE {
+            for y in 0..CHUNK_SIZE {
+                self.graphics.set(x, y, self.pixels.unwrap()[(x + y * CHUNK_SIZE) as usize].color).unwrap();
+            }
         }
     }
 
@@ -99,6 +110,12 @@ impl<'cg> ChunkGraphics<'cg> {
 
         Ok(())
     }
+
+    pub fn replace(&mut self, mut colors: [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]){
+        let sf = Surface::from_data(&mut colors, CHUNK_SIZE as u32, CHUNK_SIZE as u32, self.surface.pitch(), self.surface.pixel_format_enum()).unwrap();
+        sf.blit(None, &mut self.surface, None).unwrap();
+        self.dirty = true;
+    }
 }
 
 impl Renderable for ChunkGraphics<'_> {
@@ -114,17 +131,17 @@ impl Renderable for ChunkGraphics<'_> {
     }
 }
 
-pub struct ChunkHandler<'a> {
+pub struct ChunkHandler<'a, T: WorldGenerator + Copy + Send + Sync + 'static> {
     pub loaded_chunks: HashMap<u32, Box<Chunk<'a>>>,
     load_queue: Vec<(i32, i32)>,
     /** The size of the "presentable" area (not necessarily the current window size) */
     pub screen_size: (u16, u16),
-    pub generator: Box<dyn WorldGenerator>,
+    pub generator: T,
 }
 
-impl<'a> ChunkHandler<'a> {
+impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<'a, T> {
     #[profiling::function]
-    pub fn new(generator: Box<dyn WorldGenerator>) -> Self {
+    pub fn new(generator: T) -> Self {
         ChunkHandler {
             loaded_chunks: HashMap::new(),
             load_queue: vec![],
@@ -161,7 +178,7 @@ impl<'a> ChunkHandler<'a> {
 
         {
             profiling::scope!("chunk loading");
-            for _ in 0..40 {
+            for _ in 0..64 {
                 // TODO: don't load queued chunks if they are no longer in range
                 if let Some(to_load) = self.load_queue.pop() {
                     self.load_chunk(to_load.0, to_load.1);
@@ -233,6 +250,82 @@ impl<'a> ChunkHandler<'a> {
             profiling::scope!("chunk update B");
 
             let mut num_loaded_this_tick = 0;
+
+            let mut keys = self.loaded_chunks.keys().clone().map(|i| *i).collect::<Vec<u32>>();
+            keys.sort_by(|a, b| {
+                let c1_x = self.loaded_chunks.get(a).unwrap().chunk_x * CHUNK_SIZE as i32;
+                let c1_y = self.loaded_chunks.get(a).unwrap().chunk_y * CHUNK_SIZE as i32;
+                let c2_x = self.loaded_chunks.get(b).unwrap().chunk_x * CHUNK_SIZE as i32;
+                let c2_y = self.loaded_chunks.get(b).unwrap().chunk_y * CHUNK_SIZE as i32;
+
+                let d1_x = (camera.x as i32 - c1_x).abs();
+                let d1_y = (camera.y as i32 - c1_y).abs();
+                let d1 = d1_x + d1_y;
+
+                let d2_x = (camera.x as i32 - c2_x).abs();
+                let d2_y = (camera.y as i32 - c2_y).abs();
+                let d2 = d2_x + d2_y;
+
+                d1.cmp(&d2)
+            });
+            let mut to_exec = vec![];
+            for i in 0..keys.len() {
+                let key = keys[i];
+                let state = self.loaded_chunks.get(&key).unwrap().state; // copy
+                let rect = Rect::new(self.loaded_chunks.get(&key).unwrap().chunk_x * CHUNK_SIZE as i32, self.loaded_chunks.get(&key).unwrap().chunk_y * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
+
+                match state {
+                    ChunkState::NotGenerated => {
+                        if !rect.has_intersection(unload_zone) {
+
+                        }else if num_loaded_this_tick < 32 {
+                            // TODO: load from file
+                            
+                            self.loaded_chunks.get_mut(&key).unwrap().state = ChunkState::Generating(0);
+                            
+                            let chunk_x = self.loaded_chunks.get_mut(&key).unwrap().chunk_x;
+                            let chunk_y = self.loaded_chunks.get_mut(&key).unwrap().chunk_y;
+
+                            to_exec.push((i, chunk_x, chunk_y));
+                            // generation_pool.spawn_ok(fut);
+                            num_loaded_this_tick += 1;
+                        }
+                    },
+                    _ => {},
+                }
+            }
+
+            lazy_static! {
+                static ref RT: Runtime = Runtime::new().unwrap();
+            }
+
+            if to_exec.len() > 0 {
+                // println!("a {}", to_exec.len());
+
+                let gen = self.generator;
+                // WARNING: LEAK
+                let futs: Vec<_> = Box::leak(Box::new(to_exec)).iter().map(|e| Arc::from(e)).map(|e| async move {
+                    let mut pixels = Box::new([MaterialInstance::air(); (CHUNK_SIZE * CHUNK_SIZE) as usize]);
+                    let mut colors = Box::new([0; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]);
+                    gen.generate(e.1, e.2, &mut pixels, &mut colors);
+                    // println!("{}", e.0);
+                    (e.0, pixels, colors)
+                }).collect();
+                let futs2: Vec<_> = futs.into_iter().map(|f| RT.spawn(f)).collect();
+                let b = RT.block_on(join_all(futs2));
+                for i in 0..b.len() {
+                    let p = b[i].as_ref().unwrap();
+                    // println!("{} {}", i, p.0);
+                    self.loaded_chunks.get_mut(&keys[p.0]).unwrap().pixels = Some(*p.1);
+                    self.loaded_chunks.get_mut(&keys[p.0]).unwrap().graphics.replace(*p.2);
+                }
+            }
+
+        }
+
+        if tick_time % 2 == 0 {
+            profiling::scope!("chunk update C");
+
             let mut keep_map = vec![true; self.loaded_chunks.len()];
             let keys = self.loaded_chunks.keys().clone().map(|i| *i).collect::<Vec<u32>>();
             for i in 0..keys.len() {
@@ -245,12 +338,6 @@ impl<'a> ChunkHandler<'a> {
                         if !rect.has_intersection(unload_zone) {
                             self.unload_chunk(&self.loaded_chunks.get(&key).unwrap());
                             keep_map[i] = false;
-                        }else if num_loaded_this_tick < 8 {
-                            // TODO: load from file
-                            self.loaded_chunks.get_mut(&key).unwrap().state = ChunkState::Generating(0);
-                            self.loaded_chunks.get_mut(&key).unwrap().pixels = Some([MaterialInstance::air(); (CHUNK_SIZE * CHUNK_SIZE) as usize]);
-                            self.generator.as_ref().generate(self.loaded_chunks.get_mut(&key).unwrap());
-                            num_loaded_this_tick += 1;
                         }
                     },
                     ChunkState::Generating(stage) => {

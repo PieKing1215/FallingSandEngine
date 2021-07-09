@@ -3,11 +3,11 @@ use sdl2::{pixels::Color, rect::Rect, render::{Canvas, TextureCreator}, video::W
 
 use crate::game::{Fonts, Game, RenderCanvas, Renderable, Sdl2Context, TransformStack};
 
-use super::{CHUNK_SIZE, ChunkHandler, gen::TestGenerator};
+use super::{CHUNK_SIZE, ChunkHandler, gen::{TEST_GENERATOR, TestGenerator}};
 
 pub struct World<'w> {
     pub camera: Camera,
-    pub chunk_handler: ChunkHandler<'w>,
+    pub chunk_handler: ChunkHandler<'w, TestGenerator>,
 }
 
 pub struct Camera {
@@ -25,7 +25,7 @@ impl<'w> World<'w> {
                 y: 0.0,
                 scale: 2.0,
             },
-            chunk_handler: ChunkHandler::new(Box::new(TestGenerator{})),
+            chunk_handler: ChunkHandler::new(TEST_GENERATOR),
         }
     }
 

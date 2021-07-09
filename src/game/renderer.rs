@@ -38,6 +38,7 @@ impl<'a> Renderer<'a> {
         
         let window = Box::new(sdl.sdl_video.window("FallingSandRust", 1200, 800)
             .opengl() // allow getting opengl context
+            .resizable()
             .build()
             .unwrap());
     
