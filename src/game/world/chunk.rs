@@ -39,6 +39,23 @@ impl<'ch> Chunk<'ch> {
 
         Ok(())
     }
+
+    pub fn set(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String> {
+        if x < CHUNK_SIZE && y < CHUNK_SIZE {
+
+            if let Some(px) = &mut self.pixels {
+                let i = (x + y * CHUNK_SIZE) as usize;
+                px[i] = mat;
+                self.graphics.set(x, y, px[i].color)?;
+
+                return Ok(());
+            }
+
+            return Err("Chunk is not ready yet.".to_string());
+        }
+
+        Err("Invalid pixel coordinate.".to_string())
+    }
 }
 
 impl Renderable for Chunk<'_> {
@@ -71,7 +88,7 @@ impl<'cg> ChunkGraphics<'cg> {
             return Ok(());
         }
 
-        Err("Invalid pixel coordinate".to_string())
+        Err("Invalid pixel coordinate.".to_string())
     }
 
     pub fn update_texture(&mut self, texture_creator: &'cg TextureCreator<WindowContext>) -> Result<(), TextureValueError> {
@@ -231,6 +248,7 @@ impl<'a> ChunkHandler<'a> {
                         }else if num_loaded_this_tick < 8 {
                             // TODO: load from file
                             self.loaded_chunks.get_mut(&key).unwrap().state = ChunkState::Generating(0);
+                            self.loaded_chunks.get_mut(&key).unwrap().pixels = Some([MaterialInstance::air(); (CHUNK_SIZE * CHUNK_SIZE) as usize]);
                             self.generator.as_ref().generate(self.loaded_chunks.get_mut(&key).unwrap());
                             num_loaded_this_tick += 1;
                         }
