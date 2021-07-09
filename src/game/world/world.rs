@@ -1,8 +1,9 @@
+use crate::game::world::gen::WorldGenerator;
 use sdl2::{pixels::Color, rect::Rect, render::{Canvas, TextureCreator}, video::WindowContext};
 
 use crate::game::{Fonts, Game, RenderCanvas, Renderable, Sdl2Context, TransformStack};
 
-use super::{CHUNK_SIZE, ChunkHandler};
+use super::{CHUNK_SIZE, ChunkHandler, gen::TestGenerator};
 
 pub struct World<'w> {
     pub camera: Camera,
@@ -24,7 +25,7 @@ impl<'w> World<'w> {
                 y: 0.0,
                 scale: 2.0,
             },
-            chunk_handler: ChunkHandler::new(),
+            chunk_handler: ChunkHandler::new(Box::new(TestGenerator{})),
         }
     }
 

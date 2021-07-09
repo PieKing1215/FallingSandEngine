@@ -9,6 +9,7 @@ edition = "2018"
 gl = "0.14.0"
 profiling = "1.0.3"
 rand = "0.8.4"
+simdnoise = "3.1.6"
 
 [features]
 #default = ["profile-with-tracy"]
