@@ -7,7 +7,7 @@ use sdl2::Sdl;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::render::TextureCreator;
-use sdl2::video::WindowContext;
+use sdl2::video::{FullscreenType, WindowContext};
 use std::time::{Duration, Instant};
 
 
@@ -71,6 +71,16 @@ impl<'a, 'b> Game<'a> {
                     Event::Quit {..} |
                     Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                         break 'mainLoop
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::F11), .. } => {
+                        if let Some(r) = renderer {
+                            let fs = r.canvas.borrow().window().fullscreen_state();
+                            if fs == FullscreenType::Off {
+                                r.canvas.borrow_mut().window_mut().set_fullscreen(FullscreenType::Desktop).unwrap();
+                            }else{
+                                r.canvas.borrow_mut().window_mut().set_fullscreen(FullscreenType::Off).unwrap();
+                            }
+                        }
                     },
                     Event::KeyDown { keycode: Some(Keycode::RShift | Keycode::LShift), .. } => {
                         shift_key = true;
