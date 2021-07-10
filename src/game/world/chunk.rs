@@ -1,12 +1,11 @@
-use std::{borrow::BorrowMut, cell::Cell, collections::HashMap, process::Output, sync::Arc, thread::spawn};
+use std::{collections::HashMap, sync::Arc};
 
-use futures::{Future, executor::{block_on}, future::join_all, stream::select_all, task::SpawnExt};
+use futures::future::join_all;
 use lazy_static::lazy_static;
-use rand::Rng;
 use sdl2::{pixels::Color, rect::Rect, render::{TextureCreator, TextureValueError}, surface::Surface, video::WindowContext};
 use tokio::runtime::Runtime;
 
-use crate::game::{RenderCanvas, Renderable};
+use crate::game::{Renderable, world::TEST_MATERIAL};
 
 use super::{Camera, MaterialInstance, gen::WorldGenerator};
 
@@ -51,6 +50,7 @@ impl<'ch> Chunk<'ch> {
         Ok(())
     }
 
+    #[profiling::function]
     pub fn set(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String> {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
 
@@ -67,6 +67,13 @@ impl<'ch> Chunk<'ch> {
 
         Err("Invalid pixel coordinate.".to_string())
     }
+
+    #[profiling::function]
+    pub fn apply_diff(&mut self, diff: &Vec<(u16, u16, MaterialInstance)>) {
+        diff.iter().for_each(|(x, y, mat)| {
+            self.set(*x, *y, *mat).unwrap(); // TODO: handle this Err
+        });
+    }
 }
 
 impl Renderable for Chunk<'_> {
@@ -77,7 +84,6 @@ impl Renderable for Chunk<'_> {
 
 #[derive(Clone, Copy)]
 pub enum ChunkState {
-    Unknown,
     NotGenerated,
     Generating(u8), // stage
     Cached,
@@ -91,6 +97,7 @@ pub struct ChunkGraphics<'cg> {
 }
 
 impl<'cg> ChunkGraphics<'cg> {
+    #[profiling::function]
     pub fn set(&mut self, x: u16, y: u16, color: Color) -> Result<(), String> {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
@@ -102,6 +109,7 @@ impl<'cg> ChunkGraphics<'cg> {
         Err("Invalid pixel coordinate.".to_string())
     }
 
+    #[profiling::function]
     pub fn update_texture(&mut self, texture_creator: &'cg TextureCreator<WindowContext>) -> Result<(), TextureValueError> {
         if self.dirty {
             self.texture = Some(self.surface.as_texture(texture_creator)?);
@@ -111,6 +119,7 @@ impl<'cg> ChunkGraphics<'cg> {
         Ok(())
     }
 
+    #[profiling::function]
     pub fn replace(&mut self, mut colors: [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]){
         let sf = Surface::from_data(&mut colors, CHUNK_SIZE as u32, CHUNK_SIZE as u32, self.surface.pitch(), self.surface.pixel_format_enum()).unwrap();
         sf.blit(None, &mut self.surface, None).unwrap();
@@ -119,7 +128,7 @@ impl<'cg> ChunkGraphics<'cg> {
 }
 
 impl Renderable for ChunkGraphics<'_> {
-    fn render(&self, canvas : &mut sdl2::render::Canvas<sdl2::video::Window>, transform: &mut crate::game::TransformStack, sdl: &crate::game::Sdl2Context, fonts: &crate::game::Fonts, game: &crate::game::Game) {
+    fn render(&self, canvas : &mut sdl2::render::Canvas<sdl2::video::Window>, transform: &mut crate::game::TransformStack, _sdl: &crate::game::Sdl2Context, _fonts: &crate::game::Fonts, _game: &crate::game::Game) {
         let chunk_rect = transform.transform_rect(Rect::new(0, 0, CHUNK_SIZE as u32, CHUNK_SIZE as u32));
 
         if let Some(tex) = &self.texture {
@@ -307,7 +316,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<'a, T> {
                 let futs: Vec<_> = Box::leak(Box::new(to_exec)).iter().map(|e| Arc::from(e)).map(|e| async move {
                     let mut pixels = Box::new([MaterialInstance::air(); (CHUNK_SIZE * CHUNK_SIZE) as usize]);
                     let mut colors = Box::new([0; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]);
-                    gen.generate(e.1, e.2, &mut pixels, &mut colors);
+                    gen.generate(e.1, e.2, 2, &mut pixels, &mut colors); // TODO: non constant seed
                     // println!("{}", e.0);
                     (e.0, pixels, colors)
                 }).collect();
@@ -391,10 +400,155 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<'a, T> {
             self.loaded_chunks.retain(|_, _| *iter.next().unwrap());
         }
 
+        if tick_time % 30 == 0 {
+            profiling::scope!("chunk simulate");
+            let keys = self.loaded_chunks.keys().clone().map(|i| *i).collect::<Vec<u32>>();
+            for tick_phase in 0..9 {
+                for i in 0..keys.len() {
+                    let key = keys[i];
+                    let state = self.loaded_chunks.get(&key).unwrap().state; // copy
+                    let ch_pos = (self.loaded_chunks.get(&key).unwrap().chunk_x, self.loaded_chunks.get(&key).unwrap().chunk_y);
+                    if self.chunk_update_order(ch_pos.0, ch_pos.1) == tick_phase {
+                        match state {
+                            ChunkState::Active => {
+                                profiling::scope!("iter");
+                                let ch00 = self.loaded_chunks.get(&self.chunk_index(ch_pos.0 - 1, ch_pos.1 - 1)).unwrap().pixels.as_ref().unwrap();
+                                let ch10 = self.loaded_chunks.get(&self.chunk_index(ch_pos.0 + 0, ch_pos.1 - 1)).unwrap().pixels.as_ref().unwrap();
+                                let ch20 = self.loaded_chunks.get(&self.chunk_index(ch_pos.0 + 1, ch_pos.1 - 1)).unwrap().pixels.as_ref().unwrap();
+                                let ch01 = self.loaded_chunks.get(&self.chunk_index(ch_pos.0 - 1, ch_pos.1 + 0)).unwrap().pixels.as_ref().unwrap();
+                                let ch11 = self.loaded_chunks.get(&self.chunk_index(ch_pos.0 + 0, ch_pos.1 + 0)).unwrap().pixels.as_ref().unwrap();
+                                let ch21 = self.loaded_chunks.get(&self.chunk_index(ch_pos.0 + 1, ch_pos.1 + 0)).unwrap().pixels.as_ref().unwrap();
+                                let ch02 = self.loaded_chunks.get(&self.chunk_index(ch_pos.0 - 1, ch_pos.1 + 1)).unwrap().pixels.as_ref().unwrap();
+                                let ch12 = self.loaded_chunks.get(&self.chunk_index(ch_pos.0 + 0, ch_pos.1 + 1)).unwrap().pixels.as_ref().unwrap();
+                                let ch22 = self.loaded_chunks.get(&self.chunk_index(ch_pos.0 + 1, ch_pos.1 + 1)).unwrap().pixels.as_ref().unwrap();
+                                let arr = [
+                                    ch00, ch10, ch20, 
+                                    ch01, ch11, ch21, 
+                                    ch02, ch12, ch22 ];
+
+                                let diff = self.simulate_chunk(arr);
+
+                                for i in 0..9 {
+                                    if diff[i].len() > 0 {
+                                        let rel_ch_x = (i % 3) as i32 - 1;
+                                        let rel_ch_y = (i / 3) as i32 - 1;
+                                        self.loaded_chunks.get_mut(&self.chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y)).unwrap()
+                                            .apply_diff(&diff[i]);
+                                    }
+                                }
+                            },
+                            _ => {},
+                        }
+                    }
+                }
+            }
+        }
+
+        // if tick_time % 15 == 0 {
+        //     let cho = self.get_chunk(0, 0);
+        //     match cho {
+        //         Some(ch) => {
+        //             match ch.state {
+        //                 ChunkState::Active => {
+        //                     let ch_pos = (0, 0);
+        //                     let ch00 = self.loaded_chunks.get(&self.chunk_index(ch_pos.0 - 1, ch_pos.1 - 1)).unwrap().pixels.as_ref().unwrap();
+        //                     let ch10 = self.loaded_chunks.get(&self.chunk_index(ch_pos.0 + 0, ch_pos.1 - 1)).unwrap().pixels.as_ref().unwrap();
+        //                     let ch20 = self.loaded_chunks.get(&self.chunk_index(ch_pos.0 + 1, ch_pos.1 - 1)).unwrap().pixels.as_ref().unwrap();
+        //                     let ch01 = self.loaded_chunks.get(&self.chunk_index(ch_pos.0 - 1, ch_pos.1 + 0)).unwrap().pixels.as_ref().unwrap();
+        //                     let ch11 = self.loaded_chunks.get(&self.chunk_index(ch_pos.0 + 0, ch_pos.1 + 0)).unwrap().pixels.as_ref().unwrap();
+        //                     let ch21 = self.loaded_chunks.get(&self.chunk_index(ch_pos.0 + 1, ch_pos.1 + 0)).unwrap().pixels.as_ref().unwrap();
+        //                     let ch02 = self.loaded_chunks.get(&self.chunk_index(ch_pos.0 - 1, ch_pos.1 + 1)).unwrap().pixels.as_ref().unwrap();
+        //                     let ch12 = self.loaded_chunks.get(&self.chunk_index(ch_pos.0 + 0, ch_pos.1 + 1)).unwrap().pixels.as_ref().unwrap();
+        //                     let ch22 = self.loaded_chunks.get(&self.chunk_index(ch_pos.0 + 1, ch_pos.1 + 1)).unwrap().pixels.as_ref().unwrap();
+        //                     let arr = [
+        //                         ch00, ch10, ch20, 
+        //                         ch01, ch11, ch21, 
+        //                         ch02, ch12, ch22 ];
+
+        //                     let diff = self.simulate_chunk(arr);
+
+        //                     for i in 0..9 {
+        //                         let rel_ch_x = (i % 3) as i32 - 1;
+        //                         let rel_ch_y = (i / 3) as i32 - 1;
+        //                         self.loaded_chunks.get_mut(&self.chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y)).unwrap()
+        //                             .apply_diff(&diff[i]);
+        //                     }
+        //                 },
+        //                 _ => {},
+        //             }
+        //         },
+        //         None => {},
+        //     }
+        // }
+
     }
 
     #[profiling::function]
-    fn unload_chunk(&self, chunk: &Chunk){
+    fn simulate_chunk(&self, old_pixels: [&[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]; 9]) -> [Vec<(u16, u16, MaterialInstance)>; 9] {
+        let mut ret = [vec![], vec![], vec![], vec![], vec![], vec![], vec![], vec![], vec![]];
+        
+        // let mut pix = |x: i32, y: i32| {
+        //     let size = CHUNK_SIZE as i32;
+        //     // if x < -size || y < -size || x >= 2 * size || y >= 2 * size {
+        //     //     return Err("Chunk index out of bounds");
+        //     // }
+        //     let rel_chunk_x = (x as f32 / CHUNK_SIZE as f32).floor() as i8;
+        //     let rel_chunk_y = (y as f32 / CHUNK_SIZE as f32).floor() as i8;
+            
+        //     let chunk_px_x = x.rem_euclid(size) as usize;
+        //     let chunk_px_y = y.rem_euclid(size) as usize;
+
+        //     &mut pixels[(rel_chunk_x + 1) as usize + (rel_chunk_y + 1) as usize * 3][chunk_px_x + chunk_px_y * CHUNK_SIZE as usize]
+
+        //     // return Ok(());
+        // };
+
+        let index_helper = |x: i32, y: i32| {
+            let size = CHUNK_SIZE as i32;
+            // if x < -size || y < -size || x >= 2 * size || y >= 2 * size {
+            //     return Err("Chunk index out of bounds");
+            // }
+            let rel_chunk_x = (x as f32 / CHUNK_SIZE as f32).floor() as i8;
+            let rel_chunk_y = (y as f32 / CHUNK_SIZE as f32).floor() as i8;
+            
+            let chunk_px_x = x.rem_euclid(size) as u16;
+            let chunk_px_y = y.rem_euclid(size) as u16;
+
+            ((rel_chunk_x + 1) as usize + (rel_chunk_y + 1) as usize * 3, chunk_px_x, chunk_px_y)
+
+            // return Ok(());
+        };
+
+        let mut set_pixel = |x: i32, y: i32, mat: MaterialInstance| {
+            let i = index_helper(x, y);
+            ret[i.0].push((i.1, i.2, mat));
+        };
+
+        const CENTER_CHUNK: usize = 4;
+
+        for y in (0..CHUNK_SIZE as i32).rev() {
+            for x in 0..CHUNK_SIZE as i32 {
+                if old_pixels[CENTER_CHUNK][(x + y * CHUNK_SIZE as i32) as usize].color.g == 255 {
+                    set_pixel(x, y, MaterialInstance {
+                        material_id: TEST_MATERIAL.id,
+                        physics: crate::game::world::PhysicsType::Solid,
+                        color: Color::RGB(0, 0, 255),
+                    });
+                }else if old_pixels[CENTER_CHUNK][(x + y * CHUNK_SIZE as i32) as usize].color.b == 255 {
+                    set_pixel(x, y, MaterialInstance {
+                        material_id: TEST_MATERIAL.id,
+                        physics: crate::game::world::PhysicsType::Solid,
+                        color: Color::RGB(0, 255, 0),
+                    });
+                }
+            }
+        }
+        
+        ret
+    }
+
+    #[profiling::function]
+    fn unload_chunk(&self, _chunk: &Chunk){
         // write to file, free textures, etc
     }
 
@@ -430,6 +584,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<'a, T> {
         //          (though you need to go out ~32768 chunks (2^16 / 2)
         return ((xx + yy) * (xx + yy + 1)) / 2 + yy;
     }
+    
 
     pub fn chunk_index_inv(&self, index: u32) -> (i32, i32) {
         let w = (((8 * index + 1) as f32).sqrt() - 1.0).floor() as u32 / 2;
@@ -463,6 +618,12 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<'a, T> {
     #[profiling::function]
     pub fn get_chunk(&self, chunk_x: i32, chunk_y: i32) -> Option<&Box<Chunk>> {
         self.loaded_chunks.get(&self.chunk_index(chunk_x, chunk_y))
+    }
+
+    pub fn chunk_update_order(&self, chunk_x: i32, chunk_y: i32) -> u8 {
+        let yy = (-chunk_y).rem_euclid(3) as u8;
+        let xx = chunk_x.rem_euclid(3) as u8;
+        return yy * 3 + xx;
     }
 
     #[profiling::function]

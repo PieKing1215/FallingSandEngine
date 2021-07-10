@@ -1,9 +1,7 @@
 
 mod game;
-use std::{borrow::Borrow, collections::HashMap, hash::Hash, rc::Rc};
 
 use game::Game;
-use sdl2::{image::LoadTexture, render::{Texture, TextureCreator}};
 
 use crate::game::{Fonts, Renderer};
 

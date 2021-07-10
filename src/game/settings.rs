@@ -45,8 +45,8 @@ impl Default for Settings {
         Self {
             draw_chunk_state_overlay: false,
             draw_chunk_state_overlay_alpha: 0.5,
-            draw_chunk_grid: false,
-            draw_origin: false,
+            draw_chunk_grid: true,
+            draw_origin: true,
             draw_load_zones: false,
             cull_chunks: true,
         }

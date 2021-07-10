@@ -1,9 +1,8 @@
 
-use super::{Fonts, Sdl2Context, Settings};
-use super::{Renderer, world::Camera};
+use super::{Sdl2Context, Settings};
+use super::Renderer;
 use super::world::World;
 
-use sdl2::Sdl;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::render::TextureCreator;

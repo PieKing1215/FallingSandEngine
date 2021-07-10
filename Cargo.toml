@@ -19,7 +19,7 @@ imgui-opengl-renderer = "0.11.0"
 
 [features]
 #default = ["profile-with-tracy"]
-#profile-with-tracy = ["profiling/profile-with-tracy"]
+profile-with-tracy = ["profiling/profile-with-tracy"]
 
 [dependencies.sdl2]
 version = "0.34"

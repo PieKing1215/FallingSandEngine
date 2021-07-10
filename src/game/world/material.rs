@@ -31,14 +31,6 @@ pub struct MaterialInstance {
 }
 
 impl MaterialInstance {
-    pub fn new(material_id: u16, physics: PhysicsType, color: Color) -> Self {
-        Self {
-            material_id,
-            physics,
-            color,
-        }
-    }
-
     pub fn air() -> Self {
         Self {
             material_id: AIR.id,

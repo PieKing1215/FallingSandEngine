@@ -1,8 +1,7 @@
 
 use std::{cell::RefCell};
 
-use imgui::im_str;
-use sdl2::{VideoSubsystem, pixels::Color, render::{Canvas, TextureCreator}, ttf::{Font, Sdl2TtfContext}, video::{Window, WindowContext}};
+use sdl2::{VideoSubsystem, pixels::Color, render::Canvas, ttf::{Font, Sdl2TtfContext}, video::Window};
 
 use super::{Game, Renderable, TransformStack};
 
