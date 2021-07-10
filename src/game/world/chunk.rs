@@ -1,6 +1,6 @@
 use std::{borrow::BorrowMut, cell::Cell, collections::HashMap, process::Output, sync::Arc, thread::spawn};
 
-use futures::{Future, executor::{ThreadPool, block_on}, future::join_all, stream::select_all, task::SpawnExt};
+use futures::{Future, executor::{block_on}, future::join_all, stream::select_all, task::SpawnExt};
 use lazy_static::lazy_static;
 use rand::Rng;
 use sdl2::{pixels::Color, rect::Rect, render::{TextureCreator, TextureValueError}, surface::Surface, video::WindowContext};
