@@ -36,7 +36,7 @@ fn main() -> Result<(), String> {
 
     let mut game: Game = Game::new();
     println!("Starting main loop...");
-    game.run(&sdl, Some(&r), &texture_creator);
+    game.run(&sdl, Some(&mut r), &texture_creator);
     println!("Goodbye!");
 
     Ok(())

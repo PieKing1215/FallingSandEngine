@@ -1,6 +1,7 @@
 
 use std::{cell::RefCell};
 
+use imgui::im_str;
 use sdl2::{VideoSubsystem, pixels::Color, render::{Canvas, TextureCreator}, ttf::{Font, Sdl2TtfContext}, video::{Window, WindowContext}};
 
 use super::{Game, Renderable, TransformStack};
@@ -8,6 +9,9 @@ use super::{Game, Renderable, TransformStack};
 pub struct Renderer<'ttf> {
     pub fonts: Option<Fonts<'ttf>>,
     pub canvas: RefCell<Canvas<Window>>,
+    pub imgui: imgui::Context,
+    pub imgui_sdl2: imgui_sdl2::ImguiSdl2,
+    pub imgui_renderer: imgui_opengl_renderer::Renderer,
 }
 
 pub struct Fonts<'ttf> {
@@ -50,19 +54,35 @@ impl<'a> Renderer<'a> {
         canvas.borrow_mut().clear();
         canvas.borrow_mut().present();
 
+        let mut imgui = imgui::Context::create();
+        imgui.set_ini_filename(None);
+      
+        let imgui_sdl2 = imgui_sdl2::ImguiSdl2::new(&mut imgui, &canvas.borrow().window());
+        let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| sdl.sdl_video.gl_get_proc_address(s) as _);
+
         return Ok(Renderer {
             fonts: None,
             canvas,
+            imgui,
+            imgui_sdl2,
+            imgui_renderer: renderer,
         });
     }
 
-    pub fn render(&self, sdl: &Sdl2Context, game: &Game){
+    pub fn render(&mut self, sdl: &Sdl2Context, game: &mut Game){
         let canvas: &mut Canvas<Window> = &mut self.canvas.borrow_mut();
 
         canvas.set_draw_color(Color::RGBA(0, 0, 0, 255));
         canvas.clear();
         
         self.render_internal(canvas, sdl, game);
+
+        let ui = self.imgui.frame();
+
+        game.settings.imgui(&ui);
+
+        self.imgui_sdl2.prepare_render(&ui, &canvas.window());
+        self.imgui_renderer.render(ui);
 
         canvas.present();
     }

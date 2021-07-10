@@ -13,6 +13,9 @@ simdnoise = "3.1.6"
 futures = { version = "0.3.15", features = ["thread-pool"] }
 tokio = {version = "1.8.1", features = ["rt", "rt-multi-thread", "macros"] }
 lazy_static = "1.4.0"
+imgui = "0.7.0"
+imgui-sdl2 = "0.14.0"
+imgui-opengl-renderer = "0.11.0"
 
 [features]
 #default = ["profile-with-tracy"]

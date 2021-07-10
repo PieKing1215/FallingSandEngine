@@ -55,42 +55,37 @@ impl Renderable for World<'_> {
         let load_zone = self.chunk_handler.get_load_zone(&self.camera);
         let unload_zone = self.chunk_handler.get_unload_zone(&self.camera);
 
-        for x in -10..10 {
-            for y in -10..10 {
-                let rc = Rect::new(x * CHUNK_SIZE as i32, y * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
-                canvas.set_draw_color(Color::RGBA(127, 127, 127, 64));
-                canvas.draw_rect(transform.transform_rect(rc)).unwrap();
-            }
-        }
+        // let clip = canvas.clip_rect();
+        // if game.settings.cull_chunks {
+        //     canvas.set_clip_rect(transform.transform_rect(screen_zone));
+        // }
 
         self.chunk_handler.loaded_chunks.iter().for_each(|(_i, ch)| {
-            let culling = false;
-            let state_overlay = true;
-
             let rc = Rect::new(ch.chunk_x * CHUNK_SIZE as i32, ch.chunk_y * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
-            if !culling || rc.has_intersection(screen_zone){
+            if !game.settings.cull_chunks || rc.has_intersection(screen_zone){
                 transform.push();
                 transform.translate(ch.chunk_x * CHUNK_SIZE as i32, ch.chunk_y * CHUNK_SIZE as i32);
                 ch.render(canvas, transform, sdl, fonts, game);
                 transform.pop();
             }
 
-            if state_overlay {
+            if game.settings.draw_chunk_state_overlay {
+                let alpha: u8 = (game.settings.draw_chunk_state_overlay_alpha * 255.0) as u8;
                 match ch.state {
                     super::ChunkState::Unknown => {
-                        canvas.set_draw_color(Color::RGBA(127, 64, 127, 191));
+                        canvas.set_draw_color(Color::RGBA(127, 64, 127, alpha));
                     },
                     super::ChunkState::NotGenerated => {
-                        canvas.set_draw_color(Color::RGBA(127, 127, 127, 191));
+                        canvas.set_draw_color(Color::RGBA(127, 127, 127, alpha));
                     },
                     super::ChunkState::Generating(stage) => {
-                        canvas.set_draw_color(Color::RGBA(64, (stage as f32 / self.chunk_handler.generator.max_gen_stage() as f32 * 255.0) as u8, 255, 191));
+                        canvas.set_draw_color(Color::RGBA(64, (stage as f32 / self.chunk_handler.generator.max_gen_stage() as f32 * 255.0) as u8, 255, alpha));
                     },
                     super::ChunkState::Cached => {
-                        canvas.set_draw_color(Color::RGBA(255, 127, 64, 191));
+                        canvas.set_draw_color(Color::RGBA(255, 127, 64, alpha));
                     },
                     super::ChunkState::Active => {
-                        canvas.set_draw_color(Color::RGBA(64, 255, 64, 191));
+                        canvas.set_draw_color(Color::RGBA(64, 255, 64, alpha));
                     },
                 }
                 let rect = transform.transform_rect(rc);
@@ -122,19 +117,43 @@ impl Renderable for World<'_> {
 
         });
 
-        canvas.set_draw_color(Color::RGBA(0, 255, 0, 255));
-        canvas.draw_line(transform.transform_int((-20, 0)), transform.transform_int((20, 0))).unwrap();
-        canvas.set_draw_color(Color::RGBA(127, 127, 255, 255));
-        canvas.draw_line(transform.transform_int((0, -20)), transform.transform_int((0, 20))).unwrap();
+        // canvas.set_clip_rect(clip);
+        
+        if game.settings.draw_chunk_grid {
+            for x in -10..10 {
+                for y in -10..10 {
+                    let rcx = x + (self.camera.x / CHUNK_SIZE as f64) as i32;
+                    let rcy = y + (self.camera.y / CHUNK_SIZE as f64) as i32;
+                    let rc = Rect::new(rcx * CHUNK_SIZE as i32, rcy * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
+                    canvas.set_draw_color(Color::RGBA(64, 64, 64, 127));
+                    canvas.draw_rect(transform.transform_rect(rc)).unwrap();
+                }
+            }
+        }
 
-        canvas.set_draw_color(Color::RGBA(255, 0, 0, 127));
-        canvas.draw_rect(transform.transform_rect(unload_zone)).unwrap();
-        canvas.set_draw_color(Color::RGBA(255, 127, 0, 127));
-        canvas.draw_rect(transform.transform_rect(load_zone)).unwrap();
-        canvas.set_draw_color(Color::RGBA(255, 255, 0, 127));
-        canvas.draw_rect(transform.transform_rect(active_zone)).unwrap();
-        canvas.set_draw_color(Color::RGBA(0, 255, 0, 127));
-        canvas.draw_rect(transform.transform_rect(screen_zone)).unwrap();
+        if game.settings.draw_origin {
+            let len = 16;
+            canvas.set_draw_color(Color::RGBA(0, 0, 0, 127));
+            let origin = transform.transform_int((0, 0));
+            canvas.fill_rect(Rect::new(origin.0 - len - 2, origin.1 - 1, (len * 2 + 4) as u32, 3)).unwrap();
+            canvas.fill_rect(Rect::new(origin.0 - 1, origin.1 - len - 2, 3, (len * 2 + 4) as u32)).unwrap();
+
+            canvas.set_draw_color(Color::RGBA(255, 0, 0, 255));
+            canvas.draw_line((origin.0 - len, origin.1), (origin.0 + len, origin.1)).unwrap();
+            canvas.set_draw_color(Color::RGBA(0, 255, 0, 255));
+            canvas.draw_line((origin.0, origin.1 - len), (origin.0, origin.1 + len)).unwrap();
+        }
+
+        if game.settings.draw_load_zones {
+            canvas.set_draw_color(Color::RGBA(255, 0, 0, 127));
+            canvas.draw_rect(transform.transform_rect(unload_zone)).unwrap();
+            canvas.set_draw_color(Color::RGBA(255, 127, 0, 127));
+            canvas.draw_rect(transform.transform_rect(load_zone)).unwrap();
+            canvas.set_draw_color(Color::RGBA(255, 255, 0, 127));
+            canvas.draw_rect(transform.transform_rect(active_zone)).unwrap();
+            canvas.set_draw_color(Color::RGBA(0, 255, 0, 127));
+            canvas.draw_rect(transform.transform_rect(screen_zone)).unwrap();
+        }
 
         transform.pop();
 

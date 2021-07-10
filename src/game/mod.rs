@@ -1,8 +1,10 @@
 mod game;
 mod renderer;
 mod world;
+mod settings;
 
 pub use game::*;
+pub use settings::*;
 pub use renderer::*;
 
 use sdl2::{rect::Rect, render::Canvas, video::Window};

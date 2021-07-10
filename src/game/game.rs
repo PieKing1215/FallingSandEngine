@@ -1,5 +1,5 @@
 
-use super::{Fonts, Sdl2Context};
+use super::{Fonts, Sdl2Context, Settings};
 use super::{Renderer, world::Camera};
 use super::world::World;
 
@@ -15,7 +15,8 @@ pub struct Game<'a> {
     pub world: Option<World<'a>>,
     pub tick_time: u32,
     pub frame_count: u32,
-    fps_counter: FPSCounter
+    fps_counter: FPSCounter,
+    pub settings: Settings,
 }
 
 pub struct FPSCounter {
@@ -36,6 +37,7 @@ impl<'a, 'b> Game<'a> {
                 last_update: Instant::now(), 
                 display_value: 0
             },
+            settings: Settings::default(),
         }
     }
 
@@ -57,23 +59,30 @@ impl<'a, 'b> Game<'a> {
     // }
 
     #[profiling::function]
-    pub fn run(&mut self, sdl: &Sdl2Context, renderer: Option<&Renderer>, texture_creator: &'a TextureCreator<WindowContext>) {
+    pub fn run(&mut self, sdl: &Sdl2Context, mut renderer: Option<&mut Renderer>, texture_creator: &'a TextureCreator<WindowContext>) {
         let mut prev_frame_time = std::time::Instant::now();
 
         let mut event_pump = sdl.sdl.event_pump().unwrap();
 
         let mut shift_key = false;
 
+        let mut last_frame = Instant::now();
+
         'mainLoop: loop {
 
             for event in event_pump.poll_iter() {
+                if let Some(r) = &mut renderer {
+                    r.imgui_sdl2.handle_event(&mut r.imgui, &event);
+                    if r.imgui_sdl2.ignore_event(&event) { continue; }
+                }
+
                 match event {
                     Event::Quit {..} |
                     Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                         break 'mainLoop
                     },
                     Event::KeyDown { keycode: Some(Keycode::F11), .. } => {
-                        if let Some(r) = renderer {
+                        if let Some(ref r) = renderer {
                             let fs = r.canvas.borrow().window().fullscreen_state();
                             if fs == FullscreenType::Off {
                                 r.canvas.borrow_mut().window_mut().set_fullscreen(FullscreenType::Desktop).unwrap();
@@ -117,15 +126,24 @@ impl<'a, 'b> Game<'a> {
                 }
             }
 
-            // tick
             let now = std::time::Instant::now();
+
+            if let Some(r) = &mut renderer {
+                r.imgui_sdl2.prepare_frame(r.imgui.io_mut(), &r.canvas.borrow().window(), &event_pump.mouse_state());
+                let delta = now - last_frame;
+                let delta_s = delta.as_secs() as f32 + delta.subsec_nanos() as f32 / 1_000_000_000.0;
+                last_frame = now;
+                r.imgui.io_mut().delta_time = delta_s;
+            }
+
+            // tick
             if now.saturating_duration_since(prev_frame_time).as_nanos() > 1_000_000_000 / 30 { // 30 ticks per second
                 prev_frame_time = now;
                 self.tick(texture_creator);
             }
 
             // render
-            if let Some(r) = renderer {
+            if let Some(r) = &mut renderer {
                 r.render(sdl, self);
                 self.frame_count += 1;
                 self.fps_counter.frames += 1;
