@@ -3,7 +3,7 @@ use sdl2::{pixels::Color, rect::Rect, render::TextureCreator, video::WindowConte
 
 use crate::game::{Fonts, Game, RenderCanvas, Renderable, Sdl2Context, TransformStack};
 
-use super::{CHUNK_SIZE, ChunkHandler, gen::{TEST_GENERATOR, TestGenerator}};
+use super::{CHUNK_SIZE, ChunkHandler, MaterialInstance, gen::{TEST_GENERATOR, TestGenerator}};
 
 pub struct World<'w> {
     pub camera: Camera,
@@ -34,6 +34,7 @@ impl<'w> World<'w> {
         self.chunk_handler.tick(tick_time, &self.camera);
         self.chunk_handler.update_chunk_graphics(texture_creator);
     }
+
 }
 
 impl Renderable for World<'_> {
@@ -100,27 +101,27 @@ impl Renderable for World<'_> {
                 canvas.fill_rect(rect).unwrap();
                 canvas.draw_rect(rect).unwrap();
             
-                // // let ind = self.chunk_handler.chunk_index(ch.chunk_x, ch.chunk_y);
-                // let ind = self.chunk_handler.chunk_update_order(ch.chunk_x, ch.chunk_y);
-                // let tex = canvas.texture_creator();
-                // let txt_sf = fonts.pixel_operator
-                //     .render(format!("{}", ind).as_str())
-                //     .solid(Color::RGB(255, 255, 255)).unwrap();
-                // let txt_tex = tex.create_texture_from_surface(&txt_sf).unwrap();
+                // let ind = self.chunk_handler.chunk_index(ch.chunk_x, ch.chunk_y);
+                let ind = self.chunk_handler.chunk_update_order(ch.chunk_x, ch.chunk_y);
+                let tex = canvas.texture_creator();
+                let txt_sf = fonts.pixel_operator
+                    .render(format!("{}", ind).as_str())
+                    .solid(Color::RGB(255, 255, 255)).unwrap();
+                let txt_tex = tex.create_texture_from_surface(&txt_sf).unwrap();
     
-                // let aspect = txt_sf.width() as f32 / txt_sf.height() as f32;
-                // let mut txt_height = rect.height() as f32 * 0.75;
-                // let mut txt_width = (aspect * txt_height as f32) as u32;
+                let aspect = txt_sf.width() as f32 / txt_sf.height() as f32;
+                let mut txt_height = rect.height() as f32 * 0.75;
+                let mut txt_width = (aspect * txt_height as f32) as u32;
     
-                // let max_width = (rect.w as f32 * 0.9) as u32;
+                let max_width = (rect.w as f32 * 0.9) as u32;
     
-                // if txt_width > max_width as u32 {
-                //     txt_width = max_width as u32;
-                //     txt_height = 1.0 / aspect * txt_width as f32;
-                // }
+                if txt_width > max_width as u32 {
+                    txt_width = max_width as u32;
+                    txt_height = 1.0 / aspect * txt_width as f32;
+                }
     
-                // let txt_rec = Rect::new(rect.x + rect.w/2 - (txt_width as i32)/2, rect.y, txt_width, txt_height as u32);
-                // canvas.copy(&txt_tex, None, Some(txt_rec)).unwrap();
+                let txt_rec = Rect::new(rect.x + rect.w/2 - (txt_width as i32)/2, rect.y, txt_width, txt_height as u32);
+                canvas.copy(&txt_tex, None, Some(txt_rec)).unwrap();
             }
 
         });

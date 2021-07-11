@@ -1,6 +1,6 @@
 use sdl2::{pixels::Color, rect::Rect};
 
-use crate::game::world::TEST_MATERIAL;
+use crate::game::world::{PhysicsType, TEST_MATERIAL};
 
 use super::{CHUNK_SIZE, MaterialInstance};
 
@@ -83,15 +83,17 @@ impl Simulator {
                 // return Ok(());
             };
 
-            let mut set_color = |x: i32, y: i32, Color { r, g, b, a }: Color| {
+            let mut set_color = |x: i32, y: i32, Color { r, g, b, a }: Color, graphics: bool| {
                 let i = index_helper(x, y);
 
-                (*colors[i.0])[i.1 * 4 + 3] = a;
-                (*colors[i.0])[i.1 * 4 + 2] = r;
-                (*colors[i.0])[i.1 * 4 + 1] = g;
-                (*colors[i.0])[i.1 * 4 + 0] = b;
+                if graphics {
+                    (*colors[i.0])[i.1 * 4 + 3] = a;
+                    (*colors[i.0])[i.1 * 4 + 2] = r;
+                    (*colors[i.0])[i.1 * 4 + 1] = g;
+                    (*colors[i.0])[i.1 * 4 + 0] = b;
 
-                dirty[i.0] = true;
+                    dirty[i.0] = true;
+                }
 
                 min_x[i.0] = min_x[i.0].min(i.2);
                 min_y[i.0] = min_y[i.0].min(i.3);
@@ -99,41 +101,66 @@ impl Simulator {
                 max_y[i.0] = max_y[i.0].max(i.3);
             };
 
-            if chunk_x % 3 == 0 && chunk_y % 3 == 0 {
-                for y in (my_dirty_rect.y..(my_dirty_rect.y + my_dirty_rect.h) as i32).rev() {
-                    for x in my_dirty_rect.x..(my_dirty_rect.x + my_dirty_rect.w) as i32 {
-                        let i = index_helper(x, y);
-                        let cur = (*pixels[i.0])[i.1];
-                        let mut new_mat = None;
-                        if cur.color.g == 255 {
-                            // set_pixel(x, y, MaterialInstance {
-                            //     material_id: TEST_MATERIAL.id,
-                            //     physics: crate::game::world::PhysicsType::Solid,
-                            //     color: Color::RGB(0, 200, 255),
-                            // });
+            for y in (my_dirty_rect.y..(my_dirty_rect.y + my_dirty_rect.h) as i32).rev() {
+                for x in my_dirty_rect.x..(my_dirty_rect.x + my_dirty_rect.w) as i32 {
+                    let i = index_helper(x, y);
+                    let cur = (*pixels[i.0])[i.1];
+                    let mut new_mat: Option<MaterialInstance> = None;
 
-                            new_mat = Some(MaterialInstance {
-                                material_id: TEST_MATERIAL.id,
-                                physics: crate::game::world::PhysicsType::Solid,
-                                color: Color::RGB(0, 240, 255),
-                            });
-                        }else if cur.color.b == 255 {
-                            // set_pixel(x, y, MaterialInstance {
-                            //     material_id: TEST_MATERIAL.id,
-                            //     physics: crate::game::world::PhysicsType::Solid,
-                            //     color: Color::RGB(0, 255, 200),
-                            // });
-                            new_mat = Some(MaterialInstance {
-                                material_id: TEST_MATERIAL.id,
-                                physics: crate::game::world::PhysicsType::Solid,
-                                color: Color::RGB(0, 255, 240),
-                            });
-                        }
+                    match cur.physics {
+                        crate::game::world::PhysicsType::Sand => {
+                            let below_i = index_helper(x, y + 1);
+                            let below = (*pixels[below_i.0])[below_i.1];
+                            let below_can = below.physics == PhysicsType::Air;
 
-                        if let Some(m) = new_mat {
-                            set_color(x, y, m.color);
-                            (*pixels[i.0])[i.1] = m;
-                        }
+                            let bl_i = index_helper(x - 1, y + 1);
+                            let bl = (*pixels[bl_i.0])[bl_i.1];
+                            let bl_can = bl.physics == PhysicsType::Air;
+
+                            let br_i = index_helper(x + 1, y + 1);
+                            let br = (*pixels[br_i.0])[br_i.1];
+                            let br_can = br.physics == PhysicsType::Air;
+                            
+                            if below_can && (!(br_can || bl_can) || rand::random::<f32>() > 0.1) {
+                                // let below2_i = index_helper(x, y + 2);
+                                // let below2 = (*pixels[below_i.0])[below_i.1];
+                                // if below2.physics == PhysicsType::Air {
+                                //     set_color(x, y + 2, cur.color, true);
+                                //     (*pixels[below2_i.0])[below2_i.1] = cur;
+                                //     new_mat = Some(MaterialInstance::air());
+                                // }else {
+                                    set_color(x, y + 1, cur.color, true);
+                                    (*pixels[below_i.0])[below_i.1] = cur;
+                                    new_mat = Some(MaterialInstance::air());
+                                // }
+                            }else {
+                                if bl_can && br_can {
+                                    if rand::random::<bool>() {
+                                        set_color(x + 1, y + 1, cur.color, true);
+                                        (*pixels[br_i.0])[br_i.1] = cur;
+                                        new_mat = Some(MaterialInstance::air());
+                                    }else{
+                                        set_color(x - 1, y + 1, cur.color, true);
+                                        (*pixels[bl_i.0])[bl_i.1] = cur;
+                                        new_mat = Some(MaterialInstance::air());
+                                    }
+                                }else if bl_can {
+                                    set_color(x - 1, y + 1, cur.color, true);
+                                    (*pixels[bl_i.0])[bl_i.1] = cur;
+                                    new_mat = Some(MaterialInstance::air());
+                                }else if br_can {
+                                    set_color(x + 1, y + 1, cur.color, true);
+                                    (*pixels[br_i.0])[br_i.1] = cur;
+                                    new_mat = Some(MaterialInstance::air());
+                                }
+                            }
+                        },
+                        _ => {},
+                    }
+
+                    if let Some(m) = new_mat {
+                        set_color(x, y, m.color, true);
+                        (*pixels[i.0])[i.1] = m;
                     }
                 }
             }

@@ -1,10 +1,13 @@
 
+use crate::game::world::{CHUNK_SIZE, MaterialInstance};
+
 use super::{Sdl2Context, Settings};
 use super::Renderer;
 use super::world::World;
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
+use sdl2::mouse;
 use sdl2::render::TextureCreator;
 use sdl2::video::{FullscreenType, WindowContext};
 use std::time::{Duration, Instant};
@@ -113,11 +116,38 @@ impl<'a, 'b> Game<'a> {
                             }
                         }
                     },
-                    Event::MouseMotion{xrel, yrel, mousestate , ..} => {
+                    Event::MouseButtonDown{mouse_btn: sdl2::mouse::MouseButton::Right, x, y, ..} => {
+                        if let Some(w) = &mut self.world {
+                            if let Some(ref r) = renderer {
+                                let world_x = w.camera.x + (x as f64 - r.canvas.borrow().window().size().0 as f64 / 2.0) / w.camera.scale;
+                                let world_y = w.camera.y + (y as f64 - r.canvas.borrow().window().size().1 as f64 / 2.0) / w.camera.scale;
+                                let (chunk_x, chunk_y) = w.chunk_handler.pixel_to_chunk_pos(world_x as i64, world_y as i64);
+                                w.chunk_handler.force_update_chunk(chunk_x, chunk_y);
+                            }
+                        }
+                    },
+                    Event::MouseMotion{xrel, yrel, mousestate , x, y, ..} => {
                         if mousestate.left() {
                             if let Some(w) = &mut self.world {
                                 w.camera.x -= (xrel as f64) / w.camera.scale;
                                 w.camera.y -= (yrel as f64) / w.camera.scale;
+                            }
+                        }else if mousestate.middle() {
+                            if let Some(w) = &mut self.world {
+                                if let Some(ref r) = renderer {
+                                    let world_x = w.camera.x + (x as f64 - r.canvas.borrow().window().size().0 as f64 / 2.0) / w.camera.scale;
+                                    let world_y = w.camera.y + (y as f64 - r.canvas.borrow().window().size().1 as f64 / 2.0) / w.camera.scale;
+
+                                    for xx in -3..=3 {
+                                        for yy in -3..=3 {
+                                            match w.chunk_handler.set(world_x as i64 + xx, world_y as i64 + yy, MaterialInstance::air()) {
+                                                Ok(_) => {},
+                                                Err(_) => {},
+                                            };
+                                        }
+                                    }
+
+                                }
                             }
                         }
                     },
@@ -136,8 +166,8 @@ impl<'a, 'b> Game<'a> {
             }
 
             // tick
-            let do_tick = now.saturating_duration_since(prev_frame_time).as_nanos() > 1_000_000_000 / 30;
-            if do_tick { // 30 ticks per second
+            let do_tick = now.saturating_duration_since(prev_frame_time).as_nanos() > 1_000_000_000 / 30; // 30 ticks per second
+            if do_tick {
                 prev_frame_time = now;
                 self.tick(texture_creator);
             }
@@ -145,7 +175,7 @@ impl<'a, 'b> Game<'a> {
             // render
             if let Some(r) = &mut renderer {
                 profiling::scope!("rendering");
-                
+
                 r.render(sdl, self);
                 self.frame_count += 1;
                 self.fps_counter.frames += 1;

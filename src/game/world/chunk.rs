@@ -63,6 +63,8 @@ impl<'ch> Chunk<'ch> {
                 px[i] = mat;
                 self.graphics.set(x, y, px[i].color)?;
 
+                self.dirty_rect = Some(Rect::new(0, 0, CHUNK_SIZE as u32, CHUNK_SIZE as u32));
+
                 return Ok(());
             }
 
@@ -521,9 +523,33 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<'a, T> {
                         for i in 0..9 {
                             let rel_ch_x = (i % 3) as i32 - 1;
                             let rel_ch_y = (i / 3) as i32 - 1;
+
                             if dirty[i] {
                                 self.loaded_chunks.get_mut(&self.chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y)).unwrap().graphics.dirty = true;
                             }
+
+                            if i != 4 {
+                                if let Some(_) = dirty_rects[4] {
+                                    // let neighbor_rect = Rect::new(
+                                    //     if rel_ch_x == -1 { (CHUNK_SIZE / 2).into() } else { 0 },
+                                    //     if rel_ch_y == -1 { (CHUNK_SIZE / 2).into() } else { 0 },
+                                    //     if rel_ch_x == 0 { (CHUNK_SIZE).into() } else { (CHUNK_SIZE / 2).into() },
+                                    //     if rel_ch_y == 0 { (CHUNK_SIZE).into() } else { (CHUNK_SIZE / 2).into() }
+                                    // );
+                                    let neighbor_rect = Rect::new(0, 0, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
+                                    let mut r = self.loaded_chunks.get_mut(&self.chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y)).unwrap().dirty_rect;
+                                    match r {
+                                        Some(current) => {
+                                            r = Some(current.union(neighbor_rect));
+                                        },
+                                        None => {
+                                            r = Some(neighbor_rect);
+                                        },
+                                    }
+                                    self.loaded_chunks.get_mut(&self.chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y)).unwrap().dirty_rect = r;
+                                }
+                            }
+                            
                             if let Some(new) = dirty_rects[i] {
                                 let mut r = self.loaded_chunks.get_mut(&self.chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y)).unwrap().dirty_rect;
                                 match r {
@@ -655,10 +681,26 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<'a, T> {
         self.loaded_chunks.get(&self.chunk_index(chunk_x, chunk_y))
     }
 
+    pub fn set(&mut self, x: i64, y: i64, mat: MaterialInstance) -> Result<(), String> {
+
+        let (chunk_x, chunk_y) = self.pixel_to_chunk_pos(x, y);
+        if let Some(ch) = self.loaded_chunks.get_mut(&self.chunk_index(chunk_x, chunk_y)) {
+            return ch.set((x - chunk_x as i64 * CHUNK_SIZE as i64) as u16, (y - chunk_y as i64 * CHUNK_SIZE as i64) as u16, mat);
+        }else{
+            return Err("Position is not loaded".to_string());
+        }
+    }
+
     pub fn chunk_update_order(&self, chunk_x: i32, chunk_y: i32) -> u8 {
         let yy = (-chunk_y).rem_euclid(2) as u8;
         let xx = chunk_x.rem_euclid(2) as u8;
         return yy * 2 + xx;
+    }
+
+    pub fn force_update_chunk(&mut self, chunk_x: i32, chunk_y: i32) {
+        if let Some(ch) = self.loaded_chunks.get_mut(&self.chunk_index(chunk_x, chunk_y)) {
+            ch.dirty_rect = Some(Rect::new(0, 0, CHUNK_SIZE as u32, CHUNK_SIZE as u32));
+        }
     }
 
     #[profiling::function]

@@ -46,12 +46,12 @@ impl WorldGenerator for TestGenerator {
                         pixels[i] = MaterialInstance {
                             material_id: TEST_MATERIAL.id,
                             physics: crate::game::world::PhysicsType::Sand,
-                            color: Color::RGB(0, 0, 255),
+                            color: Color::RGB(if v2 <= 0.01 { 255 } else { 64 }, 64, if v2 > 0.01 { 255 } else { 64 }),
                         };
-                        colors[i*4 + 0] = 0;
-                        colors[i*4 + 1] = 255;
-                        colors[i*4 + 2] = 0;
-                        colors[i*4 + 3] = 255;
+                        colors[i*4 + 3] = pixels[i].color.a;
+                        colors[i*4 + 2] = pixels[i].color.r;
+                        colors[i*4 + 1] = pixels[i].color.g;
+                        colors[i*4 + 0] = pixels[i].color.b;
                         // chunk.set(x, y, MaterialInstance {
                         //     material_id: TEST_MATERIAL.id,
                         //     physics: crate::game::world::PhysicsType::Solid,
@@ -61,12 +61,12 @@ impl WorldGenerator for TestGenerator {
                         pixels[i] = MaterialInstance {
                             material_id: TEST_MATERIAL.id,
                             physics: crate::game::world::PhysicsType::Solid,
-                            color: Color::RGB(0, 255, 0),
+                            color: Color::RGB(80, 64, 32),
                         };
-                        colors[i*4 + 0] = 255;
-                        colors[i*4 + 1] = 0;
-                        colors[i*4 + 2] = 0;
-                        colors[i*4 + 3] = 255;
+                        colors[i*4 + 3] = pixels[i].color.a;
+                        colors[i*4 + 2] = pixels[i].color.r;
+                        colors[i*4 + 1] = pixels[i].color.g;
+                        colors[i*4 + 0] = pixels[i].color.b;
                         // chunk.set(x, y, MaterialInstance {
                         //     material_id: TEST_MATERIAL.id,
                         //     physics: crate::game::world::PhysicsType::Solid,

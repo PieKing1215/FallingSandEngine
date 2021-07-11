@@ -83,8 +83,14 @@ impl<'a> Renderer<'a> {
 
             game.settings.imgui(&ui);
 
-            self.imgui_sdl2.prepare_render(&ui, &canvas.window());
-            self.imgui_renderer.render(ui);
+            {
+                profiling::scope!("prepare_render");
+                self.imgui_sdl2.prepare_render(&ui, &canvas.window());
+            }
+            {
+                profiling::scope!("render");
+                self.imgui_renderer.render(ui);
+            }
         }
 
         canvas.present();

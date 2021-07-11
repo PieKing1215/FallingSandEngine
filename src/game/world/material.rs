@@ -10,7 +10,7 @@ pub static TEST_MATERIAL: Material = Material {
     name: "Test Material",
 };
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum PhysicsType {
     Air,
     Solid,
