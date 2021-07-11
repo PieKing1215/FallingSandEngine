@@ -434,6 +434,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<'a, T> {
             }
 
             for tick_phase in 0..4 {
+                profiling::scope!("phase", format!("phase {}", tick_phase).as_str());
                 let mut to_exec = vec![];
                 for i in 0..keys.len() {
                     let key = keys[i];
@@ -507,7 +508,10 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<'a, T> {
                 }
 
                 if to_exec.len() > 0 {
+                    profiling::scope!("run simulation");
                     let futs: Vec<_> = Box::leak(Box::new(to_exec)).iter().map(|e| Arc::from(e)).map(|e: Arc<&(usize, (i32, i32), [usize; 9], [usize; 9], [Option<Rect>; 9])>| async move {
+                        profiling::register_thread!("Simulation thread");
+                        profiling::scope!("chunk");
                         let ch_pos = e.1;
 
                         let mut dirty = [false; 9];
@@ -517,8 +521,13 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<'a, T> {
                         (ch_pos, dirty, dirty_rects)
                     }).collect();
                     let futs2: Vec<_> = futs.into_iter().map(|f| RT.spawn(f)).collect();
-                    let b: Vec<Result<((i32, i32), [bool; 9], [Option<Rect>; 9]), _>> = RT.block_on(join_all(futs2));
+                    let b: Vec<Result<((i32, i32), [bool; 9], [Option<Rect>; 9]), _>>;
+                    {
+                        profiling::scope!("wait for threads");
+                        b = RT.block_on(join_all(futs2));
+                    }
                     for i in 0..b.len() {
+                        profiling::scope!("apply");
                         let (ch_pos, dirty, dirty_rects) = b[i].as_ref().unwrap();
                         for i in 0..9 {
                             let rel_ch_x = (i % 3) as i32 - 1;

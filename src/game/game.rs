@@ -9,7 +9,7 @@ use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::mouse;
 use sdl2::render::TextureCreator;
-use sdl2::video::{FullscreenType, WindowContext};
+use sdl2::video::{FullscreenType, SwapInterval, WindowContext};
 use std::time::{Duration, Instant};
 
 
@@ -70,6 +70,7 @@ impl<'a, 'b> Game<'a> {
 
         let mut last_frame = Instant::now();
 
+        let mut do_tick_next = false;
         'mainLoop: loop {
 
             for event in event_pump.poll_iter() {
@@ -166,11 +167,11 @@ impl<'a, 'b> Game<'a> {
             }
 
             // tick
-            let do_tick = now.saturating_duration_since(prev_frame_time).as_nanos() > 1_000_000_000 / 30; // 30 ticks per second
-            if do_tick {
+            if do_tick_next {
                 prev_frame_time = now;
                 self.tick(texture_creator);
             }
+            do_tick_next = now.saturating_duration_since(prev_frame_time).as_nanos() > 1_000_000_000 / 30; // 30 ticks per second
 
             // render
             if let Some(r) = &mut renderer {
@@ -192,7 +193,9 @@ impl<'a, 'b> Game<'a> {
 
             profiling::finish_frame!();
             // sleep
-            ::std::thread::sleep(Duration::new(0, 1_000_000)); // 1ms sleep so the computer doesn't explode
+            if !do_tick_next {
+                ::std::thread::sleep(Duration::new(0, 1_000_000)); // 1ms sleep so the computer doesn't explode
+            }
         }
 
         println!("Closing...");
