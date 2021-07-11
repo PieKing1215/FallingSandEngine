@@ -68,6 +68,7 @@ impl<'a> Renderer<'a> {
         });
     }
 
+    #[profiling::function]
     pub fn render(&mut self, sdl: &Sdl2Context, game: &mut Game){
         let canvas: &mut Canvas<Window> = &mut self.canvas.borrow_mut();
 
@@ -76,16 +77,20 @@ impl<'a> Renderer<'a> {
         
         self.render_internal(canvas, sdl, game);
 
-        let ui = self.imgui.frame();
+        {
+            profiling::scope!("imgui");
+            let ui = self.imgui.frame();
 
-        game.settings.imgui(&ui);
+            game.settings.imgui(&ui);
 
-        self.imgui_sdl2.prepare_render(&ui, &canvas.window());
-        self.imgui_renderer.render(ui);
+            self.imgui_sdl2.prepare_render(&ui, &canvas.window());
+            self.imgui_renderer.render(ui);
+        }
 
         canvas.present();
     }
 
+    #[profiling::function]
     fn render_internal(&self, canvas: &mut Canvas<Window>, sdl: &Sdl2Context, game: &Game){
        canvas.set_draw_color(Color::RGBA(255, 0, 0, 255));
        canvas.draw_rect(sdl2::rect::Rect::new(40 + ((game.tick_time as f32 / 5.0).sin() * 20.0) as i32, 30 + ((game.tick_time as f32 / 5.0).cos().abs() * -10.0) as i32, 15, 15)).unwrap();

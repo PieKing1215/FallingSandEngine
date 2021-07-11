@@ -14,6 +14,7 @@ pub static TEST_MATERIAL: Material = Material {
 pub enum PhysicsType {
     Air,
     Solid,
+    Sand,
     Liquid,
     Gas,
 }

@@ -136,13 +136,16 @@ impl<'a, 'b> Game<'a> {
             }
 
             // tick
-            if now.saturating_duration_since(prev_frame_time).as_nanos() > 1_000_000_000 / 30 { // 30 ticks per second
+            let do_tick = now.saturating_duration_since(prev_frame_time).as_nanos() > 1_000_000_000 / 30;
+            if do_tick { // 30 ticks per second
                 prev_frame_time = now;
                 self.tick(texture_creator);
             }
 
             // render
             if let Some(r) = &mut renderer {
+                profiling::scope!("rendering");
+                
                 r.render(sdl, self);
                 self.frame_count += 1;
                 self.fps_counter.frames += 1;

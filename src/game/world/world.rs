@@ -66,6 +66,16 @@ impl Renderable for World<'_> {
                 transform.push();
                 transform.translate(ch.chunk_x * CHUNK_SIZE as i32, ch.chunk_y * CHUNK_SIZE as i32);
                 ch.render(canvas, transform, sdl, fonts, game);
+
+                if game.settings.draw_chunk_dirty_rects {
+                    if let Some(dr) = ch.dirty_rect {
+                        let rect = transform.transform_rect(dr);
+                        canvas.set_draw_color(Color::RGBA(255, 64, 64, 127));
+                        canvas.fill_rect(rect).unwrap();
+                        canvas.draw_rect(rect).unwrap();
+                    }
+                }
+
                 transform.pop();
             }
 

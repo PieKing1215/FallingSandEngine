@@ -4,6 +4,7 @@ use imgui::{Slider, TreeNode, WindowFlags, im_str};
 pub struct Settings {
     pub draw_chunk_state_overlay: bool,
     pub draw_chunk_state_overlay_alpha: f32,
+    pub draw_chunk_dirty_rects: bool,
     pub draw_chunk_grid: bool,
     pub draw_origin: bool,
     pub draw_load_zones: bool,
@@ -11,6 +12,7 @@ pub struct Settings {
 }
 
 impl Settings {
+    #[profiling::function]
     pub fn imgui(&mut self, ui: &imgui::Ui){
         imgui::Window::new(im_str!("Debug Menu"))
         .size([300.0, 600.0], imgui::Condition::FirstUseEver)
@@ -29,6 +31,7 @@ impl Settings {
                             .build(ui, &mut self.draw_chunk_state_overlay_alpha);
                         ui.unindent();
                     }
+                    ui.checkbox(im_str!("draw_chunk_dirty_rects"), &mut self.draw_chunk_dirty_rects);
                     ui.checkbox(im_str!("draw_chunk_grid"), &mut self.draw_chunk_grid);
                     ui.checkbox(im_str!("draw_origin"), &mut self.draw_origin);
                     ui.checkbox(im_str!("draw_load_zones"), &mut self.draw_load_zones);
@@ -45,6 +48,7 @@ impl Default for Settings {
         Self {
             draw_chunk_state_overlay: false,
             draw_chunk_state_overlay_alpha: 0.5,
+            draw_chunk_dirty_rects: false,
             draw_chunk_grid: true,
             draw_origin: true,
             draw_load_zones: false,

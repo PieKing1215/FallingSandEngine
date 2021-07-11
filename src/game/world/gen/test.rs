@@ -45,7 +45,7 @@ impl WorldGenerator for TestGenerator {
                     if v2 > 0.0 {
                         pixels[i] = MaterialInstance {
                             material_id: TEST_MATERIAL.id,
-                            physics: crate::game::world::PhysicsType::Solid,
+                            physics: crate::game::world::PhysicsType::Sand,
                             color: Color::RGB(0, 0, 255),
                         };
                         colors[i*4 + 0] = 0;
