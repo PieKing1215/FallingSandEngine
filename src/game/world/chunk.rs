@@ -169,7 +169,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<'a, T> {
         ChunkHandler {
             loaded_chunks: HashMap::new(),
             load_queue: vec![],
-            screen_size: (1920, 1080),
+            screen_size: (1920 / 2, 1080 / 2),
             generator
         }
     }
@@ -722,11 +722,11 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<'a, T> {
 
     #[profiling::function]
     pub fn get_load_zone(&self, camera: &Camera) -> Rect {
-        self.get_zone(camera, (CHUNK_SIZE * 8).into())
+        self.get_zone(camera, (CHUNK_SIZE * 5).into())
     }
 
     #[profiling::function]
     pub fn get_unload_zone(&self, camera: &Camera) -> Rect {
-        self.get_zone(camera, (CHUNK_SIZE * 12).into())
+        self.get_zone(camera, (CHUNK_SIZE * 10).into())
     }
 }
