@@ -86,7 +86,6 @@ impl<'a> Renderer<'a> {
             ui.show_demo_window(&mut true);
             game.settings.imgui(&ui);
 
-
             imgui::Window::new(im_str!("Stats"))
             .size([300.0, 300.0], imgui::Condition::FirstUseEver)
             .position_pivot([1.0, 1.0])
@@ -110,21 +109,21 @@ impl<'a> Renderer<'a> {
                 let avg_mspt: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
                 ui.plot_lines(im_str!(""), &game.fps_counter.frame_times)
-                .graph_size([200.0, 50.0])
-                .scale_min(0.0)
-                .scale_max(50_000_000.0)
-                .overlay_text(im_str!("mspf: {:.2} fps: {:.0}", avg_mspt, ui.io().framerate).as_ref())
-                .build();
+                    .graph_size([200.0, 50.0])
+                    .scale_min(0.0)
+                    .scale_max(50_000_000.0)
+                    .overlay_text(im_str!("mspf: {:.2} fps: {:.0}", avg_mspt, ui.io().framerate).as_ref())
+                    .build();
 
                 let nums: Vec<f32> = game.fps_counter.tick_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
                 let avg_mspt: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
                 ui.plot_histogram(im_str!(""), &game.fps_counter.tick_times)
-                .graph_size([200.0, 50.0])
-                .scale_min(0.0)
-                .scale_max(100_000_000.0)
-                .overlay_text(im_str!("mspt: {:.2}", avg_mspt).as_ref())
-                .build();
+                    .graph_size([200.0, 50.0])
+                    .scale_min(0.0)
+                    .scale_max(100_000_000.0)
+                    .overlay_text(im_str!("mspt: {:.2}", avg_mspt).as_ref())
+                    .build();
             });
 
             {

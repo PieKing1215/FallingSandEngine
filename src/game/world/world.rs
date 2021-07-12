@@ -1,4 +1,4 @@
-use crate::game::world::gen::WorldGenerator;
+use crate::game::{Settings, world::gen::WorldGenerator};
 use sdl2::{pixels::Color, rect::Rect, render::TextureCreator, video::WindowContext};
 
 use crate::game::{Fonts, Game, RenderCanvas, Renderable, Sdl2Context, TransformStack};
@@ -30,8 +30,8 @@ impl<'w> World<'w> {
     }
 
     #[profiling::function]
-    pub fn tick(&mut self, tick_time: u32, texture_creator: &'w TextureCreator<WindowContext>){
-        self.chunk_handler.tick(tick_time, &self.camera);
+    pub fn tick(&mut self, tick_time: u32, texture_creator: &'w TextureCreator<WindowContext>, settings: &Settings){
+        self.chunk_handler.tick(tick_time, &self.camera, settings);
         self.chunk_handler.update_chunk_graphics(texture_creator);
     }
 

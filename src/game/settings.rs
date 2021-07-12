@@ -1,7 +1,7 @@
-use imgui::{Slider, TreeNode, WindowFlags, im_str};
-
+use imgui::{ComboBox, Slider, SliderFlags, TreeNode, WindowFlags, im_str};
 
 pub struct Settings {
+    // rendering
     pub draw_chunk_state_overlay: bool,
     pub draw_chunk_state_overlay_alpha: f32,
     pub draw_chunk_dirty_rects: bool,
@@ -9,6 +9,18 @@ pub struct Settings {
     pub draw_origin: bool,
     pub draw_load_zones: bool,
     pub cull_chunks: bool,
+    
+    // display
+    pub fullscreen: bool,
+    pub fullscreen_type: usize,
+    pub vsync: bool,
+    pub minimize_on_lost_focus: bool,
+
+    // simulation
+    pub tick: bool,
+    pub tick_speed: u16,
+    pub load_chunks: bool,
+    pub pause_on_lost_focus: bool,
 }
 
 impl Settings {
@@ -28,6 +40,7 @@ impl Settings {
                         Slider::new(im_str!("alpha"))
                             .range(0.1..=1.0)
                             .display_format(im_str!("%.1f"))
+                            .flags(SliderFlags::ALWAYS_CLAMP)
                             .build(ui, &mut self.draw_chunk_state_overlay_alpha);
                         ui.unindent();
                     }
@@ -38,7 +51,32 @@ impl Settings {
                     ui.checkbox(im_str!("cull_chunks"), &mut self.cull_chunks);
                 // });
             });
-            
+            TreeNode::new(im_str!("display")).label(im_str!("display")).build(ui, || {
+                ui.checkbox(im_str!("fullscreen"), &mut self.fullscreen);
+                ui.set_next_item_width(110.0);
+                ui.indent();
+                ComboBox::new(im_str!("fullscreen_type")).build_simple_string(ui, &mut self.fullscreen_type, &[
+                    im_str!("borderless"),
+                    im_str!("fullscreen"),
+                ]);
+                ui.unindent();
+                ui.checkbox(im_str!("vsync"), &mut self.vsync);
+                ui.checkbox(im_str!("minimize_on_lost_focus"), &mut self.minimize_on_lost_focus);
+            });
+            TreeNode::new(im_str!("simulation")).label(im_str!("simulation")).build(ui, || {
+                ui.checkbox(im_str!("tick"), &mut self.tick);
+                ui.set_next_item_width(121.0);
+                Slider::new(im_str!("tick_speed"))
+                    .range(1..=120)
+                    .flags(SliderFlags::ALWAYS_CLAMP)
+                    .build(ui, &mut self.tick_speed);
+                ui.same_line(0.0);
+                if ui.small_button(im_str!("reset")) {
+                    self.tick_speed = 30;
+                }
+                ui.checkbox(im_str!("load_chunks"), &mut self.load_chunks);
+                ui.checkbox(im_str!("pause_on_lost_focus"), &mut self.pause_on_lost_focus);
+            });
         });
     }
 }
@@ -53,6 +91,16 @@ impl Default for Settings {
             draw_origin: true,
             draw_load_zones: false,
             cull_chunks: true,
+
+            fullscreen: false,
+            fullscreen_type: 0,
+            vsync: false,
+            minimize_on_lost_focus: false,
+
+            tick: true,
+            tick_speed: 30,
+            load_chunks: true,
+            pause_on_lost_focus: false,
         }
     }
 }
