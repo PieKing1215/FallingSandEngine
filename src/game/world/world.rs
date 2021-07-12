@@ -75,6 +75,12 @@ impl Renderable for World<'_> {
                         canvas.fill_rect(rect).unwrap();
                         canvas.draw_rect(rect).unwrap();
                     }
+                    if ch.graphics.was_dirty {
+                        let rect = transform.transform_rect(Rect::new(0, 0, CHUNK_SIZE as u32, CHUNK_SIZE as u32));
+                        canvas.set_draw_color(Color::RGBA(255, 255, 64, 127));
+                        canvas.fill_rect(rect).unwrap();
+                        canvas.draw_rect(rect).unwrap();
+                    }
                 }
 
                 transform.pop();
@@ -102,26 +108,26 @@ impl Renderable for World<'_> {
                 canvas.draw_rect(rect).unwrap();
             
                 // let ind = self.chunk_handler.chunk_index(ch.chunk_x, ch.chunk_y);
-                let ind = self.chunk_handler.chunk_update_order(ch.chunk_x, ch.chunk_y);
-                let tex = canvas.texture_creator();
-                let txt_sf = fonts.pixel_operator
-                    .render(format!("{}", ind).as_str())
-                    .solid(Color::RGB(255, 255, 255)).unwrap();
-                let txt_tex = tex.create_texture_from_surface(&txt_sf).unwrap();
+                // let ind = self.chunk_handler.chunk_update_order(ch.chunk_x, ch.chunk_y);
+                // let tex = canvas.texture_creator();
+                // let txt_sf = fonts.pixel_operator
+                //     .render(format!("{}", ind).as_str())
+                //     .solid(Color::RGB(255, 255, 255)).unwrap();
+                // let txt_tex = tex.create_texture_from_surface(&txt_sf).unwrap();
     
-                let aspect = txt_sf.width() as f32 / txt_sf.height() as f32;
-                let mut txt_height = rect.height() as f32 * 0.75;
-                let mut txt_width = (aspect * txt_height as f32) as u32;
+                // let aspect = txt_sf.width() as f32 / txt_sf.height() as f32;
+                // let mut txt_height = rect.height() as f32 * 0.75;
+                // let mut txt_width = (aspect * txt_height as f32) as u32;
     
-                let max_width = (rect.w as f32 * 0.9) as u32;
+                // let max_width = (rect.w as f32 * 0.9) as u32;
     
-                if txt_width > max_width as u32 {
-                    txt_width = max_width as u32;
-                    txt_height = 1.0 / aspect * txt_width as f32;
-                }
+                // if txt_width > max_width as u32 {
+                //     txt_width = max_width as u32;
+                //     txt_height = 1.0 / aspect * txt_width as f32;
+                // }
     
-                let txt_rec = Rect::new(rect.x + rect.w/2 - (txt_width as i32)/2, rect.y, txt_width, txt_height as u32);
-                canvas.copy(&txt_tex, None, Some(txt_rec)).unwrap();
+                // let txt_rec = Rect::new(rect.x + rect.w/2 - (txt_width as i32)/2, rect.y, txt_width, txt_height as u32);
+                // canvas.copy(&txt_tex, None, Some(txt_rec)).unwrap();
             }
 
         });

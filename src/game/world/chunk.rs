@@ -1,9 +1,9 @@
 use crate::game::world::simulator::Simulator;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, io::Write, ptr, sync::Arc};
 
 use futures::future::join_all;
 use lazy_static::lazy_static;
-use sdl2::{pixels::{Color, PixelFormatEnum}, rect::Rect, render::{TextureCreator, TextureValueError}, video::WindowContext};
+use sdl2::{pixels::{Color, PixelFormatEnum}, rect::Rect, render::{TextureCreator, TextureValueError}, sys::{self, SDL_LockTexture, SDL_UnlockTexture}, video::WindowContext};
 use tokio::runtime::Runtime;
 
 use crate::game::{Renderable};
@@ -33,6 +33,7 @@ impl<'ch> Chunk<'ch> {
                 texture: None,
                 pixel_data: [0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)],
                 dirty: true,
+                was_dirty: true,
             }),
             dirty_rect: None,
         }
@@ -46,7 +47,7 @@ impl<'ch> Chunk<'ch> {
         }
     }
 
-    #[profiling::function]
+    // #[profiling::function]
     pub fn update_graphics(&mut self, texture_creator: &'ch TextureCreator<WindowContext>) -> Result<(), String> {
 
         self.graphics.update_texture(texture_creator).map_err(|e| e.to_string())?;
@@ -100,6 +101,7 @@ pub struct ChunkGraphics<'cg> {
     texture: Option<sdl2::render::Texture<'cg>>,
     pub pixel_data: [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4],
     pub dirty: bool,
+    pub was_dirty: bool,
 }
 
 impl<'cg> ChunkGraphics<'cg> {
@@ -120,7 +122,7 @@ impl<'cg> ChunkGraphics<'cg> {
         Err("Invalid pixel coordinate.".to_string())
     }
 
-    #[profiling::function]
+    // #[profiling::function]
     pub fn update_texture(&mut self, texture_creator: &'cg TextureCreator<WindowContext>) -> Result<(), TextureValueError> {
         if self.dirty {
             if self.texture.is_none() {
@@ -179,6 +181,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<'a, T> {
         let keys = self.loaded_chunks.keys().clone().map(|i| *i).collect::<Vec<u32>>();
         for i in 0..keys.len() {
             let key = keys[i];
+            self.loaded_chunks.get_mut(&key).unwrap().graphics.was_dirty = self.loaded_chunks.get_mut(&key).unwrap().graphics.dirty;
             self.loaded_chunks.get_mut(&key).unwrap().update_graphics(texture_creator).unwrap();
         }
     }
@@ -523,7 +526,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<'a, T> {
                     let futs2: Vec<_> = futs.into_iter().map(|f| RT.spawn(f)).collect();
                     let b: Vec<Result<((i32, i32), [bool; 9], [Option<Rect>; 9]), _>>;
                     {
-                        profiling::scope!("wait for threads");
+                        profiling::scope!("wait for threads", format!("#futs = {}", futs2.len()).as_str());
                         b = RT.block_on(join_all(futs2));
                     }
                     for i in 0..b.len() {

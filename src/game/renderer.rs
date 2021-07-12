@@ -1,6 +1,8 @@
 
-use std::{cell::RefCell};
+use std::{cell::{Cell, RefCell}};
 
+use imgui::{WindowFlags, im_str};
+use lazy_static::lazy_static;
 use sdl2::{VideoSubsystem, pixels::Color, render::Canvas, ttf::{Font, Sdl2TtfContext}, video::Window};
 
 use super::{Game, Renderable, TransformStack};
@@ -81,7 +83,49 @@ impl<'a> Renderer<'a> {
             profiling::scope!("imgui");
             let ui = self.imgui.frame();
 
+            ui.show_demo_window(&mut true);
             game.settings.imgui(&ui);
+
+
+            imgui::Window::new(im_str!("Stats"))
+            .size([300.0, 300.0], imgui::Condition::FirstUseEver)
+            .position_pivot([1.0, 1.0])
+            .position([canvas.window().size().0 as f32, canvas.window().size().1 as f32], imgui::Condition::Always)
+            .flags(WindowFlags::ALWAYS_AUTO_RESIZE | WindowFlags::NO_DECORATION | WindowFlags::NO_MOUSE_INPUTS | WindowFlags::NO_FOCUS_ON_APPEARING | WindowFlags::NO_NAV)
+            .bg_alpha(0.25)
+            .resizable(false)
+            .build(&ui, || {
+
+                ui.text(match game.process_stats.cpu_usage {
+                    Some(c) => format!("CPU: {:.0}%", c),
+                    None => format!("CPU: n/a"),
+                });
+                ui.same_line(0.0);
+                ui.text(match game.process_stats.memory {
+                    Some(m) => format!(" mem: {:.1} MB", m as f32 / 1000.0),
+                    None => format!(" mem: n/a"),
+                });
+
+                let nums: Vec<f32> = game.fps_counter.frame_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
+                let avg_mspt: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+
+                ui.plot_lines(im_str!(""), &game.fps_counter.frame_times)
+                .graph_size([200.0, 50.0])
+                .scale_min(0.0)
+                .scale_max(50_000_000.0)
+                .overlay_text(im_str!("mspf: {:.2} fps: {:.0}", avg_mspt, ui.io().framerate).as_ref())
+                .build();
+
+                let nums: Vec<f32> = game.fps_counter.tick_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
+                let avg_mspt: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+
+                ui.plot_histogram(im_str!(""), &game.fps_counter.tick_times)
+                .graph_size([200.0, 50.0])
+                .scale_min(0.0)
+                .scale_max(100_000_000.0)
+                .overlay_text(im_str!("mspt: {:.2}", avg_mspt).as_ref())
+                .build();
+            });
 
             {
                 profiling::scope!("prepare_render");

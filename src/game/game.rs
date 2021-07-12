@@ -10,6 +10,7 @@ use sdl2::keyboard::Keycode;
 use sdl2::mouse;
 use sdl2::render::TextureCreator;
 use sdl2::video::{FullscreenType, SwapInterval, WindowContext};
+use sysinfo::{ProcessExt, SystemExt};
 use std::time::{Duration, Instant};
 
 
@@ -17,14 +18,22 @@ pub struct Game<'a> {
     pub world: Option<World<'a>>,
     pub tick_time: u32,
     pub frame_count: u32,
-    fps_counter: FPSCounter,
+    pub fps_counter: FPSCounter,
+    pub process_stats: ProcessStats,
     pub settings: Settings,
+}
+
+pub struct ProcessStats {
+    pub cpu_usage: Option<f32>,
+    pub memory: Option<u64>,
 }
 
 pub struct FPSCounter {
     frames: u16,
     last_update: Instant,
-    pub display_value: u16
+    pub display_value: u16,
+    pub frame_times: [f32; 200],
+    pub tick_times: [f32; 200],
 }
 
 impl<'a, 'b> Game<'a> {
@@ -37,7 +46,13 @@ impl<'a, 'b> Game<'a> {
             fps_counter: FPSCounter {
                 frames: 0, 
                 last_update: Instant::now(), 
-                display_value: 0
+                display_value: 0,
+                frame_times: [0.0; 200],
+                tick_times: [0.0; 200],
+            },
+            process_stats: ProcessStats {
+                cpu_usage: None,
+                memory: None,
             },
             settings: Settings::default(),
         }
@@ -69,10 +84,12 @@ impl<'a, 'b> Game<'a> {
         let mut shift_key = false;
 
         let mut last_frame = Instant::now();
+        let mut counter_last_frame = Instant::now();
+
+        let mut sys = sysinfo::System::new();
 
         let mut do_tick_next = false;
         'mainLoop: loop {
-
             for event in event_pump.poll_iter() {
                 if let Some(r) = &mut renderer {
                     r.imgui_sdl2.handle_event(&mut r.imgui, &event);
@@ -169,7 +186,10 @@ impl<'a, 'b> Game<'a> {
             // tick
             if do_tick_next {
                 prev_frame_time = now;
+                let st = Instant::now();
                 self.tick(texture_creator);
+                self.fps_counter.tick_times.rotate_left(1);
+                self.fps_counter.tick_times[self.fps_counter.tick_times.len() - 1] = Instant::now().saturating_duration_since(st).as_nanos() as f32;
             }
             do_tick_next = now.saturating_duration_since(prev_frame_time).as_nanos() > 1_000_000_000 / 30; // 30 ticks per second
 
@@ -188,14 +208,25 @@ impl<'a, 'b> Game<'a> {
                     if set.is_err() {
                         eprintln!("Failed to set window title.");
                     }
+                    
+                    sys.refresh_process(std::process::id() as usize);
+                    if let Some(pc) = sys.process(std::process::id() as usize) {
+                        self.process_stats.cpu_usage = Some(pc.cpu_usage() / sys.processors().len() as f32);
+                        self.process_stats.memory = Some(pc.memory());
+                    }
                 }
             }
+
+            let time_nano = Instant::now().saturating_duration_since(counter_last_frame).as_nanos();
+            self.fps_counter.frame_times.rotate_left(1);
+            self.fps_counter.frame_times[self.fps_counter.frame_times.len() - 1] = time_nano as f32;
 
             profiling::finish_frame!();
             // sleep
             if !do_tick_next {
                 ::std::thread::sleep(Duration::new(0, 1_000_000)); // 1ms sleep so the computer doesn't explode
             }
+            counter_last_frame = Instant::now();
         }
 
         println!("Closing...");

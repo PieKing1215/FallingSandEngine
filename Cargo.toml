@@ -16,6 +16,7 @@ lazy_static = "1.4.0"
 imgui = "0.7.0"
 imgui-sdl2 = "0.14.0"
 imgui-opengl-renderer = "0.11.0"
+sysinfo = "0.19.1" # should be optional in the future
 
 [features]
 #default = ["profile-with-tracy"]
