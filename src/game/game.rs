@@ -10,7 +10,7 @@ use sdl2::keyboard::Keycode;
 use sdl2::render::TextureCreator;
 use sdl2::sys::SDL_WindowFlags;
 use sdl2::video::{FullscreenType, SwapInterval, WindowContext};
-use sysinfo::{ProcessExt, SystemExt};
+use sysinfo::{Pid, ProcessExt, SystemExt};
 use std::time::{Duration, Instant};
 
 
@@ -248,8 +248,8 @@ impl<'a, 'b> Game<'a> {
                         eprintln!("Failed to set window title.");
                     }
                     
-                    sys.refresh_process(std::process::id() as usize);
-                    if let Some(pc) = sys.process(std::process::id() as usize) {
+                    sys.refresh_process(std::process::id() as Pid);
+                    if let Some(pc) = sys.process(std::process::id() as Pid) {
                         self.process_stats.cpu_usage = Some(pc.cpu_usage() / sys.processors().len() as f32);
                         self.process_stats.memory = Some(pc.memory());
                     }
