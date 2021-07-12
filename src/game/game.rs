@@ -1,14 +1,12 @@
 
-use crate::game::world::{CHUNK_SIZE, MaterialInstance};
+use crate::game::world::MaterialInstance;
 
 use super::{Sdl2Context, Settings};
 use super::Renderer;
 use super::world::World;
 
-use imgui::WindowFlags;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::mouse;
 use sdl2::render::TextureCreator;
 use sdl2::sys::SDL_WindowFlags;
 use sdl2::video::{FullscreenType, SwapInterval, WindowContext};

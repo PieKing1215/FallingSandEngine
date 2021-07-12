@@ -1,9 +1,9 @@
 use crate::game::{Settings, world::simulator::Simulator};
-use std::{collections::HashMap, io::Write, ptr, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use futures::future::join_all;
 use lazy_static::lazy_static;
-use sdl2::{pixels::{Color, PixelFormatEnum}, rect::Rect, render::{TextureCreator, TextureValueError}, sys::{self, SDL_LockTexture, SDL_UnlockTexture}, video::WindowContext};
+use sdl2::{pixels::{Color, PixelFormatEnum}, rect::Rect, render::{TextureCreator, TextureValueError}, video::WindowContext};
 use tokio::runtime::Runtime;
 
 use crate::game::{Renderable};
@@ -192,7 +192,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<'a, T> {
         let unload_zone = self.get_unload_zone(camera);
         let load_zone = self.get_load_zone(camera);
         let active_zone = self.get_active_zone(camera);
-        let screen_zone = self.get_screen_zone(camera);
+        let _screen_zone = self.get_screen_zone(camera);
         
         if settings.load_chunks {
             {

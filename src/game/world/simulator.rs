@@ -1,6 +1,6 @@
 use sdl2::{pixels::Color, rect::Rect};
 
-use crate::game::world::{PhysicsType, TEST_MATERIAL};
+use crate::game::world::PhysicsType;
 
 use super::{CHUNK_SIZE, MaterialInstance};
 
@@ -11,7 +11,7 @@ pub struct Simulator {
 
 impl Simulator {
     #[profiling::function]
-    pub fn simulate_chunk(chunk_x: i32, chunk_y: i32, pixels_raw: [usize; 9], colors_raw: [usize; 9], dirty: &mut [bool; 9], dirty_rects: &mut [Option<Rect>; 9]) {
+    pub fn simulate_chunk(_chunk_x: i32, _chunk_y: i32, pixels_raw: [usize; 9], colors_raw: [usize; 9], dirty: &mut [bool; 9], dirty_rects: &mut [Option<Rect>; 9]) {
         const CENTER_CHUNK: usize = 4;
 
         let my_dirty_rect_o = dirty_rects[CENTER_CHUNK];

@@ -8,4 +8,3 @@ mod gen;
 pub use world::*;
 pub use chunk::*;
 pub use material::*;
-use simulator::*;

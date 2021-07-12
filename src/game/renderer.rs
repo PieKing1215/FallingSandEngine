@@ -1,8 +1,7 @@
 
-use std::{cell::{Cell, RefCell}};
+use std::cell::RefCell;
 
 use imgui::{WindowFlags, im_str};
-use lazy_static::lazy_static;
 use sdl2::{VideoSubsystem, pixels::Color, render::Canvas, ttf::{Font, Sdl2TtfContext}, video::Window};
 
 use super::{Game, Renderable, TransformStack};
