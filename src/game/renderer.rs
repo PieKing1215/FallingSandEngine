@@ -82,7 +82,7 @@ impl<'a> Renderer<'a> {
             profiling::scope!("imgui");
             let ui = self.imgui.frame();
 
-            ui.show_demo_window(&mut true);
+            // ui.show_demo_window(&mut true);
             game.settings.imgui(&ui);
 
             imgui::Window::new(im_str!("Stats"))

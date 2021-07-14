@@ -11,6 +11,7 @@ use sdl2::{rect::Rect, render::Canvas, video::Window};
 
 pub type RenderCanvas = Canvas<Window>;
 
+#[derive(Clone)]
 pub struct TransformStack {
     stack: Vec<Transform>
 }
@@ -43,8 +44,13 @@ impl TransformStack {
     }
 
     pub fn scale<T: Into<f64>>(&mut self, x: T, y: T){
+        let prev_x = self.stack.last_mut().unwrap().scale_x;
+        let prev_y = self.stack.last_mut().unwrap().scale_y;
+
         self.stack.last_mut().unwrap().scale_x *= x.into();
         self.stack.last_mut().unwrap().scale_y *= y.into();
+        self.stack.last_mut().unwrap().translate_x /= self.stack.last_mut().unwrap().scale_x / prev_x;
+        self.stack.last_mut().unwrap().translate_y /= self.stack.last_mut().unwrap().scale_y / prev_y;
     }
 
     pub fn transform<T: Into<f64>>(&self, point: (T, T)) -> (f64, f64) {

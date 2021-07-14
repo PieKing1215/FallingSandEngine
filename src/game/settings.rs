@@ -9,6 +9,13 @@ pub struct Settings {
     pub draw_origin: bool,
     pub draw_load_zones: bool,
     pub cull_chunks: bool,
+    pub lqf_dbg_draw: bool,
+    pub lqf_dbg_draw_shape: bool,
+    pub lqf_dbg_draw_joint: bool,
+    pub lqf_dbg_draw_aabb: bool,
+    pub lqf_dbg_draw_pair: bool,
+    pub lqf_dbg_draw_center_of_mass: bool,
+    pub lqf_dbg_draw_particle: bool,
     
     // display
     pub fullscreen: bool,
@@ -49,6 +56,16 @@ impl Settings {
                     ui.checkbox(im_str!("draw_origin"), &mut self.draw_origin);
                     ui.checkbox(im_str!("draw_load_zones"), &mut self.draw_load_zones);
                     ui.checkbox(im_str!("cull_chunks"), &mut self.cull_chunks);
+
+                    ui.checkbox(im_str!("lqf_dbg_draw"), &mut self.lqf_dbg_draw);
+                    ui.indent();
+                    ui.checkbox(im_str!("lqf_dbg_draw_shape"), &mut self.lqf_dbg_draw_shape);
+                    ui.checkbox(im_str!("lqf_dbg_draw_joint"), &mut self.lqf_dbg_draw_joint);
+                    ui.checkbox(im_str!("lqf_dbg_draw_aabb"), &mut self.lqf_dbg_draw_aabb);
+                    ui.checkbox(im_str!("lqf_dbg_draw_pair"), &mut self.lqf_dbg_draw_pair);
+                    ui.checkbox(im_str!("lqf_dbg_draw_center_of_mass"), &mut self.lqf_dbg_draw_center_of_mass);
+                    ui.checkbox(im_str!("lqf_dbg_draw_particle"), &mut self.lqf_dbg_draw_particle);
+                    ui.unindent();
                 // });
             });
             TreeNode::new(im_str!("display")).label(im_str!("display")).build(ui, || {
@@ -91,6 +108,13 @@ impl Default for Settings {
             draw_origin: true,
             draw_load_zones: false,
             cull_chunks: true,
+            lqf_dbg_draw: true,
+            lqf_dbg_draw_shape: true,
+            lqf_dbg_draw_joint: true,
+            lqf_dbg_draw_aabb: true,
+            lqf_dbg_draw_pair: true,
+            lqf_dbg_draw_center_of_mass: true,
+            lqf_dbg_draw_particle: true,
 
             fullscreen: false,
             fullscreen_type: 0,
