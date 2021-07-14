@@ -5,8 +5,6 @@ use game::Game;
 
 use crate::game::{Fonts, Renderer};
 
-extern crate liquidfun;
-
 #[profiling::function]
 fn main() -> Result<(), String> {
     println!("Hello, world!");
