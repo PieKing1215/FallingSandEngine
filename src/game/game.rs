@@ -34,6 +34,7 @@ pub struct FPSCounter {
     pub display_value: u16,
     pub frame_times: [f32; 200],
     pub tick_times: [f32; 200],
+    pub tick_lqf_times: [f32; 200],
 }
 
 impl<'a, 'b> Game<'a> {
@@ -49,6 +50,7 @@ impl<'a, 'b> Game<'a> {
                 display_value: 0,
                 frame_times: [0.0; 200],
                 tick_times: [0.0; 200],
+                tick_lqf_times: [0.0; 200],
             },
             process_stats: ProcessStats {
                 cpu_usage: None,
@@ -77,7 +79,8 @@ impl<'a, 'b> Game<'a> {
 
     #[profiling::function]
     pub fn run(&mut self, sdl: &Sdl2Context, mut renderer: Option<&mut Renderer>, texture_creator: &'a TextureCreator<WindowContext>) {
-        let mut prev_frame_time = std::time::Instant::now();
+        let mut prev_tick_time = std::time::Instant::now();
+        let mut prev_tick_lqf_time = std::time::Instant::now();
 
         let mut event_pump = sdl.sdl.event_pump().unwrap();
 
@@ -89,6 +92,7 @@ impl<'a, 'b> Game<'a> {
         let mut sys = sysinfo::System::new();
 
         let mut do_tick_next = false;
+        let mut do_tick_lqf_next = false;
         'mainLoop: loop {
             for event in event_pump.poll_iter() {
                 if let Some(r) = &mut renderer {
@@ -223,13 +227,34 @@ impl<'a, 'b> Game<'a> {
             }
 
             if do_tick_next && can_tick {
-                prev_frame_time = now;
+                prev_tick_time = now;
                 let st = Instant::now();
                 self.tick(texture_creator);
                 self.fps_counter.tick_times.rotate_left(1);
                 self.fps_counter.tick_times[self.fps_counter.tick_times.len() - 1] = Instant::now().saturating_duration_since(st).as_nanos() as f32;
             }
-            do_tick_next = can_tick && now.saturating_duration_since(prev_frame_time).as_nanos() > 1_000_000_000 / self.settings.tick_speed as u128; // intended is 30 ticks per second
+            do_tick_next = can_tick && now.saturating_duration_since(prev_tick_time).as_nanos() > 1_000_000_000 / self.settings.tick_speed as u128; // intended is 30 ticks per second
+
+            // tick liquidfun
+
+            let mut can_tick = self.settings.tick_lqf;
+
+            if let Some(ref r) = renderer {
+               let flags = r.canvas.borrow().window().window_flags();
+               can_tick = can_tick && !(self.settings.pause_on_lost_focus && renderer.is_some() && !(flags & SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32 == SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32));
+            }
+
+            if do_tick_lqf_next && can_tick {
+                prev_tick_lqf_time = now;
+                if let Some(w) = &mut self.world {
+                    let st = Instant::now();
+                    w.tick_lqf(texture_creator, &self.settings);
+                    self.fps_counter.tick_lqf_times.rotate_left(1);
+                    self.fps_counter.tick_lqf_times[self.fps_counter.tick_lqf_times.len() - 1] = Instant::now().saturating_duration_since(st).as_nanos() as f32;
+                    
+                }
+            }
+            do_tick_lqf_next = can_tick && now.saturating_duration_since(prev_tick_lqf_time).as_nanos() > 1_000_000_000 / self.settings.tick_lqf_speed as u128; // intended is 60 ticks per second
 
             // render
 

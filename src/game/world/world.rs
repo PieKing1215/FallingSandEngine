@@ -111,17 +111,21 @@ impl BoxDraw {
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
         
-        let centers_vec: Vec<(i16, i16, i16)> = slice_from_raw_parts(centers, count as usize).as_ref().unwrap().iter().map(|v| {
-            let (x, y) = transform.transform((v.x, v.y));
-            let (x_plus_rad, _) = transform.transform((v.x + radius, v.y));
-            (x as i16, y as i16, x_plus_rad as i16)
+        let centers_vec: Vec<(f32, f32)> = slice_from_raw_parts(centers, count as usize).as_ref().unwrap().iter().map(|v| {
+            (v.x, v.y)
         }).collect();
 
         // if colors.is_null() {
             for i in 0..count as usize {
-                let (x, y, x_plus_rad) = centers_vec[i];
+                let (x, y) = centers_vec[i];
                 let col = Color::RGB(100, 100, 255);
-                canvas.filled_circle(x, y, x_plus_rad - x, col).unwrap();
+                let p1 = (x - radius, y - radius);
+                let p2 = (x + radius, y + radius);
+                let p1_i = transform.transform(p1);
+                let p2_i = transform.transform(p2);
+                canvas.set_draw_color(col);
+                canvas.fill_rect(Rect::new(p1_i.0 as i32, p1_i.1 as i32, (p2_i.0 - p1_i.0) as u32, (p2_i.1 - p1_i.1) as u32)).unwrap();
+                // canvas.filled_circle(x, y, x_plus_rad - x, col).unwrap();
             }
         // }else {
         //     let colors_vec: Vec<Color> = slice_from_raw_parts(colors, count as usize).as_ref().unwrap().iter().map(|col| {
@@ -279,8 +283,9 @@ impl<'w> World<'w> {
     pub fn tick(&mut self, tick_time: u32, texture_creator: &'w TextureCreator<WindowContext>, settings: &Settings){
         self.chunk_handler.tick(tick_time, &self.camera, settings);
         self.chunk_handler.update_chunk_graphics(texture_creator);
+    }
 
-
+    pub fn tick_lqf(&mut self, texture_creator: &'w TextureCreator<WindowContext>, settings: &Settings) {
         // need to do this here since 'self' isn't mut in render
         if settings.lqf_dbg_draw {
             if let Some(cast) = self.lqf_world.get_debug_draw() {
@@ -308,15 +313,10 @@ impl<'w> World<'w> {
             }
         }
 
-        let time_step = 1.0 / 15.0;
+        let time_step = settings.tick_lqf_timestep;
         let velocity_iterations = 6;
         let position_iterations = 2;
         self.lqf_world.step(time_step, velocity_iterations, position_iterations);
-        // println!("#{}", self.lqf_world.get_body_count());
-        // self.lqf_world.get_body_iterator().for_each(|b| {
-        //     let pos = b.get_position();
-        //     println!("{:?}", pos);
-        // })
     }
 
 }

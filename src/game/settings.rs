@@ -26,6 +26,9 @@ pub struct Settings {
     // simulation
     pub tick: bool,
     pub tick_speed: u16,
+    pub tick_lqf: bool,
+    pub tick_lqf_speed: u16,
+    pub tick_lqf_timestep: f32,
     pub load_chunks: bool,
     pub pause_on_lost_focus: bool,
 }
@@ -82,15 +85,43 @@ impl Settings {
             });
             TreeNode::new(im_str!("simulation")).label(im_str!("simulation")).build(ui, || {
                 ui.checkbox(im_str!("tick"), &mut self.tick);
+
+                ui.indent();
                 ui.set_next_item_width(121.0);
                 Slider::new(im_str!("tick_speed"))
                     .range(1..=120)
                     .flags(SliderFlags::ALWAYS_CLAMP)
                     .build(ui, &mut self.tick_speed);
                 ui.same_line(0.0);
-                if ui.small_button(im_str!("reset")) {
+                if ui.small_button(im_str!("reset##tick_speed")) {
                     self.tick_speed = 30;
                 }
+                ui.unindent();
+
+                ui.checkbox(im_str!("tick_lqf"), &mut self.tick_lqf);
+
+                ui.indent();
+                ui.set_next_item_width(121.0);
+                Slider::new(im_str!("tick_lqf_speed"))
+                    .range(1..=120)
+                    .flags(SliderFlags::ALWAYS_CLAMP)
+                    .build(ui, &mut self.tick_lqf_speed);
+                ui.same_line(0.0);
+                if ui.small_button(im_str!("reset##tick_lqf_speed")) {
+                    self.tick_lqf_speed = 60;
+                }
+                
+                ui.set_next_item_width(121.0);
+                Slider::new(im_str!("tick_lqf_timestep"))
+                    .range(0.01..=1.0)
+                    .flags(SliderFlags::ALWAYS_CLAMP)
+                    .build(ui, &mut self.tick_lqf_timestep);
+                ui.same_line(0.0);
+                if ui.small_button(im_str!("reset##tick_lqf_timestep")) {
+                    self.tick_lqf_timestep = 1.0 / 15.0;
+                }
+                ui.unindent();
+                
                 ui.checkbox(im_str!("load_chunks"), &mut self.load_chunks);
                 ui.checkbox(im_str!("pause_on_lost_focus"), &mut self.pause_on_lost_focus);
             });
@@ -123,6 +154,9 @@ impl Default for Settings {
 
             tick: true,
             tick_speed: 30,
+            tick_lqf: true,
+            tick_lqf_speed: 60,
+            tick_lqf_timestep: 1.0 / 15.0,
             load_chunks: true,
             pause_on_lost_focus: false,
         }
