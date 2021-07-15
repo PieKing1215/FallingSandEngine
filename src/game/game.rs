@@ -174,7 +174,7 @@ impl<'a, 'b> Game {
 
             if let Some(r) = &mut renderer {
                 r.imgui_sdl2.prepare_frame(r.imgui.io_mut(), &r.window, &event_pump.mouse_state());
-                let delta = now - last_frame;
+                let delta = now.saturating_duration_since(last_frame);
                 let delta_s = delta.as_secs() as f32 + delta.subsec_nanos() as f32 / 1_000_000_000.0;
                 last_frame = now;
                 r.imgui.io_mut().delta_time = delta_s;

@@ -25,7 +25,7 @@ pub struct Camera {
 struct BoxDraw {
 }
 
-type b2debugDrawContext = Box<RefCell<Option<(usize, usize)>>>;
+type b2debugDrawContext = Option<(usize, usize)>;
 
 impl BoxDraw {
     unsafe extern "C" fn draw_polygon(
@@ -34,7 +34,7 @@ impl BoxDraw {
         color: *const b2Color,
         userData: *mut ::std::os::raw::c_void,
     ) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).get_mut().unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
         
@@ -53,7 +53,7 @@ impl BoxDraw {
         color: *const b2Color,
         userData: *mut ::std::os::raw::c_void,
     ) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).get_mut().unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
         
@@ -72,7 +72,7 @@ impl BoxDraw {
         color: *const b2Color,
         userData: *mut ::std::os::raw::c_void,
     ) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).get_mut().unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
 
@@ -90,7 +90,7 @@ impl BoxDraw {
         color: *const b2Color,
         userData: *mut ::std::os::raw::c_void,
     ) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).get_mut().unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
 
@@ -108,7 +108,7 @@ impl BoxDraw {
         count: int32,
         userData: *mut ::std::os::raw::c_void,
     ) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).get_mut().unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
         
@@ -146,7 +146,7 @@ impl BoxDraw {
         color: *const b2Color,
         userData: *mut ::std::os::raw::c_void,
     ) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).get_mut().unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
         
@@ -161,7 +161,7 @@ impl BoxDraw {
     }
 
     unsafe extern "C" fn draw_transform(xf: *const b2Transform, userData: *mut ::std::os::raw::c_void) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).get_mut().unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
 
@@ -240,16 +240,7 @@ impl<'w> World {
             particle_system.create_particle(&pd);
         }
 
-
-        // lqf_world.ptr.
-
-        // let c: liquidfun::box2d::common::b2draw::Box2DDebugDrawCallbackDrawPolygon = Some(cal);
-
-
-        // let mut canvas_holder: RefCell<Option<&mut RenderCanvas>> = RefCell::new(None);
-        // let v: Option<(usize, usize)> = None;
         let callbacks = b2draw::b2DrawCallbacks {
-            userData: &mut Box::new(RefCell::new(None as Option<(usize, usize)>)) as *mut _ as *mut c_void,
             polygonCallback: Some(BoxDraw::draw_polygon),
             solidPolygonCallback: Some(BoxDraw::draw_solid_polygon),
             circleCallback: Some(BoxDraw::draw_circle),
@@ -411,25 +402,24 @@ impl Renderable for World {
         });
 
         // TODO: this doesn't need to render every frame
-        // if game.settings.lqf_dbg_draw {
-        //     unsafe {
-        //         // let c = &mut *canvas;
-        //         transform.push();
-        //         transform.scale(2.0, 2.0);
+        if game.settings.lqf_dbg_draw {
+            unsafe {
+                // let c = &mut *canvas;
+                transform.push();
+                transform.scale(2.0, 2.0);
 
-        //         // let transform_ptr: *const TransformStack = transform;
-        //         // let transform_ptr_raw = transform_ptr as usize;
+                let transform_ptr: *const TransformStack = transform;
+                let transform_ptr_raw = transform_ptr as usize;
 
-        //         // let canvas_ptr: *mut RenderCanvas = target;
-        //         // let canvas_ptr_raw = canvas_ptr as usize;
+                let canvas_ptr: *mut RenderCanvas = target;
+                let canvas_ptr_raw = canvas_ptr as usize;
 
-        //         let ch = &mut *(self.lqf_debug_draw_callbacks.userData as *mut b2debugDrawContext);
-        //         // ch.replace(Some((canvas_ptr_raw, transform_ptr_raw)));
-        //         // self.lqf_world.debug_draw();
-        //         let _old = ch.replace(None);
-        //         transform.pop();
-        //     }
-        // }
+                let mut data = Some((canvas_ptr_raw, transform_ptr_raw));
+
+                self.lqf_world.debug_draw(&mut data as *mut _ as *mut c_void);
+                transform.pop();
+            }
+        }
 
         // canvas.set_clip_rect(clip);
         
