@@ -4,11 +4,11 @@ mod world;
 mod settings;
 
 pub use game::*;
-use sdl_gpu::{GPUTarget, sys::GPU_Target};
+use sdl_gpu::GPUTarget;
 pub use settings::*;
 pub use renderer::*;
 
-use sdl2::{rect::Rect, render::Canvas, video::Window};
+use sdl2::rect::Rect;
 
 pub type RenderCanvas = sdl_gpu::GPUTarget;
 

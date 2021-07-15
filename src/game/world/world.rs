@@ -1,8 +1,8 @@
-use std::{cell::{Cell, RefCell}, ffi::c_void, iter, ptr::{self, slice_from_raw_parts}};
+use std::{ffi::c_void, iter, ptr::slice_from_raw_parts};
 
 use crate::game::{Settings, world::gen::WorldGenerator};
-use liquidfun::box2d::{collision::shapes::polygon_shape::PolygonShape, common::{b2draw::{self, B2Draw_New, b2Color, b2ParticleColor, b2Transform, b2Vec2, int32}, math::Vec2}, dynamics::{body::{BodyDef, BodyType}, fixture::FixtureDef}, particle::{ELASTIC_PARTICLE, ParticleDef, ParticleFlags, TENSILE_PARTICLE, particle_system::ParticleSystemDef}};
-use sdl2::{gfx::primitives::DrawRenderer, pixels::Color, rect::{Point, Rect}, render::{Canvas, TextureCreator}, video::WindowContext};
+use liquidfun::box2d::{collision::shapes::polygon_shape::PolygonShape, common::{b2draw::{self, B2Draw_New, b2Color, b2ParticleColor, b2Transform, b2Vec2, int32}, math::Vec2}, dynamics::{body::{BodyDef, BodyType}, fixture::FixtureDef}, particle::{ELASTIC_PARTICLE, ParticleDef, TENSILE_PARTICLE, particle_system::ParticleSystemDef}};
+use sdl2::{pixels::Color, rect::Rect};
 use sdl_gpu::{GPURect, GPUTarget};
 
 use crate::game::{Fonts, Game, RenderCanvas, Renderable, Sdl2Context, TransformStack};
@@ -25,20 +25,20 @@ pub struct Camera {
 struct BoxDraw {
 }
 
-type b2debugDrawContext = Option<(usize, usize)>;
+type B2DebugDrawContext = Option<(usize, usize)>;
 
 impl BoxDraw {
     unsafe extern "C" fn draw_polygon(
         vertices: *const b2Vec2,
-        vertexCount: int32,
+        vertex_count: int32,
         color: *const b2Color,
-        userData: *mut ::std::os::raw::c_void,
+        user_data: *mut ::std::os::raw::c_void,
     ) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(user_data as *mut B2DebugDrawContext)).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
         
-        let verts: Vec<f32> = slice_from_raw_parts(vertices, vertexCount as usize).as_ref().unwrap().iter().flat_map(|v| {
+        let verts: Vec<f32> = slice_from_raw_parts(vertices, vertex_count as usize).as_ref().unwrap().iter().flat_map(|v| {
             let (x, y) = transform.transform((v.x, v.y));
             iter::once(x as f32).chain(iter::once(y as f32))
         }).collect();
@@ -49,15 +49,15 @@ impl BoxDraw {
 
     unsafe extern "C" fn draw_solid_polygon(
         vertices: *const b2Vec2,
-        vertexCount: int32,
+        vertex_count: int32,
         color: *const b2Color,
-        userData: *mut ::std::os::raw::c_void,
+        user_data: *mut ::std::os::raw::c_void,
     ) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(user_data as *mut B2DebugDrawContext)).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
         
-        let verts: Vec<f32> = slice_from_raw_parts(vertices, vertexCount as usize).as_ref().unwrap().iter().flat_map(|v| {
+        let verts: Vec<f32> = slice_from_raw_parts(vertices, vertex_count as usize).as_ref().unwrap().iter().flat_map(|v| {
             let (x, y) = transform.transform((v.x, v.y));
             iter::once(x as f32).chain(iter::once(y as f32))
         }).collect();
@@ -70,45 +70,45 @@ impl BoxDraw {
         center: *const b2Vec2,
         radius: b2draw::float32,
         color: *const b2Color,
-        userData: *mut ::std::os::raw::c_void,
+        user_data: *mut ::std::os::raw::c_void,
     ) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(user_data as *mut B2DebugDrawContext)).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
 
         let col = *color;
 
         let (x, y) = transform.transform(((*center).x, (*center).y));
-        let (x_plus_rad, y_plus_rad) = transform.transform(((*center).x + radius, (*center).x));
+        let (x_plus_rad, _y_plus_rad) = transform.transform(((*center).x + radius, (*center).x));
         canvas.circle(x as f32, y as f32, (x_plus_rad - x) as f32, Color::RGB((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8));
     }
 
     unsafe extern "C" fn draw_solid_circle(
         center: *const b2Vec2,
         radius: b2draw::float32,
-        axis: *const b2Vec2,
+        _axis: *const b2Vec2,
         color: *const b2Color,
-        userData: *mut ::std::os::raw::c_void,
+        user_data: *mut ::std::os::raw::c_void,
     ) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(user_data as *mut B2DebugDrawContext)).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
 
         let col = *color;
 
         let (x, y) = transform.transform(((*center).x, (*center).y));
-        let (x_plus_rad, y_plus_rad) = transform.transform(((*center).x + radius, (*center).x));
+        let (x_plus_rad, _y_plus_rad) = transform.transform(((*center).x + radius, (*center).x));
         canvas.circle_filled(x as f32, y as f32, (x_plus_rad - x) as f32, Color::RGB((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8));
     }
 
     unsafe extern "C" fn draw_particles(
         centers: *const b2Vec2,
         radius: b2draw::float32,
-        colors: *const b2ParticleColor,
+        _colors: *const b2ParticleColor,
         count: int32,
-        userData: *mut ::std::os::raw::c_void,
+        user_data: *mut ::std::os::raw::c_void,
     ) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(user_data as *mut B2DebugDrawContext)).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
         
@@ -144,9 +144,9 @@ impl BoxDraw {
         p1: *const b2Vec2,
         p2: *const b2Vec2,
         color: *const b2Color,
-        userData: *mut ::std::os::raw::c_void,
+        user_data: *mut ::std::os::raw::c_void,
     ) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(user_data as *mut B2DebugDrawContext)).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
         
@@ -160,8 +160,8 @@ impl BoxDraw {
         canvas.line(p1x as f32, p1y as f32, p2x as f32, p2y as f32, Color::RGB((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8));
     }
 
-    unsafe extern "C" fn draw_transform(xf: *const b2Transform, userData: *mut ::std::os::raw::c_void) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).unwrap();
+    unsafe extern "C" fn draw_transform(xf: *const b2Transform, user_data: *mut ::std::os::raw::c_void) {
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(user_data as *mut B2DebugDrawContext)).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
 
@@ -403,22 +403,19 @@ impl Renderable for World {
 
         // TODO: this doesn't need to render every frame
         if game.settings.lqf_dbg_draw {
-            unsafe {
-                // let c = &mut *canvas;
-                transform.push();
-                transform.scale(2.0, 2.0);
+            transform.push();
+            transform.scale(2.0, 2.0);
 
-                let transform_ptr: *const TransformStack = transform;
-                let transform_ptr_raw = transform_ptr as usize;
+            let transform_ptr: *const TransformStack = transform;
+            let transform_ptr_raw = transform_ptr as usize;
 
-                let canvas_ptr: *mut RenderCanvas = target;
-                let canvas_ptr_raw = canvas_ptr as usize;
+            let canvas_ptr: *mut RenderCanvas = target;
+            let canvas_ptr_raw = canvas_ptr as usize;
 
-                let mut data = Some((canvas_ptr_raw, transform_ptr_raw));
+            let mut data = Some((canvas_ptr_raw, transform_ptr_raw));
 
-                self.lqf_world.debug_draw(&mut data as *mut _ as *mut c_void);
-                transform.pop();
-            }
+            self.lqf_world.debug_draw(&mut data as *mut _ as *mut c_void);
+            transform.pop();
         }
 
         // canvas.set_clip_rect(clip);

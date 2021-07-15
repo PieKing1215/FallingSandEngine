@@ -4,7 +4,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use futures::future::join_all;
 use lazy_static::lazy_static;
-use sdl2::{pixels::{Color, PixelFormatEnum}, rect::Rect, render::{TextureCreator, TextureValueError}, video::WindowContext};
+use sdl2::{pixels::Color, rect::Rect, render::TextureValueError};
 use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, sys::{GPU_FilterEnum, GPU_FormatEnum}};
 use tokio::runtime::Runtime;
 

@@ -2,7 +2,7 @@
 use std::cell::RefCell;
 
 use imgui::{WindowFlags, im_str};
-use sdl2::{VideoSubsystem, pixels::Color, render::Canvas, ttf::{Font, Sdl2TtfContext}, video::Window};
+use sdl2::{VideoSubsystem, pixels::Color, ttf::{Font, Sdl2TtfContext}, video::Window};
 use sdl_gpu::{GPURect, GPUSubsystem, GPUTarget};
 
 use super::{Game, RenderCanvas, Renderable, TransformStack};
@@ -49,7 +49,7 @@ impl<'a> Renderer<'a> {
             .unwrap();
     
         sdl_gpu::GPUSubsystem::set_init_window(window.id());
-        let mut target = sdl_gpu::GPUSubsystem::init(window.size().0 as u16, window.size().1 as u16, 0);
+        let target = sdl_gpu::GPUSubsystem::init(window.size().0 as u16, window.size().1 as u16, 0);
         unsafe {
             let ctx: sdl2::sys::SDL_GLContext = (*target.raw.context).context as sdl2::sys::SDL_GLContext;
             sdl2::sys::SDL_GL_MakeCurrent(window.raw(), ctx);
@@ -172,7 +172,6 @@ impl<'a> Renderer<'a> {
         }
         
     }
-
 }
 
 fn find_opengl_driver() -> Option<u32> {

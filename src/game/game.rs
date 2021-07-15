@@ -7,9 +7,8 @@ use super::world::World;
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::render::TextureCreator;
 use sdl2::sys::SDL_WindowFlags;
-use sdl2::video::{FullscreenType, SwapInterval, WindowContext};
+use sdl2::video::{FullscreenType, SwapInterval};
 use sysinfo::{Pid, ProcessExt, SystemExt};
 use std::time::{Duration, Instant};
 
