@@ -152,7 +152,7 @@ impl<'a> Renderer<'a> {
     }
 
     #[profiling::function]
-    fn render_internal(&self, target: &mut RenderCanvas, sdl: &Sdl2Context, game: &Game){
+    fn render_internal(&self, target: &mut RenderCanvas, sdl: &Sdl2Context, game: &mut Game){
         target.rectangle2(GPURect::new(40.0 + ((game.tick_time as f32 / 5.0).sin() * 20.0), 
         30.0 + ((game.tick_time as f32 / 5.0).cos().abs() * -10.0), 
         15.0, 15.0), Color::RGBA(255, 0, 0, 255));
@@ -167,8 +167,8 @@ impl<'a> Renderer<'a> {
             target.rectangle_filled2(rect, Color::RGBA(0, thru, 255-thru, thru2));
         }
 
-        if let Some(w) = &game.world {
-            w.render(target, &mut TransformStack::new(), sdl, &self.fonts.as_ref().unwrap(), game);
+        if let Some(w) = &mut game.world {
+            w.render(target, &mut TransformStack::new(), sdl, &self.fonts.as_ref().unwrap(), &game.settings);
         }
         
     }

@@ -3,7 +3,7 @@ use std::{ffi::c_void, iter, ptr::slice_from_raw_parts};
 use crate::game::{Settings, world::gen::WorldGenerator};
 use liquidfun::box2d::{collision::shapes::polygon_shape::PolygonShape, common::{b2draw::{self, B2Draw_New, b2Color, b2ParticleColor, b2Transform, b2Vec2, int32}, math::Vec2}, dynamics::{body::{BodyDef, BodyType}, fixture::FixtureDef}, particle::{ELASTIC_PARTICLE, ParticleDef, TENSILE_PARTICLE, particle_system::ParticleSystemDef}};
 use sdl2::{pixels::Color, rect::Rect};
-use sdl_gpu::{GPURect, GPUTarget};
+use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, sys::GPU_FormatEnum, sys::GPU_FilterEnum};
 
 use crate::game::{Fonts, Game, RenderCanvas, Renderable, Sdl2Context, TransformStack};
 
@@ -14,6 +14,7 @@ pub struct World {
     pub chunk_handler: ChunkHandler<TestGenerator>,
     pub lqf_world: liquidfun::box2d::dynamics::world::World,
     pub lqf_debug_draw_callbacks: b2draw::b2DrawCallbacks,
+    pub liquid_image: GPUImage,
 }
 
 pub struct Camera {
@@ -256,6 +257,9 @@ impl<'w> World {
             lqf_world.set_debug_draw(cast);
         }
 
+        let mut liquid_image = GPUSubsystem::create_image(1920/2, 1080/2, GPU_FormatEnum::GPU_FORMAT_RGBA);
+        liquid_image.set_image_filter(GPU_FilterEnum::GPU_FILTER_NEAREST);
+
         World {
             camera: Camera {
                 x: 0.0,
@@ -265,6 +269,7 @@ impl<'w> World {
             chunk_handler: ChunkHandler::new(TEST_GENERATOR),
             lqf_world,
             lqf_debug_draw_callbacks: callbacks,
+            liquid_image
         }
     }
 
@@ -295,9 +300,10 @@ impl<'w> World {
                     if settings.lqf_dbg_draw_center_of_mass {
                         cast.AppendFlags(b2draw::b2Draw_e_centerOfMassBit as u32);
                     }
-                    if settings.lqf_dbg_draw_particle {
-                        cast.AppendFlags(b2draw::b2Draw_e_particleBit as u32);
-                    }
+                    // handled separately
+                    // if settings.lqf_dbg_draw_particle {
+                    //     cast.AppendFlags(b2draw::b2Draw_e_particleBit as u32);
+                    // }
                 }
             }
         }
@@ -308,11 +314,7 @@ impl<'w> World {
         self.lqf_world.step(time_step, velocity_iterations, position_iterations);
     }
 
-}
-
-impl Renderable for World {
-    #[profiling::function]
-    fn render(&self, target: &mut GPUTarget, transform: &mut TransformStack, sdl: &Sdl2Context, fonts: &Fonts, game: &Game) {
+    pub fn render(&mut self, target: &mut GPUTarget, transform: &mut TransformStack, sdl: &Sdl2Context, fonts: &Fonts, settings: &Settings) {
 
         // draw world
 
@@ -333,12 +335,12 @@ impl Renderable for World {
 
         self.chunk_handler.loaded_chunks.iter().for_each(|(_i, ch)| {
             let rc = Rect::new(ch.chunk_x * CHUNK_SIZE as i32, ch.chunk_y * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
-            if !game.settings.cull_chunks || rc.has_intersection(screen_zone){
+            if !settings.cull_chunks || rc.has_intersection(screen_zone){
                 transform.push();
                 transform.translate(ch.chunk_x * CHUNK_SIZE as i32, ch.chunk_y * CHUNK_SIZE as i32);
-                ch.render(target, transform, sdl, fonts, game);
+                ch.render(target, transform, sdl, fonts);
 
-                if game.settings.draw_chunk_dirty_rects {
+                if settings.draw_chunk_dirty_rects {
                     if let Some(dr) = ch.dirty_rect {
                         let rect = transform.transform_rect(dr);
                         target.rectangle_filled2(rect, Color::RGBA(255, 64, 64, 127));
@@ -354,10 +356,10 @@ impl Renderable for World {
                 transform.pop();
             }
 
-            if game.settings.draw_chunk_state_overlay {
+            if settings.draw_chunk_state_overlay {
                 let rect = transform.transform_rect(rc);
 
-                let alpha: u8 = (game.settings.draw_chunk_state_overlay_alpha * 255.0) as u8;
+                let alpha: u8 = (settings.draw_chunk_state_overlay_alpha * 255.0) as u8;
                 let color;
                 match ch.state {
                     super::ChunkState::NotGenerated => {
@@ -402,7 +404,29 @@ impl Renderable for World {
         });
 
         // TODO: this doesn't need to render every frame
-        if game.settings.lqf_dbg_draw {
+        if settings.lqf_dbg_draw {
+            // liquids
+
+            if settings.lqf_dbg_draw_particle {
+                let mut liquid_target = self.liquid_image.get_target();
+                liquid_target.clear();
+
+                let particle_system = self.lqf_world.get_particle_system_list().unwrap();
+
+                let particle_count = particle_system.get_particle_count();
+                let particle_colors: &[b2ParticleColor] = particle_system.get_color_buffer();
+                let particle_positions: &[Vec2] = particle_system.get_position_buffer();
+
+                for i in 0..particle_count as usize {
+                    let pos = particle_positions[i];
+                    let color = particle_colors[i];
+                    liquid_target.circle_filled(pos.x * 2.0 - self.camera.x as f32 + 1920.0/4.0, pos.y * 2.0 - self.camera.y as f32 + 1080.0/4.0, 2.0, Color::RGB(100, 100, 255));
+                }
+                self.liquid_image.blit_rect(None, target, Some(transform.transform_rect(screen_zone)));
+            }
+
+            // solids
+
             transform.push();
             transform.scale(2.0, 2.0);
 
@@ -415,12 +439,15 @@ impl Renderable for World {
             let mut data = Some((canvas_ptr_raw, transform_ptr_raw));
 
             self.lqf_world.debug_draw(&mut data as *mut _ as *mut c_void);
+
             transform.pop();
+
+
         }
 
         // canvas.set_clip_rect(clip);
         
-        if game.settings.draw_chunk_grid {
+        if settings.draw_chunk_grid {
             for x in -10..10 {
                 for y in -10..10 {
                     let rcx = x + (self.camera.x / CHUNK_SIZE as f64) as i32;
@@ -431,7 +458,7 @@ impl Renderable for World {
             }
         }
 
-        if game.settings.draw_origin {
+        if settings.draw_origin {
             let len: f32 = 16.0;
             let origin = transform.transform((0, 0));
             target.rectangle_filled2(GPURect::new(origin.0 as f32 - len - 2.0, origin.1 as f32 - 1.0, (len * 2.0 + 4.0) as f32, 3.0), Color::RGBA(0, 0, 0, 127));
@@ -441,7 +468,7 @@ impl Renderable for World {
             target.line(origin.0 as f32, origin.1 as f32 - len, origin.0 as f32, origin.1 as f32 + len, Color::RGBA(0, 255, 0, 255));
         }
 
-        if game.settings.draw_load_zones {
+        if settings.draw_load_zones {
             target.rectangle2(transform.transform_rect(unload_zone), Color::RGBA(255, 0, 0, 127));
             target.rectangle2(transform.transform_rect(load_zone), Color::RGBA(255, 127, 0, 127));
             target.rectangle2(transform.transform_rect(active_zone), Color::RGBA(255, 255, 0, 127));

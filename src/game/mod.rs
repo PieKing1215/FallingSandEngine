@@ -103,5 +103,5 @@ struct Transform {
 }
 
 trait Renderable {
-    fn render(&self, target : &mut GPUTarget, transform: &mut TransformStack, sdl: &Sdl2Context, fonts: &Fonts, game: &Game);
+    fn render(&self, target : &mut GPUTarget, transform: &mut TransformStack, sdl: &Sdl2Context, fonts: &Fonts);
 }

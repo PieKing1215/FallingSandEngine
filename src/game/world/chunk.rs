@@ -86,8 +86,8 @@ impl<'ch> Chunk {
 }
 
 impl Renderable for Chunk {
-    fn render(&self, canvas : &mut GPUTarget, transform: &mut crate::game::TransformStack, sdl: &crate::game::Sdl2Context, fonts: &crate::game::Fonts, game: &crate::game::Game) {
-        self.graphics.render(canvas, transform, sdl, fonts, game);
+    fn render(&self, canvas : &mut GPUTarget, transform: &mut crate::game::TransformStack, sdl: &crate::game::Sdl2Context, fonts: &crate::game::Fonts) {
+        self.graphics.render(canvas, transform, sdl, fonts);
     }
 }
 
@@ -148,7 +148,7 @@ impl<'cg> ChunkGraphics {
 }
 
 impl Renderable for ChunkGraphics {
-    fn render(&self, target : &mut GPUTarget, transform: &mut crate::game::TransformStack, _sdl: &crate::game::Sdl2Context, _fonts: &crate::game::Fonts, _game: &crate::game::Game) {
+    fn render(&self, target : &mut GPUTarget, transform: &mut crate::game::TransformStack, _sdl: &crate::game::Sdl2Context, _fonts: &crate::game::Fonts) {
         let chunk_rect = transform.transform_rect(Rect::new(0, 0, CHUNK_SIZE as u32, CHUNK_SIZE as u32));
 
         if let Some(tex) = &self.texture {
