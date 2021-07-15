@@ -17,7 +17,6 @@ fn main() -> Result<(), String> {
     // TODO: come up with a better way to handle this sdl's lifetime
     let sdl = Renderer::init_sdl().unwrap();
 
-
     println!("Starting init...");
     
     let mut r = Renderer::create(&sdl)?;
@@ -28,13 +27,11 @@ fn main() -> Result<(), String> {
     });
     r.fonts = f;
 
-    let texture_creator = r.canvas.get_mut().texture_creator();
-    
     println!("Finished init.");
 
     let mut game: Game = Game::new();
     println!("Starting main loop...");
-    game.run(&sdl, Some(&mut r), &texture_creator);
+    game.run(&sdl, Some(&mut r));
     println!("Goodbye!");
 
     Ok(())

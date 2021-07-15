@@ -14,8 +14,8 @@ use sysinfo::{Pid, ProcessExt, SystemExt};
 use std::time::{Duration, Instant};
 
 
-pub struct Game<'a> {
-    pub world: Option<World<'a>>,
+pub struct Game {
+    pub world: Option<World>,
     pub tick_time: u32,
     pub frame_count: u32,
     pub fps_counter: FPSCounter,
@@ -37,7 +37,7 @@ pub struct FPSCounter {
     pub tick_lqf_times: [f32; 200],
 }
 
-impl<'a, 'b> Game<'a> {
+impl<'a, 'b> Game {
     #[profiling::function]
     pub fn new() -> Self {
         Game {
@@ -78,7 +78,7 @@ impl<'a, 'b> Game<'a> {
     // }
 
     #[profiling::function]
-    pub fn run(&mut self, sdl: &Sdl2Context, mut renderer: Option<&mut Renderer>, texture_creator: &'a TextureCreator<WindowContext>) {
+    pub fn run(&mut self, sdl: &Sdl2Context, mut renderer: Option<&mut Renderer>) {
         let mut prev_tick_time = std::time::Instant::now();
         let mut prev_tick_lqf_time = std::time::Instant::now();
 
@@ -134,8 +134,8 @@ impl<'a, 'b> Game<'a> {
                     Event::MouseButtonDown{mouse_btn: sdl2::mouse::MouseButton::Right, x, y, ..} => {
                         if let Some(w) = &mut self.world {
                             if let Some(ref r) = renderer {
-                                let world_x = w.camera.x + (x as f64 - r.canvas.borrow().window().size().0 as f64 / 2.0) / w.camera.scale;
-                                let world_y = w.camera.y + (y as f64 - r.canvas.borrow().window().size().1 as f64 / 2.0) / w.camera.scale;
+                                let world_x = w.camera.x + (x as f64 - r.window.size().0 as f64 / 2.0) / w.camera.scale;
+                                let world_y = w.camera.y + (y as f64 - r.window.size().1 as f64 / 2.0) / w.camera.scale;
                                 let (chunk_x, chunk_y) = w.chunk_handler.pixel_to_chunk_pos(world_x as i64, world_y as i64);
                                 w.chunk_handler.force_update_chunk(chunk_x, chunk_y);
                             }
@@ -150,8 +150,8 @@ impl<'a, 'b> Game<'a> {
                         }else if mousestate.middle() {
                             if let Some(w) = &mut self.world {
                                 if let Some(ref r) = renderer {
-                                    let world_x = w.camera.x + (x as f64 - r.canvas.borrow().window().size().0 as f64 / 2.0) / w.camera.scale;
-                                    let world_y = w.camera.y + (y as f64 - r.canvas.borrow().window().size().1 as f64 / 2.0) / w.camera.scale;
+                                    let world_x = w.camera.x + (x as f64 - r.window.size().0 as f64 / 2.0) / w.camera.scale;
+                                    let world_y = w.camera.y + (y as f64 - r.window.size().1 as f64 / 2.0) / w.camera.scale;
 
                                     for xx in -3..=3 {
                                         for yy in -3..=3 {
@@ -173,15 +173,15 @@ impl<'a, 'b> Game<'a> {
             let now = std::time::Instant::now();
 
             if let Some(r) = &mut renderer {
-                r.imgui_sdl2.prepare_frame(r.imgui.io_mut(), &r.canvas.borrow().window(), &event_pump.mouse_state());
+                r.imgui_sdl2.prepare_frame(r.imgui.io_mut(), &r.window, &event_pump.mouse_state());
                 let delta = now - last_frame;
                 let delta_s = delta.as_secs() as f32 + delta.subsec_nanos() as f32 / 1_000_000_000.0;
                 last_frame = now;
                 r.imgui.io_mut().delta_time = delta_s;
             }
 
-            if let Some(ref r) = renderer {
-                let fs= r.canvas.borrow().window().fullscreen_state();
+            if let Some(r) = &mut renderer {
+                let fs= r.window.fullscreen_state();
 
                 let des_fs = match self.settings {
                     Settings {fullscreen, fullscreen_type, ..} if fullscreen && fullscreen_type == 0 => FullscreenType::Desktop,
@@ -193,16 +193,16 @@ impl<'a, 'b> Game<'a> {
                     println!("{:?}", des_fs);
 
                     if des_fs == FullscreenType::True {
-                        r.canvas.borrow_mut().window_mut().set_fullscreen(FullscreenType::Off).unwrap();
-                        r.canvas.borrow_mut().window_mut().maximize();
+                        r.window.set_fullscreen(FullscreenType::Off).unwrap();
+                        r.window.maximize();
                     }else if des_fs == FullscreenType::Desktop {
-                        r.canvas.borrow_mut().window_mut().restore();
+                        r.window.restore();
                     }
 
-                    r.canvas.borrow_mut().window_mut().set_fullscreen(des_fs).unwrap();
+                    r.window.set_fullscreen(des_fs).unwrap();
 
                     if des_fs == FullscreenType::Off {
-                        r.canvas.borrow_mut().window_mut().restore();
+                        r.window.restore();
                     }
 
                 }
@@ -222,14 +222,14 @@ impl<'a, 'b> Game<'a> {
             let mut can_tick = self.settings.tick;
 
             if let Some(ref r) = renderer {
-               let flags = r.canvas.borrow().window().window_flags();
+               let flags = r.window.window_flags();
                can_tick = can_tick && !(self.settings.pause_on_lost_focus && renderer.is_some() && !(flags & SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32 == SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32));
             }
 
             if do_tick_next && can_tick {
                 prev_tick_time = now;
                 let st = Instant::now();
-                self.tick(texture_creator);
+                self.tick();
                 self.fps_counter.tick_times.rotate_left(1);
                 self.fps_counter.tick_times[self.fps_counter.tick_times.len() - 1] = Instant::now().saturating_duration_since(st).as_nanos() as f32;
             }
@@ -240,7 +240,7 @@ impl<'a, 'b> Game<'a> {
             let mut can_tick = self.settings.tick_lqf;
 
             if let Some(ref r) = renderer {
-               let flags = r.canvas.borrow().window().window_flags();
+               let flags = r.window.window_flags();
                can_tick = can_tick && !(self.settings.pause_on_lost_focus && renderer.is_some() && !(flags & SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32 == SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32));
             }
 
@@ -248,7 +248,7 @@ impl<'a, 'b> Game<'a> {
                 prev_tick_lqf_time = now;
                 if let Some(w) = &mut self.world {
                     let st = Instant::now();
-                    w.tick_lqf(texture_creator, &self.settings);
+                    w.tick_lqf(&self.settings);
                     self.fps_counter.tick_lqf_times.rotate_left(1);
                     self.fps_counter.tick_lqf_times[self.fps_counter.tick_lqf_times.len() - 1] = Instant::now().saturating_duration_since(st).as_nanos() as f32;
                     
@@ -268,7 +268,7 @@ impl<'a, 'b> Game<'a> {
                     self.fps_counter.display_value = self.fps_counter.frames;
                     self.fps_counter.frames = 0;
                     self.fps_counter.last_update = now;
-                    let set = r.canvas.borrow_mut().window_mut().set_title(format!("FallingSandRust ({} FPS)", self.fps_counter.display_value).as_str());
+                    let set = r.window.set_title(format!("FallingSandRust ({} FPS)", self.fps_counter.display_value).as_str());
                     if set.is_err() {
                         eprintln!("Failed to set window title.");
                     }
@@ -297,11 +297,11 @@ impl<'a, 'b> Game<'a> {
     }
 
     #[profiling::function]
-    fn tick(&mut self, texture_creator: &'a TextureCreator<WindowContext>){
+    fn tick(&mut self){
         self.tick_time += 1;
 
         if let Some(w) = &mut self.world {
-            w.tick(self.tick_time, texture_creator, &self.settings);
+            w.tick(self.tick_time, &self.settings);
         }
     }
 

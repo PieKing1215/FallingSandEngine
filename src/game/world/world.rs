@@ -1,16 +1,17 @@
-use std::{cell::{Cell, RefCell}, ffi::c_void, ptr::{self, slice_from_raw_parts}};
+use std::{cell::{Cell, RefCell}, ffi::c_void, iter, ptr::{self, slice_from_raw_parts}};
 
 use crate::game::{Settings, world::gen::WorldGenerator};
 use liquidfun::box2d::{collision::shapes::polygon_shape::PolygonShape, common::{b2draw::{self, B2Draw_New, b2Color, b2ParticleColor, b2Transform, b2Vec2, int32}, math::Vec2}, dynamics::{body::{BodyDef, BodyType}, fixture::FixtureDef}, particle::{ELASTIC_PARTICLE, ParticleDef, ParticleFlags, TENSILE_PARTICLE, particle_system::ParticleSystemDef}};
 use sdl2::{gfx::primitives::DrawRenderer, pixels::Color, rect::{Point, Rect}, render::{Canvas, TextureCreator}, video::WindowContext};
+use sdl_gpu::{GPURect, GPUTarget};
 
 use crate::game::{Fonts, Game, RenderCanvas, Renderable, Sdl2Context, TransformStack};
 
 use super::{CHUNK_SIZE, ChunkHandler, gen::{TEST_GENERATOR, TestGenerator}};
 
-pub struct World<'w> {
+pub struct World {
     pub camera: Camera,
-    pub chunk_handler: ChunkHandler<'w, TestGenerator>,
+    pub chunk_handler: ChunkHandler<TestGenerator>,
     pub lqf_world: liquidfun::box2d::dynamics::world::World,
     pub lqf_debug_draw_callbacks: b2draw::b2DrawCallbacks,
 }
@@ -24,7 +25,7 @@ pub struct Camera {
 struct BoxDraw {
 }
 
-type b2debugDrawContext<'a> = Cell<Option<(usize, usize)>>;
+type b2debugDrawContext = Box<RefCell<Option<(usize, usize)>>>;
 
 impl BoxDraw {
     unsafe extern "C" fn draw_polygon(
@@ -33,17 +34,17 @@ impl BoxDraw {
         color: *const b2Color,
         userData: *mut ::std::os::raw::c_void,
     ) {
-        // let cell = &mut *(userData as *mut b2debugDrawContext);
-        // let ctx = cell.get_mut().as_mut().unwrap();
-        // let transform = &ctx.1;
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(userData as *mut b2debugDrawContext)).get_mut().unwrap();
+        let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
+        let transform = &*(transform_ptr_raw as *const TransformStack);
         
-        // let (xp, yp): (Vec<i16>, Vec<i16>) = slice_from_raw_parts(vertices, vertexCount as usize).as_ref().unwrap().iter().map(|v| {
-        //     let (x, y) = transform.transform((v.x, v.y));
-        //     (x as i16, y as i16)
-        // }).unzip();
+        let verts: Vec<f32> = slice_from_raw_parts(vertices, vertexCount as usize).as_ref().unwrap().iter().flat_map(|v| {
+            let (x, y) = transform.transform((v.x, v.y));
+            iter::once(x as f32).chain(iter::once(y as f32))
+        }).collect();
 
-        // let col = *color;
-        // ctx.0.polygon(xp.as_slice(), yp.as_slice(), Color::RGB((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8)).unwrap();
+        let col = *color;
+        canvas.polygon(verts, Color::RGB((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8));
     }
 
     unsafe extern "C" fn draw_solid_polygon(
@@ -56,13 +57,13 @@ impl BoxDraw {
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
         
-        let (xp, yp): (Vec<i16>, Vec<i16>) = slice_from_raw_parts(vertices, vertexCount as usize).as_ref().unwrap().iter().map(|v| {
+        let verts: Vec<f32> = slice_from_raw_parts(vertices, vertexCount as usize).as_ref().unwrap().iter().flat_map(|v| {
             let (x, y) = transform.transform((v.x, v.y));
-            (x as i16, y as i16)
-        }).unzip();
+            iter::once(x as f32).chain(iter::once(y as f32))
+        }).collect();
 
         let col = *color;
-        canvas.filled_polygon(xp.as_slice(), yp.as_slice(), Color::RGB((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8)).unwrap();
+        canvas.polygon_filled(verts, Color::RGB((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8));
     }
 
     unsafe extern "C" fn draw_circle(
@@ -77,9 +78,9 @@ impl BoxDraw {
 
         let col = *color;
 
-        let (x, y) = transform.transform_int(((*center).x, (*center).y));
-        let (x_plus_rad, y_plus_rad) = transform.transform_int(((*center).x + radius, (*center).x));
-        canvas.circle(x as i16, y as i16, (x_plus_rad - x) as i16, Color::RGB((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8)).unwrap();
+        let (x, y) = transform.transform(((*center).x, (*center).y));
+        let (x_plus_rad, y_plus_rad) = transform.transform(((*center).x + radius, (*center).x));
+        canvas.circle(x as f32, y as f32, (x_plus_rad - x) as f32, Color::RGB((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8));
     }
 
     unsafe extern "C" fn draw_solid_circle(
@@ -95,9 +96,9 @@ impl BoxDraw {
 
         let col = *color;
 
-        let (x, y) = transform.transform_int(((*center).x, (*center).y));
-        let (x_plus_rad, y_plus_rad) = transform.transform_int(((*center).x + radius, (*center).x));
-        canvas.filled_circle(x as i16, y as i16, (x_plus_rad - x) as i16, Color::RGB((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8)).unwrap();
+        let (x, y) = transform.transform(((*center).x, (*center).y));
+        let (x_plus_rad, y_plus_rad) = transform.transform(((*center).x + radius, (*center).x));
+        canvas.circle_filled(x as f32, y as f32, (x_plus_rad - x) as f32, Color::RGB((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8));
     }
 
     unsafe extern "C" fn draw_particles(
@@ -123,8 +124,7 @@ impl BoxDraw {
                 let p2 = (x + radius, y + radius);
                 let p1_i = transform.transform(p1);
                 let p2_i = transform.transform(p2);
-                canvas.set_draw_color(col);
-                canvas.fill_rect(Rect::new(p1_i.0 as i32, p1_i.1 as i32, (p2_i.0 - p1_i.0) as u32, (p2_i.1 - p1_i.1) as u32)).unwrap();
+                canvas.rectangle_filled2(Rect::new(p1_i.0 as i32, p1_i.1 as i32, (p2_i.0 - p1_i.0) as u32, (p2_i.1 - p1_i.1) as u32), col);
                 // canvas.filled_circle(x, y, x_plus_rad - x, col).unwrap();
             }
         // }else {
@@ -157,8 +157,7 @@ impl BoxDraw {
         let (p1x, p1y) = transform.transform((pt1.x, pt1.y));
         let (p2x, p2y) = transform.transform((pt2.x, pt2.y));
 
-        canvas.set_draw_color(Color::RGB((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8));
-        canvas.draw_line(Point::new(p1x as i32, p1y as i32), Point::new(p2x as i32, p2y as i32)).unwrap();
+        canvas.line(p1x as f32, p1y as f32, p2x as f32, p2y as f32, Color::RGB((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8));
     }
 
     unsafe extern "C" fn draw_transform(xf: *const b2Transform, userData: *mut ::std::os::raw::c_void) {
@@ -170,20 +169,18 @@ impl BoxDraw {
         let p1 = (*xf).p;
 
         let p2 = b2Vec2 { x: (*xf).q.c * axis_scale + p1.x, y: (*xf).q.s * axis_scale + p1.y };
-        let (p1_x, p1_y) = transform.transform_int((p1.x, p1.y));
-        let (p2_x, p2_y) = transform.transform_int((p2.x, p2.y));
-        canvas.set_draw_color(Color::RGB(0xff, 0, 0));
-        canvas.draw_line(Point::new(p1_x, p1_y), Point::new(p2_x, p2_y)).unwrap();
+        let (p1_x, p1_y) = transform.transform((p1.x, p1.y));
+        let (p2_x, p2_y) = transform.transform((p2.x, p2.y));
+        canvas.line(p1_x as f32, p1_y as f32, p2_x as f32, p2_y as f32, Color::RGB(0xff, 0, 0));
 
         let p2 = b2Vec2 { x: -(*xf).q.s * axis_scale + p1.x, y: (*xf).q.c * axis_scale + p1.y };
         let (p1_x, p1_y) = transform.transform_int((p1.x, p1.y));
         let (p2_x, p2_y) = transform.transform_int((p2.x, p2.y));
-        canvas.set_draw_color(Color::RGB(0, 0xff, 0));
-        canvas.draw_line(Point::new(p1_x, p1_y), Point::new(p2_x, p2_y)).unwrap();
+        canvas.line(p1_x as f32, p1_y as f32, p2_x as f32, p2_y as f32, Color::RGB(0, 0xff, 0));
     }
 }
 
-impl<'w> World<'w> {
+impl<'w> World {
     #[profiling::function]
     pub fn create() -> Self {
         let gravity = liquidfun::box2d::common::math::Vec2::new(0.0, 10.0);
@@ -250,9 +247,9 @@ impl<'w> World<'w> {
 
 
         // let mut canvas_holder: RefCell<Option<&mut RenderCanvas>> = RefCell::new(None);
-        let v: Option<(usize, usize)> = None;
+        // let v: Option<(usize, usize)> = None;
         let callbacks = b2draw::b2DrawCallbacks {
-            userData: &mut Cell::new(v) as *mut _ as *mut c_void,
+            userData: &mut Box::new(RefCell::new(None as Option<(usize, usize)>)) as *mut _ as *mut c_void,
             polygonCallback: Some(BoxDraw::draw_polygon),
             solidPolygonCallback: Some(BoxDraw::draw_solid_polygon),
             circleCallback: Some(BoxDraw::draw_circle),
@@ -261,6 +258,7 @@ impl<'w> World<'w> {
             segmentCallback: Some(BoxDraw::draw_segment),
             transformCallback: Some(BoxDraw::draw_transform),
         };
+        
 
         unsafe {
             let cast = &mut *(B2Draw_New(callbacks));
@@ -280,12 +278,12 @@ impl<'w> World<'w> {
     }
 
     #[profiling::function]
-    pub fn tick(&mut self, tick_time: u32, texture_creator: &'w TextureCreator<WindowContext>, settings: &Settings){
+    pub fn tick(&mut self, tick_time: u32, settings: &Settings){
         self.chunk_handler.tick(tick_time, &self.camera, settings);
-        self.chunk_handler.update_chunk_graphics(texture_creator);
+        self.chunk_handler.update_chunk_graphics();
     }
 
-    pub fn tick_lqf(&mut self, texture_creator: &'w TextureCreator<WindowContext>, settings: &Settings) {
+    pub fn tick_lqf(&mut self, settings: &Settings) {
         // need to do this here since 'self' isn't mut in render
         if settings.lqf_dbg_draw {
             if let Some(cast) = self.lqf_world.get_debug_draw() {
@@ -321,16 +319,14 @@ impl<'w> World<'w> {
 
 }
 
-impl Renderable for World<'_> {
+impl Renderable for World {
     #[profiling::function]
-    fn render(&self, canvas: &mut RenderCanvas, transform: &mut TransformStack, sdl: &Sdl2Context, fonts: &Fonts, game: &Game) {
+    fn render(&self, target: &mut GPUTarget, transform: &mut TransformStack, sdl: &Sdl2Context, fonts: &Fonts, game: &Game) {
 
         // draw world
 
-        canvas.set_draw_color(Color::RGBA(255, 127, 255, 255));
-
         transform.push();
-        transform.translate(canvas.window().size().0 as f64 / 2.0, canvas.window().size().1 as f64 / 2.0);
+        transform.translate(target.width() as f64 / 2.0, target.height() as f64 / 2.0);
         transform.scale(self.camera.scale, self.camera.scale);
         transform.translate(-self.camera.x, -self.camera.y);
 
@@ -349,20 +345,18 @@ impl Renderable for World<'_> {
             if !game.settings.cull_chunks || rc.has_intersection(screen_zone){
                 transform.push();
                 transform.translate(ch.chunk_x * CHUNK_SIZE as i32, ch.chunk_y * CHUNK_SIZE as i32);
-                ch.render(canvas, transform, sdl, fonts, game);
+                ch.render(target, transform, sdl, fonts, game);
 
                 if game.settings.draw_chunk_dirty_rects {
                     if let Some(dr) = ch.dirty_rect {
                         let rect = transform.transform_rect(dr);
-                        canvas.set_draw_color(Color::RGBA(255, 64, 64, 127));
-                        canvas.fill_rect(rect).unwrap();
-                        canvas.draw_rect(rect).unwrap();
+                        target.rectangle_filled2(rect, Color::RGBA(255, 64, 64, 127));
+                        target.rectangle2(rect, Color::RGBA(255, 64, 64, 127));
                     }
                     if ch.graphics.was_dirty {
                         let rect = transform.transform_rect(Rect::new(0, 0, CHUNK_SIZE as u32, CHUNK_SIZE as u32));
-                        canvas.set_draw_color(Color::RGBA(255, 255, 64, 127));
-                        canvas.fill_rect(rect).unwrap();
-                        canvas.draw_rect(rect).unwrap();
+                        target.rectangle_filled2(rect, Color::RGBA(255, 255, 64, 127));
+                        target.rectangle2(rect, Color::RGBA(255, 255, 64, 127));
                     }
                 }
 
@@ -373,22 +367,23 @@ impl Renderable for World<'_> {
                 let rect = transform.transform_rect(rc);
 
                 let alpha: u8 = (game.settings.draw_chunk_state_overlay_alpha * 255.0) as u8;
+                let color;
                 match ch.state {
                     super::ChunkState::NotGenerated => {
-                        canvas.set_draw_color(Color::RGBA(127, 127, 127, alpha));
+                        color = Color::RGBA(127, 127, 127, alpha);
                     },
                     super::ChunkState::Generating(stage) => {
-                        canvas.set_draw_color(Color::RGBA(64, (stage as f32 / self.chunk_handler.generator.max_gen_stage() as f32 * 255.0) as u8, 255, alpha));
+                        color = Color::RGBA(64, (stage as f32 / self.chunk_handler.generator.max_gen_stage() as f32 * 255.0) as u8, 255, alpha);
                     },
                     super::ChunkState::Cached => {
-                        canvas.set_draw_color(Color::RGBA(255, 127, 64, alpha));
+                        color = Color::RGBA(255, 127, 64, alpha);
                     },
                     super::ChunkState::Active => {
-                        canvas.set_draw_color(Color::RGBA(64, 255, 64, alpha));
+                        color = Color::RGBA(64, 255, 64, alpha);
                     },
                 }
-                canvas.fill_rect(rect).unwrap();
-                canvas.draw_rect(rect).unwrap();
+                target.rectangle_filled2(rect, color);
+                target.rectangle2(rect, color);
             
                 // let ind = self.chunk_handler.chunk_index(ch.chunk_x, ch.chunk_y);
                 // let ind = self.chunk_handler.chunk_update_order(ch.chunk_x, ch.chunk_y);
@@ -416,25 +411,25 @@ impl Renderable for World<'_> {
         });
 
         // TODO: this doesn't need to render every frame
-        if game.settings.lqf_dbg_draw {
-            unsafe {
-                // let c = &mut *canvas;
-                transform.push();
-                transform.scale(2.0, 2.0);
+        // if game.settings.lqf_dbg_draw {
+        //     unsafe {
+        //         // let c = &mut *canvas;
+        //         transform.push();
+        //         transform.scale(2.0, 2.0);
 
-                let transform_ptr: *const TransformStack = transform;
-                let transform_ptr_raw = transform_ptr as usize;
+        //         // let transform_ptr: *const TransformStack = transform;
+        //         // let transform_ptr_raw = transform_ptr as usize;
 
-                let canvas_ptr: *mut RenderCanvas = canvas;
-                let canvas_ptr_raw = canvas_ptr as usize;
+        //         // let canvas_ptr: *mut RenderCanvas = target;
+        //         // let canvas_ptr_raw = canvas_ptr as usize;
 
-                let ch = & *(self.lqf_debug_draw_callbacks.userData as *mut b2debugDrawContext);
-                ch.replace(Some((canvas_ptr_raw, transform_ptr_raw)));
-                self.lqf_world.debug_draw();
-                ch.replace(None);
-                transform.pop();
-            }
-        }
+        //         let ch = &mut *(self.lqf_debug_draw_callbacks.userData as *mut b2debugDrawContext);
+        //         // ch.replace(Some((canvas_ptr_raw, transform_ptr_raw)));
+        //         // self.lqf_world.debug_draw();
+        //         let _old = ch.replace(None);
+        //         transform.pop();
+        //     }
+        // }
 
         // canvas.set_clip_rect(clip);
         
@@ -444,34 +439,26 @@ impl Renderable for World<'_> {
                     let rcx = x + (self.camera.x / CHUNK_SIZE as f64) as i32;
                     let rcy = y + (self.camera.y / CHUNK_SIZE as f64) as i32;
                     let rc = Rect::new(rcx * CHUNK_SIZE as i32, rcy * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
-                    canvas.set_draw_color(Color::RGBA(64, 64, 64, 127));
-                    canvas.draw_rect(transform.transform_rect(rc)).unwrap();
+                    target.rectangle2(transform.transform_rect(rc), Color::RGBA(64, 64, 64, 127))
                 }
             }
         }
 
         if game.settings.draw_origin {
-            let len = 16;
-            canvas.set_draw_color(Color::RGBA(0, 0, 0, 127));
-            let origin = transform.transform_int((0, 0));
-            canvas.fill_rect(Rect::new(origin.0 - len - 2, origin.1 - 1, (len * 2 + 4) as u32, 3)).unwrap();
-            canvas.fill_rect(Rect::new(origin.0 - 1, origin.1 - len - 2, 3, (len * 2 + 4) as u32)).unwrap();
+            let len: f32 = 16.0;
+            let origin = transform.transform((0, 0));
+            target.rectangle_filled2(GPURect::new(origin.0 as f32 - len - 2.0, origin.1 as f32 - 1.0, (len * 2.0 + 4.0) as f32, 3.0), Color::RGBA(0, 0, 0, 127));
+            target.rectangle_filled2(GPURect::new(origin.0 as f32 - 1.0, origin.1 as f32 - len - 2.0, 3.0, (len * 2.0 + 4.0) as f32), Color::RGBA(0, 0, 0, 127));
 
-            canvas.set_draw_color(Color::RGBA(255, 0, 0, 255));
-            canvas.draw_line((origin.0 - len, origin.1), (origin.0 + len, origin.1)).unwrap();
-            canvas.set_draw_color(Color::RGBA(0, 255, 0, 255));
-            canvas.draw_line((origin.0, origin.1 - len), (origin.0, origin.1 + len)).unwrap();
+            target.line(origin.0 as f32 - len, origin.1 as f32, origin.0 as f32 + len, origin.1 as f32, Color::RGBA(255, 0, 0, 255));
+            target.line(origin.0 as f32, origin.1 as f32 - len, origin.0 as f32, origin.1 as f32 + len, Color::RGBA(0, 255, 0, 255));
         }
 
         if game.settings.draw_load_zones {
-            canvas.set_draw_color(Color::RGBA(255, 0, 0, 127));
-            canvas.draw_rect(transform.transform_rect(unload_zone)).unwrap();
-            canvas.set_draw_color(Color::RGBA(255, 127, 0, 127));
-            canvas.draw_rect(transform.transform_rect(load_zone)).unwrap();
-            canvas.set_draw_color(Color::RGBA(255, 255, 0, 127));
-            canvas.draw_rect(transform.transform_rect(active_zone)).unwrap();
-            canvas.set_draw_color(Color::RGBA(0, 255, 0, 127));
-            canvas.draw_rect(transform.transform_rect(screen_zone)).unwrap();
+            target.rectangle2(transform.transform_rect(unload_zone), Color::RGBA(255, 0, 0, 127));
+            target.rectangle2(transform.transform_rect(load_zone), Color::RGBA(255, 127, 0, 127));
+            target.rectangle2(transform.transform_rect(active_zone), Color::RGBA(255, 255, 0, 127));
+            target.rectangle2(transform.transform_rect(screen_zone), Color::RGBA(0, 255, 0, 127));
         }
 
         transform.pop();

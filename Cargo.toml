@@ -18,6 +18,7 @@ imgui-sdl2 = "0.14.0"
 imgui-opengl-renderer = "0.11.0"
 sysinfo = "0.19.1" # should be optional in the future
 liquidfun = { git = "https://github.com/PieKing1215/custom-liquidfun-rust" }
+sdl_gpu = { git = "https://github.com/PieKing1215/sdl-gpu-rust" }
 
 [features]
 #default = ["profile-with-tracy"]
@@ -29,9 +30,9 @@ default-features = false
 features = ["ttf","image","gfx","static-link","use-vcpkg"]
 
 [package.metadata.vcpkg]
-dependencies = ["sdl2", "sdl2-gfx", "sdl2-image[libjpeg-turbo,tiff,libwebp]", "sdl2-ttf"]
+dependencies = ["sdl2", "sdl2-gfx", "sdl2-image[libjpeg-turbo,libwebp]", "sdl2-ttf"]
 git = "https://github.com/microsoft/vcpkg"
-rev = "b1b4808"
+branch = "master"
 
 [package.metadata.vcpkg.target]
 x86_64-pc-windows-msvc = { triplet = "x64-windows-static-md" }

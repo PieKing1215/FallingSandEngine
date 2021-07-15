@@ -3,12 +3,14 @@ use std::cell::RefCell;
 
 use imgui::{WindowFlags, im_str};
 use sdl2::{VideoSubsystem, pixels::Color, render::Canvas, ttf::{Font, Sdl2TtfContext}, video::Window};
+use sdl_gpu::{GPURect, GPUSubsystem, GPUTarget};
 
-use super::{Game, Renderable, TransformStack};
+use super::{Game, RenderCanvas, Renderable, TransformStack};
 
 pub struct Renderer<'ttf> {
     pub fonts: Option<Fonts<'ttf>>,
-    pub canvas: RefCell<Canvas<Window>>,
+    pub target: RefCell<GPUTarget>,
+    pub window: Window,
     pub imgui: imgui::Context,
     pub imgui_sdl2: imgui_sdl2::ImguiSdl2,
     pub imgui_renderer: imgui_opengl_renderer::Renderer,
@@ -40,29 +42,29 @@ impl<'a> Renderer<'a> {
 
     pub fn create(sdl: &Sdl2Context) -> Result<Self, String> {
         
-        let window = Box::new(sdl.sdl_video.window("FallingSandRust", 1200, 800)
+        let window = sdl.sdl_video.window("FallingSandRust", 1200, 800)
             .opengl() // allow getting opengl context
             .resizable()
             .build()
-            .unwrap());
+            .unwrap();
     
-        let canvas: RefCell<Canvas<Window>> = RefCell::new(window.into_canvas()
-        .index(find_opengl_driver().unwrap()) // explicitly use opengl
-        .build().unwrap());
-
-        canvas.borrow_mut().set_draw_color(Color::RGBA(0, 0, 0, 0));
-        canvas.borrow_mut().clear();
-        canvas.borrow_mut().present();
+        sdl_gpu::GPUSubsystem::set_init_window(window.id());
+        let mut target = sdl_gpu::GPUSubsystem::init(window.size().0 as u16, window.size().1 as u16, 0);
+        unsafe {
+            let ctx: sdl2::sys::SDL_GLContext = (*target.raw.context).context as sdl2::sys::SDL_GLContext;
+            sdl2::sys::SDL_GL_MakeCurrent(window.raw(), ctx);
+        }
 
         let mut imgui = imgui::Context::create();
         imgui.set_ini_filename(None);
       
-        let imgui_sdl2 = imgui_sdl2::ImguiSdl2::new(&mut imgui, &canvas.borrow().window());
+        let imgui_sdl2 = imgui_sdl2::ImguiSdl2::new(&mut imgui, &window);
         let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| sdl.sdl_video.gl_get_proc_address(s) as _);
 
         return Ok(Renderer {
             fonts: None,
-            canvas,
+            target: RefCell::new(target),
+            window,
             imgui,
             imgui_sdl2,
             imgui_renderer: renderer,
@@ -71,12 +73,12 @@ impl<'a> Renderer<'a> {
 
     #[profiling::function]
     pub fn render(&mut self, sdl: &Sdl2Context, game: &mut Game){
-        let canvas: &mut Canvas<Window> = &mut self.canvas.borrow_mut();
 
-        canvas.set_draw_color(Color::RGBA(0, 0, 0, 255));
-        canvas.clear();
-        
-        self.render_internal(canvas, sdl, game);
+        let target: &mut GPUTarget = &mut self.target.borrow_mut();
+
+        target.clear();
+
+        self.render_internal(target, sdl, game);
 
         {
             profiling::scope!("imgui");
@@ -88,7 +90,7 @@ impl<'a> Renderer<'a> {
             imgui::Window::new(im_str!("Stats"))
             .size([300.0, 300.0], imgui::Condition::FirstUseEver)
             .position_pivot([1.0, 1.0])
-            .position([canvas.window().size().0 as f32, canvas.window().size().1 as f32], imgui::Condition::Always)
+            .position([self.window.size().0 as f32, self.window.size().1 as f32], imgui::Condition::Always)
             .flags(WindowFlags::ALWAYS_AUTO_RESIZE | WindowFlags::NO_DECORATION | WindowFlags::NO_MOUSE_INPUTS | WindowFlags::NO_FOCUS_ON_APPEARING | WindowFlags::NO_NAV)
             .bg_alpha(0.25)
             .resizable(false)
@@ -138,7 +140,7 @@ impl<'a> Renderer<'a> {
 
             {
                 profiling::scope!("prepare_render");
-                self.imgui_sdl2.prepare_render(&ui, &canvas.window());
+                self.imgui_sdl2.prepare_render(&ui, &self.window);
             }
             {
                 profiling::scope!("render");
@@ -146,25 +148,27 @@ impl<'a> Renderer<'a> {
             }
         }
 
-        canvas.present();
+        target.flip();
     }
 
     #[profiling::function]
-    fn render_internal(&self, canvas: &mut Canvas<Window>, sdl: &Sdl2Context, game: &Game){
-       canvas.set_draw_color(Color::RGBA(255, 0, 0, 255));
-       canvas.draw_rect(sdl2::rect::Rect::new(40 + ((game.tick_time as f32 / 5.0).sin() * 20.0) as i32, 30 + ((game.tick_time as f32 / 5.0).cos().abs() * -10.0) as i32, 15, 15)).unwrap();
+    fn render_internal(&self, target: &mut RenderCanvas, sdl: &Sdl2Context, game: &Game){
+        target.rectangle2(GPURect::new(40.0 + ((game.tick_time as f32 / 5.0).sin() * 20.0), 
+        30.0 + ((game.tick_time as f32 / 5.0).cos().abs() * -10.0), 
+        15.0, 15.0), Color::RGBA(255, 0, 0, 255));
 
-        canvas.set_blend_mode(sdl2::render::BlendMode::Blend);
+        GPUSubsystem::set_shape_blend_mode(sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_NORMAL);
         for i in (0..10000).step_by(15) {
             let thru = (i as f32 / 10000.0 * 255.0) as u8;
             let thru2 = (((i % 1000) as f32 / 1000.0) * 255.0) as u8;
-            canvas.set_draw_color(Color::RGBA(0, thru, 255-thru, thru2));
             let timeshift = ((1.0 - ((i % 1000) as f32 / 1000.0)).powi(8) * 200.0) as i32;
-            canvas.fill_rect(sdl2::rect::Rect::new(75 + (i % 1000) + (((game.frame_count as i32/2 + (i as i32 / 2) - timeshift) as f32 / 100.0).sin() * 50.0) as i32, 0 + (i / 1000)*100 + (((game.frame_count as i32/2 + (i as i32 / 2) - timeshift) as f32 / 100.0).cos() * 50.0) as i32, 20, 20)).unwrap();    
+
+            let rect = GPURect::new(75.0 + (i as f32 % 1000.0) + (((game.frame_count as i32/2 + (i as i32 / 2) - timeshift) as f32 / 100.0).sin() * 50.0), (i as f32 / 1000.0)*100.0 + (((game.frame_count as i32/2 + (i as i32 / 2) - timeshift) as f32 / 100.0).cos() * 50.0), 20.0, 20.0);
+            target.rectangle_filled2(rect, Color::RGBA(0, thru, 255-thru, thru2));
         }
 
         if let Some(w) = &game.world {
-            w.render(canvas, &mut TransformStack::new(), sdl, &self.fonts.as_ref().unwrap(), game);
+            w.render(target, &mut TransformStack::new(), sdl, &self.fonts.as_ref().unwrap(), game);
         }
         
     }

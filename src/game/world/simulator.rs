@@ -82,10 +82,10 @@ impl Simulator {
                 let i = index_helper(x, y);
 
                 if graphics {
-                    (*colors[i.0])[i.1 * 4 + 3] = a;
-                    (*colors[i.0])[i.1 * 4 + 2] = r;
+                    (*colors[i.0])[i.1 * 4 + 0] = r;
                     (*colors[i.0])[i.1 * 4 + 1] = g;
-                    (*colors[i.0])[i.1 * 4 + 0] = b;
+                    (*colors[i.0])[i.1 * 4 + 2] = b;
+                    (*colors[i.0])[i.1 * 4 + 3] = a;
 
                     dirty[i.0] = true;
                 }

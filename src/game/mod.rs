@@ -4,12 +4,13 @@ mod world;
 mod settings;
 
 pub use game::*;
+use sdl_gpu::{GPUTarget, sys::GPU_Target};
 pub use settings::*;
 pub use renderer::*;
 
 use sdl2::{rect::Rect, render::Canvas, video::Window};
 
-pub type RenderCanvas = Canvas<Window>;
+pub type RenderCanvas = sdl_gpu::GPUTarget;
 
 #[derive(Clone)]
 pub struct TransformStack {
@@ -102,5 +103,5 @@ struct Transform {
 }
 
 trait Renderable {
-    fn render(&self, canvas : &mut Canvas<Window>, transform: &mut TransformStack, sdl: &Sdl2Context, fonts: &Fonts, game: &Game);
+    fn render(&self, target : &mut GPUTarget, transform: &mut TransformStack, sdl: &Sdl2Context, fonts: &Fonts, game: &Game);
 }

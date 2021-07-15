@@ -1,9 +1,11 @@
+
 use crate::game::{Settings, world::simulator::Simulator};
 use std::{collections::HashMap, sync::Arc};
 
 use futures::future::join_all;
 use lazy_static::lazy_static;
 use sdl2::{pixels::{Color, PixelFormatEnum}, rect::Rect, render::{TextureCreator, TextureValueError}, video::WindowContext};
+use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, sys::{GPU_FilterEnum, GPU_FormatEnum}};
 use tokio::runtime::Runtime;
 
 use crate::game::{Renderable};
@@ -13,16 +15,16 @@ use super::{Camera, MaterialInstance, gen::WorldGenerator};
 
 pub const CHUNK_SIZE: u16 = 128;
 
-pub struct Chunk<'ch> {
+pub struct Chunk {
     pub chunk_x: i32,
     pub chunk_y: i32,
     pub state: ChunkState,
     pub pixels: Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
-    pub graphics: Box<ChunkGraphics<'ch>>,
+    pub graphics: Box<ChunkGraphics>,
     pub dirty_rect: Option<Rect>,
 }
 
-impl<'ch> Chunk<'ch> {
+impl<'ch> Chunk {
     pub fn new_empty(chunk_x: i32, chunk_y: i32) -> Self {
         Self {
             chunk_x,
@@ -48,9 +50,9 @@ impl<'ch> Chunk<'ch> {
     }
 
     // #[profiling::function]
-    pub fn update_graphics(&mut self, texture_creator: &'ch TextureCreator<WindowContext>) -> Result<(), String> {
+    pub fn update_graphics(&mut self) -> Result<(), String> {
 
-        self.graphics.update_texture(texture_creator).map_err(|e| e.to_string())?;
+        self.graphics.update_texture().map_err(|e| e.to_string())?;
 
         Ok(())
     }
@@ -83,8 +85,8 @@ impl<'ch> Chunk<'ch> {
     }
 }
 
-impl Renderable for Chunk<'_> {
-    fn render(&self, canvas : &mut sdl2::render::Canvas<sdl2::video::Window>, transform: &mut crate::game::TransformStack, sdl: &crate::game::Sdl2Context, fonts: &crate::game::Fonts, game: &crate::game::Game) {
+impl Renderable for Chunk {
+    fn render(&self, canvas : &mut GPUTarget, transform: &mut crate::game::TransformStack, sdl: &crate::game::Sdl2Context, fonts: &crate::game::Fonts, game: &crate::game::Game) {
         self.graphics.render(canvas, transform, sdl, fonts, game);
     }
 }
@@ -97,23 +99,23 @@ pub enum ChunkState {
     Active,
 }
 
-pub struct ChunkGraphics<'cg> {
-    texture: Option<sdl2::render::Texture<'cg>>,
+pub struct ChunkGraphics {
+    texture: Option<GPUImage>,
     pub pixel_data: [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4],
     pub dirty: bool,
     pub was_dirty: bool,
 }
 
-impl<'cg> ChunkGraphics<'cg> {
+impl<'cg> ChunkGraphics {
     // #[profiling::function] // huge performance impact
     pub fn set(&mut self, x: u16, y: u16, color: Color) -> Result<(), String> {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             // self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
             let i = (x + y * CHUNK_SIZE) as usize;
-            self.pixel_data[i * 4 + 3] = color.a;
-            self.pixel_data[i * 4 + 2] = color.r;
+            self.pixel_data[i * 4 + 0] = color.r;
             self.pixel_data[i * 4 + 1] = color.g;
-            self.pixel_data[i * 4 + 0] = color.b;
+            self.pixel_data[i * 4 + 2] = color.b;
+            self.pixel_data[i * 4 + 3] = color.a;
             self.dirty = true;
 
             return Ok(());
@@ -123,12 +125,13 @@ impl<'cg> ChunkGraphics<'cg> {
     }
 
     // #[profiling::function]
-    pub fn update_texture(&mut self, texture_creator: &'cg TextureCreator<WindowContext>) -> Result<(), TextureValueError> {
+    pub fn update_texture(&mut self) -> Result<(), TextureValueError> {
         if self.dirty {
             if self.texture.is_none() {
-                self.texture = Some(texture_creator.create_texture(PixelFormatEnum::ARGB8888, sdl2::render::TextureAccess::Streaming, CHUNK_SIZE.into(), CHUNK_SIZE.into())?);
+                self.texture = Some(GPUSubsystem::create_image(CHUNK_SIZE, CHUNK_SIZE, GPU_FormatEnum::GPU_FORMAT_RGBA));
+                self.texture.as_mut().unwrap().set_image_filter(GPU_FilterEnum::GPU_FILTER_NEAREST);
             }
-            self.texture.as_mut().unwrap().update(None, &self.pixel_data, (CHUNK_SIZE * 4).into()).unwrap();
+            self.texture.as_mut().unwrap().update_image_bytes(None as Option<GPURect>, &self.pixel_data, (CHUNK_SIZE * 4).into());
             self.dirty = false;
         }
 
@@ -144,28 +147,27 @@ impl<'cg> ChunkGraphics<'cg> {
     }
 }
 
-impl Renderable for ChunkGraphics<'_> {
-    fn render(&self, canvas : &mut sdl2::render::Canvas<sdl2::video::Window>, transform: &mut crate::game::TransformStack, _sdl: &crate::game::Sdl2Context, _fonts: &crate::game::Fonts, _game: &crate::game::Game) {
+impl Renderable for ChunkGraphics {
+    fn render(&self, target : &mut GPUTarget, transform: &mut crate::game::TransformStack, _sdl: &crate::game::Sdl2Context, _fonts: &crate::game::Fonts, _game: &crate::game::Game) {
         let chunk_rect = transform.transform_rect(Rect::new(0, 0, CHUNK_SIZE as u32, CHUNK_SIZE as u32));
 
         if let Some(tex) = &self.texture {
-            canvas.copy(tex, None, Some(chunk_rect)).unwrap();
+            tex.blit_rect(None, target, Some(chunk_rect));
         }else{
-            canvas.set_draw_color(Color::RGB(127, 0, 0));
-            canvas.fill_rect(chunk_rect).unwrap();
+            target.rectangle_filled2(chunk_rect, Color::RGB(127, 0, 0));
         }
     }
 }
 
-pub struct ChunkHandler<'a, T: WorldGenerator + Copy + Send + Sync + 'static> {
-    pub loaded_chunks: HashMap<u32, Box<Chunk<'a>>>,
+pub struct ChunkHandler<T: WorldGenerator + Copy + Send + Sync + 'static> {
+    pub loaded_chunks: HashMap<u32, Box<Chunk>>,
     load_queue: Vec<(i32, i32)>,
     /** The size of the "presentable" area (not necessarily the current window size) */
     pub screen_size: (u16, u16),
     pub generator: T,
 }
 
-impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<'a, T> {
+impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<T> {
     #[profiling::function]
     pub fn new(generator: T) -> Self {
         ChunkHandler {
@@ -177,12 +179,12 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<'a, T> {
     }
 
     #[profiling::function]
-    pub fn update_chunk_graphics(&mut self, texture_creator: &'a TextureCreator<WindowContext>){
+    pub fn update_chunk_graphics(&mut self){
         let keys = self.loaded_chunks.keys().clone().map(|i| *i).collect::<Vec<u32>>();
         for i in 0..keys.len() {
             let key = keys[i];
             self.loaded_chunks.get_mut(&key).unwrap().graphics.was_dirty = self.loaded_chunks.get_mut(&key).unwrap().graphics.dirty;
-            self.loaded_chunks.get_mut(&key).unwrap().update_graphics(texture_creator).unwrap();
+            self.loaded_chunks.get_mut(&key).unwrap().update_graphics().unwrap();
         }
     }
 
