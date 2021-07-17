@@ -6,7 +6,6 @@ use sdl2::{VideoSubsystem, pixels::Color, ttf::{Font, Sdl2TtfContext}, video::Wi
 use sdl_gpu::{GPURect, GPUSubsystem, GPUTarget, shaders::Shader};
 
 use super::TransformStack;
-use super::Renderable;
 use super::RenderCanvas;
 use crate::game::Game;
 
@@ -99,6 +98,7 @@ impl<'a> Renderer<'a> {
             let ui = self.imgui.frame();
 
             // ui.show_demo_window(&mut true);
+            
             game.settings.imgui(&ui);
 
             imgui::Window::new(im_str!("Stats"))

@@ -1,16 +1,13 @@
 
-use crate::game::client::render::{Fonts, Sdl2Context};
-use crate::game::{client::render::TransformStack, common::world::simulator::Simulator};
+use crate::game::{common::world::simulator::Simulator};
 use crate::game::common::Settings;
 use std::{collections::HashMap, sync::Arc};
 
 use futures::future::join_all;
 use lazy_static::lazy_static;
 use sdl2::{pixels::Color, rect::Rect, render::TextureValueError};
-use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, sys::{GPU_FilterEnum, GPU_FormatEnum}};
+use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, sys::{GPU_FilterEnum, GPU_FormatEnum}};
 use tokio::runtime::Runtime;
-
-use crate::game::client::render::Renderable;
 
 use super::gen::WorldGenerator;
 use crate::game::common::world::material::MaterialInstance;
@@ -89,12 +86,6 @@ impl<'ch> Chunk {
     }
 }
 
-impl Renderable for Chunk {
-    fn render(&self, canvas : &mut GPUTarget, transform: &mut TransformStack, sdl: &Sdl2Context, fonts: &Fonts) {
-        self.graphics.render(canvas, transform, sdl, fonts);
-    }
-}
-
 #[derive(Clone, Copy)]
 pub enum ChunkState {
     NotGenerated,
@@ -104,7 +95,7 @@ pub enum ChunkState {
 }
 
 pub struct ChunkGraphics {
-    texture: Option<GPUImage>,
+    pub texture: Option<GPUImage>,
     pub pixel_data: [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4],
     pub dirty: bool,
     pub was_dirty: bool,
@@ -148,18 +139,6 @@ impl<'cg> ChunkGraphics {
         // sf.blit(None, &mut self.surface, None).unwrap();
         self.pixel_data = colors;
         self.dirty = true;
-    }
-}
-
-impl Renderable for ChunkGraphics {
-    fn render(&self, target : &mut GPUTarget, transform: &mut TransformStack, _sdl: &Sdl2Context, _fonts: &Fonts) {
-        let chunk_rect = transform.transform_rect(Rect::new(0, 0, CHUNK_SIZE as u32, CHUNK_SIZE as u32));
-
-        if let Some(tex) = &self.texture {
-            tex.blit_rect(None, target, Some(chunk_rect));
-        }else{
-            target.rectangle_filled2(chunk_rect, Color::RGB(127, 0, 0));
-        }
     }
 }
 

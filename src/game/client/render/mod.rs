@@ -2,6 +2,8 @@
 mod renderer;
 pub use renderer::*;
 
+mod imgui;
+
 use sdl2::rect::Rect;
 use sdl_gpu::GPUTarget;
 
