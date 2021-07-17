@@ -9,7 +9,7 @@ use sdl2::event::{Event, WindowEvent};
 use sdl2::keyboard::Keycode;
 use sdl2::sys::SDL_WindowFlags;
 use sdl2::video::{FullscreenType, SwapInterval};
-use sdl_gpu::sys::GPU_SetWindowResolution;
+use sdl_gpu::GPUSubsystem;
 use sysinfo::{Pid, ProcessExt, SystemExt};
 use std::time::{Duration, Instant};
 
@@ -167,9 +167,7 @@ impl<'a, 'b> Game {
                         }
                     },
                     Event::Window{win_event: WindowEvent::Resized(w, h), ..} => {
-                        unsafe {
-                            GPU_SetWindowResolution(w as u16, h as u16);
-                        }
+                        GPUSubsystem::set_window_resolution(w as u16, h as u16);
                     }
                     _ => {}
                 }
@@ -208,9 +206,7 @@ impl<'a, 'b> Game {
 
                     if des_fs == FullscreenType::Off {
                         r.window.restore();
-                        unsafe {
-                            GPU_SetWindowResolution(r.window.size().0 as u16, r.window.size().1 as u16);
-                        }
+                        GPUSubsystem::set_window_resolution(r.window.size().0 as u16, r.window.size().1 as u16);
                     }
 
                 }

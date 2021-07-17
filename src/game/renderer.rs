@@ -3,12 +3,13 @@ use std::cell::RefCell;
 
 use imgui::{WindowFlags, im_str};
 use sdl2::{VideoSubsystem, pixels::Color, ttf::{Font, Sdl2TtfContext}, video::Window};
-use sdl_gpu::{GPURect, GPUSubsystem, GPUTarget};
+use sdl_gpu::{GPURect, GPUSubsystem, GPUTarget, shaders::Shader};
 
 use super::{Game, RenderCanvas, Renderable, TransformStack};
 
 pub struct Renderer<'ttf> {
     pub fonts: Option<Fonts<'ttf>>,
+    pub shaders: Shaders,
     pub target: RefCell<GPUTarget>,
     pub window: Window,
     pub imgui: imgui::Context,
@@ -18,6 +19,10 @@ pub struct Renderer<'ttf> {
 
 pub struct Fonts<'ttf> {
     pub pixel_operator: Font<'ttf, 'static>,
+}
+
+pub struct Shaders {
+    pub liquid_shader: Shader,
 }
 
 pub struct Sdl2Context {
@@ -61,8 +66,15 @@ impl<'a> Renderer<'a> {
         let imgui_sdl2 = imgui_sdl2::ImguiSdl2::new(&mut imgui, &window);
         let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| sdl.sdl_video.gl_get_proc_address(s) as _);
 
+        let shaders = Shaders {
+            liquid_shader: Shader::load_shader_program(
+                include_str!("../../assets/data/shaders/common.vert"), 
+                include_str!("../../assets/data/shaders/liquid.frag"))?,
+        };
+
         return Ok(Renderer {
             fonts: None,
+            shaders,
             target: RefCell::new(target),
             window,
             imgui,
@@ -75,10 +87,9 @@ impl<'a> Renderer<'a> {
     pub fn render(&mut self, sdl: &Sdl2Context, game: &mut Game){
 
         let target: &mut GPUTarget = &mut self.target.borrow_mut();
-
         target.clear();
 
-        self.render_internal(target, sdl, game);
+        self.render_internal(target, sdl, game, &self.shaders);
 
         {
             profiling::scope!("imgui");
@@ -152,7 +163,7 @@ impl<'a> Renderer<'a> {
     }
 
     #[profiling::function]
-    fn render_internal(&self, target: &mut RenderCanvas, sdl: &Sdl2Context, game: &mut Game){
+    fn render_internal(&self, target: &mut RenderCanvas, sdl: &Sdl2Context, game: &mut Game, shaders: &Shaders){
         target.rectangle2(GPURect::new(40.0 + ((game.tick_time as f32 / 5.0).sin() * 20.0), 
         30.0 + ((game.tick_time as f32 / 5.0).cos().abs() * -10.0), 
         15.0, 15.0), Color::RGBA(255, 0, 0, 255));
@@ -168,7 +179,7 @@ impl<'a> Renderer<'a> {
         }
 
         if let Some(w) = &mut game.world {
-            w.render(target, &mut TransformStack::new(), sdl, &self.fonts.as_ref().unwrap(), &game.settings);
+            w.render(target, &mut TransformStack::new(), sdl, &self.fonts.as_ref().unwrap(), &game.settings, shaders);
         }
         
     }

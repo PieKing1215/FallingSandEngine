@@ -118,7 +118,7 @@ impl Settings {
                     .build(ui, &mut self.tick_lqf_timestep);
                 ui.same_line(0.0);
                 if ui.small_button(im_str!("reset##tick_lqf_timestep")) {
-                    self.tick_lqf_timestep = 1.0 / 15.0;
+                    self.tick_lqf_timestep = 1.0 / 45.0;
                 }
                 ui.unindent();
                 
@@ -142,10 +142,10 @@ impl Default for Settings {
             lqf_dbg_draw: true,
             lqf_dbg_draw_shape: true,
             lqf_dbg_draw_joint: true,
-            lqf_dbg_draw_aabb: true,
+            lqf_dbg_draw_aabb: false,
             lqf_dbg_draw_pair: true,
             lqf_dbg_draw_center_of_mass: true,
-            lqf_dbg_draw_particle: true,
+            lqf_dbg_draw_particle: false,
 
             fullscreen: false,
             fullscreen_type: 0,
@@ -156,7 +156,7 @@ impl Default for Settings {
             tick_speed: 30,
             tick_lqf: true,
             tick_lqf_speed: 60,
-            tick_lqf_timestep: 1.0 / 15.0,
+            tick_lqf_timestep: 1.0 / 45.0,
             load_chunks: true,
             pause_on_lost_focus: false,
         }
