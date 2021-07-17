@@ -1,9 +1,10 @@
 
-use crate::game::world::MaterialInstance;
+use crate::game::common::world::material::MaterialInstance;
 
-use super::{Sdl2Context, Settings};
-use super::Renderer;
-use super::world::World;
+use crate::game::common::Settings;
+use crate::game::client::render::Sdl2Context;
+use crate::game::client::render::Renderer;
+use crate::game::common::world::World;
 
 use sdl2::event::{Event, WindowEvent};
 use sdl2::keyboard::Keycode;

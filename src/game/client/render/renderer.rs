@@ -5,7 +5,10 @@ use imgui::{WindowFlags, im_str};
 use sdl2::{VideoSubsystem, pixels::Color, ttf::{Font, Sdl2TtfContext}, video::Window};
 use sdl_gpu::{GPURect, GPUSubsystem, GPUTarget, shaders::Shader};
 
-use super::{Game, RenderCanvas, Renderable, TransformStack};
+use super::TransformStack;
+use super::Renderable;
+use super::RenderCanvas;
+use crate::game::Game;
 
 pub struct Renderer<'ttf> {
     pub fonts: Option<Fonts<'ttf>>,
@@ -68,8 +71,8 @@ impl<'a> Renderer<'a> {
 
         let shaders = Shaders {
             liquid_shader: Shader::load_shader_program(
-                include_str!("../../assets/data/shaders/common.vert"), 
-                include_str!("../../assets/data/shaders/liquid.frag"))?,
+                include_str!("../../../../assets/data/shaders/common.vert"), 
+                include_str!("../../../../assets/data/shaders/liquid.frag"))?,
         };
 
         return Ok(Renderer {

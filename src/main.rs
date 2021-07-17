@@ -3,7 +3,8 @@ mod game;
 
 use game::Game;
 
-use crate::game::{Fonts, Renderer};
+use crate::game::client::render::Renderer;
+use crate::game::client::render::Fonts;
 
 #[profiling::function]
 fn main() -> Result<(), String> {

@@ -1,5 +1,7 @@
 
-use crate::game::{Settings, world::simulator::Simulator};
+use crate::game::client::render::{Fonts, Sdl2Context};
+use crate::game::{client::render::TransformStack, common::world::simulator::Simulator};
+use crate::game::common::Settings;
 use std::{collections::HashMap, sync::Arc};
 
 use futures::future::join_all;
@@ -8,9 +10,11 @@ use sdl2::{pixels::Color, rect::Rect, render::TextureValueError};
 use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, sys::{GPU_FilterEnum, GPU_FormatEnum}};
 use tokio::runtime::Runtime;
 
-use crate::game::{Renderable};
+use crate::game::client::render::Renderable;
 
-use super::{Camera, MaterialInstance, gen::WorldGenerator};
+use super::gen::WorldGenerator;
+use crate::game::common::world::material::MaterialInstance;
+use super::Camera;
 
 
 pub const CHUNK_SIZE: u16 = 128;
@@ -86,7 +90,7 @@ impl<'ch> Chunk {
 }
 
 impl Renderable for Chunk {
-    fn render(&self, canvas : &mut GPUTarget, transform: &mut crate::game::TransformStack, sdl: &crate::game::Sdl2Context, fonts: &crate::game::Fonts) {
+    fn render(&self, canvas : &mut GPUTarget, transform: &mut TransformStack, sdl: &Sdl2Context, fonts: &Fonts) {
         self.graphics.render(canvas, transform, sdl, fonts);
     }
 }
@@ -148,7 +152,7 @@ impl<'cg> ChunkGraphics {
 }
 
 impl Renderable for ChunkGraphics {
-    fn render(&self, target : &mut GPUTarget, transform: &mut crate::game::TransformStack, _sdl: &crate::game::Sdl2Context, _fonts: &crate::game::Fonts) {
+    fn render(&self, target : &mut GPUTarget, transform: &mut TransformStack, _sdl: &Sdl2Context, _fonts: &Fonts) {
         let chunk_rect = transform.transform_rect(Rect::new(0, 0, CHUNK_SIZE as u32, CHUNK_SIZE as u32));
 
         if let Some(tex) = &self.texture {

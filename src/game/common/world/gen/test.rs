@@ -1,10 +1,10 @@
 
-use material::TEST_MATERIAL;
+use crate::game::common::world::material::*;
 
 use sdl2::pixels::Color;
 use simdnoise::NoiseBuilder;
 
-use crate::game::world::{CHUNK_SIZE, MaterialInstance, material};
+use crate::game::common::world::CHUNK_SIZE;
 
 use super::WorldGenerator;
 
@@ -45,7 +45,7 @@ impl WorldGenerator for TestGenerator {
                     if v2 > 0.0 {
                         pixels[i] = MaterialInstance {
                             material_id: TEST_MATERIAL.id,
-                            physics: crate::game::world::PhysicsType::Sand,
+                            physics: PhysicsType::Sand,
                             color: Color::RGB(if v2 <= 0.01 { 255 } else { 64 }, 64, if v2 > 0.01 { 255 } else { 64 }),
                         };
                         colors[i*4 + 0] = pixels[i].color.r;
@@ -60,7 +60,7 @@ impl WorldGenerator for TestGenerator {
                     }else{
                         pixels[i] = MaterialInstance {
                             material_id: TEST_MATERIAL.id,
-                            physics: crate::game::world::PhysicsType::Solid,
+                            physics: PhysicsType::Solid,
                             color: Color::RGB(80, 64, 32),
                         };
                         colors[i*4 + 0] = pixels[i].color.r;

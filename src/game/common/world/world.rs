@@ -1,11 +1,17 @@
 use std::{ffi::c_void, iter, ptr::slice_from_raw_parts};
 
-use crate::game::{Settings, Shaders, world::gen::WorldGenerator};
+use crate::game::common::world::gen::WorldGenerator;
+use crate::game::client::render::Shaders;
+use crate::game::common::Settings;
 use liquidfun::box2d::{collision::shapes::polygon_shape::PolygonShape, common::{b2draw::{self, B2Draw_New, b2Color, b2ParticleColor, b2Transform, b2Vec2, int32}, math::Vec2}, dynamics::{body::{BodyDef, BodyType}, fixture::FixtureDef}, particle::{ELASTIC_PARTICLE, ParticleDef, STATIC_PRESSURE_PARTICLE, TENSILE_PARTICLE, particle_color::ParticleColor, particle_system::ParticleSystemDef}};
 use sdl2::{pixels::Color, rect::Rect};
 use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, shaders::Shader, sys::GPU_FilterEnum, sys::GPU_FormatEnum};
 
-use crate::game::{Fonts, Game, RenderCanvas, Renderable, Sdl2Context, TransformStack};
+use crate::game::client::render::TransformStack;
+use crate::game::client::render::Sdl2Context;
+use crate::game::client::render::Renderable;
+use crate::game::client::render::RenderCanvas;
+use crate::game::client::render::Fonts;
 
 use super::{CHUNK_SIZE, ChunkHandler, gen::{TEST_GENERATOR, TestGenerator}};
 

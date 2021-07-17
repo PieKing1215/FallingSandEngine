@@ -1,8 +1,7 @@
 use sdl2::{pixels::Color, rect::Rect};
 
-use crate::game::world::PhysicsType;
-
-use super::{CHUNK_SIZE, MaterialInstance};
+use crate::game::common::world::material::*;
+use crate::game::common::world::CHUNK_SIZE;
 
 
 pub struct Simulator {
@@ -105,7 +104,7 @@ impl Simulator {
                         let mut new_mat: Option<MaterialInstance> = None;
 
                         match cur.physics {
-                            crate::game::world::PhysicsType::Sand => {
+                            PhysicsType::Sand => {
                                 let below_i = index_helper(x, y + 1);
                                 let below = (*pixels[below_i.0])[below_i.1];
                                 let below_can = below.physics == PhysicsType::Air;
