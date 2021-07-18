@@ -11,8 +11,6 @@ use tokio::runtime::Runtime;
 
 use super::gen::WorldGenerator;
 use crate::game::common::world::material::MaterialInstance;
-use super::Camera;
-
 
 pub const CHUNK_SIZE: u16 = 128;
 
@@ -172,22 +170,24 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<T> {
     }
 
     #[profiling::function]
-    pub fn tick(&mut self, tick_time: u32, camera: &Camera, settings: &Settings){ // TODO: `camera` should be replaced with like a vec of entities or something
+    pub fn tick(&mut self, tick_time: u32, loaders: Vec<(f64, f64)>, settings: &Settings){ // TODO: `camera` should be replaced with like a vec of entities or something
         
-        let unload_zone = self.get_unload_zone(camera);
-        let load_zone = self.get_load_zone(camera);
-        let active_zone = self.get_active_zone(camera);
-        let _screen_zone = self.get_screen_zone(camera);
+        let unload_zone: Vec<Rect> = loaders.iter().map(|l| self.get_unload_zone(*l)).collect();
+        let load_zone: Vec<Rect> = loaders.iter().map(|l| self.get_load_zone(*l)).collect();
+        let active_zone: Vec<Rect> = loaders.iter().map(|l| self.get_active_zone(*l)).collect();
+        let _screen_zone: Vec<Rect> = loaders.iter().map(|l| self.get_screen_zone(*l)).collect();
         
         if settings.load_chunks {
             {
                 profiling::scope!("queue chunk loading");
-                for px in (load_zone.x .. load_zone.x + load_zone.w).step_by(CHUNK_SIZE.into()) {
-                    for py in (load_zone.y .. load_zone.y + load_zone.h).step_by(CHUNK_SIZE.into()) {
-                        let chunk_pos = self.pixel_to_chunk_pos(px.into(), py.into());
-                        self.queue_load_chunk(chunk_pos.0, chunk_pos.1);
+                load_zone.iter().for_each(|load_zone| {
+                    for px in (load_zone.x .. load_zone.x + load_zone.w).step_by(CHUNK_SIZE.into()) {
+                        for py in (load_zone.y .. load_zone.y + load_zone.h).step_by(CHUNK_SIZE.into()) {
+                            let chunk_pos = self.pixel_to_chunk_pos(px.into(), py.into());
+                            self.queue_load_chunk(chunk_pos.0, chunk_pos.1);
+                        }
                     }
-                }
+                });
             }
 
             {
@@ -215,10 +215,10 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<T> {
 
                 match state {
                     ChunkState::Cached => {
-                        if !rect.has_intersection(unload_zone) {
+                        if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
                             self.unload_chunk(&self.loaded_chunks.get(&key).unwrap());
                             keep_map[i] = false;
-                        }else if rect.has_intersection(active_zone) {
+                        }else if active_zone.iter().any(|z| rect.has_intersection(*z)) {
                             let chunk_x = self.loaded_chunks.get(&key).unwrap().chunk_x;
                             let chunk_y = self.loaded_chunks.get(&key).unwrap().chunk_y;
                             if [
@@ -251,7 +251,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<T> {
                         }
                     },
                     ChunkState::Active => {
-                        if !rect.has_intersection(active_zone) {
+                        if !active_zone.iter().any(|z| rect.has_intersection(*z)) {
                             self.loaded_chunks.get_mut(&key).unwrap().state = ChunkState::Cached;
                         }
                     }
@@ -279,13 +279,17 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<T> {
                     let c2_x = self.loaded_chunks.get(b).unwrap().chunk_x * CHUNK_SIZE as i32;
                     let c2_y = self.loaded_chunks.get(b).unwrap().chunk_y * CHUNK_SIZE as i32;
 
-                    let d1_x = (camera.x as i32 - c1_x).abs();
-                    let d1_y = (camera.y as i32 - c1_y).abs();
-                    let d1 = d1_x + d1_y;
+                    let d1 = loaders.iter().map(|l| {
+                        let x = (l.0 as i32 - c1_x).abs();
+                        let y = (l.1 as i32 - c1_y).abs();
+                        x + y
+                    }).min().unwrap();
 
-                    let d2_x = (camera.x as i32 - c2_x).abs();
-                    let d2_y = (camera.y as i32 - c2_y).abs();
-                    let d2 = d2_x + d2_y;
+                    let d2 = loaders.iter().map(|l| {
+                        let x = (l.0 as i32 - c2_x).abs();
+                        let y = (l.1 as i32 - c2_y).abs();
+                        x + y
+                    }).min().unwrap();
 
                     d1.cmp(&d2)
                 });
@@ -297,7 +301,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<T> {
 
                     match state {
                         ChunkState::NotGenerated => {
-                            if !rect.has_intersection(unload_zone) {
+                            if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
 
                             }else if num_loaded_this_tick < 32 {
                                 // TODO: load from file
@@ -358,7 +362,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<T> {
 
                     match state {
                         ChunkState::NotGenerated => {
-                            if !rect.has_intersection(unload_zone) {
+                            if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
                                 self.unload_chunk(&self.loaded_chunks.get(&key).unwrap());
                                 keep_map[i] = false;
                             }
@@ -400,7 +404,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<T> {
                                     self.loaded_chunks.get_mut(&key).unwrap().state = ChunkState::Generating(stage + 1);
                                 }
 
-                                if !rect.has_intersection(unload_zone) {
+                                if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
                                     self.unload_chunk(&self.loaded_chunks.get(&key).unwrap());
                                     keep_map[i] = false;
                                 }
@@ -711,29 +715,29 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<T> {
     }
 
     #[profiling::function]
-    pub fn get_zone(&self, camera: &Camera, padding: u32) -> Rect {
+    pub fn get_zone(&self, center: (f64, f64), padding: u32) -> Rect {
         let width = self.screen_size.0 as u32 + padding * 2;
         let height = self.screen_size.1 as u32 + padding * 2;
-        Rect::new(camera.x as i32 - (width / 2) as i32, camera.y as i32 - (height / 2) as i32, width, height)
+        Rect::new(center.0 as i32 - (width / 2) as i32, center.1 as i32 - (height / 2) as i32, width, height)
     }
 
     #[profiling::function]
-    pub fn get_screen_zone(&self, camera: &Camera) -> Rect {
-        self.get_zone(camera, 0)
+    pub fn get_screen_zone(&self, center: (f64, f64)) -> Rect {
+        self.get_zone(center, 0)
     }
 
     #[profiling::function]
-    pub fn get_active_zone(&self, camera: &Camera) -> Rect {
-        self.get_zone(camera, CHUNK_SIZE.into())
+    pub fn get_active_zone(&self, center: (f64, f64)) -> Rect {
+        self.get_zone(center, CHUNK_SIZE.into())
     }
 
     #[profiling::function]
-    pub fn get_load_zone(&self, camera: &Camera) -> Rect {
-        self.get_zone(camera, (CHUNK_SIZE * 5).into())
+    pub fn get_load_zone(&self, center: (f64, f64)) -> Rect {
+        self.get_zone(center, (CHUNK_SIZE * 5).into())
     }
 
     #[profiling::function]
-    pub fn get_unload_zone(&self, camera: &Camera) -> Rect {
-        self.get_zone(camera, (CHUNK_SIZE * 10).into())
+    pub fn get_unload_zone(&self, center: (f64, f64)) -> Rect {
+        self.get_zone(center, (CHUNK_SIZE * 10).into())
     }
 }

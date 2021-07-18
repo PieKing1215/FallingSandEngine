@@ -6,8 +6,7 @@ use sdl2::{VideoSubsystem, pixels::Color, ttf::{Font, Sdl2TtfContext}, video::Wi
 use sdl_gpu::{GPURect, GPUSubsystem, GPUTarget, shaders::Shader};
 
 use super::TransformStack;
-use super::RenderCanvas;
-use crate::game::Game;
+use crate::game::{Game, client::world::WorldRenderer};
 
 pub struct Renderer<'ttf> {
     pub fonts: Option<Fonts<'ttf>>,
@@ -17,6 +16,7 @@ pub struct Renderer<'ttf> {
     pub imgui: imgui::Context,
     pub imgui_sdl2: imgui_sdl2::ImguiSdl2,
     pub imgui_renderer: imgui_opengl_renderer::Renderer,
+    pub world_renderer: WorldRenderer,
 }
 
 pub struct Fonts<'ttf> {
@@ -82,16 +82,18 @@ impl<'a> Renderer<'a> {
             imgui,
             imgui_sdl2,
             imgui_renderer: renderer,
+            world_renderer: WorldRenderer::new(),
         });
     }
 
     #[profiling::function]
-    pub fn render(&mut self, sdl: &Sdl2Context, game: &mut Game){
+    pub fn render(&mut self, sdl: &Sdl2Context, game: &mut Game, delta_time: f64){
 
-        let target: &mut GPUTarget = &mut self.target.borrow_mut();
-        target.clear();
+        self.target.borrow_mut().clear();
 
-        self.render_internal(target, sdl, game, &self.shaders);
+        self.render_internal(sdl, game, delta_time);
+
+        let target = &mut self.target.borrow_mut();
 
         {
             profiling::scope!("imgui");
@@ -166,7 +168,9 @@ impl<'a> Renderer<'a> {
     }
 
     #[profiling::function]
-    fn render_internal(&self, target: &mut RenderCanvas, sdl: &Sdl2Context, game: &mut Game, shaders: &Shaders){
+    fn render_internal(&mut self, sdl: &Sdl2Context, game: &mut Game, delta_time: f64){
+        let target = &mut self.target.borrow_mut();
+        
         target.rectangle2(GPURect::new(40.0 + ((game.tick_time as f32 / 5.0).sin() * 20.0), 
         30.0 + ((game.tick_time as f32 / 5.0).cos().abs() * -10.0), 
         15.0, 15.0), Color::RGBA(255, 0, 0, 255));
@@ -182,7 +186,7 @@ impl<'a> Renderer<'a> {
         }
 
         if let Some(w) = &mut game.world {
-            w.render(target, &mut TransformStack::new(), sdl, &self.fonts.as_ref().unwrap(), &game.settings, shaders);
+            self.world_renderer.render(w, target, &mut TransformStack::new(), delta_time, sdl, &self.fonts.as_ref().unwrap(), &game.settings, &self.shaders, &mut game.client);
         }
         
     }
