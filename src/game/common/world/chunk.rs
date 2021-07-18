@@ -1,12 +1,12 @@
 
+use crate::game::client::world::ChunkGraphics;
 use crate::game::{common::world::simulator::Simulator};
 use crate::game::common::Settings;
 use std::{collections::HashMap, sync::Arc};
 
 use futures::future::join_all;
 use lazy_static::lazy_static;
-use sdl2::{pixels::Color, rect::Rect, render::TextureValueError};
-use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, sys::{GPU_FilterEnum, GPU_FormatEnum}};
+use sdl2::rect::Rect;
 use tokio::runtime::Runtime;
 
 use super::gen::WorldGenerator;
@@ -51,7 +51,7 @@ impl<'ch> Chunk {
     // #[profiling::function]
     pub fn update_graphics(&mut self) -> Result<(), String> {
 
-        self.graphics.update_texture().map_err(|e| e.to_string())?;
+        self.graphics.update_texture().map_err(|e| "ChunkGraphics::update_texture failed.")?;
 
         Ok(())
     }
@@ -90,54 +90,6 @@ pub enum ChunkState {
     Generating(u8), // stage
     Cached,
     Active,
-}
-
-pub struct ChunkGraphics {
-    pub texture: Option<GPUImage>,
-    pub pixel_data: [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4],
-    pub dirty: bool,
-    pub was_dirty: bool,
-}
-
-impl<'cg> ChunkGraphics {
-    // #[profiling::function] // huge performance impact
-    pub fn set(&mut self, x: u16, y: u16, color: Color) -> Result<(), String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            // self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
-            let i = (x + y * CHUNK_SIZE) as usize;
-            self.pixel_data[i * 4 + 0] = color.r;
-            self.pixel_data[i * 4 + 1] = color.g;
-            self.pixel_data[i * 4 + 2] = color.b;
-            self.pixel_data[i * 4 + 3] = color.a;
-            self.dirty = true;
-
-            return Ok(());
-        }
-
-        Err("Invalid pixel coordinate.".to_string())
-    }
-
-    // #[profiling::function]
-    pub fn update_texture(&mut self) -> Result<(), TextureValueError> {
-        if self.dirty {
-            if self.texture.is_none() {
-                self.texture = Some(GPUSubsystem::create_image(CHUNK_SIZE, CHUNK_SIZE, GPU_FormatEnum::GPU_FORMAT_RGBA));
-                self.texture.as_mut().unwrap().set_image_filter(GPU_FilterEnum::GPU_FILTER_NEAREST);
-            }
-            self.texture.as_mut().unwrap().update_image_bytes(None as Option<GPURect>, &self.pixel_data, (CHUNK_SIZE * 4).into());
-            self.dirty = false;
-        }
-
-        Ok(())
-    }
-
-    #[profiling::function]
-    pub fn replace(&mut self, colors: [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]){
-        // let sf = Surface::from_data(&mut colors, CHUNK_SIZE as u32, CHUNK_SIZE as u32, self.surface.pitch(), self.surface.pixel_format_enum()).unwrap();
-        // sf.blit(None, &mut self.surface, None).unwrap();
-        self.pixel_data = colors;
-        self.dirty = true;
-    }
 }
 
 pub struct ChunkHandler<T: WorldGenerator + Copy + Send + Sync + 'static> {

@@ -53,8 +53,8 @@ impl WorldRenderer {
         if let Some(cl) = client {
             if let Some(e_id) = cl.world.as_ref().and_then(|cw| cw.local_entity_id) {
                 if let Some(ent) = world.get_entity(e_id) {
-                    cl.camera.x += (ent.x - cl.camera.x) * (delta_time * 1.0).clamp(0.0, 1.0);
-                    cl.camera.y += (ent.y - cl.camera.y) * (delta_time * 1.0).clamp(0.0, 1.0);
+                    cl.camera.x += (ent.x - cl.camera.x) * (delta_time * 10.0).clamp(0.0, 1.0);
+                    cl.camera.y += (ent.y - cl.camera.y) * (delta_time * 10.0).clamp(0.0, 1.0);
                 }
             }
         }
@@ -78,7 +78,7 @@ impl WorldRenderer {
         transform.translate(-camera.x, -camera.y);
 
 
-        let screen_zone = world.chunk_handler.get_screen_zone((camera.x, camera.y));
+        let screen_zone = world.chunk_handler.get_screen_zone((camera.x, camera.y)); // note we always use the camera for the screen zone
         let active_zone = world.chunk_handler.get_active_zone(loader_pos);
         let load_zone = world.chunk_handler.get_load_zone(loader_pos);
         let unload_zone = world.chunk_handler.get_unload_zone(loader_pos);

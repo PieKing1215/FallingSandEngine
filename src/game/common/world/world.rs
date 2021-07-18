@@ -115,7 +115,7 @@ impl<'w> World {
         pd.flags.insert(TENSILE_PARTICLE);
         pd.color.set(255, 90, 255, 255);
 
-        for i in 0..25000 {
+        for i in 0..2500 {
             if i < 12500 {
                 pd.color.set(255, 200, 64, 191);
             }else {
