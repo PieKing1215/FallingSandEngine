@@ -6,8 +6,10 @@ use game::Game;
 use crate::game::client::Client;
 use crate::game::client::render::Renderer;
 use crate::game::client::render::Fonts;
+use crate::game::client::world::ClientChunk;
 use crate::game::client::world::ClientWorld;
 use crate::game::common::world::entity::Entity;
+use crate::game::server::world::ServerChunk;
 
 #[profiling::function]
 fn main() -> Result<(), String> {
@@ -18,37 +20,54 @@ fn main() -> Result<(), String> {
         println!("Profiler Enabled");
     }
 
-    // TODO: come up with a better way to handle this sdl's lifetime
-    let sdl = Renderer::init_sdl().unwrap();
+    let server = false;
 
-    println!("Starting init...");
-    
-    let mut r = Renderer::create(&sdl)?;
+    if server {
+        let mut game: Game<ServerChunk> = Game::new();
 
-    let pixel_operator2 = sdl.sdl_ttf.load_font("./assets/font/pixel_operator/PixelOperator.ttf", 16).unwrap();
-    let f = Some(Fonts {
-        pixel_operator: pixel_operator2,
-    });
-    r.fonts = f;
+        if let Some(w) = &mut game.world {
+            w.add_entity(Entity {
+                x: 0.0,
+                y: 0.0,
+            });
+        };
 
-    println!("Finished init.");
+        println!("Starting main loop...");
+        game.run();
+        println!("Goodbye!");
+    } else {
+        // TODO: come up with a better way to handle this sdl's lifetime
+        let sdl = Renderer::init_sdl().unwrap();
 
-    let mut game: Game = Game::new();
-    
-    if let Some(w) = &mut game.world {
-        let pl_id = w.add_entity(Entity {
-            x: 0.0,
-            y: 0.0,
+        println!("Starting init...");
+        
+        let mut r = Renderer::create(&sdl)?;
+
+        let pixel_operator2 = sdl.sdl_ttf.load_font("./assets/font/pixel_operator/PixelOperator.ttf", 16).unwrap();
+        let f = Some(Fonts {
+            pixel_operator: pixel_operator2,
         });
-        game.client = Some(Client::new());
-        game.client.as_mut().unwrap().world = Some(ClientWorld {
-            local_entity_id: Some(pl_id),
-        });
-    };
+        r.fonts = f;
 
-    println!("Starting main loop...");
-    game.run(&sdl, Some(&mut r));
-    println!("Goodbye!");
+        println!("Finished init.");
+
+        let mut game: Game<ClientChunk> = Game::new();
+        
+        if let Some(w) = &mut game.world {
+            let pl_id = w.add_entity(Entity {
+                x: 0.0,
+                y: 0.0,
+            });
+            game.client = Some(Client::new());
+            game.client.as_mut().unwrap().world = Some(ClientWorld {
+                local_entity_id: Some(pl_id),
+            });
+        };
+
+        println!("Starting main loop...");
+        game.run(&sdl, Some(&mut r));
+        println!("Goodbye!");
+    }
 
     Ok(())
 }

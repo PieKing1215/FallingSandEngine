@@ -6,7 +6,7 @@ use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, shaders::Shader, sys::
 
 use crate::game::{client::{Client, render::{Fonts, RenderCanvas, Renderable, Sdl2Context, Shaders, TransformStack}}, common::{Settings, world::{CHUNK_SIZE, ChunkState, LIQUIDFUN_SCALE, World, gen::WorldGenerator}}};
 
-use super::ClientWorld;
+use super::{ClientChunk, ClientWorld};
 
 pub struct WorldRenderer {
     pub lqf_debug_draw_callbacks: b2draw::b2DrawCallbacks,
@@ -35,14 +35,14 @@ impl WorldRenderer {
         }
     }
 
-    pub fn init(&self, world: &mut World) {
+    pub fn init(&self, world: &mut World<ClientChunk>) {
         unsafe {
             let cast = &mut *(B2Draw_New(self.lqf_debug_draw_callbacks));
             world.lqf_world.set_debug_draw(cast);
         }
     }
 
-    pub fn render(&mut self, world: &mut World, target: &mut GPUTarget, transform: &mut TransformStack, delta_time: f64, sdl: &Sdl2Context, fonts: &Fonts, settings: &Settings, shaders: &Shaders, client: &mut Option<Client>) {
+    pub fn render(&mut self, world: &mut World<ClientChunk>, target: &mut GPUTarget, transform: &mut TransformStack, delta_time: f64, sdl: &Sdl2Context, fonts: &Fonts, settings: &Settings, shaders: &Shaders, client: &mut Option<Client>) {
 
         if world.lqf_world.get_debug_draw().is_none() {
             self.init(world);

@@ -6,7 +6,7 @@ use sdl2::{VideoSubsystem, pixels::Color, ttf::{Font, Sdl2TtfContext}, video::Wi
 use sdl_gpu::{GPURect, GPUSubsystem, GPUTarget, shaders::Shader};
 
 use super::TransformStack;
-use crate::game::{Game, client::world::WorldRenderer};
+use crate::game::{Game, client::world::{ClientChunk, WorldRenderer}};
 
 pub struct Renderer<'ttf> {
     pub fonts: Option<Fonts<'ttf>>,
@@ -87,7 +87,7 @@ impl<'a> Renderer<'a> {
     }
 
     #[profiling::function]
-    pub fn render(&mut self, sdl: &Sdl2Context, game: &mut Game, delta_time: f64){
+    pub fn render(&mut self, sdl: &Sdl2Context, game: &mut Game<ClientChunk>, delta_time: f64){
 
         self.target.borrow_mut().clear();
 
@@ -168,7 +168,7 @@ impl<'a> Renderer<'a> {
     }
 
     #[profiling::function]
-    fn render_internal(&mut self, sdl: &Sdl2Context, game: &mut Game, delta_time: f64){
+    fn render_internal(&mut self, sdl: &Sdl2Context, game: &mut Game<ClientChunk>, delta_time: f64){
         let target = &mut self.target.borrow_mut();
         
         target.rectangle2(GPURect::new(40.0 + ((game.tick_time as f32 / 5.0).sin() * 20.0), 

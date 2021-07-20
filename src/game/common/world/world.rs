@@ -4,17 +4,17 @@ use std::collections::HashMap;
 use crate::game::common::Settings;
 use liquidfun::box2d::{collision::shapes::polygon_shape::PolygonShape, common::{b2draw, math::Vec2}, dynamics::{body::{BodyDef, BodyType}, fixture::FixtureDef}, particle::{ParticleDef, TENSILE_PARTICLE, particle_system::ParticleSystemDef}};
 
-use super::{ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}};
+use super::{Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
-pub struct World {
-    pub chunk_handler: ChunkHandler<TestGenerator>,
+pub struct World<C: Chunk> {
+    pub chunk_handler: ChunkHandler<TestGenerator, C>,
     pub lqf_world: liquidfun::box2d::dynamics::world::World,
     pub entities: HashMap<u32, Entity>,
 }
 
-impl<'w> World {
+impl<'w, C: Chunk> World<C> {
     #[profiling::function]
     pub fn create() -> Self {
         let gravity = liquidfun::box2d::common::math::Vec2::new(0.0, 3.0);

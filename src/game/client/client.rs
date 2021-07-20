@@ -2,7 +2,7 @@ use sdl2::{event::Event, keyboard::Keycode};
 
 use crate::game::common::world::World;
 
-use super::world::ClientWorld;
+use super::world::{ClientChunk, ClientWorld};
 
 // TODO: actually implement this properly with functions and stuff instead of just raw field accesses
 pub struct Controls {
@@ -42,7 +42,7 @@ impl Client {
         }
     }
 
-    pub fn tick(&mut self, world: &mut World) {
+    pub fn tick(&mut self, world: &mut World<ClientChunk>) {
         if let Some(w) = &mut self.world {
             w.tick(world);
 
