@@ -1,4 +1,5 @@
-use std::time::{Duration, Instant};
+
+use std::{io::Read, net::{SocketAddr, TcpListener, TcpStream}, time::{Duration, Instant}};
 
 use crate::game::Game;
 
@@ -6,7 +7,12 @@ use super::world::ServerChunk;
 
 impl Game<ServerChunk> {
     #[profiling::function]
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Result<(), String> {
+
+        let net_listener = TcpListener::bind("127.0.0.1:6673").map_err(|e| e.to_string())?;
+        net_listener.set_nonblocking(true).map_err(|e| e.to_string())?;
+        let mut connections: Vec<(TcpStream, SocketAddr)> = Vec::new();
+
         let mut prev_tick_time = std::time::Instant::now();
         let mut prev_tick_lqf_time = std::time::Instant::now();
 
@@ -16,6 +22,24 @@ impl Game<ServerChunk> {
         let mut do_tick_lqf_next = false;
         '_mainLoop: loop {
             
+            if let Ok((stream, addr)) = net_listener.accept() {
+                println!("[SERVER] Incoming Connection: {}", addr.to_string());
+                connections.push((stream, addr));
+            }
+
+            for c in &mut connections {
+                let mut buf = String::new();
+
+                match c.0.read_to_string(&mut buf) {
+                    Ok(n) => {
+                        if n > 0 {
+                            println!("[SERVER] recieved message: {}", buf)
+                        }
+                    },
+                    Err(e) => panic!("[SERVER] read_to_string failed: {}", e),
+                }
+            }
+
             let now = std::time::Instant::now();
 
             // tick
@@ -86,6 +110,8 @@ impl Game<ServerChunk> {
         }
 
         println!("Closing...");
+
+        Ok(())
     }
 
     #[profiling::function]

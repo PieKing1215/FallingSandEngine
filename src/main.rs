@@ -20,22 +20,55 @@ fn main() -> Result<(), String> {
         println!("Profiler Enabled");
     }
 
-    let server = false;
+    let server = true;
+    let client = true;
 
     if server {
-        let mut game: Game<ServerChunk> = Game::new();
+        println!("Starting server...");
+        if client {
+            std::thread::spawn(|| {
 
-        if let Some(w) = &mut game.world {
-            w.add_entity(Entity {
-                x: 0.0,
-                y: 0.0,
+                let mut game: Game<ServerChunk> = Game::new();
+    
+                if let Some(w) = &mut game.world {
+                    w.add_entity(Entity {
+                        x: 0.0,
+                        y: 0.0,
+                    });
+                };
+    
+                println!("Starting main loop...");
+                match game.run() {
+                    Ok(_) => {},
+                    Err(e) => panic!("[SERVER] Fatal error: {}", e),
+                }
+                println!("Goodbye!");
             });
-        };
+        }else{
+            let mut game: Game<ServerChunk> = Game::new();
 
-        println!("Starting main loop...");
-        game.run();
-        println!("Goodbye!");
-    } else {
+            if let Some(w) = &mut game.world {
+                w.add_entity(Entity {
+                    x: 0.0,
+                    y: 0.0,
+                });
+            };
+
+            println!("Starting main loop...");
+            match game.run() {
+                Ok(_) => {},
+                Err(e) => panic!("[SERVER] Fatal error: {}", e),
+            }
+            println!("Goodbye!");
+        }
+    }
+
+    if client {
+
+        ::std::thread::sleep(std::time::Duration::new(0, 1_000_000_000));
+
+        println!("Starting client...");
+
         // TODO: come up with a better way to handle this sdl's lifetime
         let sdl = Renderer::init_sdl().unwrap();
 

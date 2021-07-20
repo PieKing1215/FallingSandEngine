@@ -1,4 +1,4 @@
-use std::time::{Duration, Instant};
+use std::{io::Write, net::TcpStream, time::{Duration, Instant}};
 
 use sdl2::{event::{Event, WindowEvent}, keyboard::Keycode, sys::SDL_WindowFlags, video::{FullscreenType, SwapInterval}};
 use sdl_gpu::GPUSubsystem;
@@ -11,6 +11,21 @@ use super::{render::{Renderer, Sdl2Context}, world::ClientChunk};
 impl Game<ClientChunk> {
     #[profiling::function]
     pub fn run(&mut self, sdl: &Sdl2Context, mut renderer: Option<&mut Renderer>) {
+
+        let connection_attempt = TcpStream::connect("127.0.0.1:6673");
+
+        if let Err(e) = connection_attempt {
+            panic!("{}", e);
+        }
+
+        let network = connection_attempt.ok();
+        if let Some(mut stream) = network {
+            println!("[CLIENT] Connected to server");
+            if let Err(e) = stream.write(b"my data is here") {
+                panic!("[CLIENT] Write failed: {}", e);
+            };
+        }
+
         let mut prev_tick_time = std::time::Instant::now();
         let mut prev_tick_lqf_time = std::time::Instant::now();
 
