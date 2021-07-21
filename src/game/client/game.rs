@@ -1,10 +1,11 @@
-use std::{io::Write, net::TcpStream, time::{Duration, Instant}};
+use std::{io::{BufReader, Read}, net::TcpStream, time::{Duration, Instant}};
 
+use liquidfun::box2d::common::math::Vec2;
 use sdl2::{event::{Event, WindowEvent}, keyboard::Keycode, sys::SDL_WindowFlags, video::{FullscreenType, SwapInterval}};
 use sdl_gpu::GPUSubsystem;
 use sysinfo::{Pid, ProcessExt, SystemExt};
 
-use crate::game::{Game, common::{Settings, world::material::MaterialInstance}};
+use crate::game::{Game, common::{Settings, networking::{Packet, PacketType}, world::{WorldNetworkMode, material::MaterialInstance}}};
 
 use super::{render::{Renderer, Sdl2Context}, world::ClientChunk};
 
@@ -12,18 +13,20 @@ impl Game<ClientChunk> {
     #[profiling::function]
     pub fn run(&mut self, sdl: &Sdl2Context, mut renderer: Option<&mut Renderer>) {
 
-        let connection_attempt = TcpStream::connect("127.0.0.1:6673");
+        let mut network = None;
 
-        if let Err(e) = connection_attempt {
-            panic!("{}", e);
-        }
+        match TcpStream::connect("127.0.0.1:6673").map(BufReader::new) {
+            Ok(mut r) => {
+                println!("[CLIENT] Connected to server");
 
-        let network = connection_attempt.ok();
-        if let Some(mut stream) = network {
-            println!("[CLIENT] Connected to server");
-            if let Err(e) = stream.write(b"my data is here") {
-                panic!("[CLIENT] Write failed: {}", e);
-            };
+                r.get_mut().set_nonblocking(true).unwrap();
+                self.world.as_mut().unwrap().net_mode = WorldNetworkMode::Remote;
+                
+                network = Some(r);
+            },
+            Err(e) => {
+                println!("[CLIENT] Failed to connect to server: {}", e);
+            },
         }
 
         let mut prev_tick_time = std::time::Instant::now();
@@ -40,7 +43,12 @@ impl Game<ClientChunk> {
 
         let mut do_tick_next = false;
         let mut do_tick_lqf_next = false;
+
+        let mut bytes_to_read: Option<u32> = None;
+        let mut read_buffer: Option<Vec<u8>> = None;
+
         'mainLoop: loop {
+            
             for event in event_pump.poll_iter() {
                 if let Some(r) = &mut renderer {
                     r.imgui_sdl2.handle_event(&mut r.imgui, &event);
@@ -193,6 +201,137 @@ impl Game<ClientChunk> {
                 prev_tick_time = now;
                 let st = Instant::now();
                 self.tick();
+
+                if let Some(stream) = &mut network {
+                    let start = Instant::now();
+    
+                    // let mut n = 0;
+                    while Instant::now().saturating_duration_since(start).as_nanos() < 5_000_000 {
+                        if bytes_to_read.is_none() {
+                            let mut buf = [0; 4];
+                            if let Ok(_) = stream.read_exact(&mut buf) {
+                                let size: u32 = bincode::deserialize(&buf).unwrap();
+                                // println!("[CLIENT] Incoming packet, size = {}.", size);
+    
+                                bytes_to_read = Some(size);
+                                read_buffer = Some(Vec::with_capacity(size as usize));
+                            }
+                        }
+    
+                        if let (Some(size), Some(buf)) = (bytes_to_read, &mut read_buffer) {
+                            // println!("[CLIENT] size = {}", size);
+                            if size == 0 {
+                                // trying_to_read = None;
+                                panic!("[CLIENT] Zero length packet.");
+                            }else {
+                                if size > 2_000_000 {
+                                    panic!("[CLIENT] Almost tried to read packet that is too big ({} bytes)", size);
+                                }
+
+                                // let mut buf = vec![0; size as usize];
+        
+                                // println!("[CLIENT] read_to_end...");
+                                let prev_size = buf.len();
+                                match std::io::Read::by_ref(stream).take(size as u64).read_to_end(buf) {
+                                // match stream.read_exact(&mut buf) {
+                                    Ok(read) => {
+
+                                        if read != size as usize {
+                                            println!("[CLIENT] Couldn't read enough bytes! Read {}/{}.", read, size);
+                                        }
+
+                                        // println!("[CLIENT] Read {}/{} bytes", read, buf.len());
+
+                                        bytes_to_read = None;
+        
+                                        // println!("[CLIENT] Read {} bytes.", buf.len());
+                                        match bincode::deserialize::<Packet>(&buf) {
+                                        // match serde_json::from_slice::<Packet>(&buf) {
+                                            Ok(p) => {
+                                                // n += 1;
+                                                match p.packet_type {
+                                                    PacketType::SyncChunkPacket { chunk_x, chunk_y, pixels, colors } => {
+                                                        if let Some(w) = &mut self.world {
+                                                            if let Err(e) = w.sync_chunk(chunk_x, chunk_y, pixels, colors) {
+                                                                println!("[CLIENT] sync_chunk failed: {}", e);
+                                                            }
+                                                        }
+                                                    },
+                                                    PacketType::SyncLiquidFunPacket { positions, velocities } => {
+                                                        // println!("[CLIENT] Got SyncLiquidFunPacket");
+                                                        if let Some(w) = &mut self.world {
+                                                            let mut particle_system = w.lqf_world.get_particle_system_list().unwrap();
+                                                            
+                                                            let particle_count = particle_system.get_particle_count() as usize;
+                                                            // let particle_colors: &[b2ParticleColor] = particle_system.get_color_buffer();
+                                                            let particle_positions: &mut [Vec2] = particle_system.get_position_buffer_mut();
+                                                            for i in 0..particle_count.min(positions.len()){
+                                                                let dx = positions[i].x - particle_positions[i].x;
+                                                                let dy = positions[i].y - particle_positions[i].y;
+
+                                                                if dx.abs() > 1.0 || dy.abs() > 1.0 {
+                                                                    particle_positions[i].x += dx;
+                                                                    particle_positions[i].y += dy;
+                                                                }else {
+                                                                    particle_positions[i].x += dx / 2.0;
+                                                                    particle_positions[i].y += dy / 2.0;
+                                                                }
+
+                                                            }
+
+                                                            let particle_velocities: &mut [Vec2] = particle_system.get_velocity_buffer_mut();
+                                                            for i in 0..particle_count.min(positions.len()){
+                                                                particle_velocities[i].x = velocities[i].x;
+                                                                particle_velocities[i].y = velocities[i].y;
+                                                            }
+                                                        }
+                                                    },
+                                                    _ => {},
+                                                }
+                                            },
+                                            Err(e) => {
+                                                println!("[CLIENT] Failed to deserialize packet: {}", e);
+                                                // println!("[CLIENT]     Raw: {:?}", buf);
+                                                // let s = String::from_utf8(buf);
+                                                // match s {
+                                                //     Ok(st) => {
+                                                //         // println!("[CLIENT]     Raw: {} <- raw", st)
+                                                //         let mut file = std::fs::File::create("data.dat").expect("create failed");
+                                                //         file.write_all(&st.into_bytes()).expect("write failed");
+                                                //         panic!("[CLIENT] See data.dat");
+                                                //     },
+                                                //     Err(e) => {
+                                                //         let index = e.utf8_error().valid_up_to();
+                                                //         let len = e.utf8_error().error_len().unwrap();
+                                                //         let sl = &e.as_bytes()[index .. index + len];
+
+                                                //         let mut file = std::fs::File::create("data.dat").expect("create failed");
+                                                //         file.write_all(e.as_bytes()).expect("write failed");
+
+                                                //         panic!("[CLIENT] See data.dat: {} : {:?}", e, sl);
+                                                //     },
+                                                // }
+                                            },
+                                        };
+                                        // println!("[CLIENT] Recieved packet : {:?}", match p.packet_type {
+                                        //     PacketType::SyncChunkPacket{..} => "SyncChunkPacket",
+                                        //     _ => "???",
+                                        // });
+        
+                                    },
+                                    Err(_e) => {
+                                        let read = buf.len() - prev_size;
+                                        // println!("[CLIENT] read_to_end failed (but read {} bytes): {}", read, e);
+                                        bytes_to_read = Some(size - read as u32);
+                                    },
+                                }
+                            }
+                        }
+                    }
+                    // println!("[CLIENT] Handled {} packets.", n);
+    
+                }
+
                 self.fps_counter.tick_times.rotate_left(1);
                 self.fps_counter.tick_times[self.fps_counter.tick_times.len() - 1] = Instant::now().saturating_duration_since(st).as_nanos() as f32;
             }
@@ -234,7 +373,7 @@ impl Game<ClientChunk> {
                     self.fps_counter.display_value = self.fps_counter.frames;
                     self.fps_counter.frames = 0;
                     self.fps_counter.last_update = now;
-                    let set = r.window.set_title(format!("FallingSandRust ({} FPS)", self.fps_counter.display_value).as_str());
+                    let set = r.window.set_title(format!("FallingSandRust ({} FPS) ({})", self.fps_counter.display_value, self.world.as_ref().map(|w| format!("{:?}", w.net_mode)).unwrap_or("unknown".to_string())).as_str());
                     if set.is_err() {
                         eprintln!("Failed to set window title.");
                     }

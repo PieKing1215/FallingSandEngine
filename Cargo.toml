@@ -19,6 +19,10 @@ imgui-opengl-renderer = "0.11.0"
 sysinfo = "0.19.1" # should be optional in the future
 liquidfun = { git = "https://github.com/PieKing1215/custom-liquidfun-rust" }
 sdl_gpu = { git = "https://github.com/PieKing1215/sdl-gpu-rust" }
+serde = { version = "1.0", features = ["derive"] }
+serde-big-array = "0.3.2"
+bincode = "1.3.3"
+# serde_json = "1.0"
 
 [features]
 #default = ["profile-with-tracy"]

@@ -1,7 +1,10 @@
+
+use std::convert::TryInto;
+
 use sdl2::{pixels::Color, rect::Rect};
 use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, sys::{GPU_FilterEnum, GPU_FormatEnum}};
 
-use crate::game::{client::render::{Fonts, Renderable, Sdl2Context, TransformStack}, common::world::{CHUNK_SIZE, Chunk, ChunkState, material::MaterialInstance}};
+use crate::game::{client::render::{Fonts, Renderable, Sdl2Context, TransformStack}, common::world::{CHUNK_SIZE, Chunk, ChunkHandler, ChunkState, gen::WorldGenerator, material::MaterialInstance}};
 
 pub struct ClientChunk {
     pub chunk_x: i32,
@@ -106,12 +109,20 @@ impl<'ch> Chunk for ClientChunk {
         &mut self.pixels
     }
 
+    fn get_pixels(&self) -> &Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]> {
+        &self.pixels
+    }
+
     fn set_pixel_colors(&mut self, colors: &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]) {
         self.graphics.replace(*colors);
     }
 
     fn get_colors_mut(&mut self) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
         &mut self.graphics.pixel_data
+    }
+
+    fn get_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
+        &self.graphics.pixel_data
     }
 
     fn mark_dirty(&mut self) {
@@ -182,5 +193,33 @@ impl Renderable for ChunkGraphics {
         }else{
             target.rectangle_filled2(chunk_rect, Color::RGB(127, 0, 0));
         }
+    }
+}
+
+impl<T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<T, ClientChunk> {
+    pub fn sync_chunk(&mut self, chunk_x: i32, chunk_y: i32, pixels: Vec<MaterialInstance>, colors: Vec<u8>) -> Result<(), String>{
+        if pixels.len() != (CHUNK_SIZE * CHUNK_SIZE) as usize {
+            return Err(format!("pixels Vec is the wrong size: {} (expected {})", pixels.len(), CHUNK_SIZE * CHUNK_SIZE));
+        }
+
+        if colors.len() != CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4 {
+            return Err(format!("colors Vec is the wrong size: {} (expected {})", colors.len(), CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4));
+        }
+
+        if let Some(chunk) = self.loaded_chunks.get_mut(&self.chunk_index(chunk_x, chunk_y)) {
+            chunk.pixels = Some(pixels.try_into().unwrap());
+            chunk.graphics.pixel_data = colors.try_into().unwrap();
+            chunk.mark_dirty();
+            chunk.set_state(ChunkState::Cached);
+        }else{
+            let mut chunk: ClientChunk = Chunk::new_empty(chunk_x, chunk_y);
+            chunk.pixels = Some(pixels.try_into().unwrap());
+            chunk.graphics.pixel_data = colors.try_into().unwrap();
+            chunk.mark_dirty();
+            chunk.set_state(ChunkState::Cached);
+            self.loaded_chunks.insert(self.chunk_index(chunk_x, chunk_y), Box::new(chunk));
+        }
+
+        Ok(())
     }
 }

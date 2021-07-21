@@ -20,7 +20,7 @@ fn main() -> Result<(), String> {
         println!("Profiler Enabled");
     }
 
-    let server = true;
+    let server = false;
     let client = true;
 
     if server {
@@ -65,7 +65,10 @@ fn main() -> Result<(), String> {
 
     if client {
 
-        ::std::thread::sleep(std::time::Duration::new(0, 1_000_000_000));
+        if server {
+            // wait a couple seconds for the server to load
+            ::std::thread::sleep(std::time::Duration::new(3, 0));
+        }
 
         println!("Starting client...");
 

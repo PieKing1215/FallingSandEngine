@@ -1,5 +1,6 @@
 
 pub mod world;
-mod settings;
+pub mod networking;
 
+mod settings;
 pub use settings::*;

@@ -9,6 +9,7 @@ pub struct ServerChunk {
     pub pixels: Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
     pub dirty_rect: Option<Rect>,
     pub pixel_data: [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4],
+    pub dirty: bool,
 }
 
 impl<'ch> Chunk for ServerChunk {
@@ -20,6 +21,7 @@ impl<'ch> Chunk for ServerChunk {
             pixels: None,
             dirty_rect: None,
             pixel_data: [0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)],
+            dirty: true,
         }
     }
 
@@ -89,13 +91,23 @@ impl<'ch> Chunk for ServerChunk {
         &mut self.pixels
     }
 
-    fn set_pixel_colors(&mut self, _colors: &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]) {
+    fn get_pixels(&self) -> &Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]> {
+        &self.pixels
+    }
+
+    fn set_pixel_colors(&mut self, colors: &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]) {
+        self.pixel_data = *colors;
     }
 
     fn get_colors_mut(&mut self) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
         &mut self.pixel_data
     }
 
+    fn get_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
+        &self.pixel_data
+    }
+
     fn mark_dirty(&mut self) {
+        self.dirty = true;
     }
 }

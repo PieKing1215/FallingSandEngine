@@ -8,10 +8,17 @@ use super::{Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGener
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
+#[derive(Debug)]
+pub enum WorldNetworkMode {
+    Local,
+    Remote,
+}
+
 pub struct World<C: Chunk> {
     pub chunk_handler: ChunkHandler<TestGenerator, C>,
     pub lqf_world: liquidfun::box2d::dynamics::world::World,
     pub entities: HashMap<u32, Entity>,
+    pub net_mode: WorldNetworkMode,
 }
 
 impl<'w, C: Chunk> World<C> {
@@ -129,6 +136,7 @@ impl<'w, C: Chunk> World<C> {
             chunk_handler: ChunkHandler::new(TEST_GENERATOR),
             lqf_world,
             entities: HashMap::new(),
+            net_mode: WorldNetworkMode::Local,
         }
     }
 
@@ -152,11 +160,20 @@ impl<'w, C: Chunk> World<C> {
     #[profiling::function]
     pub fn tick(&mut self, tick_time: u32, settings: &Settings){
         let loaders = self.entities.iter().map(|(id, e)| (e.x, e.y)).collect();
+
         self.chunk_handler.tick(tick_time, loaders, settings);
+        // match self.net_mode {
+        //     WorldNetworkMode::Local => {
+        //         self.chunk_handler.tick(tick_time, loaders, settings);
+        //     },
+        //     WorldNetworkMode::Remote => {},
+        // }
+
         self.chunk_handler.update_chunk_graphics();
     }
 
     pub fn tick_lqf(&mut self, settings: &Settings) {
+
         // need to do this here since 'self' isn't mut in render
         if settings.lqf_dbg_draw {
             if let Some(cast) = self.lqf_world.get_debug_draw() {
@@ -184,10 +201,20 @@ impl<'w, C: Chunk> World<C> {
             }
         }
 
+
         let time_step = settings.tick_lqf_timestep;
         let velocity_iterations = 3;
         let position_iterations = 2;
         self.lqf_world.step(time_step, velocity_iterations, position_iterations);
+        // match self.net_mode {
+        //     WorldNetworkMode::Local => {
+        //         let time_step = settings.tick_lqf_timestep;
+        //         let velocity_iterations = 3;
+        //         let position_iterations = 2;
+        //         self.lqf_world.step(time_step, velocity_iterations, position_iterations);
+        //     },
+        //     WorldNetworkMode::Remote => {},
+        // }
     }
 }
 
