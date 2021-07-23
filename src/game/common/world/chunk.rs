@@ -648,3 +648,212 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
         self.get_zone(center, (CHUNK_SIZE * 10).into())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use rand::Rng;
+
+    use crate::game::{common::world::gen::TestGenerator, server::world::ServerChunk};
+
+    #[test]
+    fn chunk_index_correct() {
+        let ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{});
+
+        // center
+        assert_eq!(ch.chunk_index(0, 0), 0);
+        assert_eq!(ch.chunk_index(1, 0), 3);
+        assert_eq!(ch.chunk_index(0, 1), 5);
+        assert_eq!(ch.chunk_index(1, 1), 12);
+        assert_eq!(ch.chunk_index(-1, 0), 1);
+        assert_eq!(ch.chunk_index(0, -1), 2);
+        assert_eq!(ch.chunk_index(-1, -1), 4);
+        assert_eq!(ch.chunk_index(1, -1), 7);
+        assert_eq!(ch.chunk_index(-1, 1), 8);
+
+        // some random nearby ones
+        assert_eq!(ch.chunk_index(207, 432), 818145);
+        assert_eq!(ch.chunk_index(285, -65), 244779);
+        assert_eq!(ch.chunk_index(958, 345), 3397611);
+        assert_eq!(ch.chunk_index(632, 255), 1574935);
+        assert_eq!(ch.chunk_index(-942, 555), 4481631);
+        assert_eq!(ch.chunk_index(696, 589), 3304913);
+        assert_eq!(ch.chunk_index(-201, -623), 1356726);
+        assert_eq!(ch.chunk_index(741, 283), 2098742);
+        assert_eq!(ch.chunk_index(-302, 718), 2081216);
+        assert_eq!(ch.chunk_index(493, 116), 742603);
+
+        // some random far ones
+        assert_eq!(ch.chunk_index(1258, 7620), 157661886);
+        assert_eq!(ch.chunk_index(9438, 4645), 396685151);
+        assert_eq!(ch.chunk_index(6852, -7129), 390936998);
+        assert_eq!(ch.chunk_index(-7692, -912), 148033644);
+        assert_eq!(ch.chunk_index(-4803, -131), 48674172);
+        assert_eq!(ch.chunk_index(-4565, 8366), 334425323);
+        assert_eq!(ch.chunk_index(248, -126), 279629);
+        assert_eq!(ch.chunk_index(-1125, 3179), 37050886);
+        assert_eq!(ch.chunk_index(4315, -4044), 139745490);
+        assert_eq!(ch.chunk_index(-3126, 9730), 330560076);
+
+        // maximum
+        assert_eq!(ch.chunk_index(-27804, 18537), u32::MAX);
+    }
+
+    #[test]
+    fn chunk_index_inv_correct() {
+        let ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{});
+        
+        // center
+        assert_eq!(ch.chunk_index_inv(0), (0, 0));
+        assert_eq!(ch.chunk_index_inv(3), (1, 0));
+        assert_eq!(ch.chunk_index_inv(5), (0, 1));
+        assert_eq!(ch.chunk_index_inv(12), (1, 1));
+        assert_eq!(ch.chunk_index_inv(1), (-1, 0));
+        assert_eq!(ch.chunk_index_inv(2), (0, -1));
+        assert_eq!(ch.chunk_index_inv(4), (-1, -1));
+        assert_eq!(ch.chunk_index_inv(7), (1, -1));
+        assert_eq!(ch.chunk_index_inv(8), (-1, 1));
+
+        // some random nearby ones
+        assert_eq!(ch.chunk_index_inv(818145), (207, 432));
+        assert_eq!(ch.chunk_index_inv(244779), (285, -65));
+        assert_eq!(ch.chunk_index_inv(3397611), (958, 345));
+        assert_eq!(ch.chunk_index_inv(1574935), (632, 255));
+        assert_eq!(ch.chunk_index_inv(4481631), (-942, 555));
+        assert_eq!(ch.chunk_index_inv(3304913), (696, 589));
+        assert_eq!(ch.chunk_index_inv(1356726), (-201, -623));
+        assert_eq!(ch.chunk_index_inv(2098742), (741, 283));
+        assert_eq!(ch.chunk_index_inv(2081216), (-302, 718));
+        assert_eq!(ch.chunk_index_inv(742603), (493, 116));
+
+        // some random far ones
+        assert_eq!(ch.chunk_index_inv(157661886), (1258, 7620));
+        assert_eq!(ch.chunk_index_inv(396685151), (9438, 4645));
+        assert_eq!(ch.chunk_index_inv(390936998), (6852, -7129));
+        assert_eq!(ch.chunk_index_inv(148033644), (-7692, -912));
+        assert_eq!(ch.chunk_index_inv(48674172), (-4803, -131));
+        assert_eq!(ch.chunk_index_inv(334425323), (-4565, 8366));
+        assert_eq!(ch.chunk_index_inv(279629), (248, -126));
+        assert_eq!(ch.chunk_index_inv(37050886), (-1125, 3179));
+        assert_eq!(ch.chunk_index_inv(139745490), (4315, -4044));
+        assert_eq!(ch.chunk_index_inv(330560076), (-3126, 9730));
+
+        // maximum
+        assert_eq!(ch.chunk_index_inv(u32::MAX), (-27804, 18537));
+    }
+
+    #[test]
+    fn chunk_index_correctly_invertible() {
+        let ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{});
+
+        for _ in 0..100 {
+            let x: i32 = rand::thread_rng().gen_range(-10000..10000);
+            let y: i32 = rand::thread_rng().gen_range(-10000..10000);
+
+            println!("Testing ({}, {})...", x, y);
+            let index = ch.chunk_index(x, y);
+            let result = ch.chunk_index_inv(index);
+
+            assert_eq!(result, (x, y));
+        }
+    }
+
+    #[test]
+    fn chunk_loading() {
+        let mut ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{});
+
+        assert_eq!(ch.load_queue.len(), 0);
+        assert_eq!(ch.loaded_chunks.len(), 0);
+
+        // queue a chunk
+        let queued_1 = ch.queue_load_chunk(11, -12);
+
+        assert_eq!(queued_1, true);
+        assert_eq!(ch.load_queue.len(), 1);
+        assert_eq!(ch.loaded_chunks.len(), 0);
+
+        // queue the same chunk
+        // should fail since it's already queued
+        let queued_1_again = ch.queue_load_chunk(11, -12);
+
+        assert_eq!(queued_1_again, false);
+        assert_eq!(ch.load_queue.len(), 1);
+        assert_eq!(ch.loaded_chunks.len(), 0);
+
+        // queue a different chunk
+        let queued_2 = ch.queue_load_chunk(-3, 2);
+
+        assert_eq!(queued_2, true);
+        assert_eq!(ch.load_queue.len(), 2);
+        assert_eq!(ch.loaded_chunks.len(), 0);
+
+        assert!(!ch.is_chunk_loaded(11, -12));
+        assert!(!ch.is_chunk_loaded(-3, 2));
+
+        // do a tick, should load just the two chunks
+        ch.tick(0, vec![], &Settings::default());
+
+        assert_eq!(ch.load_queue.len(), 0);
+        assert_eq!(ch.loaded_chunks.len(), 2);
+        assert!(ch.is_chunk_loaded(11, -12));
+        assert!(ch.is_chunk_loaded(-3, 2));
+        assert!(!ch.is_chunk_loaded(12, -12));
+        assert!(!ch.is_chunk_loaded(3, 2));
+
+        let index_1 = ch.chunk_index(11, -12);
+        let loaded_1 = ch.loaded_chunks.iter().any(|(&i, c)| i == index_1 && c.chunk_x == 11 && c.chunk_y == -12);
+        assert!(loaded_1);
+        assert!(ch.get_chunk(11, -12).is_some());
+
+        let index_2 = ch.chunk_index(-3, 2);
+        let loaded_2 = ch.loaded_chunks.iter().any(|(&i, c)| i == index_2 && c.chunk_x == -3 && c.chunk_y == 2);
+        assert!(loaded_2);
+        assert!(ch.get_chunk(-3, 2).is_some());
+
+        assert!(ch.get_chunk(0, 0).is_none());
+        assert!(ch.get_chunk(-11, -12).is_none());
+        assert!(ch.get_chunk(-3, -2).is_none());
+        assert!(ch.get_chunk(-3, 3).is_none());
+        assert!(ch.get_chunk(-12, 11).is_none());
+    }
+
+    #[test]
+    fn chunk_update_order() {
+        let ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{});
+
+        for _ in 0..100 {
+            let x: i32 = rand::thread_rng().gen_range(-10000..10000);
+            let y: i32 = rand::thread_rng().gen_range(-10000..10000);
+
+            println!("Testing ({}, {})...", x, y);
+
+            let my_order = ch.chunk_update_order(x, y);
+
+            for dx in -1..=1 {
+                for dy in -1..=1 {
+                    if dx != 0 || dy != 0 {
+                        // surrounding chunks should not be able to update at the same time
+                        assert_ne!(ch.chunk_update_order(x + dx, y + dy), my_order);
+                    }
+                }
+            }
+
+        }
+    }
+
+    #[test]
+    fn zones() {
+        let ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{});
+
+        let center = (12.3, -42.2);
+        let screen = ch.get_screen_zone(center);
+        let active = ch.get_active_zone(center);
+        let load = ch.get_load_zone(center);
+        let unload = ch.get_unload_zone(center);
+
+        assert!(screen.w <= active.w && screen.h <= active.h);
+        assert!(active.w < load.w && active.h < load.h);
+        assert!(load.w < unload.w && load.h < unload.h);
+    }
+}
