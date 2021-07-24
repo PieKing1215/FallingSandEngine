@@ -2,7 +2,7 @@ use std::{iter, ptr::slice_from_raw_parts};
 
 use liquidfun::box2d::common::{b2draw::{self, B2Draw_New, b2Color, b2ParticleColor, b2Transform, b2Vec2, int32}, math::Vec2};
 use sdl2::{libc, pixels::Color, rect::Rect};
-use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, shaders::Shader, sys::{GPU_FilterEnum, GPU_FormatEnum}};
+use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, shaders::Shader, sys::{GPU_FilterEnum, GPU_FormatEnum, GPU_SetBlendMode}};
 
 use crate::game::{client::{Client, render::{Fonts, RenderCanvas, Renderable, Sdl2Context, Shaders, TransformStack}}, common::{Settings, world::{CHUNK_SIZE, ChunkState, LIQUIDFUN_SCALE, World, gen::WorldGenerator}}};
 
@@ -11,6 +11,8 @@ use super::{ClientChunk, ClientWorld};
 pub struct WorldRenderer {
     pub lqf_debug_draw_callbacks: b2draw::b2DrawCallbacks,
     pub liquid_image: GPUImage,
+    pub liquid_image2: GPUImage,
+    lqf_dirty: bool,
 }
 
 impl WorldRenderer {
@@ -29,9 +31,14 @@ impl WorldRenderer {
         let mut liquid_image = GPUSubsystem::create_image(1920/2, 1080/2, GPU_FormatEnum::GPU_FORMAT_RGBA);
         liquid_image.set_image_filter(GPU_FilterEnum::GPU_FILTER_NEAREST);
 
+        let mut liquid_image2 = GPUSubsystem::create_image(1920/2, 1080/2, GPU_FormatEnum::GPU_FORMAT_RGBA);
+        liquid_image2.set_image_filter(GPU_FilterEnum::GPU_FILTER_NEAREST);
+
         Self {
             lqf_debug_draw_callbacks,
             liquid_image,
+            liquid_image2,
+            lqf_dirty: false,
         }
     }
 
@@ -158,31 +165,51 @@ impl WorldRenderer {
 
         });
 
-        let mut liquid_target = self.liquid_image.get_target();
-        liquid_target.clear();
+        if self.lqf_dirty {
+            self.lqf_dirty = false;
 
-        let particle_system = world.lqf_world.get_particle_system_list().unwrap();
+            let mut liquid_target = self.liquid_image.get_target();
+            liquid_target.clear();
 
-        let particle_count = particle_system.get_particle_count();
-        let particle_colors: &[b2ParticleColor] = particle_system.get_color_buffer();
-        let particle_positions: &[Vec2] = particle_system.get_position_buffer();
+            let particle_system = world.lqf_world.get_particle_system_list().unwrap();
 
-        for i in 0..particle_count as usize {
-            let pos = particle_positions[i];
-            let color = particle_colors[i];
-            let cam_x = camera.x.floor();
-            let cam_y = camera.y.floor();
-            GPUSubsystem::set_shape_blend_mode(sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_SET);
-            let color = Color::RGBA(color.r, color.g, color.b, color.a);
-            // let color = Color::RGBA(64, 90, 255, 191);
-            liquid_target.pixel(pos.x * LIQUIDFUN_SCALE - cam_x as f32 + 1920.0/4.0 - 1.0, pos.y * LIQUIDFUN_SCALE - cam_y as f32 + 1080.0/4.0 - 1.0, color);
-            // liquid_target.circle_filled(pos.x * 2.0 - camera.x as f32 + 1920.0/4.0, pos.y * 2.0 - camera.y as f32 + 1080.0/4.0, 2.0, Color::RGB(100, 100, 255));
+            let particle_count = particle_system.get_particle_count();
+            let particle_colors: &[b2ParticleColor] = particle_system.get_color_buffer();
+            let particle_positions: &[Vec2] = particle_system.get_position_buffer();
+
+            for i in 0..particle_count as usize {
+                let pos = particle_positions[i];
+                let color = particle_colors[i];
+                let cam_x = camera.x.floor();
+                let cam_y = camera.y.floor();
+                GPUSubsystem::set_shape_blend_mode(sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_SET);
+                let color = Color::RGBA(color.r, color.g, color.b, color.a);
+                // let color = Color::RGBA(64, 90, 255, 191);
+                liquid_target.pixel(pos.x * LIQUIDFUN_SCALE - cam_x as f32 + 1920.0/4.0 - 1.0, pos.y * LIQUIDFUN_SCALE - cam_y as f32 + 1080.0/4.0 - 1.0, color);
+                // liquid_target.circle_filled(pos.x * 2.0 - camera.x as f32 + 1920.0/4.0, pos.y * 2.0 - camera.y as f32 + 1080.0/4.0, 2.0, Color::RGB(100, 100, 255));
+            }
+
+            GPUSubsystem::set_shape_blend_mode(sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_NORMAL);
+
+            let mut liquid_target2 = self.liquid_image2.get_target();
+            liquid_target2.clear();
+
+            // TODO: add this method to sdl-gpu-rust
+            unsafe {
+                GPU_SetBlendMode(&mut self.liquid_image.raw, sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_SET);
+            }
+            
+            shaders.liquid_shader.activate();
+            self.liquid_image.blit_rect(None::<GPURect>, &mut liquid_target2, None);
+            Shader::deactivate();
+
+            // TODO: add this method to sdl-gpu-rust
+            unsafe {
+                GPU_SetBlendMode(&mut self.liquid_image.raw, sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_NORMAL);
+            }
         }
 
-        GPUSubsystem::set_shape_blend_mode(sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_NORMAL);
-        shaders.liquid_shader.activate();
-        self.liquid_image.blit_rect(None, target, Some(transform.transform_rect(screen_zone)));
-        Shader::deactivate();
+        self.liquid_image2.blit_rect(None, target, Some(transform.transform_rect(screen_zone)));
 
         // solids
 
@@ -247,6 +274,10 @@ impl WorldRenderer {
 
         // draw overlay
 
+    }
+
+    pub fn mark_liquid_dirty(&mut self) {
+        self.lqf_dirty = true;
     }
 }
 

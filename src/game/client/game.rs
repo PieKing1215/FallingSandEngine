@@ -359,7 +359,9 @@ impl Game<ClientChunk> {
                     w.tick_lqf(&self.settings);
                     self.fps_counter.tick_lqf_times.rotate_left(1);
                     self.fps_counter.tick_lqf_times[self.fps_counter.tick_lqf_times.len() - 1] = Instant::now().saturating_duration_since(st).as_nanos() as f32;
-                    
+                    if let Some(r) = &mut renderer {
+                        r.world_renderer.mark_liquid_dirty();
+                    }
                 }
             }
             do_tick_lqf_next = can_tick && now.saturating_duration_since(prev_tick_lqf_time).as_nanos() > 1_000_000_000 / self.settings.tick_lqf_speed as u128; // intended is 60 ticks per second
