@@ -180,26 +180,28 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                 let mut num_loaded_this_tick = 0;
 
                 let mut keys = self.loaded_chunks.keys().clone().map(|i| *i).collect::<Vec<u32>>();
-                keys.sort_by(|a, b| {
-                    let c1_x = self.loaded_chunks.get(a).unwrap().get_chunk_x() * CHUNK_SIZE as i32;
-                    let c1_y = self.loaded_chunks.get(a).unwrap().get_chunk_y() * CHUNK_SIZE as i32;
-                    let c2_x = self.loaded_chunks.get(b).unwrap().get_chunk_x() * CHUNK_SIZE as i32;
-                    let c2_y = self.loaded_chunks.get(b).unwrap().get_chunk_y() * CHUNK_SIZE as i32;
+                if loaders.len() > 0 {
+                    keys.sort_by(|a, b| {
+                        let c1_x = self.loaded_chunks.get(a).unwrap().get_chunk_x() * CHUNK_SIZE as i32;
+                        let c1_y = self.loaded_chunks.get(a).unwrap().get_chunk_y() * CHUNK_SIZE as i32;
+                        let c2_x = self.loaded_chunks.get(b).unwrap().get_chunk_x() * CHUNK_SIZE as i32;
+                        let c2_y = self.loaded_chunks.get(b).unwrap().get_chunk_y() * CHUNK_SIZE as i32;
 
-                    let d1 = loaders.iter().map(|l| {
-                        let x = (l.0 as i32 - c1_x).abs();
-                        let y = (l.1 as i32 - c1_y).abs();
-                        x + y
-                    }).min().unwrap();
+                        let d1 = loaders.iter().map(|l| {
+                            let x = (l.0 as i32 - c1_x).abs();
+                            let y = (l.1 as i32 - c1_y).abs();
+                            x + y
+                        }).min().unwrap();
 
-                    let d2 = loaders.iter().map(|l| {
-                        let x = (l.0 as i32 - c2_x).abs();
-                        let y = (l.1 as i32 - c2_y).abs();
-                        x + y
-                    }).min().unwrap();
+                        let d2 = loaders.iter().map(|l| {
+                            let x = (l.0 as i32 - c2_x).abs();
+                            let y = (l.1 as i32 - c2_y).abs();
+                            x + y
+                        }).min().unwrap();
 
-                    d1.cmp(&d2)
-                });
+                        d1.cmp(&d2)
+                    });
+                }
                 let mut to_exec = vec![];
                 for i in 0..keys.len() {
                     let key = keys[i];
@@ -561,16 +563,16 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
         // TODO: this multiply is the first thing to overflow if you go out too far
         //          (though you need to go out ~32768 chunks (2^16 / 2)
-        return ((xx + yy) * (xx + yy + 1)) / 2 + yy;
+        return (((xx + yy) as u64 * (xx + yy + 1) as u64) / 2 + yy as u64) as u32;
     }
     
 
     pub fn chunk_index_inv(&self, index: u32) -> (i32, i32) {
-        let w = (((8 * index + 1) as f32).sqrt() - 1.0).floor() as u32 / 2;
+        let w = (((8 * index as u64 + 1) as f64).sqrt() - 1.0).floor() as u64 / 2;
         let t = (w * w + w) / 2;
-        let yy = index - t;
+        let yy = index as u64 - t;
         let xx = w - yy;
-        let nat_to_int = |i: u32| if i % 2 == 0 {(i/2) as i32}else{-((i/2 + 1) as i32)};
+        let nat_to_int = |i: u64| if i % 2 == 0 {(i/2) as i32}else{-((i/2 + 1) as i32)};
         let x = nat_to_int(xx);
         let y = nat_to_int(yy);
 
@@ -747,7 +749,7 @@ mod tests {
     fn chunk_index_correctly_invertible() {
         let ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{});
 
-        for _ in 0..100 {
+        for _ in 0..1000 {
             let x: i32 = rand::thread_rng().gen_range(-10000..10000);
             let y: i32 = rand::thread_rng().gen_range(-10000..10000);
 
@@ -791,15 +793,16 @@ mod tests {
         assert!(!ch.is_chunk_loaded(11, -12));
         assert!(!ch.is_chunk_loaded(-3, 2));
 
-        // do a tick, should load just the two chunks
-        ch.tick(0, vec![], &Settings::default());
+        // do a few ticks to load some chunks
+        ch.tick(0, vec![(110.0, -120.0)], &Settings::default());
+        while !ch.load_queue.is_empty() {
+            ch.tick(0, vec![(110.0, -120.0)], &Settings::default());
+        }
 
-        assert_eq!(ch.load_queue.len(), 0);
-        assert_eq!(ch.loaded_chunks.len(), 2);
         assert!(ch.is_chunk_loaded(11, -12));
         assert!(ch.is_chunk_loaded(-3, 2));
-        assert!(!ch.is_chunk_loaded(12, -12));
-        assert!(!ch.is_chunk_loaded(3, 2));
+        assert!(!ch.is_chunk_loaded(120, -120));
+        assert!(!ch.is_chunk_loaded(30, 20));
 
         let index_1 = ch.chunk_index(11, -12);
         let loaded_1 = ch.loaded_chunks.iter().any(|(&i, c)| i == index_1 && c.chunk_x == 11 && c.chunk_y == -12);
@@ -811,11 +814,18 @@ mod tests {
         assert!(loaded_2);
         assert!(ch.get_chunk(-3, 2).is_some());
 
-        assert!(ch.get_chunk(0, 0).is_none());
+        assert!(ch.get_chunk(0, 0).is_some());
         assert!(ch.get_chunk(-11, -12).is_none());
-        assert!(ch.get_chunk(-3, -2).is_none());
-        assert!(ch.get_chunk(-3, 3).is_none());
-        assert!(ch.get_chunk(-12, 11).is_none());
+        assert!(ch.get_chunk(30, -2).is_none());
+        assert!(ch.get_chunk(-3, 30).is_none());
+        assert!(ch.get_chunk(-120, 11).is_none());
+
+        // should unload since no loaders are nearby
+        ch.tick(0, vec![], &Settings::default());
+
+        assert!(!ch.is_chunk_loaded(11, -12));
+        assert!(!ch.is_chunk_loaded(-3, 2));
+
     }
 
     #[test]
