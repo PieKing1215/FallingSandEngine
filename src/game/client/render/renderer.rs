@@ -101,7 +101,9 @@ impl<'a> Renderer<'a> {
 
             // ui.show_demo_window(&mut true);
             
-            game.settings.imgui(&ui);
+            if game.settings.debug {
+                game.settings.imgui(&ui);
+            }
 
             imgui::Window::new(im_str!("Stats"))
             .size([300.0, 300.0], imgui::Condition::FirstUseEver)

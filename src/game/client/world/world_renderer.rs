@@ -90,12 +90,12 @@ impl WorldRenderer {
 
         world.chunk_handler.loaded_chunks.iter().for_each(|(_i, ch)| {
             let rc = Rect::new(ch.chunk_x * CHUNK_SIZE as i32, ch.chunk_y * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
-            if !settings.cull_chunks || rc.has_intersection(screen_zone){
+            if (settings.debug && !settings.cull_chunks) || rc.has_intersection(screen_zone){
                 transform.push();
                 transform.translate(ch.chunk_x * CHUNK_SIZE as i32, ch.chunk_y * CHUNK_SIZE as i32);
                 ch.render(target, transform, sdl, fonts);
 
-                if settings.draw_chunk_dirty_rects {
+                if settings.debug && settings.draw_chunk_dirty_rects {
                     if let Some(dr) = ch.dirty_rect {
                         let rect = transform.transform_rect(dr);
                         target.rectangle_filled2(rect, Color::RGBA(255, 64, 64, 127));
@@ -111,7 +111,7 @@ impl WorldRenderer {
                 transform.pop();
             }
 
-            if settings.draw_chunk_state_overlay {
+            if settings.debug && settings.draw_chunk_state_overlay {
                 let rect = transform.transform_rect(rc);
 
                 let alpha: u8 = (settings.draw_chunk_state_overlay_alpha * 255.0) as u8;
@@ -194,7 +194,7 @@ impl WorldRenderer {
 
         let mut data = Some((canvas_ptr_raw, transform_ptr_raw));
 
-        if settings.lqf_dbg_draw {
+        if settings.debug && settings.lqf_dbg_draw {
             transform.push();
             transform.scale(LIQUIDFUN_SCALE, LIQUIDFUN_SCALE);
             world.lqf_world.debug_draw(&mut data as *mut _ as *mut libc::c_void);
@@ -215,7 +215,7 @@ impl WorldRenderer {
 
         // canvas.set_clip_rect(clip);
         
-        if settings.draw_chunk_grid {
+        if settings.debug && settings.draw_chunk_grid {
             for x in -10..10 {
                 for y in -10..10 {
                     let rcx = x + (camera.x / CHUNK_SIZE as f64) as i32;
@@ -226,7 +226,7 @@ impl WorldRenderer {
             }
         }
 
-        if settings.draw_origin {
+        if settings.debug && settings.draw_origin {
             let len: f32 = 16.0;
             let origin = transform.transform((0, 0));
             target.rectangle_filled2(GPURect::new(origin.0 as f32 - len - 2.0, origin.1 as f32 - 1.0, (len * 2.0 + 4.0) as f32, 3.0), Color::RGBA(0, 0, 0, 127));
@@ -236,7 +236,7 @@ impl WorldRenderer {
             target.line(origin.0 as f32, origin.1 as f32 - len, origin.0 as f32, origin.1 as f32 + len, Color::RGBA(0, 255, 0, 255));
         }
 
-        if settings.draw_load_zones {
+        if settings.debug && settings.draw_load_zones {
             target.rectangle2(transform.transform_rect(unload_zone), Color::RGBA(255, 0, 0, 127));
             target.rectangle2(transform.transform_rect(load_zone), Color::RGBA(255, 127, 0, 127));
             target.rectangle2(transform.transform_rect(active_zone), Color::RGBA(255, 255, 0, 127));

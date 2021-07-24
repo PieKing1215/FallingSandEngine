@@ -1,5 +1,8 @@
 
 pub struct Settings {
+
+    pub debug: bool,
+
     // rendering
     pub draw_chunk_state_overlay: bool,
     pub draw_chunk_state_overlay_alpha: f32,
@@ -35,6 +38,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            debug: false,
             draw_chunk_state_overlay: false,
             draw_chunk_state_overlay_alpha: 0.5,
             draw_chunk_dirty_rects: false,

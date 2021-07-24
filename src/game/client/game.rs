@@ -1,5 +1,6 @@
 use std::{io::{BufReader, Read}, net::TcpStream, time::{Duration, Instant}};
 
+use clap::ArgMatches;
 use liquidfun::box2d::common::math::Vec2;
 use sdl2::{event::{Event, WindowEvent}, keyboard::Keycode, sys::SDL_WindowFlags, video::{FullscreenType, SwapInterval}};
 use sdl_gpu::GPUSubsystem;
@@ -11,22 +12,27 @@ use super::{render::{Renderer, Sdl2Context}, world::ClientChunk};
 
 impl Game<ClientChunk> {
     #[profiling::function]
-    pub fn run(&mut self, sdl: &Sdl2Context, mut renderer: Option<&mut Renderer>) {
+    pub fn run(&mut self, sdl: &Sdl2Context, mut renderer: Option<&mut Renderer>, args: &ArgMatches) {
+
+        self.settings.debug = args.is_present("debug");
 
         let mut network = None;
 
-        match TcpStream::connect("127.0.0.1:6673").map(BufReader::new) {
-            Ok(mut r) => {
-                println!("[CLIENT] Connected to server");
-
-                r.get_mut().set_nonblocking(true).unwrap();
-                self.world.as_mut().unwrap().net_mode = WorldNetworkMode::Remote;
-                
-                network = Some(r);
-            },
-            Err(e) => {
-                println!("[CLIENT] Failed to connect to server: {}", e);
-            },
+        if let Some(addr) = args.value_of("connect") {
+            println!("Connecting to {}...", addr);
+            match TcpStream::connect(addr).map(BufReader::new) {
+                Ok(mut r) => {
+                    println!("[CLIENT] Connected to server");
+    
+                    r.get_mut().set_nonblocking(true).unwrap();
+                    self.world.as_mut().unwrap().net_mode = WorldNetworkMode::Remote;
+                    
+                    network = Some(r);
+                },
+                Err(e) => {
+                    println!("[CLIENT] Failed to connect to server: {}", e);
+                },
+            }
         }
 
         let mut prev_tick_time = std::time::Instant::now();

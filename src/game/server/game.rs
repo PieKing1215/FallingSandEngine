@@ -1,6 +1,7 @@
 
 use std::{io::{Read, Write}, net::{SocketAddr, TcpListener, TcpStream}, ops::Add, time::{Duration, Instant}};
 
+use clap::ArgMatches;
 use liquidfun::box2d::common::math::Vec2;
 
 use crate::game::{Game, common::{networking::{PVec2, Packet, PacketType}, world::{CHUNK_SIZE, Chunk, ChunkState}}};
@@ -9,10 +10,15 @@ use super::world::ServerChunk;
 
 impl Game<ServerChunk> {
     #[profiling::function]
-    pub fn run(&mut self) -> Result<(), String> {
+    pub fn run(&mut self, args: &ArgMatches) -> Result<(), String> {
 
-        let net_listener = TcpListener::bind("127.0.0.1:6673").map_err(|e| e.to_string())?;
+        let server_args = args.subcommand_matches("server").unwrap();
+        let port = server_args.value_of("port").unwrap();
+        let net_listener = TcpListener::bind(format!("127.0.0.1:{}", port)).map_err(|e| e.to_string())?;
         net_listener.set_nonblocking(true).map_err(|e| e.to_string())?;
+
+        println!("Server listening on port {}...", port);
+
         let mut connections: Vec<(TcpStream, SocketAddr)> = Vec::new();
 
         let mut prev_tick_time = std::time::Instant::now();
