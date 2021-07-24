@@ -165,6 +165,8 @@ impl WorldRenderer {
 
         });
 
+        // draw liquids
+
         if self.lqf_dirty {
             self.lqf_dirty = false;
 
@@ -209,9 +211,10 @@ impl WorldRenderer {
             }
         }
 
+        // TODO: transforming screen zone here is not the right way to do this, it causes some jumping when x or y switch between + and -
         self.liquid_image2.blit_rect(None, target, Some(transform.transform_rect(screen_zone)));
 
-        // solids
+        // draw solids
 
         let transform_ptr: *const TransformStack = transform;
         let transform_ptr_raw = transform_ptr as usize;
