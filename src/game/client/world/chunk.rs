@@ -69,7 +69,7 @@ impl<'ch> Chunk for ClientChunk {
         
         self.graphics.was_dirty = self.graphics.dirty;
 
-        self.graphics.update_texture().map_err(|e| "ChunkGraphics::update_texture failed.")?;
+        self.graphics.update_texture().map_err(|e| format!("ChunkGraphics::update_texture failed: {:?}", e))?;
 
         Ok(())
     }

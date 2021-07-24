@@ -193,12 +193,3 @@ impl<'a> Renderer<'a> {
         
     }
 }
-
-fn find_opengl_driver() -> Option<u32> {
-    for (i, d) in sdl2::render::drivers().enumerate() {
-        if d.name == "opengl" {
-            return Some(i as u32);
-        }
-    }
-    None
-}

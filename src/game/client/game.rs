@@ -255,6 +255,7 @@ impl Game<ClientChunk> {
                                         // match serde_json::from_slice::<Packet>(&buf) {
                                             Ok(p) => {
                                                 // n += 1;
+                                                #[allow(unreachable_patterns)]
                                                 match p.packet_type {
                                                     PacketType::SyncChunkPacket { chunk_x, chunk_y, pixels, colors } => {
                                                         if let Some(w) = &mut self.world {

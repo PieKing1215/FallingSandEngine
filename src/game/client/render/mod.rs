@@ -70,18 +70,21 @@ impl TransformStack {
         Rect::new(pos.0, pos.1, (rect.w as f64 * t.scale_x).ceil() as u32, (rect.h as f64 * t.scale_y).ceil() as u32)
     }
 
+    #[allow(dead_code)]
     pub fn inv_transform<T: Into<f64>>(&self, point: (T, T)) -> (f64, f64) {
         let t = self.stack.last().unwrap();
         (point.0.into() / t.scale_x - t.translate_x,
             point.1.into() / t.scale_y - t.translate_y)
     }
 
+    #[allow(dead_code)]
     pub fn inv_transform_int<T: Into<f64>>(&self, point: (T, T)) -> (i32, i32) {
         let t = self.stack.last().unwrap();
         ((point.0.into() / t.scale_x - t.translate_x) as i32,
             (point.1.into() / t.scale_y - t.translate_y) as i32)
     }
 
+    #[allow(dead_code)]
     pub fn inv_transform_rect(&self, rect: Rect) -> Rect {
         let pos = self.inv_transform_int((rect.x, rect.y));
 

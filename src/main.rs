@@ -5,7 +5,6 @@ use std::str::FromStr;
 
 use clap::App;
 use clap::Arg;
-use clap::SubCommand;
 use clap::crate_authors;
 use clap::crate_name;
 use clap::crate_version;

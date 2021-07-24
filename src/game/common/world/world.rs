@@ -159,7 +159,7 @@ impl<'w, C: Chunk> World<C> {
 
     #[profiling::function]
     pub fn tick(&mut self, tick_time: u32, settings: &Settings){
-        let loaders = self.entities.iter().map(|(id, e)| (e.x, e.y)).collect();
+        let loaders = self.entities.iter().map(|(_id, e)| (e.x, e.y)).collect();
 
         self.chunk_handler.tick(tick_time, loaders, settings);
         // match self.net_mode {

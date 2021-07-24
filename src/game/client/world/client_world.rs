@@ -8,7 +8,7 @@ pub struct ClientWorld {
 }
 
 impl ClientWorld {
-    pub fn tick(&mut self, world: &mut World<ClientChunk>) {
+    pub fn tick(&mut self, _world: &mut World<ClientChunk>) {
         
     }
 }
