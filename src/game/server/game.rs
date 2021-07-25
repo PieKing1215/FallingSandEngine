@@ -378,11 +378,11 @@ impl Game<ServerChunk> {
         // frame.render_widget(logs, main_left_chunks[0]);
 
         let tui_sm = TuiLoggerSmartWidget::default()
-            .style_error(Style::default().fg(tui::style::Color::Red))
+            .style_error(Style::default().fg(tui::style::Color::LightRed))
             .style_debug(Style::default().fg(tui::style::Color::Green))
             .style_warn(Style::default().fg(tui::style::Color::Yellow))
             .style_trace(Style::default().fg(tui::style::Color::Magenta))
-            .style_info(Style::default().fg(tui::style::Color::Cyan))
+            .style_info(Style::default().fg(tui::style::Color::White))
             .title_log("Log")
             .state(tui_widget_state);
         frame.render_widget(tui_sm, main_left_chunks[0]);
