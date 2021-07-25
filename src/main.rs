@@ -9,6 +9,9 @@ use clap::crate_authors;
 use clap::crate_name;
 use clap::crate_version;
 use game::Game;
+use tui::Terminal;
+use tui::backend::Backend;
+use tui::backend::CrosstermBackend;
 
 use crate::game::client::Client;
 use crate::game::client::render::Renderer;
@@ -62,25 +65,55 @@ fn main() -> Result<(), String> {
     let client = !server;
 
     if server {
-        println!("Starting server...");
-        let mut game: Game<ServerChunk> = Game::new();
 
-        if let Some(w) = &mut game.world {
-            w.add_entity(Entity {
-                x: 0.0,
-                y: 0.0,
-            });
-        };
+        crossterm::terminal::enable_raw_mode().unwrap();
 
-        println!("Starting main loop...");
-        match game.run(&matches) {
-            Ok(_) => {},
-            Err(e) => panic!("[SERVER] Fatal error: {}", e),
+        let stdout = std::io::stdout();
+        let backend = CrosstermBackend::new(stdout);
+
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        std::panic::set_hook(Box::new(|info| {
+            let stdout = std::io::stdout();
+            let mut backend = CrosstermBackend::new(stdout);
+            backend.clear().unwrap();
+            backend.set_cursor(0, 0).unwrap();
+
+            let mut c: tui::buffer::Cell = tui::buffer::Cell::default();
+            c.set_symbol(format!("{}\n", info).as_str());
+            c.set_fg(tui::style::Color::LightRed);
+            let t: (u16, u16, _) = (0, 0, &c);
+
+            backend.draw(std::iter::once(t)).unwrap();
+            backend.flush().unwrap();
+
+            log::error!("{}", info);
+        }));
+
+        let res = std::panic::catch_unwind(move || {
+            println!("Starting server...");
+            let mut game: Game<ServerChunk> = Game::new();
+
+            if let Some(w) = &mut game.world {
+                w.add_entity(Entity {
+                    x: 0.0,
+                    y: 0.0,
+                });
+            };
+
+            println!("Starting main loop...");
+            match game.run(&matches, &mut terminal) {
+                Ok(_) => {},
+                Err(e) => panic!("Server encountered a fatal error: {}", e),
+            }
+        });
+
+        if let Err(_) = res {
+            println!("Server crashed, exiting...");
+        }else{
+            println!("Server shut down successfully.");
         }
-        println!("Goodbye!");
-    }
-
-    if client {
+    }else if client {
         println!("Starting client...");
 
         // TODO: come up with a better way to handle this sdl's lifetime

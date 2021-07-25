@@ -1,4 +1,6 @@
 
+latest.log
+
 # vscode
 .vscode/*
 !.vscode/launch.json
