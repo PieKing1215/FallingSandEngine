@@ -16,7 +16,11 @@ impl CommandHandler<'_> {
                 .setting(clap::AppSettings::VersionlessSubcommands)
                 .template("Command Help:\n{subcommands}")
                 .subcommand(SubCommand::with_name("shutdown")
-                    .about("Exit the game")),
+                    .aliases(&["exit", "quit", "stop"])
+                    .about("Exit the game"))
+                .subcommand(SubCommand::with_name("save")
+                    .about("Save the game"))
+                    
         }
     }
 
