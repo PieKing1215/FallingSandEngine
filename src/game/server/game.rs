@@ -413,12 +413,48 @@ impl Game<ServerChunk> {
         let nums: Vec<f32> = self.fps_counter.tick_lqf_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
         let avg_msplqft: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
+        let fps_style = Style::default();
+
+        let tps_style = match self.fps_counter.tick_display_value {
+            0..=20 => Style::default().fg(tui::style::Color::LightRed),
+            21..=27 => Style::default().fg(tui::style::Color::Yellow),
+            _ => Style::default().fg(tui::style::Color::LightGreen),
+        };
+
+        let mspt_style = if avg_mspt < 37.04 { // 27 tps
+            Style::default().fg(tui::style::Color::LightGreen)
+        }else if avg_mspt < 47.62 { // 21 tps
+            Style::default().fg(tui::style::Color::Yellow)
+        }else {
+            Style::default().fg(tui::style::Color::LightRed)
+        };
+
+        let msplqft_style = if avg_msplqft < 18.18 { // 55 tps
+            Style::default().fg(tui::style::Color::LightGreen)
+        }else if avg_msplqft < 20.0 { // 50 tps
+            Style::default().fg(tui::style::Color::Yellow)
+        }else {
+            Style::default().fg(tui::style::Color::LightRed)
+        };
+
         let text = vec![
-            Spans::from(format!("FPS: {}", self.fps_counter.display_value)),
-            Spans::from(format!("TPS: {}", self.fps_counter.tick_display_value)),
+            Spans::from(vec![
+                Span::raw("FPS: "),
+                Span::styled(format!("{}", self.fps_counter.display_value), fps_style),
+            ]),
+            Spans::from(vec![
+                Span::raw("TPS: "),
+                Span::styled(format!("{}", self.fps_counter.tick_display_value), tps_style),
+            ]),
             Spans::from(format!("mspf: {:.2}", avg_mspf)),
-            Spans::from(format!("mspt: {:.2}", avg_mspt)),
-            Spans::from(format!("msplqft: {:.2}", avg_msplqft)),
+            Spans::from(vec![
+                Span::raw("mspt: "),
+                Span::styled(format!("{:.2}", avg_mspt), mspt_style),
+            ]),
+            Spans::from(vec![
+                Span::raw("msplqft: "),
+                Span::styled(format!("{:.2}", avg_msplqft), msplqft_style),
+            ]),
         ];
         let block = Block::default().borders(Borders::ALL).title(Span::styled(
             "Stats",
