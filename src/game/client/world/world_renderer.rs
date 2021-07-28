@@ -100,7 +100,7 @@ impl WorldRenderer {
             if (settings.debug && !settings.cull_chunks) || rc.has_intersection(screen_zone){
                 transform.push();
                 transform.translate(ch.chunk_x * CHUNK_SIZE as i32, ch.chunk_y * CHUNK_SIZE as i32);
-                ch.render(target, transform, sdl, fonts);
+                ch.render(target, transform, sdl, fonts, settings);
 
                 if settings.debug && settings.draw_chunk_dirty_rects {
                     if let Some(dr) = ch.dirty_rect {
@@ -325,7 +325,7 @@ impl BoxDraw {
         }).collect();
 
         let col = *color;
-        canvas.polygon_filled(verts, Color::RGB((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8));
+        canvas.polygon_filled(verts, Color::RGBA((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8, 64));
     }
 
     pub unsafe extern "C" fn draw_circle(

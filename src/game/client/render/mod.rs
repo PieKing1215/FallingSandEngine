@@ -7,6 +7,8 @@ mod imgui;
 use sdl2::rect::Rect;
 use sdl_gpu::GPUTarget;
 
+use crate::game::common::Settings;
+
 pub type RenderCanvas = sdl_gpu::GPUTarget;
 
 #[derive(Clone)]
@@ -103,5 +105,5 @@ struct Transform {
 }
 
 pub trait Renderable {
-    fn render(&self, target : &mut GPUTarget, transform: &mut TransformStack, sdl: &Sdl2Context, fonts: &Fonts);
+    fn render(&self, target : &mut GPUTarget, transform: &mut TransformStack, sdl: &Sdl2Context, fonts: &Fonts, settings: &Settings);
 }

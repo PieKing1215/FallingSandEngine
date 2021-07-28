@@ -38,7 +38,7 @@ impl WorldGenerator for TestGenerator {
                 let i = (x + y * CHUNK_SIZE) as usize;
                 let v = noise_cave_2[i];
                 let v2 = noise2[i];
-                if v > 0.0 {
+                if v > 0.0 || (x >= 32 && x < 64 && y >= 32 && y < 64 && !((x >= 40 && x < 56 && y >= 40 && y < 56 && !(x >= 47 && x < 49)))) {
                     pixels[i] = MaterialInstance::air();
                     // chunk.set(x, y, MaterialInstance::air()).unwrap();
                 } else{

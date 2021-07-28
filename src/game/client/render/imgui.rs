@@ -28,6 +28,12 @@ impl Settings {
                     ui.checkbox(im_str!("draw_origin"), &mut self.draw_origin);
                     ui.checkbox(im_str!("draw_load_zones"), &mut self.draw_load_zones);
                     ui.checkbox(im_str!("cull_chunks"), &mut self.cull_chunks);
+                    ComboBox::new(im_str!("draw_chunk_collision")).build_simple_string(ui, &mut self.draw_chunk_collision, &[
+                        im_str!("none"),
+                        im_str!("marching squares"),
+                        im_str!("ramer douglas peucker"),
+                        im_str!("earcutr"),
+                    ]);
 
                     ui.checkbox(im_str!("lqf_dbg_draw"), &mut self.lqf_dbg_draw);
                     ui.indent();

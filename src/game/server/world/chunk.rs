@@ -110,4 +110,24 @@ impl<'ch> Chunk for ServerChunk {
     fn mark_dirty(&mut self) {
         self.dirty = true;
     }
+
+    fn get_tris(&self) -> &Option<Vec<Vec<((f64, f64), (f64, f64), (f64, f64))>>> {
+        todo!()
+    }
+
+    fn get_mesh_loops(&self) -> &Option<Vec<Vec<Vec<Vec<f64>>>>> {
+        todo!()
+    }
+
+    fn get_b2_body(&self) -> &Option<liquidfun::box2d::dynamics::body::Body> {
+        todo!()
+    }
+
+    fn get_b2_body_mut(&mut self) -> &mut Option<liquidfun::box2d::dynamics::body::Body> {
+        todo!()
+    }
+
+    fn set_b2_body(&mut self, body: Option<liquidfun::box2d::dynamics::body::Body>) {
+        todo!()
+    }
 }

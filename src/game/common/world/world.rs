@@ -1,10 +1,10 @@
 
-use std::collections::HashMap;
+use std::{borrow::BorrowMut, collections::HashMap};
 
 use crate::game::common::Settings;
-use liquidfun::box2d::{collision::shapes::polygon_shape::PolygonShape, common::{b2draw, math::Vec2}, dynamics::{body::{BodyDef, BodyType}, fixture::FixtureDef}, particle::{ParticleDef, TENSILE_PARTICLE, particle_system::ParticleSystemDef}};
+use liquidfun::box2d::{collision::shapes::{chain_shape::ChainShape, polygon_shape::PolygonShape}, common::{b2draw, math::Vec2}, dynamics::{body::{BodyDef, BodyType}, fixture::FixtureDef}, particle::{ParticleDef, TENSILE_PARTICLE, particle_system::ParticleSystemDef}};
 
-use super::{Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}};
+use super::{CHUNK_SIZE, Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
@@ -27,89 +27,89 @@ impl<'w, C: Chunk> World<C> {
         let gravity = liquidfun::box2d::common::math::Vec2::new(0.0, 3.0);
         let mut lqf_world = liquidfun::box2d::dynamics::world::World::new(&gravity);
 
-        let mut ground_body_def = BodyDef::default();
-	    ground_body_def.position.set(0.0, -26.0);
-        let ground_body = lqf_world.create_body(&ground_body_def);
-        let mut ground_box = PolygonShape::new();
-        ground_box.set_as_box(46.0, 0.4);
-        ground_body.create_fixture_from_shape(&ground_box, 0.0);
+        // let mut ground_body_def = BodyDef::default();
+	    // ground_body_def.position.set(0.0, -26.0);
+        // let ground_body = lqf_world.create_body(&ground_body_def);
+        // let mut ground_box = PolygonShape::new();
+        // ground_box.set_as_box(46.0, 0.4);
+        // ground_body.create_fixture_from_shape(&ground_box, 0.0);
 
-        let mut ground_body_def = BodyDef::default();
-	    ground_body_def.position.set(0.0, 0.4);
-        let ground_body = lqf_world.create_body(&ground_body_def);
-        let mut ground_box = PolygonShape::new();
-        ground_box.set_as_box(12.0, 0.4);
-        ground_body.create_fixture_from_shape(&ground_box, 0.0);
+        // let mut ground_body_def = BodyDef::default();
+	    // ground_body_def.position.set(0.0, 0.4);
+        // let ground_body = lqf_world.create_body(&ground_body_def);
+        // let mut ground_box = PolygonShape::new();
+        // ground_box.set_as_box(12.0, 0.4);
+        // ground_body.create_fixture_from_shape(&ground_box, 0.0);
 
-        let mut ground_body_def = BodyDef::default();
-	    ground_body_def.position.set(12.0, -6.0);
-        let ground_body = lqf_world.create_body(&ground_body_def);
-        let mut ground_box = PolygonShape::new();
-        ground_box.set_as_box(0.4, 6.0);
-        ground_body.create_fixture_from_shape(&ground_box, 0.0);
+        // let mut ground_body_def = BodyDef::default();
+	    // ground_body_def.position.set(12.0, -6.0);
+        // let ground_body = lqf_world.create_body(&ground_body_def);
+        // let mut ground_box = PolygonShape::new();
+        // ground_box.set_as_box(0.4, 6.0);
+        // ground_body.create_fixture_from_shape(&ground_box, 0.0);
 
-        let mut ground_body_def = BodyDef::default();
-	    ground_body_def.position.set(-12.0, -6.0);
-        let ground_body = lqf_world.create_body(&ground_body_def);
-        let mut ground_box = PolygonShape::new();
-        ground_box.set_as_box(0.4, 6.0);
-        ground_body.create_fixture_from_shape(&ground_box, 0.0);
+        // let mut ground_body_def = BodyDef::default();
+	    // ground_body_def.position.set(-12.0, -6.0);
+        // let ground_body = lqf_world.create_body(&ground_body_def);
+        // let mut ground_box = PolygonShape::new();
+        // ground_box.set_as_box(0.4, 6.0);
+        // ground_body.create_fixture_from_shape(&ground_box, 0.0);
 
-        let mut ground_body_def = BodyDef::default();
-	    ground_body_def.position.set(7.0, -8.3);
-        let ground_body = lqf_world.create_body(&ground_body_def);
-        let mut ground_box = PolygonShape::new();
-        ground_box.set_as_box(0.2, 8.0);
-        ground_body.create_fixture_from_shape(&ground_box, 0.0);
+        // let mut ground_body_def = BodyDef::default();
+	    // ground_body_def.position.set(7.0, -8.3);
+        // let ground_body = lqf_world.create_body(&ground_body_def);
+        // let mut ground_box = PolygonShape::new();
+        // ground_box.set_as_box(0.2, 8.0);
+        // ground_body.create_fixture_from_shape(&ground_box, 0.0);
 
-        let mut body_def = BodyDef::default();
-        body_def.body_type = BodyType::DynamicBody;
-        body_def.position.set(0.0, -25.0);
-        body_def.angular_velocity = 2.0;
-        body_def.linear_velocity = Vec2::new(0.0, -4.0);
-        let body = lqf_world.create_body(&body_def);
-        let mut dynamic_box = PolygonShape::new();
-        dynamic_box.set_as_box(1.0, 1.0);
-        let mut fixture_def = FixtureDef::new(&dynamic_box);
-        fixture_def.density = 1.5;
-        fixture_def.friction = 0.3;
-        body.create_fixture(&fixture_def);
+        // let mut body_def = BodyDef::default();
+        // body_def.body_type = BodyType::DynamicBody;
+        // body_def.position.set(-1.0, -2.0);
+        // body_def.angular_velocity = 2.0;
+        // body_def.linear_velocity = Vec2::new(0.0, -4.0);
+        // let body = lqf_world.create_body(&body_def);
+        // let mut dynamic_box = PolygonShape::new();
+        // dynamic_box.set_as_box(1.0, 1.0);
+        // let mut fixture_def = FixtureDef::new(&dynamic_box);
+        // fixture_def.density = 1.5;
+        // fixture_def.friction = 0.3;
+        // body.create_fixture(&fixture_def);
 
-        let mut body_def = BodyDef::default();
-        body_def.body_type = BodyType::DynamicBody;
-        body_def.position.set(-10.0, -25.0);
-        body_def.angular_velocity = 2.0;
-        body_def.linear_velocity = Vec2::new(0.0, -4.0);
-        let body = lqf_world.create_body(&body_def);
-        let mut dynamic_box = PolygonShape::new();
-        dynamic_box.set_as_box(1.0, 1.0);
-        let mut fixture_def = FixtureDef::new(&dynamic_box);
-        fixture_def.density = 0.75;
-        fixture_def.friction = 0.3;
-        body.create_fixture(&fixture_def);
+        // let mut body_def = BodyDef::default();
+        // body_def.body_type = BodyType::DynamicBody;
+        // body_def.position.set(-10.0, -2.0);
+        // body_def.angular_velocity = 2.0;
+        // body_def.linear_velocity = Vec2::new(0.0, -4.0);
+        // let body = lqf_world.create_body(&body_def);
+        // let mut dynamic_box = PolygonShape::new();
+        // dynamic_box.set_as_box(1.0, 1.0);
+        // let mut fixture_def = FixtureDef::new(&dynamic_box);
+        // fixture_def.density = 0.75;
+        // fixture_def.friction = 0.3;
+        // body.create_fixture(&fixture_def);
 
         // bottom section
 
-        let mut ground_body_def = BodyDef::default();
-	    ground_body_def.position.set(0.0, 15.0);
-        let ground_body = lqf_world.create_body(&ground_body_def);
-        let mut ground_box = PolygonShape::new();
-        ground_box.set_as_box(24.0, 0.4);
-        ground_body.create_fixture_from_shape(&ground_box, 0.0);
+        // let mut ground_body_def = BodyDef::default();
+	    // ground_body_def.position.set(0.0, 15.0);
+        // let ground_body = lqf_world.create_body(&ground_body_def);
+        // let mut ground_box = PolygonShape::new();
+        // ground_box.set_as_box(24.0, 0.4);
+        // ground_body.create_fixture_from_shape(&ground_box, 0.0);
 
-        let mut ground_body_def = BodyDef::default();
-	    ground_body_def.position.set(35.0, -5.0);
-        let ground_body = lqf_world.create_body(&ground_body_def);
-        let mut ground_box = PolygonShape::new();
-        ground_box.set_as_box_oriented(0.4, 24.0, &Vec2{x: 0.0, y: 0.0}, 0.5);
-        ground_body.create_fixture_from_shape(&ground_box, 0.0);
+        // let mut ground_body_def = BodyDef::default();
+	    // ground_body_def.position.set(35.0, -5.0);
+        // let ground_body = lqf_world.create_body(&ground_body_def);
+        // let mut ground_box = PolygonShape::new();
+        // ground_box.set_as_box_oriented(0.4, 24.0, &Vec2{x: 0.0, y: 0.0}, 0.5);
+        // ground_body.create_fixture_from_shape(&ground_box, 0.0);
 
-        let mut ground_body_def = BodyDef::default();
-	    ground_body_def.position.set(-35.0, -5.0);
-        let ground_body = lqf_world.create_body(&ground_body_def);
-        let mut ground_box = PolygonShape::new();
-        ground_box.set_as_box_oriented(0.4, 24.0, &Vec2{x: 0.0, y: 0.0}, -0.5);
-        ground_body.create_fixture_from_shape(&ground_box, 0.0);
+        // let mut ground_body_def = BodyDef::default();
+	    // ground_body_def.position.set(-35.0, -5.0);
+        // let ground_body = lqf_world.create_body(&ground_body_def);
+        // let mut ground_box = PolygonShape::new();
+        // ground_box.set_as_box_oriented(0.4, 24.0, &Vec2{x: 0.0, y: 0.0}, -0.5);
+        // ground_body.create_fixture_from_shape(&ground_box, 0.0);
 
 
         let mut particle_system_def = ParticleSystemDef::default();
@@ -122,13 +122,13 @@ impl<'w, C: Chunk> World<C> {
         pd.flags.insert(TENSILE_PARTICLE);
         pd.color.set(255, 90, 255, 255);
 
-        for i in 0..25000 {
-            if i < 12500 {
+        for i in 0..15000 {
+            if i < 15000/2 {
                 pd.color.set(255, 200, 64, 191);
             }else {
                 pd.color.set(64, 200, 255, 191);
             }
-            pd.position.set(-25.0 + (i as f32 / 100.0) * 0.17, -6.0 - ((i % 100) as f32) * 0.17);
+            pd.position.set(-7.0 + (i as f32 / 200.0) * 0.17, -6.0 - ((i % 200) as f32) * 0.17);
             particle_system.create_particle(&pd);
         }
 
@@ -162,6 +162,71 @@ impl<'w, C: Chunk> World<C> {
         let loaders = self.entities.iter().map(|(_id, e)| (e.x, e.y)).collect();
 
         self.chunk_handler.tick(tick_time, loaders, settings);
+
+
+        for (_, c) in self.chunk_handler.loaded_chunks.borrow_mut() {
+            if c.get_b2_body().is_none() {
+                // if let Some(tr) = c.get_tris() {
+                //     let mut body_def = BodyDef::default();
+                //     body_def.position.set((c.get_chunk_x() * CHUNK_SIZE as i32) as f32 / LIQUIDFUN_SCALE, (c.get_chunk_y() * CHUNK_SIZE as i32) as f32 / LIQUIDFUN_SCALE);
+                //     let body = self.lqf_world.create_body(&body_def);
+                        
+                //     tr.iter().for_each(|tris| {
+                //         tris.iter().for_each(|tri| {
+                //             let mut poly = PolygonShape::new();
+
+                //             let points = vec![
+                //                 (tri.0.0 as f32 / LIQUIDFUN_SCALE, tri.0.1 as f32 / LIQUIDFUN_SCALE),
+                //                 (tri.1.0 as f32 / LIQUIDFUN_SCALE, tri.1.1 as f32 / LIQUIDFUN_SCALE),
+                //                 (tri.2.0 as f32 / LIQUIDFUN_SCALE, tri.2.1 as f32 / LIQUIDFUN_SCALE),
+                //             ];
+
+                //             poly.set(points);
+                //             body.create_fixture_from_shape(&poly, 0.0);
+                //         });
+                //     });
+
+                //     c.set_b2_body(Some(body));
+                // }
+
+                if let Some(loops) = c.get_mesh_loops() {
+                    let mut body_def = BodyDef::default();
+                    body_def.position.set((c.get_chunk_x() * CHUNK_SIZE as i32) as f32 / LIQUIDFUN_SCALE, (c.get_chunk_y() * CHUNK_SIZE as i32) as f32 / LIQUIDFUN_SCALE);
+                    let mut body = self.lqf_world.create_body(&body_def);
+                    body.set_active(false);
+
+                    loops.iter().for_each(|a_loop| {
+                        a_loop.iter().for_each(|pts| {
+                            let mut verts: Vec<Vec2> = Vec::new();
+
+                            pts.iter().for_each(|p| {
+                                verts.push(Vec2::new(p[0] as f32 / LIQUIDFUN_SCALE, p[1] as f32 / LIQUIDFUN_SCALE));
+                            });
+
+                            let mut chain = ChainShape::new();
+                            chain.create_chain(&verts, verts.len() as i32);
+                            body.create_fixture_from_shape(&chain, 0.0);
+                        });
+
+                    });
+
+                    c.set_b2_body(Some(body));
+                }
+            }else {
+                let chunk_center_x = c.get_chunk_x() * CHUNK_SIZE as i32 + CHUNK_SIZE as i32 / 2;
+                let chunk_center_y = c.get_chunk_y() * CHUNK_SIZE as i32 + CHUNK_SIZE as i32 / 2;
+
+                let dist = CHUNK_SIZE as f32 * 0.6;
+                let should_be_active = self.lqf_world.get_particle_system_list().iter().any(|system| {
+                    system.get_position_buffer().iter().any(|pos| (pos.x * LIQUIDFUN_SCALE as f32 - chunk_center_x as f32).abs() < dist && (pos.y * LIQUIDFUN_SCALE as f32 - chunk_center_y as f32).abs() < dist)
+                });
+
+                if let Some(b) = c.get_b2_body_mut() {
+                    b.set_active(should_be_active);
+                }
+            }
+        }
+
         // match self.net_mode {
         //     WorldNetworkMode::Local => {
         //         self.chunk_handler.tick(tick_time, loaders, settings);

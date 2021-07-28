@@ -5,6 +5,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use futures::future::join_all;
 use lazy_static::lazy_static;
+use liquidfun::box2d::dynamics::body::Body;
 use sdl2::rect::Rect;
 use tokio::runtime::Runtime;
 
@@ -31,6 +32,12 @@ pub trait Chunk {
     fn set_pixel_colors(&mut self, colors: &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]);
     fn get_colors_mut(&mut self) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
     fn get_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
+
+    fn get_tris(&self) -> &Option<Vec<Vec<((f64, f64), (f64, f64), (f64, f64))>>>;
+    fn get_mesh_loops(&self) -> &Option<Vec<Vec<Vec<Vec<f64>>>>>;
+    fn get_b2_body(&self) -> &Option<Body>;
+    fn get_b2_body_mut(&mut self) -> &mut Option<Body>;
+    fn set_b2_body(&mut self, body: Option<Body>);
 
     fn mark_dirty(&mut self);
 
