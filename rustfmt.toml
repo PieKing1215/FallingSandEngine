@@ -1,0 +1,2 @@
+match_block_trailing_comma = true #blocked by https://github.com/rust-lang/rustfmt/issues/3380
+struct_lit_width = 50
