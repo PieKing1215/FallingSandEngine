@@ -48,10 +48,10 @@ impl Client {
 
             if let Some(eid) = w.local_entity_id {
                 if let Some(le) = world.get_entity_mut(eid) {
-                    if self.controls.up { le.y -= 4.0 };
-                    if self.controls.down { le.y += 4.0 };
-                    if self.controls.left { le.x -= 4.0 };
-                    if self.controls.right { le.x += 4.0 };
+                    if self.controls.up { le.y -= 4.0 }
+                    if self.controls.down { le.y += 4.0 }
+                    if self.controls.left { le.x -= 4.0 }
+                    if self.controls.right { le.x += 4.0 }
                 }
             }
         }
