@@ -163,7 +163,6 @@ impl<'w, C: Chunk> World<C> {
 
         self.chunk_handler.tick(tick_time, loaders, settings);
 
-
         for (_, c) in self.chunk_handler.loaded_chunks.borrow_mut() {
             if c.get_b2_body().is_none() {
                 // if let Some(tr) = c.get_tris() {
@@ -213,6 +212,8 @@ impl<'w, C: Chunk> World<C> {
                     c.set_b2_body(Some(body));
                 }
             }else {
+                // TODO: profile this and if it's too slow, could stagger it based on tick_time
+
                 let chunk_center_x = c.get_chunk_x() * CHUNK_SIZE as i32 + CHUNK_SIZE as i32 / 2;
                 let chunk_center_y = c.get_chunk_y() * CHUNK_SIZE as i32 + CHUNK_SIZE as i32 / 2;
 
