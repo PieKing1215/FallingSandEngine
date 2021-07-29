@@ -33,7 +33,8 @@ pub trait Chunk {
     fn get_colors_mut(&mut self) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
     fn get_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
 
-    fn get_tris(&self) -> &Option<Vec<Vec<((f64, f64), (f64, f64), (f64, f64))>>>;
+    fn generate_mesh(&mut self) -> Result<(), String>;
+    // fn get_tris(&self) -> &Option<Vec<Vec<((f64, f64), (f64, f64), (f64, f64))>>>;
     fn get_mesh_loops(&self) -> &Option<Vec<Vec<Vec<Vec<f64>>>>>;
     fn get_b2_body(&self) -> &Option<Body>;
     fn get_b2_body_mut(&mut self) -> &mut Option<Body>;
@@ -259,6 +260,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                         // println!("{} {}", i, p.0);
                         self.loaded_chunks.get_mut(&keys[p.0]).unwrap().set_pixels(&p.1);
                         self.loaded_chunks.get_mut(&keys[p.0]).unwrap().set_pixel_colors(&p.2);
+                        let _ = self.loaded_chunks.get_mut(&keys[p.0]).unwrap().generate_mesh();
                     }
                 }
 

@@ -1,6 +1,7 @@
+use liquidfun::box2d::dynamics::body::Body;
 use sdl2::rect::Rect;
 
-use crate::game::{common::world::{CHUNK_SIZE, Chunk, ChunkState, material::MaterialInstance}};
+use crate::game::common::world::{CHUNK_SIZE, Chunk, ChunkState, material::MaterialInstance, mesh};
 
 pub struct ServerChunk {
     pub chunk_x: i32,
@@ -10,6 +11,8 @@ pub struct ServerChunk {
     pub dirty_rect: Option<Rect>,
     pub pixel_data: [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4],
     pub dirty: bool,
+    pub b2_body: Option<Body>,
+    pub mesh_simplified: Option<Vec<Vec<Vec<Vec<f64>>>>>,
 }
 
 impl<'ch> Chunk for ServerChunk {
@@ -22,6 +25,8 @@ impl<'ch> Chunk for ServerChunk {
             dirty_rect: None,
             pixel_data: [0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)],
             dirty: true,
+            b2_body: None,
+            mesh_simplified: None,
         }
     }
 
@@ -111,23 +116,34 @@ impl<'ch> Chunk for ServerChunk {
         self.dirty = true;
     }
 
-    fn get_tris(&self) -> &Option<Vec<Vec<((f64, f64), (f64, f64), (f64, f64))>>> {
-        todo!()
+    fn generate_mesh(&mut self) -> Result<(), String> {
+        if self.pixels.is_none() {
+            return Err("generate_mesh failed: self.pixels is None".to_owned());
+        }
+        
+        let vs: Vec<f64> = mesh::pixels_to_valuemap(&self.pixels.unwrap());
+
+        let generated = mesh::generate_mesh_only_simplified(vs, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
+
+        self.mesh_simplified = generated.ok();
+
+        Ok(())
     }
+
 
     fn get_mesh_loops(&self) -> &Option<Vec<Vec<Vec<Vec<f64>>>>> {
-        todo!()
+        &self.mesh_simplified
     }
 
-    fn get_b2_body(&self) -> &Option<liquidfun::box2d::dynamics::body::Body> {
-        todo!()
+    fn get_b2_body(&self) -> &Option<Body> {
+        &self.b2_body
     }
 
-    fn get_b2_body_mut(&mut self) -> &mut Option<liquidfun::box2d::dynamics::body::Body> {
-        todo!()
+    fn get_b2_body_mut(&mut self) -> &mut Option<Body> {
+        &mut self.b2_body
     }
 
-    fn set_b2_body(&mut self, body: Option<liquidfun::box2d::dynamics::body::Body>) {
-        todo!()
+    fn set_b2_body(&mut self, body: Option<Body>) {
+        self.b2_body = body;
     }
 }

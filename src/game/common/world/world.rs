@@ -2,7 +2,7 @@
 use std::{borrow::BorrowMut, collections::HashMap};
 
 use crate::game::common::Settings;
-use liquidfun::box2d::{collision::shapes::{chain_shape::ChainShape, polygon_shape::PolygonShape}, common::{b2draw, math::Vec2}, dynamics::{body::{BodyDef, BodyType}, fixture::FixtureDef}, particle::{ParticleDef, TENSILE_PARTICLE, particle_system::ParticleSystemDef}};
+use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::body::BodyDef, particle::{ParticleDef, TENSILE_PARTICLE, particle_system::ParticleSystemDef}};
 
 use super::{CHUNK_SIZE, Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}};
 
@@ -25,7 +25,7 @@ impl<'w, C: Chunk> World<C> {
     #[profiling::function]
     pub fn create() -> Self {
         let gravity = liquidfun::box2d::common::math::Vec2::new(0.0, 3.0);
-        let mut lqf_world = liquidfun::box2d::dynamics::world::World::new(&gravity);
+        let lqf_world = liquidfun::box2d::dynamics::world::World::new(&gravity);
 
         // let mut ground_body_def = BodyDef::default();
 	    // ground_body_def.position.set(0.0, -26.0);
