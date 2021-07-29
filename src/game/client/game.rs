@@ -127,10 +127,7 @@ impl Game<ClientChunk> {
 
                                             for xx in -3..=3 {
                                                 for yy in -3..=3 {
-                                                    match w.chunk_handler.set(world_x as i64 + xx, world_y as i64 + yy, MaterialInstance::air()) {
-                                                        Ok(_) => {},
-                                                        Err(_) => {},
-                                                    };
+                                                    let _ = w.chunk_handler.set(world_x as i64 + xx, world_y as i64 + yy, MaterialInstance::air());
                                                 }
                                             }
                                         }
@@ -215,7 +212,7 @@ impl Game<ClientChunk> {
                     while Instant::now().saturating_duration_since(start).as_nanos() < 5_000_000 {
                         if bytes_to_read.is_none() {
                             let mut buf = [0; 4];
-                            if let Ok(_) = stream.read_exact(&mut buf) {
+                            if stream.read_exact(&mut buf).is_ok() {
                                 let size: u32 = bincode::deserialize(&buf).unwrap();
                                 // println!("[CLIENT] Incoming packet, size = {}.", size);
     
@@ -382,7 +379,7 @@ impl Game<ClientChunk> {
                     self.fps_counter.display_value = self.fps_counter.frames;
                     self.fps_counter.frames = 0;
                     self.fps_counter.last_update = now;
-                    let set = r.window.set_title(format!("FallingSandRust ({} FPS) ({})", self.fps_counter.display_value, self.world.as_ref().map(|w| format!("{:?}", w.net_mode)).unwrap_or("unknown".to_string())).as_str());
+                    let set = r.window.set_title(format!("FallingSandRust ({} FPS) ({})", self.fps_counter.display_value, self.world.as_ref().map(|w| format!("{:?}", w.net_mode)).unwrap_or_else(|| "unknown".to_owned())).as_str());
                     if set.is_err() {
                         eprintln!("Failed to set window title.");
                     }

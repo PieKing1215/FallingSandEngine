@@ -82,7 +82,7 @@ impl Game<ServerChunk> {
 
             for c in &mut connections {
                 let mut buf = [0; 4];
-                if let Ok(_) = c.0.read_exact(&mut buf) {
+                if c.0.read_exact(&mut buf).is_ok() {
                     let size: u32 = bincode::deserialize(&buf).unwrap();
                     debug!("Incoming packet, size = {}.", size);
 
@@ -128,44 +128,42 @@ impl Game<ServerChunk> {
                         let mut n = 0;
                         for ci in &w.chunk_handler.loaded_chunks {
                             n += 1;
-                            if ci.1.get_state() == ChunkState::Active && ci.1.dirty {
-                                if n % (self.tick_time / 4) % 4 == 0 {
-                                    for c in &mut connections {
-                                        // println!("Writing SyncChunkPacket");
-                                        let (chunk_x, chunk_y) = w.chunk_handler.chunk_index_inv(*ci.0);
-                                        let pixels_vec = ci.1.get_pixels().unwrap().to_vec();
-                                        let colors_vec = ci.1.get_colors().to_vec();
+                            if ci.1.get_state() == ChunkState::Active && ci.1.dirty && n % (self.tick_time / 4) % 4 == 0 {
+                                for c in &mut connections {
+                                    // println!("Writing SyncChunkPacket");
+                                    let (chunk_x, chunk_y) = w.chunk_handler.chunk_index_inv(*ci.0);
+                                    let pixels_vec = ci.1.get_pixels().unwrap().to_vec();
+                                    let colors_vec = ci.1.get_colors().to_vec();
 
-                                        if pixels_vec.len() != (CHUNK_SIZE * CHUNK_SIZE) as usize {
-                                            panic!("Almost sent wrong size pixels Vec: {} (expected {})", pixels_vec.len(), CHUNK_SIZE * CHUNK_SIZE);
-                                        }
-                                
-                                        if colors_vec.len() != CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4 {
-                                            panic!("Almost sent wrong size colors Vec: {} (expected {})", colors_vec.len(), CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4);
-                                        }
-
-                                        let packet = Packet{ 
-                                            packet_type: PacketType::SyncChunkPacket {
-                                                chunk_x,
-                                                chunk_y,
-                                                pixels: pixels_vec,
-                                                colors: colors_vec,
-                                            },
-                                        };
-                                        // let buf = serde_json::to_string(&packet).unwrap().into_bytes();
-                                        // let size_buf = serde_json::to_string(&(buf.len() as u32)).unwrap().into_bytes();
-                                        let buf = bincode::serialize(&packet).unwrap();
-                                        let size_buf = bincode::serialize(&(buf.len() as u32)).unwrap();
-
-                                        c.0.set_nonblocking(false).unwrap();
-                                        c.0.write_all(&size_buf).unwrap();
-                                        c.0.flush().unwrap();
-                                        c.0.write_all(&buf).unwrap();
-                                        c.0.flush().unwrap();
-                                        c.0.set_nonblocking(true).unwrap();
-                
-                                        // println!("Wrote SyncChunkPacket");
+                                    if pixels_vec.len() != (CHUNK_SIZE * CHUNK_SIZE) as usize {
+                                        panic!("Almost sent wrong size pixels Vec: {} (expected {})", pixels_vec.len(), CHUNK_SIZE * CHUNK_SIZE);
                                     }
+                            
+                                    if colors_vec.len() != CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4 {
+                                        panic!("Almost sent wrong size colors Vec: {} (expected {})", colors_vec.len(), CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4);
+                                    }
+
+                                    let packet = Packet{ 
+                                        packet_type: PacketType::SyncChunkPacket {
+                                            chunk_x,
+                                            chunk_y,
+                                            pixels: pixels_vec,
+                                            colors: colors_vec,
+                                        },
+                                    };
+                                    // let buf = serde_json::to_string(&packet).unwrap().into_bytes();
+                                    // let size_buf = serde_json::to_string(&(buf.len() as u32)).unwrap().into_bytes();
+                                    let buf = bincode::serialize(&packet).unwrap();
+                                    let size_buf = bincode::serialize(&(buf.len() as u32)).unwrap();
+
+                                    c.0.set_nonblocking(false).unwrap();
+                                    c.0.write_all(&size_buf).unwrap();
+                                    c.0.flush().unwrap();
+                                    c.0.write_all(&buf).unwrap();
+                                    c.0.flush().unwrap();
+                                    c.0.set_nonblocking(true).unwrap();
+            
+                                    // println!("Wrote SyncChunkPacket");
                                 }
                             }
                         }
@@ -199,7 +197,7 @@ impl Game<ServerChunk> {
                                     info!(target: "", ">{}", msg);
                                     match command_handler.get_matches(msg.as_str()) {
                                         Ok(m) => {
-                                            if let Some(_) = m.subcommand_matches("shutdown") {
+                                            if m.subcommand_matches("shutdown").is_some() {
                                                 break 'mainLoop;
                                             }
                                         },
@@ -298,14 +296,14 @@ impl Game<ServerChunk> {
                 self.fps_counter.ticks = 0;
                 self.fps_counter.last_update = now;
                 
-                let nums: Vec<f32> = self.fps_counter.frame_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
-                let avg_mspf: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+                // let nums: Vec<f32> = self.fps_counter.frame_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
+                // let avg_mspf: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-                let nums: Vec<f32> = self.fps_counter.tick_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
-                let avg_mspt: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+                // let nums: Vec<f32> = self.fps_counter.tick_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
+                // let avg_mspt: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-                let nums: Vec<f32> = self.fps_counter.tick_lqf_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
-                let avg_msplqft: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+                // let nums: Vec<f32> = self.fps_counter.tick_lqf_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
+                // let avg_msplqft: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
                 // println!("FPS: {}, TPS: {}, mspf: {:.2}, mspt: {:.2}, msplqft: {:.2}", self.fps_counter.display_value, ticks, avg_mspf, avg_mspt, avg_msplqft);
                 
@@ -351,7 +349,7 @@ impl Game<ServerChunk> {
         }
     }
 
-    fn draw_terminal<TB: Backend>(&mut self, frame: &mut Frame<TB>, input: &String, tui_widget_state: &mut TuiWidgetState) {
+    fn draw_terminal<TB: Backend>(&mut self, frame: &mut Frame<TB>, input: &str, tui_widget_state: &mut TuiWidgetState) {
 
         let main_chunks = Layout::default()
         .constraints([Constraint::Min(0), Constraint::Length(20)].as_ref())
@@ -404,14 +402,14 @@ impl Game<ServerChunk> {
 
         // main right
 
-        let nums: Vec<f32> = self.fps_counter.frame_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
-        let avg_mspf: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+        let nums: Vec<&f32> = self.fps_counter.frame_times.iter().filter(|n| **n != 0.0).collect();
+        let avg_mspf: f32 = nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-        let nums: Vec<f32> = self.fps_counter.tick_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
-        let avg_mspt: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+        let nums: Vec<&f32> = self.fps_counter.tick_times.iter().filter(|n| **n != 0.0).collect();
+        let avg_mspt: f32 = nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-        let nums: Vec<f32> = self.fps_counter.tick_lqf_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
-        let avg_msplqft: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+        let nums: Vec<&f32> = self.fps_counter.tick_lqf_times.iter().filter(|n| **n != 0.0).collect();
+        let avg_msplqft: f32 = nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
         let fps_style = Style::default();
 

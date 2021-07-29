@@ -111,12 +111,13 @@ impl<'w, C: Chunk> World<C> {
         // ground_box.set_as_box_oriented(0.4, 24.0, &Vec2{x: 0.0, y: 0.0}, -0.5);
         // ground_body.create_fixture_from_shape(&ground_box, 0.0);
 
-
-        let mut particle_system_def = ParticleSystemDef::default();
-        particle_system_def.radius = 0.19;
-        particle_system_def.surface_tension_pressure_strength = 0.1;
-        particle_system_def.surface_tension_normal_strength = 0.1;
-        particle_system_def.damping_strength = 0.001;
+        let particle_system_def = ParticleSystemDef {
+            radius: 0.19, 
+            surface_tension_pressure_strength: 0.1, 
+            surface_tension_normal_strength: 0.1, 
+            damping_strength: 0.001, 
+            ..Default::default() 
+        };
 	    let particle_system = lqf_world.create_particle_system(&particle_system_def);
         let mut pd = ParticleDef::default();
         pd.flags.insert(TENSILE_PARTICLE);
@@ -163,7 +164,7 @@ impl<'w, C: Chunk> World<C> {
 
         self.chunk_handler.tick(tick_time, loaders, settings);
 
-        for (_, c) in self.chunk_handler.loaded_chunks.borrow_mut() {
+        for c in self.chunk_handler.loaded_chunks.borrow_mut().values_mut() {
             if c.get_b2_body().is_none() {
                 // if let Some(tr) = c.get_tris() {
                 //     let mut body_def = BodyDef::default();

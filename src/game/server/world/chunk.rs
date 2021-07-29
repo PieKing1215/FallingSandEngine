@@ -82,7 +82,7 @@ impl<'ch> Chunk for ServerChunk {
     }
 
     #[profiling::function]
-    fn apply_diff(&mut self, diff: &Vec<(u16, u16, MaterialInstance)>) {
+    fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]) {
         diff.iter().for_each(|(x, y, mat)| {
             self.set(*x, *y, *mat).unwrap(); // TODO: handle this Err
         });

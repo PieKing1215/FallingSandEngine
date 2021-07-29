@@ -17,7 +17,7 @@ pub struct ClientChunk {
     pub b2_body: Option<Body>,
     pub mesh: Option<Vec<Vec<Vec<Vec<f64>>>>>,
     pub mesh_simplified: Option<Vec<Vec<Vec<Vec<f64>>>>>,
-    pub tris: Option<Vec<Vec<((f64, f64), (f64, f64), (f64, f64))>>>,
+    pub tris: Option<Vec<Vec<mesh::Tri>>>,
 }
 
 impl<'ch> Chunk for ClientChunk {
@@ -104,7 +104,7 @@ impl<'ch> Chunk for ClientChunk {
     }
 
     #[profiling::function]
-    fn apply_diff(&mut self, diff: &Vec<(u16, u16, MaterialInstance)>) {
+    fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]) {
         diff.iter().for_each(|(x, y, mat)| {
             self.set(*x, *y, *mat).unwrap(); // TODO: handle this Err
         });
@@ -197,7 +197,7 @@ impl<'cg> ChunkGraphics {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             // self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
             let i = (x + y * CHUNK_SIZE) as usize;
-            self.pixel_data[i * 4 + 0] = color.r;
+            self.pixel_data[i * 4]     = color.r;
             self.pixel_data[i * 4 + 1] = color.g;
             self.pixel_data[i * 4 + 2] = color.b;
             self.pixel_data[i * 4 + 3] = color.a;

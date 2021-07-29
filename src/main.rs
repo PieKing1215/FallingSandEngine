@@ -1,3 +1,4 @@
+#![allow(clippy::module_inception)]
 
 mod game;
 
@@ -108,7 +109,7 @@ fn main() -> Result<(), String> {
             }
         });
 
-        if let Err(_) = res {
+        if res.is_err() {
             println!("Server crashed, exiting...");
         }else{
             println!("Server shut down successfully.");

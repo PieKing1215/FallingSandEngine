@@ -379,8 +379,7 @@ impl BoxDraw {
         }).collect();
 
         // if colors.is_null() {
-            for i in 0..count as usize {
-                let (x, y) = centers_vec[i];
+            for (x, y) in centers_vec {
                 let col = Color::RGB(255, 100, 100);
                 // let p1 = (x - radius, y - radius);
                 // let p2 = (x + radius, y + radius);

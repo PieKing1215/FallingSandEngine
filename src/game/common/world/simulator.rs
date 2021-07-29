@@ -81,7 +81,7 @@ impl Simulator {
                 let i = index_helper(x, y);
 
                 if graphics {
-                    (*colors[i.0])[i.1 * 4 + 0] = r;
+                    (*colors[i.0])[i.1 * 4    ] = r;
                     (*colors[i.0])[i.1 * 4 + 1] = g;
                     (*colors[i.0])[i.1 * 4 + 2] = b;
                     (*colors[i.0])[i.1 * 4 + 3] = a;
@@ -103,6 +103,7 @@ impl Simulator {
                         let cur = (*pixels[i.0])[i.1];
                         let mut new_mat: Option<MaterialInstance> = None;
 
+                        #[allow(clippy::single_match)]
                         match cur.physics {
                             PhysicsType::Sand => {
                                 let below_i = index_helper(x, y + 1);
@@ -129,26 +130,23 @@ impl Simulator {
                                         (*pixels[below_i.0])[below_i.1] = cur;
                                         new_mat = Some(MaterialInstance::air());
                                     // }
-                                }else {
-                                    if bl_can && br_can {
-                                        if rand::random::<bool>() {
-                                            set_color(x + 1, y + 1, cur.color, true);
-                                            (*pixels[br_i.0])[br_i.1] = cur;
-                                            new_mat = Some(MaterialInstance::air());
-                                        }else{
-                                            set_color(x - 1, y + 1, cur.color, true);
-                                            (*pixels[bl_i.0])[bl_i.1] = cur;
-                                            new_mat = Some(MaterialInstance::air());
-                                        }
-                                    }else if bl_can {
-                                        set_color(x - 1, y + 1, cur.color, true);
-                                        (*pixels[bl_i.0])[bl_i.1] = cur;
-                                        new_mat = Some(MaterialInstance::air());
-                                    }else if br_can {
+                                }else if bl_can && br_can {
+                                    if rand::random::<bool>() {
                                         set_color(x + 1, y + 1, cur.color, true);
                                         (*pixels[br_i.0])[br_i.1] = cur;
-                                        new_mat = Some(MaterialInstance::air());
+                                    }else{
+                                        set_color(x - 1, y + 1, cur.color, true);
+                                        (*pixels[bl_i.0])[bl_i.1] = cur;
                                     }
+                                    new_mat = Some(MaterialInstance::air());
+                                }else if bl_can {
+                                    set_color(x - 1, y + 1, cur.color, true);
+                                    (*pixels[bl_i.0])[bl_i.1] = cur;
+                                    new_mat = Some(MaterialInstance::air());
+                                }else if br_can {
+                                    set_color(x + 1, y + 1, cur.color, true);
+                                    (*pixels[br_i.0])[br_i.1] = cur;
+                                    new_mat = Some(MaterialInstance::air());
                                 }
                             },
                             _ => {},

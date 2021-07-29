@@ -38,41 +38,41 @@ impl WorldGenerator for TestGenerator {
                 let i = (x + y * CHUNK_SIZE) as usize;
                 let v = noise_cave_2[i];
                 let v2 = noise2[i];
-                if v > 0.0 || (x >= 32 && x < 64 && y >= 32 && y < 64 && !((x >= 40 && x < 56 && y >= 40 && y < 56 && !(x >= 47 && x < 49)))) {
+                if v > 0.0 || ((32..64).contains(&x) && (32..64).contains(&y) 
+                            && !((40..56).contains(&x) && (40..56).contains(&y) 
+                            && !(47..49).contains(&x))) {
                     pixels[i] = MaterialInstance::air();
                     // chunk.set(x, y, MaterialInstance::air()).unwrap();
-                } else{
-                    if v2 > 0.0 {
-                        pixels[i] = MaterialInstance {
-                            material_id: TEST_MATERIAL.id,
-                            physics: PhysicsType::Sand,
-                            color: Color::RGB(if v2 <= 0.01 { 255 } else { 64 }, 64, if v2 > 0.01 { 255 } else { 64 }),
-                        };
-                        colors[i*4 + 0] = pixels[i].color.r;
-                        colors[i*4 + 1] = pixels[i].color.g;
-                        colors[i*4 + 2] = pixels[i].color.b;
-                        colors[i*4 + 3] = pixels[i].color.a;
-                        // chunk.set(x, y, MaterialInstance {
-                        //     material_id: TEST_MATERIAL.id,
-                        //     physics: crate::game::world::PhysicsType::Solid,
-                        //     color: Color::RGB(0, 0, 255),
-                        // }).unwrap();
-                    }else{
-                        pixels[i] = MaterialInstance {
-                            material_id: TEST_MATERIAL.id,
-                            physics: PhysicsType::Solid,
-                            color: Color::RGB(80, 64, 32),
-                        };
-                        colors[i*4 + 0] = pixels[i].color.r;
-                        colors[i*4 + 1] = pixels[i].color.g;
-                        colors[i*4 + 2] = pixels[i].color.b;
-                        colors[i*4 + 3] = pixels[i].color.a;
-                        // chunk.set(x, y, MaterialInstance {
-                        //     material_id: TEST_MATERIAL.id,
-                        //     physics: crate::game::world::PhysicsType::Solid,
-                        //     color: Color::RGB(0, 255, 0),
-                        // }).unwrap();
-                    }
+                } else if v2 > 0.0 {
+                    pixels[i] = MaterialInstance {
+                        material_id: TEST_MATERIAL.id,
+                        physics: PhysicsType::Sand,
+                        color: Color::RGB(if v2 <= 0.01 { 255 } else { 64 }, 64, if v2 > 0.01 { 255 } else { 64 }),
+                    };
+                    colors[i * 4    ] = pixels[i].color.r;
+                    colors[i * 4 + 1] = pixels[i].color.g;
+                    colors[i * 4 + 2] = pixels[i].color.b;
+                    colors[i * 4 + 3] = pixels[i].color.a;
+                    // chunk.set(x, y, MaterialInstance {
+                    //     material_id: TEST_MATERIAL.id,
+                    //     physics: crate::game::world::PhysicsType::Solid,
+                    //     color: Color::RGB(0, 0, 255),
+                    // }).unwrap();
+                }else{
+                    pixels[i] = MaterialInstance {
+                        material_id: TEST_MATERIAL.id,
+                        physics: PhysicsType::Solid,
+                        color: Color::RGB(80, 64, 32),
+                    };
+                    colors[i * 4    ] = pixels[i].color.r;
+                    colors[i * 4 + 1] = pixels[i].color.g;
+                    colors[i * 4 + 2] = pixels[i].color.b;
+                    colors[i * 4 + 3] = pixels[i].color.a;
+                    // chunk.set(x, y, MaterialInstance {
+                    //     material_id: TEST_MATERIAL.id,
+                    //     physics: crate::game::world::PhysicsType::Solid,
+                    //     color: Color::RGB(0, 255, 0),
+                    // }).unwrap();
                 }
             }
         }

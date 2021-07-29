@@ -74,7 +74,7 @@ impl<'a> Renderer<'a> {
                 include_str!("../../../../assets/data/shaders/liquid.frag"))?,
         };
 
-        return Ok(Renderer {
+        Ok(Renderer {
             fonts: None,
             shaders,
             target: RefCell::new(target),
@@ -83,7 +83,7 @@ impl<'a> Renderer<'a> {
             imgui_sdl2,
             imgui_renderer: renderer,
             world_renderer: WorldRenderer::new(),
-        });
+        })
     }
 
     #[profiling::function]
@@ -116,16 +116,16 @@ impl<'a> Renderer<'a> {
 
                 ui.text(match game.process_stats.cpu_usage {
                     Some(c) => format!("CPU: {:.0}%", c),
-                    None => format!("CPU: n/a"),
+                    None => "CPU: n/a".to_string(),
                 });
                 ui.same_line(0.0);
                 ui.text(match game.process_stats.memory {
                     Some(m) => format!(" mem: {:.1} MB", m as f32 / 1000.0),
-                    None => format!(" mem: n/a"),
+                    None => " mem: n/a".to_string(),
                 });
 
-                let nums: Vec<f32> = game.fps_counter.frame_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
-                let avg_mspt: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+                let nums: Vec<&f32> = game.fps_counter.frame_times.iter().filter(|n| **n != 0.0).collect();
+                let avg_mspt: f32 = nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
                 ui.plot_lines(im_str!(""), &game.fps_counter.frame_times)
                     .graph_size([200.0, 50.0])
@@ -134,8 +134,8 @@ impl<'a> Renderer<'a> {
                     .overlay_text(im_str!("mspf: {:.2} fps: {:.0}", avg_mspt, ui.io().framerate).as_ref())
                     .build();
 
-                let nums: Vec<f32> = game.fps_counter.tick_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
-                let avg_mspt: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+                let nums: Vec<&f32> = game.fps_counter.tick_times.iter().filter(|n| **n != 0.0).collect();
+                let avg_mspt: f32 = nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
                 ui.plot_histogram(im_str!(""), &game.fps_counter.tick_times)
                     .graph_size([200.0, 50.0])
@@ -145,8 +145,8 @@ impl<'a> Renderer<'a> {
                     .build();
                 
                     
-                let nums: Vec<f32> = game.fps_counter.tick_lqf_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
-                let avg_mspt: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+                let nums: Vec<&f32> = game.fps_counter.tick_lqf_times.iter().filter(|n| **n != 0.0).collect();
+                let avg_mspt: f32 = nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
                 ui.plot_histogram(im_str!(""), &game.fps_counter.tick_lqf_times)
                     .graph_size([200.0, 50.0])
