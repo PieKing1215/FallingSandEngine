@@ -1,5 +1,5 @@
 
-use imgui::*;
+use imgui::{ComboBox, Slider, SliderFlags, TreeNode, WindowFlags, im_str};
 use crate::game::common::Settings;
 
 impl Settings {

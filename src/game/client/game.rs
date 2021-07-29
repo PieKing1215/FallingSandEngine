@@ -84,7 +84,7 @@ impl Game<ClientChunk> {
                         Event::MouseWheel { y, .. } => {
                             if let Some(c) = &mut self.client {
                                 if shift_key {
-                                    let mut v = c.camera.scale + 0.1 * y as f64;
+                                    let mut v = c.camera.scale + 0.1 * f64::from(y);
                                     if y > 0 {
                                         v = v.ceil();
                                     }else {
@@ -94,7 +94,7 @@ impl Game<ClientChunk> {
                                     v = v.clamp(1.0, 10.0);
                                     c.camera.scale = v;
                                 }else{
-                                    c.camera.scale = (c.camera.scale * (1.0 + 0.1 * y as f64)).clamp(0.01, 10.0);
+                                    c.camera.scale = (c.camera.scale * (1.0 + 0.1 * f64::from(y))).clamp(0.01, 10.0);
                                 }
                             }
                         },
@@ -102,8 +102,8 @@ impl Game<ClientChunk> {
                             if let Some(w) = &mut self.world {
                                 if let Some(ref r) = renderer {
                                     if let Some(ref c) = &mut self.client {
-                                        let world_x = c.camera.x + (x as f64 - r.window.size().0 as f64 / 2.0) / c.camera.scale;
-                                        let world_y = c.camera.y + (y as f64 - r.window.size().1 as f64 / 2.0) / c.camera.scale;
+                                        let world_x = c.camera.x + (f64::from(x) - f64::from(r.window.size().0) / 2.0) / c.camera.scale;
+                                        let world_y = c.camera.y + (f64::from(y) - f64::from(r.window.size().1) / 2.0) / c.camera.scale;
                                         let (chunk_x, chunk_y) = w.chunk_handler.pixel_to_chunk_pos(world_x as i64, world_y as i64);
                                         w.chunk_handler.force_update_chunk(chunk_x, chunk_y);
                                     }
@@ -115,15 +115,15 @@ impl Game<ClientChunk> {
                                 if let Some(c) = &mut self.client {
                                     // this doesn't do anything if game.client_entity_id exists
                                     //     since the renderer will snap the camera to the client entity
-                                    c.camera.x -= (xrel as f64) / c.camera.scale;
-                                    c.camera.y -= (yrel as f64) / c.camera.scale;
+                                    c.camera.x -= f64::from(xrel) / c.camera.scale;
+                                    c.camera.y -= f64::from(yrel) / c.camera.scale;
                                 }
                             }else if mousestate.middle() {
                                 if let Some(w) = &mut self.world {
                                     if let Some(ref c) = &mut self.client {
                                         if let Some(ref r) = renderer {
-                                            let world_x = c.camera.x + (x as f64 - r.window.size().0 as f64 / 2.0) / c.camera.scale;
-                                            let world_y = c.camera.y + (y as f64 - r.window.size().1 as f64 / 2.0) / c.camera.scale;
+                                            let world_x = c.camera.x + (f64::from(x) - f64::from(r.window.size().0) / 2.0) / c.camera.scale;
+                                            let world_y = c.camera.y + (f64::from(y) - f64::from(r.window.size().1) / 2.0) / c.camera.scale;
 
                                             for xx in -3..=3 {
                                                 for yy in -3..=3 {
@@ -136,6 +136,7 @@ impl Game<ClientChunk> {
                             }
                         },
                         Event::Window{win_event: WindowEvent::Resized(w, h), ..} => {
+                            #[allow(clippy::cast_sign_loss)]
                             GPUSubsystem::set_window_resolution(w as u16, h as u16);
                         },
                         _ => {}
@@ -235,7 +236,7 @@ impl Game<ClientChunk> {
         
                                 // println!("[CLIENT] read_to_end...");
                                 let prev_size = buf.len();
-                                match std::io::Read::by_ref(stream).take(size as u64).read_to_end(buf) {
+                                match std::io::Read::by_ref(stream).take(u64::from(size)).read_to_end(buf) {
                                 // match stream.read_exact(&mut buf) {
                                     Ok(read) => {
 
@@ -339,7 +340,7 @@ impl Game<ClientChunk> {
                 self.fps_counter.tick_times.rotate_left(1);
                 self.fps_counter.tick_times[self.fps_counter.tick_times.len() - 1] = Instant::now().saturating_duration_since(st).as_nanos() as f32;
             }
-            do_tick_next = can_tick && now.saturating_duration_since(prev_tick_time).as_nanos() > 1_000_000_000 / self.settings.tick_speed as u128; // intended is 30 ticks per second
+            do_tick_next = can_tick && now.saturating_duration_since(prev_tick_time).as_nanos() > 1_000_000_000 / u128::from(self.settings.tick_speed); // intended is 30 ticks per second
 
             // tick liquidfun
 
@@ -362,7 +363,7 @@ impl Game<ClientChunk> {
                     }
                 }
             }
-            do_tick_lqf_next = can_tick && now.saturating_duration_since(prev_tick_lqf_time).as_nanos() > 1_000_000_000 / self.settings.tick_lqf_speed as u128; // intended is 60 ticks per second
+            do_tick_lqf_next = can_tick && now.saturating_duration_since(prev_tick_lqf_time).as_nanos() > 1_000_000_000 / u128::from(self.settings.tick_lqf_speed); // intended is 60 ticks per second
 
             // render
 
@@ -379,7 +380,7 @@ impl Game<ClientChunk> {
                     self.fps_counter.display_value = self.fps_counter.frames;
                     self.fps_counter.frames = 0;
                     self.fps_counter.last_update = now;
-                    let set = r.window.set_title(format!("FallingSandRust ({} FPS) ({})", self.fps_counter.display_value, self.world.as_ref().map(|w| format!("{:?}", w.net_mode)).unwrap_or_else(|| "unknown".to_owned())).as_str());
+                    let set = r.window.set_title(format!("FallingSandRust ({} FPS) ({})", self.fps_counter.display_value, self.world.as_ref().map_or_else(|| "unknown".to_owned(), |w| format!("{:?}", w.net_mode))).as_str());
                     if set.is_err() {
                         eprintln!("Failed to set window title.");
                     }

@@ -19,16 +19,16 @@ pub fn pixels_to_valuemap(pixels: &[MaterialInstance]) -> Vec<f64> {
     }).collect()
 }
 
-pub fn generate_mesh_only_simplified(values: Vec<f64>, width: u32, height: u32) -> Result<Mesh, String> {
+pub fn generate_mesh_only_simplified(values: &[f64], width: u32, height: u32) -> Result<Mesh, String> {
     generate_mesh_with_simplified(values, width, height).map(|t| t.1)
 }
 
 #[allow(dead_code)]
-pub fn generate_mesh_only_unsimplified(values: Vec<f64>, width: u32, height: u32) -> Result<Mesh, String> {
+pub fn generate_mesh_only_unsimplified(values: &[f64], width: u32, height: u32) -> Result<Mesh, String> {
     generate_mesh_with_simplified(values, width, height).map(|t| t.0)
 }
 
-pub fn generate_mesh_with_simplified(values: Vec<f64>, width: u32, height: u32) -> Result<(Mesh, Mesh), String> {
+pub fn generate_mesh_with_simplified(values: &[f64], width: u32, height: u32) -> Result<(Mesh, Mesh), String> {
     if values.len() as u32 != width * height {
         return Err(format!("generate_mesh failed: Dimension mismatch (w*h = {}*{} = {}, but values.len() = {})", width, height, width * height, values.len() as u32));
     }
@@ -49,20 +49,20 @@ pub fn generate_mesh_with_simplified(values: Vec<f64>, width: u32, height: u32) 
 
                             // this extra manipulation helps seal the seams on chunk edges during the later mesh simplification
 
-                            if (y == 0.0 || (y - height as f64).abs() < f64::EPSILON) && (x - 0.5).abs() < f64::EPSILON {
+                            if (y == 0.0 || (y - f64::from(height)).abs() < f64::EPSILON) && (x - 0.5).abs() < f64::EPSILON {
                                 x = 0.0;
                             }
 
-                            if (x == 0.0 || (x - width as f64).abs() < f64::EPSILON) && (y - 0.5).abs() < f64::EPSILON {
+                            if (x == 0.0 || (x - f64::from(width)).abs() < f64::EPSILON) && (y - 0.5).abs() < f64::EPSILON {
                                 y = 0.0;
                             }
 
-                            if (y == 0.0 || (y - height as f64).abs() < f64::EPSILON) && (x - (width as f64 - 0.5)).abs() < f64::EPSILON {
-                                x = width as f64;
+                            if (y == 0.0 || (y - f64::from(height)).abs() < f64::EPSILON) && (x - (f64::from(width) - 0.5)).abs() < f64::EPSILON {
+                                x = f64::from(width);
                             }
 
-                            if (x == 0.0 || (x - width as f64).abs() < f64::EPSILON) && (y - (height as f64 - 0.5)).abs() < f64::EPSILON {
-                                y = height as f64;
+                            if (x == 0.0 || (x - f64::from(width)).abs() < f64::EPSILON) && (y - (f64::from(height) - 0.5)).abs() < f64::EPSILON {
+                                y = f64::from(height);
                             }
 
                             x = x.round() - 0.5;

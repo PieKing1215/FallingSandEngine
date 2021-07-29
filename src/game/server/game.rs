@@ -89,13 +89,13 @@ impl Game<ServerChunk> {
                     let mut buf = Vec::with_capacity(size as usize);
 
                     debug!("read_to_end...");
-                    match std::io::Read::by_ref(&mut c.0).take(size as u64).read_to_end(&mut buf) {
+                    match std::io::Read::by_ref(&mut c.0).take(u64::from(size)).read_to_end(&mut buf) {
                         Ok(_) => {
                             debug!("Read {} bytes.", buf.len());
                             let p: Packet = bincode::deserialize(&buf).expect("Failed to deserialize packet.");
                             debug!("Recieved packet from {:?}: {:?}", c.1, match p.packet_type {
                                 PacketType::SyncChunkPacket{..} => "SyncChunkPacket",
-                                _ => "???",
+                                PacketType::SyncLiquidFunPacket{ .. } => "SyncLiquidFunPacket",
                             });
                         },
                         Err(e) => {
@@ -118,7 +118,7 @@ impl Game<ServerChunk> {
                     warn!(target: "", "50+ ms behind, skipping some ticks to catch up...");
                     prev_tick_time = now;
                 }else{
-                    prev_tick_time = prev_tick_time.add(Duration::from_nanos(1_000_000_000 / self.settings.tick_speed as u64));
+                    prev_tick_time = prev_tick_time.add(Duration::from_nanos(1_000_000_000 / u64::from(self.settings.tick_speed)));
                 }
                 let st = Instant::now();
                 self.tick();
@@ -232,7 +232,7 @@ impl Game<ServerChunk> {
 
                 self.fps_counter.ticks += 1;
             }
-            do_tick_next = can_tick && now.saturating_duration_since(prev_tick_time).as_nanos() > 1_000_000_000 / self.settings.tick_speed as u128; // intended is 30 ticks per second
+            do_tick_next = can_tick && now.saturating_duration_since(prev_tick_time).as_nanos() > 1_000_000_000 / u128::from(self.settings.tick_speed); // intended is 30 ticks per second
 
             // tick liquidfun
 
@@ -243,7 +243,7 @@ impl Game<ServerChunk> {
                     warn!(target: "", "liquidfun 50+ ms behind, skipping some ticks to catch up...");
                     prev_tick_lqf_time = now;
                 }else{
-                    prev_tick_lqf_time = prev_tick_lqf_time.add(Duration::from_nanos(1_000_000_000 / self.settings.tick_lqf_speed as u64));
+                    prev_tick_lqf_time = prev_tick_lqf_time.add(Duration::from_nanos(1_000_000_000 / u64::from(self.settings.tick_lqf_speed)));
                 }
                 if let Some(w) = &mut self.world {
                     let st = Instant::now();
@@ -284,7 +284,7 @@ impl Game<ServerChunk> {
                     
                 }
             }
-            do_tick_lqf_next = can_tick && now.saturating_duration_since(prev_tick_lqf_time).as_nanos() > 1_000_000_000 / self.settings.tick_lqf_speed as u128; // intended is 60 ticks per second
+            do_tick_lqf_next = can_tick && now.saturating_duration_since(prev_tick_lqf_time).as_nanos() > 1_000_000_000 / u128::from(self.settings.tick_lqf_speed); // intended is 60 ticks per second
 
             // render
 
@@ -403,25 +403,25 @@ impl Game<ServerChunk> {
         // main right
 
         let nums: Vec<&f32> = self.fps_counter.frame_times.iter().filter(|n| **n != 0.0).collect();
-        let avg_mspf: f32 = nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+        let avg_ms_frame: f32 = nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
         let nums: Vec<&f32> = self.fps_counter.tick_times.iter().filter(|n| **n != 0.0).collect();
-        let avg_mspt: f32 = nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+        let avg_ms_tick: f32 = nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
         let nums: Vec<&f32> = self.fps_counter.tick_lqf_times.iter().filter(|n| **n != 0.0).collect();
         let avg_msplqft: f32 = nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-        let fps_style = Style::default();
+        let frames_style = Style::default();
 
-        let tps_style = match self.fps_counter.tick_display_value {
+        let ticks_style = match self.fps_counter.tick_display_value {
             0..=20 => Style::default().fg(tui::style::Color::LightRed),
             21..=27 => Style::default().fg(tui::style::Color::Yellow),
             _ => Style::default().fg(tui::style::Color::LightGreen),
         };
 
-        let mspt_style = if avg_mspt < 37.04 { // 27 tps
+        let mspt_style = if avg_ms_tick < 37.04 { // 27 tps
             Style::default().fg(tui::style::Color::LightGreen)
-        }else if avg_mspt < 47.62 { // 21 tps
+        }else if avg_ms_tick < 47.62 { // 21 tps
             Style::default().fg(tui::style::Color::Yellow)
         }else {
             Style::default().fg(tui::style::Color::LightRed)
@@ -438,16 +438,16 @@ impl Game<ServerChunk> {
         let text = vec![
             Spans::from(vec![
                 Span::raw("FPS: "),
-                Span::styled(format!("{}", self.fps_counter.display_value), fps_style),
+                Span::styled(format!("{}", self.fps_counter.display_value), frames_style),
             ]),
             Spans::from(vec![
                 Span::raw("TPS: "),
-                Span::styled(format!("{}", self.fps_counter.tick_display_value), tps_style),
+                Span::styled(format!("{}", self.fps_counter.tick_display_value), ticks_style),
             ]),
-            Spans::from(format!("mspf: {:.2}", avg_mspf)),
+            Spans::from(format!("mspf: {:.2}", avg_ms_frame)),
             Spans::from(vec![
                 Span::raw("mspt: "),
-                Span::styled(format!("{:.2}", avg_mspt), mspt_style),
+                Span::styled(format!("{:.2}", avg_ms_tick), mspt_style),
             ]),
             Spans::from(vec![
                 Span::raw("msplqft: "),

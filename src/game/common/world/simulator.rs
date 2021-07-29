@@ -1,6 +1,6 @@
 use sdl2::{pixels::Color, rect::Rect};
 
-use crate::game::common::world::material::*;
+use crate::game::common::world::material::{MaterialInstance, PhysicsType};
 use crate::game::common::world::CHUNK_SIZE;
 
 
@@ -67,9 +67,9 @@ impl Simulator {
             // };
 
             let index_helper = |x: i32, y: i32| {
-                let size = CHUNK_SIZE as i32;
-                let rel_chunk_x = (x as f32 / CHUNK_SIZE as f32).floor() as i8;
-                let rel_chunk_y = (y as f32 / CHUNK_SIZE as f32).floor() as i8;
+                let size = i32::from(CHUNK_SIZE);
+                let rel_chunk_x = (x as f32 / f32::from(CHUNK_SIZE)).floor() as i8;
+                let rel_chunk_y = (y as f32 / f32::from(CHUNK_SIZE)).floor() as i8;
                 
                 let chunk_px_x = x.rem_euclid(size) as u16;
                 let chunk_px_y = y.rem_euclid(size) as u16;
@@ -164,7 +164,7 @@ impl Simulator {
                 if min_x[i] == CHUNK_SIZE + 1 {
                     dirty_rects[i] = None;
                 }else{
-                    dirty_rects[i] = Some(Rect::new(min_x[i] as i32, min_y[i] as i32, (max_x[i] - min_x[i]) as u32 + 1, (max_y[i] - min_y[i]) as u32 + 1));
+                    dirty_rects[i] = Some(Rect::new(i32::from(min_x[i]), i32::from(min_y[i]), u32::from(max_x[i] - min_x[i]) + 1, u32::from(max_y[i] - min_y[i]) + 1));
                 }
             }
 

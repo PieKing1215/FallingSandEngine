@@ -1,7 +1,7 @@
 use std::{iter, ptr::slice_from_raw_parts};
 
 use liquidfun::box2d::common::{b2draw::{self, B2Draw_New, b2Color, b2ParticleColor, b2Transform, b2Vec2, int32}, math::Vec2};
-use sdl2::{libc, pixels::Color, rect::Rect};
+use sdl2::{pixels::Color, rect::Rect};
 use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, shaders::Shader, sys::{GPU_FilterEnum, GPU_FormatEnum, GPU_SetBlendMode}};
 
 use crate::game::{client::{Client, render::{Fonts, RenderCanvas, Renderable, Sdl2Context, Shaders, TransformStack}}, common::{Settings, world::{CHUNK_SIZE, ChunkState, LIQUIDFUN_SCALE, World, gen::WorldGenerator}}};
@@ -49,6 +49,8 @@ impl WorldRenderer {
         }
     }
 
+    #[warn(clippy::too_many_arguments)]
+    #[warn(clippy::too_many_lines)]
     pub fn render(&mut self, world: &mut World<ClientChunk>, target: &mut GPUTarget, transform: &mut TransformStack, delta_time: f64, sdl: &Sdl2Context, fonts: &Fonts, settings: &Settings, shaders: &Shaders, client: &mut Option<Client>) {
 
         if world.lqf_world.get_debug_draw().is_none() {
@@ -68,11 +70,7 @@ impl WorldRenderer {
 
         let loader_pos = match client {
             Some(Client{world: Some(ClientWorld{local_entity_id: Some(eid)}), .. }) => {
-                if let Some(e) = world.get_entity_mut(*eid) {
-                    (e.x, e.y)
-                }else {
-                    (client.as_mut().unwrap().camera.x, client.as_mut().unwrap().camera.y)
-                }
+                world.get_entity_mut(*eid).map_or_else(|| (client.as_mut().unwrap().camera.x, client.as_mut().unwrap().camera.y), |e| (e.x, e.y))
             },
             _ => (client.as_mut().unwrap().camera.x, client.as_mut().unwrap().camera.y)
         };
@@ -80,7 +78,7 @@ impl WorldRenderer {
         let camera = &mut client.as_mut().unwrap().camera;
 
         transform.push();
-        transform.translate(target.width() as f64 / 2.0, target.height() as f64 / 2.0);
+        transform.translate(f64::from(target.width()) / 2.0, f64::from(target.height()) / 2.0);
         transform.scale(camera.scale, camera.scale);
         transform.translate(-camera.x, -camera.y);
 
@@ -96,10 +94,10 @@ impl WorldRenderer {
         // }
 
         world.chunk_handler.loaded_chunks.iter().for_each(|(_i, ch)| {
-            let rc = Rect::new(ch.chunk_x * CHUNK_SIZE as i32, ch.chunk_y * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
+            let rc = Rect::new(ch.chunk_x * i32::from(CHUNK_SIZE), ch.chunk_y * i32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
             if (settings.debug && !settings.cull_chunks) || rc.has_intersection(screen_zone){
                 transform.push();
-                transform.translate(ch.chunk_x * CHUNK_SIZE as i32, ch.chunk_y * CHUNK_SIZE as i32);
+                transform.translate(ch.chunk_x * i32::from(CHUNK_SIZE), ch.chunk_y * i32::from(CHUNK_SIZE));
                 ch.render(target, transform, sdl, fonts, settings);
 
                 if settings.debug && settings.draw_chunk_dirty_rects {
@@ -109,7 +107,7 @@ impl WorldRenderer {
                         target.rectangle2(rect, Color::RGBA(255, 64, 64, 127));
                     }
                     if ch.graphics.was_dirty {
-                        let rect = transform.transform_rect(Rect::new(0, 0, CHUNK_SIZE as u32, CHUNK_SIZE as u32));
+                        let rect = transform.transform_rect(Rect::new(0, 0, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE)));
                         target.rectangle_filled2(rect, Color::RGBA(255, 255, 64, 127));
                         target.rectangle2(rect, Color::RGBA(255, 255, 64, 127));
                     }
@@ -128,7 +126,7 @@ impl WorldRenderer {
                         color = Color::RGBA(127, 127, 127, alpha);
                     },
                     ChunkState::Generating(stage) => {
-                        color = Color::RGBA(64, (stage as f32 / world.chunk_handler.generator.max_gen_stage() as f32 * 255.0) as u8, 255, alpha);
+                        color = Color::RGBA(64, (f32::from(stage) / f32::from(world.chunk_handler.generator.max_gen_stage()) * 255.0) as u8, 255, alpha);
                     },
                     ChunkState::Cached => {
                         color = Color::RGBA(255, 127, 64, alpha);
@@ -227,7 +225,7 @@ impl WorldRenderer {
         if settings.debug && settings.lqf_dbg_draw {
             transform.push();
             transform.scale(LIQUIDFUN_SCALE, LIQUIDFUN_SCALE);
-            world.lqf_world.debug_draw(&mut data as *mut _ as *mut libc::c_void);
+            world.lqf_world.debug_draw((&mut data as *mut Option<(usize, usize)>).cast::<std::ffi::c_void>());
             transform.pop();
         }
 
@@ -248,9 +246,9 @@ impl WorldRenderer {
         if settings.debug && settings.draw_chunk_grid {
             for x in -10..10 {
                 for y in -10..10 {
-                    let rcx = x + (camera.x / CHUNK_SIZE as f64) as i32;
-                    let rcy = y + (camera.y / CHUNK_SIZE as f64) as i32;
-                    let rc = Rect::new(rcx * CHUNK_SIZE as i32, rcy * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
+                    let rc_x = x + (camera.x / f64::from(CHUNK_SIZE)) as i32;
+                    let rc_y = y + (camera.y / f64::from(CHUNK_SIZE)) as i32;
+                    let rc = Rect::new(rc_x * i32::from(CHUNK_SIZE), rc_y * i32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
                     target.rectangle2(transform.transform_rect(rc), Color::RGBA(64, 64, 64, 127))
                 }
             }
@@ -296,7 +294,7 @@ impl BoxDraw {
         color: *const b2Color,
         user_data: *mut ::std::os::raw::c_void,
     ) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(user_data as *mut B2DebugDrawContext)).unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *user_data.cast::<B2DebugDrawContext>()).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
         
@@ -315,7 +313,7 @@ impl BoxDraw {
         color: *const b2Color,
         user_data: *mut ::std::os::raw::c_void,
     ) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(user_data as *mut B2DebugDrawContext)).unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *user_data.cast::<B2DebugDrawContext>()).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
         
@@ -334,7 +332,7 @@ impl BoxDraw {
         color: *const b2Color,
         user_data: *mut ::std::os::raw::c_void,
     ) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(user_data as *mut B2DebugDrawContext)).unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *user_data.cast::<B2DebugDrawContext>()).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
 
@@ -352,7 +350,7 @@ impl BoxDraw {
         color: *const b2Color,
         user_data: *mut ::std::os::raw::c_void,
     ) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(user_data as *mut B2DebugDrawContext)).unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *user_data.cast::<B2DebugDrawContext>()).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
 
@@ -370,7 +368,7 @@ impl BoxDraw {
         count: int32,
         user_data: *mut ::std::os::raw::c_void,
     ) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(user_data as *mut B2DebugDrawContext)).unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *user_data.cast::<B2DebugDrawContext>()).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
         
@@ -410,7 +408,7 @@ impl BoxDraw {
         color: *const b2Color,
         user_data: *mut ::std::os::raw::c_void,
     ) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(user_data as *mut B2DebugDrawContext)).unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *user_data.cast::<B2DebugDrawContext>()).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
         
@@ -418,28 +416,32 @@ impl BoxDraw {
         let pt1 = *p1;
         let pt2 = *p2;
 
-        let (p1x, p1y) = transform.transform((pt1.x, pt1.y));
-        let (p2x, p2y) = transform.transform((pt2.x, pt2.y));
+        let (p1_x, p1_y) = transform.transform((pt1.x, pt1.y));
+        let (p2_x, p2_y) = transform.transform((pt2.x, pt2.y));
 
-        canvas.line(p1x as f32, p1y as f32, p2x as f32, p2y as f32, Color::RGB((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8));
+        canvas.line(p1_x as f32, p1_y as f32, p2_x as f32, p2_y as f32, Color::RGB((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8));
     }
 
     pub unsafe extern "C" fn draw_transform(xf: *const b2Transform, user_data: *mut ::std::os::raw::c_void) {
-        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *(user_data as *mut B2DebugDrawContext)).unwrap();
+        let (canvas_ptr_raw, transform_ptr_raw) = (&mut *user_data.cast::<B2DebugDrawContext>()).unwrap();
         let canvas = &mut *(canvas_ptr_raw as *mut RenderCanvas);
         let transform = &*(transform_ptr_raw as *const TransformStack);
 
         let axis_scale = 1.0;
         let p1 = (*xf).p;
 
-        let p2 = b2Vec2 { x: (*xf).q.c * axis_scale + p1.x, y: (*xf).q.s * axis_scale + p1.y };
-        let (p1_x, p1_y) = transform.transform((p1.x, p1.y));
-        let (p2_x, p2_y) = transform.transform((p2.x, p2.y));
-        canvas.line(p1_x as f32, p1_y as f32, p2_x as f32, p2_y as f32, Color::RGB(0xff, 0, 0));
+        {
+            let p2 = b2Vec2 { x: (*xf).q.c * axis_scale + p1.x, y: (*xf).q.s * axis_scale + p1.y };
+            let (p1_x, p1_y) = transform.transform((p1.x, p1.y));
+            let (p2_x, p2_y) = transform.transform((p2.x, p2.y));
+            canvas.line(p1_x as f32, p1_y as f32, p2_x as f32, p2_y as f32, Color::RGB(0xff, 0, 0));
+        }
 
-        let p2 = b2Vec2 { x: -(*xf).q.s * axis_scale + p1.x, y: (*xf).q.c * axis_scale + p1.y };
-        let (p1_x, p1_y) = transform.transform_int((p1.x, p1.y));
-        let (p2_x, p2_y) = transform.transform_int((p2.x, p2.y));
-        canvas.line(p1_x as f32, p1_y as f32, p2_x as f32, p2_y as f32, Color::RGB(0, 0xff, 0));
+        {
+            let p2 = b2Vec2 { x: -(*xf).q.s * axis_scale + p1.x, y: (*xf).q.c * axis_scale + p1.y };
+            let (p1_x, p1_y) = transform.transform_int((p1.x, p1.y));
+            let (p2_x, p2_y) = transform.transform_int((p2.x, p2.y));
+            canvas.line(p1_x as f32, p1_y as f32, p2_x as f32, p2_y as f32, Color::RGB(0, 0xff, 0));
+        }
     }
 }

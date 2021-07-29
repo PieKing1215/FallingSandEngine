@@ -1,4 +1,18 @@
+
+#![deny(clippy::all)]
+#![deny(clippy::cargo)]
+#![warn(clippy::pedantic)]
+
+#![allow(clippy::multiple_crate_versions)]
+
+#![allow(clippy::struct_excessive_bools)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::let_underscore_drop)]
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::cast_sign_loss)]
 #![allow(clippy::module_inception)]
+#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::items_after_statements)]
 
 mod game;
 
@@ -22,6 +36,7 @@ use crate::game::client::world::ClientWorld;
 use crate::game::common::world::entity::Entity;
 use crate::game::server::world::ServerChunk;
 
+#[allow(clippy::needless_pass_by_value)]
 fn is_type<T: FromStr>(val: String) -> Result<(), String>
 where <T as std::str::FromStr>::Err : std::string::ToString {
     match val.parse::<T>() {

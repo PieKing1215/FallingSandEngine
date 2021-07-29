@@ -92,7 +92,7 @@ impl<'ch> Chunk for ClientChunk {
                 px[i] = mat;
                 self.graphics.set(x, y, px[i].color)?;
 
-                self.dirty_rect = Some(Rect::new(0, 0, CHUNK_SIZE as u32, CHUNK_SIZE as u32));
+                self.dirty_rect = Some(Rect::new(0, 0, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE)));
 
                 return Ok(());
             }
@@ -105,9 +105,9 @@ impl<'ch> Chunk for ClientChunk {
 
     #[profiling::function]
     fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]) {
-        diff.iter().for_each(|(x, y, mat)| {
+        for (x, y, mat) in diff {
             self.set(*x, *y, *mat).unwrap(); // TODO: handle this Err
-        });
+        }
     }
 
     fn set_pixels(&mut self, pixels: &[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]) {
@@ -145,17 +145,14 @@ impl<'ch> Chunk for ClientChunk {
 
         let vs: Vec<f64> = mesh::pixels_to_valuemap(&self.pixels.unwrap());
 
-        let generated = mesh::generate_mesh_with_simplified(vs, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
+        let generated = mesh::generate_mesh_with_simplified(&vs, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
 
-        match generated {
-            Ok(r) => {
-                self.mesh = Some(r.0);
-                self.mesh_simplified = Some(r.1);
-            },
-            Err(_) => {
-                self.mesh = None;
-                self.mesh_simplified = None;
-            },
+        if let Ok(r) = generated {
+            self.mesh = Some(r.0);
+            self.mesh_simplified = Some(r.1);
+        } else {
+            self.mesh = None;
+            self.mesh_simplified = None;
         }
 
         self.tris = self.mesh_simplified.as_ref().map(mesh::triangulate);
@@ -224,6 +221,7 @@ impl<'cg> ChunkGraphics {
     }
 
     #[profiling::function]
+    #[allow(clippy::cast_lossless)]
     pub fn replace(&mut self, colors: [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]){
         // let sf = Surface::from_data(&mut colors, CHUNK_SIZE as u32, CHUNK_SIZE as u32, self.surface.pitch(), self.surface.pixel_format_enum()).unwrap();
         // sf.blit(None, &mut self.surface, None).unwrap();
@@ -288,8 +286,8 @@ impl Renderable for ClientChunk {
             }
         }else if settings.debug && settings.draw_chunk_collision == 3 {
             if let Some(t) = &self.tris {
-                t.iter().for_each(|part| {
-                    part.iter().for_each(|tri| {
+                for part in t {
+                    for tri in part {
                         let (x1, y1) = transform.transform(tri.0);
                         let (x2, y2) = transform.transform(tri.1);
                         let (x3, y3) = transform.transform(tri.2);
@@ -299,8 +297,8 @@ impl Renderable for ClientChunk {
                         canvas.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, color);
                         canvas.line(x2 as f32, y2 as f32, x3 as f32, y3 as f32, color);
                         canvas.line(x3 as f32, y3 as f32, x1 as f32, y1 as f32, color);
-                    });
-                });
+                    }
+                }
             }
         }
     }
@@ -308,7 +306,7 @@ impl Renderable for ClientChunk {
 
 impl Renderable for ChunkGraphics {
     fn render(&self, target : &mut GPUTarget, transform: &mut TransformStack, _sdl: &Sdl2Context, _fonts: &Fonts, _settings: &Settings) {
-        let chunk_rect = transform.transform_rect(Rect::new(0, 0, CHUNK_SIZE as u32, CHUNK_SIZE as u32));
+        let chunk_rect = transform.transform_rect(Rect::new(0, 0, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE)));
 
         if let Some(tex) = &self.texture {
             tex.blit_rect(None, target, Some(chunk_rect));

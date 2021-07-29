@@ -116,7 +116,7 @@ impl<'w, C: Chunk> World<C> {
             surface_tension_pressure_strength: 0.1, 
             surface_tension_normal_strength: 0.1, 
             damping_strength: 0.001, 
-            ..Default::default() 
+            ..ParticleSystemDef::default() 
         };
 	    let particle_system = lqf_world.create_particle_system(&particle_system_def);
         let mut pd = ParticleDef::default();
@@ -160,9 +160,9 @@ impl<'w, C: Chunk> World<C> {
 
     #[profiling::function]
     pub fn tick(&mut self, tick_time: u32, settings: &Settings){
-        let loaders = self.entities.iter().map(|(_id, e)| (e.x, e.y)).collect();
+        let loaders: Vec<_> = self.entities.iter().map(|(_id, e)| (e.x, e.y)).collect();
 
-        self.chunk_handler.tick(tick_time, loaders, settings);
+        self.chunk_handler.tick(tick_time, &loaders, settings);
 
         for c in self.chunk_handler.loaded_chunks.borrow_mut().values_mut() {
             if c.get_b2_body().is_none() {
@@ -191,34 +191,34 @@ impl<'w, C: Chunk> World<C> {
 
                 if let Some(loops) = c.get_mesh_loops() {
                     let mut body_def = BodyDef::default();
-                    body_def.position.set((c.get_chunk_x() * CHUNK_SIZE as i32) as f32 / LIQUIDFUN_SCALE, (c.get_chunk_y() * CHUNK_SIZE as i32) as f32 / LIQUIDFUN_SCALE);
+                    body_def.position.set((c.get_chunk_x() * i32::from(CHUNK_SIZE)) as f32 / LIQUIDFUN_SCALE, (c.get_chunk_y() * i32::from(CHUNK_SIZE)) as f32 / LIQUIDFUN_SCALE);
                     let mut body = self.lqf_world.create_body(&body_def);
                     body.set_active(false);
 
-                    loops.iter().for_each(|a_loop| {
-                        a_loop.iter().for_each(|pts| {
+                    for a_loop in loops.iter() {
+                        for pts in a_loop.iter() {
                             let mut verts: Vec<Vec2> = Vec::new();
 
-                            pts.iter().for_each(|p| {
+                            for p in pts.iter() {
                                 verts.push(Vec2::new(p[0] as f32 / LIQUIDFUN_SCALE, p[1] as f32 / LIQUIDFUN_SCALE));
-                            });
+                            }
 
                             let mut chain = ChainShape::new();
                             chain.create_chain(&verts, verts.len() as i32);
                             body.create_fixture_from_shape(&chain, 0.0);
-                        });
+                        }
 
-                    });
+                    }
 
                     c.set_b2_body(Some(body));
                 }
             }else {
                 // TODO: profile this and if it's too slow, could stagger it based on tick_time
 
-                let chunk_center_x = c.get_chunk_x() * CHUNK_SIZE as i32 + CHUNK_SIZE as i32 / 2;
-                let chunk_center_y = c.get_chunk_y() * CHUNK_SIZE as i32 + CHUNK_SIZE as i32 / 2;
+                let chunk_center_x = c.get_chunk_x() * i32::from(CHUNK_SIZE) + i32::from(CHUNK_SIZE) / 2;
+                let chunk_center_y = c.get_chunk_y() * i32::from(CHUNK_SIZE) + i32::from(CHUNK_SIZE) / 2;
 
-                let dist = CHUNK_SIZE as f32 * 0.6;
+                let dist = f32::from(CHUNK_SIZE) * 0.6;
                 let should_be_active = self.lqf_world.get_particle_system_list().iter().any(|system| {
                     system.get_position_buffer().iter().any(|pos| (pos.x * LIQUIDFUN_SCALE as f32 - chunk_center_x as f32).abs() < dist && (pos.y * LIQUIDFUN_SCALE as f32 - chunk_center_y as f32).abs() < dist)
                 });

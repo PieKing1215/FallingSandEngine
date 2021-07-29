@@ -1,5 +1,5 @@
 
-use crate::game::common::world::material::*;
+use crate::game::common::world::material::{MaterialInstance, PhysicsType, TEST_MATERIAL};
 
 use sdl2::pixels::Color;
 use simdnoise::NoiseBuilder;
@@ -17,6 +17,7 @@ pub struct TestGenerator {
 }
 
 impl WorldGenerator for TestGenerator {
+    #[allow(clippy::cast_lossless)]
     fn generate(&self, chunk_x: i32, chunk_y: i32, seed: i32, pixels: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize], colors: &mut [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]) {
 
         let cofs_x = (chunk_x * CHUNK_SIZE as i32) as f32;

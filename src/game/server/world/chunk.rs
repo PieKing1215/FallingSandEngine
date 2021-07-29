@@ -70,7 +70,7 @@ impl<'ch> Chunk for ServerChunk {
                 let i = (x + y * CHUNK_SIZE) as usize;
                 px[i] = mat;
 
-                self.dirty_rect = Some(Rect::new(0, 0, CHUNK_SIZE as u32, CHUNK_SIZE as u32));
+                self.dirty_rect = Some(Rect::new(0, 0, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE)));
 
                 return Ok(());
             }
@@ -83,9 +83,9 @@ impl<'ch> Chunk for ServerChunk {
 
     #[profiling::function]
     fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]) {
-        diff.iter().for_each(|(x, y, mat)| {
+        for (x, y, mat) in diff.iter() {
             self.set(*x, *y, *mat).unwrap(); // TODO: handle this Err
-        });
+        }
     }
 
     fn set_pixels(&mut self, pixels: &[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]) {
@@ -123,7 +123,7 @@ impl<'ch> Chunk for ServerChunk {
         
         let vs: Vec<f64> = mesh::pixels_to_valuemap(&self.pixels.unwrap());
 
-        let generated = mesh::generate_mesh_only_simplified(vs, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
+        let generated = mesh::generate_mesh_only_simplified(&vs, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
 
         self.mesh_simplified = generated.ok();
 

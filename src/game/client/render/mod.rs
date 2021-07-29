@@ -69,7 +69,7 @@ impl TransformStack {
         let pos = self.transform_int((rect.x, rect.y));
 
         let t = self.stack.last().unwrap();
-        Rect::new(pos.0, pos.1, (rect.w as f64 * t.scale_x).ceil() as u32, (rect.h as f64 * t.scale_y).ceil() as u32)
+        Rect::new(pos.0, pos.1, (f64::from(rect.w) * t.scale_x).ceil() as u32, (f64::from(rect.h) * t.scale_y).ceil() as u32)
     }
 
     #[allow(dead_code)]
@@ -91,7 +91,7 @@ impl TransformStack {
         let pos = self.inv_transform_int((rect.x, rect.y));
 
         let t = self.stack.last().unwrap();
-        Rect::new(pos.0, pos.1, (rect.w as f64 / t.scale_x) as u32, (rect.h as f64 / t.scale_y) as u32)
+        Rect::new(pos.0, pos.1, (f64::from(rect.w) / t.scale_x) as u32, (f64::from(rect.h) / t.scale_y) as u32)
     }
 
 }

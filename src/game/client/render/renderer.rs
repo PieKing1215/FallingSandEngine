@@ -58,7 +58,7 @@ impl<'a> Renderer<'a> {
         sdl_gpu::GPUSubsystem::set_init_window(window.id());
         let target = sdl_gpu::GPUSubsystem::init(window.size().0 as u16, window.size().1 as u16, 0);
         unsafe {
-            let ctx: sdl2::sys::SDL_GLContext = (*target.raw.context).context as sdl2::sys::SDL_GLContext;
+            let ctx: sdl2::sys::SDL_GLContext = (*target.raw.context).context;
             sdl2::sys::SDL_GL_MakeCurrent(window.raw(), ctx);
         }
 
@@ -66,7 +66,7 @@ impl<'a> Renderer<'a> {
         imgui.set_ini_filename(None);
       
         let imgui_sdl2 = imgui_sdl2::ImguiSdl2::new(&mut imgui, &window);
-        let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| sdl.sdl_video.gl_get_proc_address(s) as _);
+        let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| sdl.sdl_video.gl_get_proc_address(s).cast());
 
         let shaders = Shaders {
             liquid_shader: Shader::load_shader_program(
@@ -125,13 +125,13 @@ impl<'a> Renderer<'a> {
                 });
 
                 let nums: Vec<&f32> = game.fps_counter.frame_times.iter().filter(|n| **n != 0.0).collect();
-                let avg_mspt: f32 = nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+                let avg_mspf: f32 = nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
                 ui.plot_lines(im_str!(""), &game.fps_counter.frame_times)
                     .graph_size([200.0, 50.0])
                     .scale_min(0.0)
                     .scale_max(50_000_000.0)
-                    .overlay_text(im_str!("mspf: {:.2} fps: {:.0}", avg_mspt, ui.io().framerate).as_ref())
+                    .overlay_text(im_str!("mspf: {:.2} fps: {:.0}", avg_mspf, ui.io().framerate).as_ref())
                     .build();
 
                 let nums: Vec<&f32> = game.fps_counter.tick_times.iter().filter(|n| **n != 0.0).collect();
@@ -146,13 +146,13 @@ impl<'a> Renderer<'a> {
                 
                     
                 let nums: Vec<&f32> = game.fps_counter.tick_lqf_times.iter().filter(|n| **n != 0.0).collect();
-                let avg_mspt: f32 = nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+                let avg_msptlqf: f32 = nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
                 ui.plot_histogram(im_str!(""), &game.fps_counter.tick_lqf_times)
                     .graph_size([200.0, 50.0])
                     .scale_min(0.0)
                     .scale_max(100_000_000.0)
-                    .overlay_text(im_str!("phys mspt: {:.2}", avg_mspt).as_ref())
+                    .overlay_text(im_str!("phys mspt: {:.2}", avg_msptlqf).as_ref())
                     .build();
             });
 
@@ -183,7 +183,7 @@ impl<'a> Renderer<'a> {
             let thru2 = (((i % 1000) as f32 / 1000.0) * 255.0) as u8;
             let timeshift = ((1.0 - ((i % 1000) as f32 / 1000.0)).powi(8) * 200.0) as i32;
 
-            let rect = GPURect::new(75.0 + (i as f32 % 1000.0) + (((game.frame_count as i32/2 + (i as i32 / 2) - timeshift) as f32 / 100.0).sin() * 50.0), (i as f32 / 1000.0)*100.0 + (((game.frame_count as i32/2 + (i as i32 / 2) - timeshift) as f32 / 100.0).cos() * 50.0), 20.0, 20.0);
+            let rect = GPURect::new(75.0 + (i as f32 % 1000.0) + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32 - timeshift as f32) / 100.0).sin() * 50.0), (i as f32 / 1000.0)*100.0 + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32 - timeshift as f32)/ 100.0).cos() * 50.0), 20.0, 20.0);
             target.rectangle_filled2(rect, Color::RGBA(0, thru, 255-thru, thru2));
         }
 

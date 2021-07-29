@@ -7,6 +7,7 @@ pub use test::*;
 use super::{CHUNK_SIZE, material::MaterialInstance};
 
 pub trait WorldGenerator {
+    #[allow(clippy::cast_lossless)]
     fn generate(&self, chunk_x: i32, chunk_y: i32, seed: i32, pixels: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize], colors: &mut [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]);
 
     fn max_gen_stage(&self) -> u8;

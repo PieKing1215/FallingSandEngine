@@ -83,8 +83,10 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
         }
     }
 
-    #[profiling::function]
-    pub fn tick(&mut self, tick_time: u32, loaders: Vec<(f64, f64)>, settings: &Settings){ // TODO: `camera` should be replaced with like a vec of entities or something
+    // #[profiling::function] // breaks clippy
+    #[warn(clippy::too_many_lines)]
+    pub fn tick(&mut self, tick_time: u32, loaders: &[(f64, f64)], settings: &Settings){ // TODO: `camera` should be replaced with like a vec of entities or something
+        profiling::scope!("tick");
         
         let unload_zone: Vec<Rect> = loaders.iter().map(|l| self.get_unload_zone(*l)).collect();
         let load_zone: Vec<Rect> = loaders.iter().map(|l| self.get_load_zone(*l)).collect();
@@ -94,14 +96,14 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
         if settings.load_chunks {
             {
                 profiling::scope!("queue chunk loading");
-                load_zone.iter().for_each(|load_zone| {
+                for load_zone in load_zone {
                     for px in (load_zone.x .. load_zone.x + load_zone.w).step_by(CHUNK_SIZE.into()) {
                         for py in (load_zone.y .. load_zone.y + load_zone.h).step_by(CHUNK_SIZE.into()) {
                             let chunk_pos = self.pixel_to_chunk_pos(px.into(), py.into());
                             self.queue_load_chunk(chunk_pos.0, chunk_pos.1);
                         }
                     }
-                });
+                }
             }
 
             {
@@ -125,7 +127,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                 let key = keys[i];
                 
                 let state = self.loaded_chunks.get(&key).unwrap().get_state(); // copy
-                let rect = Rect::new(self.loaded_chunks.get(&key).unwrap().get_chunk_x() * CHUNK_SIZE as i32, self.loaded_chunks.get(&key).unwrap().get_chunk_y() * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
+                let rect = Rect::new(self.loaded_chunks.get(&key).unwrap().get_chunk_x() * i32::from(CHUNK_SIZE), self.loaded_chunks.get(&key).unwrap().get_chunk_y() * i32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
 
                 match state {
                     ChunkState::Cached => {
@@ -157,7 +159,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                 matches!(state, ChunkState::Cached | ChunkState::Active)
                             }) {
                                 self.loaded_chunks.get_mut(&key).unwrap().set_state(ChunkState::Active);
-                                self.loaded_chunks.get_mut(&key).unwrap().set_dirty_rect(Some(Rect::new(0, 0, CHUNK_SIZE as u32, CHUNK_SIZE as u32)));
+                                self.loaded_chunks.get_mut(&key).unwrap().set_dirty_rect(Some(Rect::new(0, 0, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE))));
                             }
                         }
                     },
@@ -186,10 +188,10 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                 let mut keys = self.loaded_chunks.keys().copied().collect::<Vec<u32>>();
                 if !loaders.is_empty() {
                     keys.sort_by(|a, b| {
-                        let c1_x = self.loaded_chunks.get(a).unwrap().get_chunk_x() * CHUNK_SIZE as i32;
-                        let c1_y = self.loaded_chunks.get(a).unwrap().get_chunk_y() * CHUNK_SIZE as i32;
-                        let c2_x = self.loaded_chunks.get(b).unwrap().get_chunk_x() * CHUNK_SIZE as i32;
-                        let c2_y = self.loaded_chunks.get(b).unwrap().get_chunk_y() * CHUNK_SIZE as i32;
+                        let c1_x = self.loaded_chunks.get(a).unwrap().get_chunk_x() * i32::from(CHUNK_SIZE);
+                        let c1_y = self.loaded_chunks.get(a).unwrap().get_chunk_y() * i32::from(CHUNK_SIZE);
+                        let c2_x = self.loaded_chunks.get(b).unwrap().get_chunk_x() * i32::from(CHUNK_SIZE);
+                        let c2_y = self.loaded_chunks.get(b).unwrap().get_chunk_y() * i32::from(CHUNK_SIZE);
 
                         let d1 = loaders.iter().map(|l| {
                             let x = (l.0 as i32 - c1_x).abs();
@@ -209,7 +211,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                 let mut to_exec = vec![];
                 for (i, key) in keys.iter().enumerate() {
                     let state = self.loaded_chunks.get(&key).unwrap().get_state(); // copy
-                    let rect = Rect::new(self.loaded_chunks.get(&key).unwrap().get_chunk_x() * CHUNK_SIZE as i32, self.loaded_chunks.get(&key).unwrap().get_chunk_y() * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
+                    let rect = Rect::new(self.loaded_chunks.get(&key).unwrap().get_chunk_x() * i32::from(CHUNK_SIZE), self.loaded_chunks.get(&key).unwrap().get_chunk_y() * i32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
 
                     if state == ChunkState::NotGenerated {
                         if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
@@ -240,7 +242,9 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                     // WARNING: LEAK
                     let futs: Vec<_> = Box::leak(Box::new(to_exec)).iter().map(Arc::from).map(|e| async move {
                         let mut pixels = Box::new([MaterialInstance::air(); (CHUNK_SIZE * CHUNK_SIZE) as usize]);
+                        #[allow(clippy::cast_lossless)]
                         let mut colors = Box::new([0; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]);
+                        
                         gen.generate(e.1, e.2, 2, &mut pixels, &mut colors); // TODO: non constant seed
                         // println!("{}", e.0);
                         (e.0, pixels, colors)
@@ -268,7 +272,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                 for i in 0..keys.len() {
                     let key = keys[i];
                     let state = self.loaded_chunks.get(&key).unwrap().get_state(); // copy
-                    let rect = Rect::new(self.loaded_chunks.get(&key).unwrap().get_chunk_x() * CHUNK_SIZE as i32, self.loaded_chunks.get(&key).unwrap().get_chunk_y() * CHUNK_SIZE as i32, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
+                    let rect = Rect::new(self.loaded_chunks.get(&key).unwrap().get_chunk_x() * i32::from(CHUNK_SIZE), self.loaded_chunks.get(&key).unwrap().get_chunk_y() * i32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
 
                     match state {
                         ChunkState::NotGenerated => {
@@ -277,13 +281,13 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                 keep_map[i] = false;
                             }
                         },
-                        ChunkState::Generating(stage) => {
+                        ChunkState::Generating(cur_stage) => {
                             let chunk_x = self.loaded_chunks.get(&key).unwrap().get_chunk_x();
                             let chunk_y = self.loaded_chunks.get(&key).unwrap().get_chunk_y();
 
                             let max_stage = self.generator.max_gen_stage();
 
-                            if stage >= max_stage {
+                            if cur_stage >= max_stage {
                                 self.loaded_chunks.get_mut(&key).unwrap().set_state(ChunkState::Cached);
                             } else {
                                 if [
@@ -307,11 +311,11 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
                                     match state {
                                         ChunkState::Cached | ChunkState::Active => true,
-                                        ChunkState::Generating(st) if st >= stage => true,
+                                        ChunkState::Generating(st) if st >= cur_stage => true,
                                         _ => false,
                                     }
                                 }) {
-                                    self.loaded_chunks.get_mut(&key).unwrap().set_state(ChunkState::Generating(stage + 1));
+                                    self.loaded_chunks.get_mut(&key).unwrap().set_state(ChunkState::Generating(cur_stage + 1));
                                 }
 
                                 if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
@@ -442,10 +446,10 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                         profiling::scope!("apply");
                         let (ch_pos, dirty, dirty_rects) = r.as_ref().unwrap();
                         for i in 0..9 {
-                            let rel_ch_x = (i % 3) as i32 - 1;
-                            let rel_ch_y = (i / 3) as i32 - 1;
+                            let rel_ch_x = (i % 3) - 1;
+                            let rel_ch_y = (i / 3) - 1;
 
-                            if dirty[i] {
+                            if dirty[i as usize] {
                                 self.loaded_chunks.get_mut(&self.chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y)).unwrap().mark_dirty();
                             }
 
@@ -456,7 +460,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                 //     if rel_ch_x == 0 { (CHUNK_SIZE).into() } else { (CHUNK_SIZE / 2).into() },
                                 //     if rel_ch_y == 0 { (CHUNK_SIZE).into() } else { (CHUNK_SIZE / 2).into() }
                                 // );
-                                let neighbor_rect = Rect::new(0, 0, CHUNK_SIZE as u32, CHUNK_SIZE as u32);
+                                let neighbor_rect = Rect::new(0, 0, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
                                 let mut r = self.loaded_chunks.get_mut(&self.chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y)).unwrap().get_dirty_rect();
                                 match r {
                                     Some(current) => {
@@ -469,7 +473,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                 self.loaded_chunks.get_mut(&self.chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y)).unwrap().set_dirty_rect(r);
                             }
                             
-                            if let Some(new) = dirty_rects[i] {
+                            if let Some(new) = dirty_rects[i as usize] {
                                 let mut r = self.loaded_chunks.get_mut(&self.chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y)).unwrap().get_dirty_rect();
                                 match r {
                                     Some(current) => {
@@ -562,14 +566,14 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
         // TODO: this multiply is the first thing to overflow if you go out too far
         //          (though you need to go out ~32768 chunks (2^16 / 2)
-        (((xx + yy) as u64 * (xx + yy + 1) as u64) / 2 + yy as u64) as u32
+        ((u64::from(xx + yy) * u64::from(xx + yy + 1)) / 2 + u64::from(yy)) as u32
     }
     
 
     pub fn chunk_index_inv(&self, index: u32) -> (i32, i32) {
-        let w = (((8 * index as u64 + 1) as f64).sqrt() - 1.0).floor() as u64 / 2;
+        let w = (((8 * u64::from(index) + 1) as f64).sqrt() - 1.0).floor() as u64 / 2;
         let t = (w * w + w) / 2;
-        let yy = index as u64 - t;
+        let yy = u64::from(index) - t;
         let xx = w - yy;
         let nat_to_int = |i: u64| if i % 2 == 0 {(i/2) as i32}else{-((i/2 + 1) as i32)};
         let x = nat_to_int(xx);
@@ -591,23 +595,22 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
     #[profiling::function]
     pub fn pixel_to_chunk_pos(&self, x: i64, y: i64) -> (i32, i32) {
-        ((x as f64 / CHUNK_SIZE as f64).floor() as i32,
-            (y as f64 / CHUNK_SIZE as f64).floor() as i32)
+        ((x as f64 / f64::from(CHUNK_SIZE)).floor() as i32,
+            (y as f64 / f64::from(CHUNK_SIZE)).floor() as i32)
     }
 
     #[profiling::function]
     pub fn get_chunk(&self, chunk_x: i32, chunk_y: i32) -> Option<&C> {
-        self.loaded_chunks.get(&self.chunk_index(chunk_x, chunk_y)).map(|b| b.as_ref())
+        self.loaded_chunks.get(&self.chunk_index(chunk_x, chunk_y)).map(std::convert::AsRef::as_ref)
     }
 
     pub fn set(&mut self, x: i64, y: i64, mat: MaterialInstance) -> Result<(), String> {
 
         let (chunk_x, chunk_y) = self.pixel_to_chunk_pos(x, y);
-        if let Some(ch) = self.loaded_chunks.get_mut(&self.chunk_index(chunk_x, chunk_y)) {
-            ch.set((x - chunk_x as i64 * CHUNK_SIZE as i64) as u16, (y - chunk_y as i64 * CHUNK_SIZE as i64) as u16, mat)
-        }else{
-            Err("Position is not loaded".to_string())
-        }
+        self.loaded_chunks.get_mut(&self.chunk_index(chunk_x, chunk_y))
+            .map_or_else(
+            || Err("Position is not loaded".to_string()), 
+            |ch| ch.set((x - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16, (y - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16, mat))
     }
 
     pub fn chunk_update_order(&self, chunk_x: i32, chunk_y: i32) -> u8 {
@@ -619,15 +622,15 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
     pub fn force_update_chunk(&mut self, chunk_x: i32, chunk_y: i32) {
         if let Some(ch) = self.loaded_chunks.get_mut(&self.chunk_index(chunk_x, chunk_y)) {
-            ch.set_dirty_rect(Some(Rect::new(0, 0, CHUNK_SIZE as u32, CHUNK_SIZE as u32)));
+            ch.set_dirty_rect(Some(Rect::new(0, 0, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE))));
         }
     }
 
     #[profiling::function]
-    pub fn get_zone(&self, center: (f64, f64), padding: u32) -> Rect {
-        let width = self.screen_size.0 as u32 + padding * 2;
-        let height = self.screen_size.1 as u32 + padding * 2;
-        Rect::new(center.0 as i32 - (width / 2) as i32, center.1 as i32 - (height / 2) as i32, width, height)
+    pub fn get_zone(&self, center: (f64, f64), padding: u16) -> Rect {
+        let width = self.screen_size.0 + padding * 2;
+        let height = self.screen_size.1 + padding * 2;
+        Rect::new(center.0 as i32 - i32::from(width / 2), center.1 as i32 - i32::from(height / 2), u32::from(width), u32::from(height))
     }
 
     #[profiling::function]
@@ -637,17 +640,17 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
     #[profiling::function]
     pub fn get_active_zone(&self, center: (f64, f64)) -> Rect {
-        self.get_zone(center, CHUNK_SIZE.into())
+        self.get_zone(center, CHUNK_SIZE)
     }
 
     #[profiling::function]
     pub fn get_load_zone(&self, center: (f64, f64)) -> Rect {
-        self.get_zone(center, (CHUNK_SIZE * 5).into())
+        self.get_zone(center, CHUNK_SIZE * 5)
     }
 
     #[profiling::function]
     pub fn get_unload_zone(&self, center: (f64, f64)) -> Rect {
-        self.get_zone(center, (CHUNK_SIZE * 10).into())
+        self.get_zone(center, CHUNK_SIZE * 10)
     }
 }
 
@@ -675,28 +678,28 @@ mod tests {
         assert_eq!(ch.chunk_index(-1, 1), 8);
 
         // some random nearby ones
-        assert_eq!(ch.chunk_index(207, 432), 818145);
-        assert_eq!(ch.chunk_index(285, -65), 244779);
-        assert_eq!(ch.chunk_index(958, 345), 3397611);
-        assert_eq!(ch.chunk_index(632, 255), 1574935);
-        assert_eq!(ch.chunk_index(-942, 555), 4481631);
-        assert_eq!(ch.chunk_index(696, 589), 3304913);
-        assert_eq!(ch.chunk_index(-201, -623), 1356726);
-        assert_eq!(ch.chunk_index(741, 283), 2098742);
-        assert_eq!(ch.chunk_index(-302, 718), 2081216);
-        assert_eq!(ch.chunk_index(493, 116), 742603);
+        assert_eq!(ch.chunk_index(207, 432), 818_145);
+        assert_eq!(ch.chunk_index(285, -65), 244_779);
+        assert_eq!(ch.chunk_index(958, 345), 3_397_611);
+        assert_eq!(ch.chunk_index(632, 255), 1_574_935);
+        assert_eq!(ch.chunk_index(-942, 555), 4_481_631);
+        assert_eq!(ch.chunk_index(696, 589), 3_304_913);
+        assert_eq!(ch.chunk_index(-201, -623), 1_356_726);
+        assert_eq!(ch.chunk_index(741, 283), 2_098_742);
+        assert_eq!(ch.chunk_index(-302, 718), 2_081_216);
+        assert_eq!(ch.chunk_index(493, 116), 742_603);
 
         // some random far ones
-        assert_eq!(ch.chunk_index(1258, 7620), 157661886);
-        assert_eq!(ch.chunk_index(9438, 4645), 396685151);
-        assert_eq!(ch.chunk_index(6852, -7129), 390936998);
-        assert_eq!(ch.chunk_index(-7692, -912), 148033644);
-        assert_eq!(ch.chunk_index(-4803, -131), 48674172);
-        assert_eq!(ch.chunk_index(-4565, 8366), 334425323);
-        assert_eq!(ch.chunk_index(248, -126), 279629);
-        assert_eq!(ch.chunk_index(-1125, 3179), 37050886);
-        assert_eq!(ch.chunk_index(4315, -4044), 139745490);
-        assert_eq!(ch.chunk_index(-3126, 9730), 330560076);
+        assert_eq!(ch.chunk_index(1258, 7620),  157_661_886);
+        assert_eq!(ch.chunk_index(9438, 4645),  396_685_151);
+        assert_eq!(ch.chunk_index(6852, -7129), 390_936_998);
+        assert_eq!(ch.chunk_index(-7692, -912), 148_033_644);
+        assert_eq!(ch.chunk_index(-4803, -131), 48_674_172);
+        assert_eq!(ch.chunk_index(-4565, 8366), 334_425_323);
+        assert_eq!(ch.chunk_index(248, -126),   279_629);
+        assert_eq!(ch.chunk_index(-1125, 3179), 37_050_886);
+        assert_eq!(ch.chunk_index(4315, -4044), 139_745_490);
+        assert_eq!(ch.chunk_index(-3126, 9730), 330_560_076);
 
         // maximum
         assert_eq!(ch.chunk_index(-27804, 18537), u32::MAX);
@@ -707,39 +710,39 @@ mod tests {
         let ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{});
         
         // center
-        assert_eq!(ch.chunk_index_inv(0), (0, 0));
-        assert_eq!(ch.chunk_index_inv(3), (1, 0));
-        assert_eq!(ch.chunk_index_inv(5), (0, 1));
+        assert_eq!(ch.chunk_index_inv(0),  (0, 0));
+        assert_eq!(ch.chunk_index_inv(3),  (1, 0));
+        assert_eq!(ch.chunk_index_inv(5),  (0, 1));
         assert_eq!(ch.chunk_index_inv(12), (1, 1));
-        assert_eq!(ch.chunk_index_inv(1), (-1, 0));
-        assert_eq!(ch.chunk_index_inv(2), (0, -1));
-        assert_eq!(ch.chunk_index_inv(4), (-1, -1));
-        assert_eq!(ch.chunk_index_inv(7), (1, -1));
-        assert_eq!(ch.chunk_index_inv(8), (-1, 1));
+        assert_eq!(ch.chunk_index_inv(1),  (-1, 0));
+        assert_eq!(ch.chunk_index_inv(2),  (0, -1));
+        assert_eq!(ch.chunk_index_inv(4),  (-1, -1));
+        assert_eq!(ch.chunk_index_inv(7),  (1, -1));
+        assert_eq!(ch.chunk_index_inv(8),  (-1, 1));
 
         // some random nearby ones
-        assert_eq!(ch.chunk_index_inv(818145), (207, 432));
-        assert_eq!(ch.chunk_index_inv(244779), (285, -65));
-        assert_eq!(ch.chunk_index_inv(3397611), (958, 345));
-        assert_eq!(ch.chunk_index_inv(1574935), (632, 255));
-        assert_eq!(ch.chunk_index_inv(4481631), (-942, 555));
-        assert_eq!(ch.chunk_index_inv(3304913), (696, 589));
-        assert_eq!(ch.chunk_index_inv(1356726), (-201, -623));
-        assert_eq!(ch.chunk_index_inv(2098742), (741, 283));
-        assert_eq!(ch.chunk_index_inv(2081216), (-302, 718));
-        assert_eq!(ch.chunk_index_inv(742603), (493, 116));
+        assert_eq!(ch.chunk_index_inv(818_145),   (207, 432));
+        assert_eq!(ch.chunk_index_inv(244_779),   (285, -65));
+        assert_eq!(ch.chunk_index_inv(3_397_611), (958, 345));
+        assert_eq!(ch.chunk_index_inv(1_574_935), (632, 255));
+        assert_eq!(ch.chunk_index_inv(4_481_631), (-942, 555));
+        assert_eq!(ch.chunk_index_inv(3_304_913), (696, 589));
+        assert_eq!(ch.chunk_index_inv(1_356_726), (-201, -623));
+        assert_eq!(ch.chunk_index_inv(2_098_742), (741, 283));
+        assert_eq!(ch.chunk_index_inv(2_081_216), (-302, 718));
+        assert_eq!(ch.chunk_index_inv(742_603),   (493, 116));
 
         // some random far ones
-        assert_eq!(ch.chunk_index_inv(157661886), (1258, 7620));
-        assert_eq!(ch.chunk_index_inv(396685151), (9438, 4645));
-        assert_eq!(ch.chunk_index_inv(390936998), (6852, -7129));
-        assert_eq!(ch.chunk_index_inv(148033644), (-7692, -912));
-        assert_eq!(ch.chunk_index_inv(48674172), (-4803, -131));
-        assert_eq!(ch.chunk_index_inv(334425323), (-4565, 8366));
-        assert_eq!(ch.chunk_index_inv(279629), (248, -126));
-        assert_eq!(ch.chunk_index_inv(37050886), (-1125, 3179));
-        assert_eq!(ch.chunk_index_inv(139745490), (4315, -4044));
-        assert_eq!(ch.chunk_index_inv(330560076), (-3126, 9730));
+        assert_eq!(ch.chunk_index_inv(157_661_886), (1258, 7620));
+        assert_eq!(ch.chunk_index_inv(396_685_151), (9438, 4645));
+        assert_eq!(ch.chunk_index_inv(390_936_998), (6852, -7129));
+        assert_eq!(ch.chunk_index_inv(148_033_644), (-7692, -912));
+        assert_eq!(ch.chunk_index_inv(48_674_172),  (-4803, -131));
+        assert_eq!(ch.chunk_index_inv(334_425_323), (-4565, 8366));
+        assert_eq!(ch.chunk_index_inv(279_629),     (248, -126));
+        assert_eq!(ch.chunk_index_inv(37_050_886),  (-1125, 3179));
+        assert_eq!(ch.chunk_index_inv(139_745_490), (4315, -4044));
+        assert_eq!(ch.chunk_index_inv(330_560_076), (-3126, 9730));
 
         // maximum
         assert_eq!(ch.chunk_index_inv(u32::MAX), (-27804, 18537));
@@ -794,9 +797,9 @@ mod tests {
         assert!(!ch.is_chunk_loaded(-3, 2));
 
         // do a few ticks to load some chunks
-        ch.tick(0, vec![(110.0, -120.0)], &Settings::default());
+        ch.tick(0, &[(110.0, -120.0)], &Settings::default());
         while !ch.load_queue.is_empty() {
-            ch.tick(0, vec![(110.0, -120.0)], &Settings::default());
+            ch.tick(0, &[(110.0, -120.0)], &Settings::default());
         }
 
         assert!(ch.is_chunk_loaded(11, -12));
@@ -821,7 +824,7 @@ mod tests {
         assert!(ch.get_chunk(-120, 11).is_none());
 
         // should unload since no loaders are nearby
-        ch.tick(0, vec![], &Settings::default());
+        ch.tick(0, &[], &Settings::default());
 
         assert!(!ch.is_chunk_loaded(11, -12));
         assert!(!ch.is_chunk_loaded(-3, 2));
