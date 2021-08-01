@@ -2,6 +2,7 @@ use std::{io::{BufReader, Read}, net::TcpStream, time::{Duration, Instant}};
 
 use clap::ArgMatches;
 use liquidfun::box2d::common::math::Vec2;
+use log::{debug, error, info, warn};
 use sdl2::{event::{Event, WindowEvent}, keyboard::Keycode, sys::SDL_WindowFlags, video::{FullscreenType, SwapInterval}};
 use sdl_gpu::GPUSubsystem;
 use sysinfo::{Pid, ProcessExt, SystemExt};
@@ -19,10 +20,10 @@ impl Game<ClientChunk> {
         let mut network = None;
 
         if let Some(addr) = args.value_of("connect") {
-            println!("Connecting to {}...", addr);
+            info!("Connecting to {}...", addr);
             match TcpStream::connect(addr).map(BufReader::new) {
                 Ok(mut r) => {
-                    println!("[CLIENT] Connected to server");
+                    info!("[CLIENT] Connected to server");
     
                     r.get_mut().set_nonblocking(true).unwrap();
                     self.world.as_mut().unwrap().net_mode = WorldNetworkMode::Remote;
@@ -30,7 +31,7 @@ impl Game<ClientChunk> {
                     network = Some(r);
                 },
                 Err(e) => {
-                    println!("[CLIENT] Failed to connect to server: {}", e);
+                    error!("[CLIENT] Failed to connect to server: {}", e);
                 },
             }
         }
@@ -164,7 +165,7 @@ impl Game<ClientChunk> {
                 };
 
                 if fs != des_fs {
-                    println!("{:?}", des_fs);
+                    debug!("{:?}", des_fs);
 
                     if des_fs == FullscreenType::True {
                         r.window.set_fullscreen(FullscreenType::Off).unwrap();
@@ -241,7 +242,7 @@ impl Game<ClientChunk> {
                                     Ok(read) => {
 
                                         if read != size as usize {
-                                            println!("[CLIENT] Couldn't read enough bytes! Read {}/{}.", read, size);
+                                            warn!("[CLIENT] Couldn't read enough bytes! Read {}/{}.", read, size);
                                         }
 
                                         // println!("[CLIENT] Read {}/{} bytes", read, buf.len());
@@ -258,7 +259,7 @@ impl Game<ClientChunk> {
                                                     PacketType::SyncChunkPacket { chunk_x, chunk_y, pixels, colors } => {
                                                         if let Some(w) = &mut self.world {
                                                             if let Err(e) = w.sync_chunk(chunk_x, chunk_y, pixels, colors) {
-                                                                println!("[CLIENT] sync_chunk failed: {}", e);
+                                                                warn!("[CLIENT] sync_chunk failed: {}", e);
                                                             }
                                                         }
                                                     },
@@ -295,7 +296,7 @@ impl Game<ClientChunk> {
                                                 }
                                             },
                                             Err(e) => {
-                                                println!("[CLIENT] Failed to deserialize packet: {}", e);
+                                                warn!("[CLIENT] Failed to deserialize packet: {}", e);
                                                 // println!("[CLIENT]     Raw: {:?}", buf);
                                                 // let s = String::from_utf8(buf);
                                                 // match s {
@@ -382,7 +383,7 @@ impl Game<ClientChunk> {
                     self.fps_counter.last_update = now;
                     let set = r.window.set_title(format!("FallingSandRust ({} FPS) ({})", self.fps_counter.display_value, self.world.as_ref().map_or_else(|| "unknown".to_owned(), |w| format!("{:?}", w.net_mode))).as_str());
                     if set.is_err() {
-                        eprintln!("Failed to set window title.");
+                        error!("Failed to set window title.");
                     }
                     
                     sys.refresh_process(std::process::id() as Pid);
@@ -405,7 +406,7 @@ impl Game<ClientChunk> {
             counter_last_frame = Instant::now();
         }
 
-        println!("Closing...");
+        info!("Closing...");
     }
 
     pub fn render(&mut self, renderer: &mut Renderer, sdl: &Sdl2Context, delta_time: f64) {

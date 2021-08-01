@@ -16,6 +16,7 @@
 
 mod game;
 
+use std::fs::File;
 use std::str::FromStr;
 
 use clap::App;
@@ -24,6 +25,15 @@ use clap::crate_authors;
 use clap::crate_name;
 use clap::crate_version;
 use game::Game;
+use log::LevelFilter;
+use log::error;
+use log::info;
+use log::warn;
+use simplelog::CombinedLogger;
+use simplelog::ConfigBuilder;
+use simplelog::TermLogger;
+use simplelog::TerminalMode;
+use simplelog::WriteLogger;
 use tui::Terminal;
 use tui::backend::Backend;
 use tui::backend::CrosstermBackend;
@@ -71,11 +81,6 @@ fn main() -> Result<(), String> {
             .validator(is_type::<u16>)
             .help("The port to run the server on")))
     .get_matches();
-
-    #[cfg(feature = "profile-with-tracy")]
-    {
-        println!("Profiler Enabled");
-    }
 
     let server = matches.subcommand_matches("server").is_some();
     let client = !server;
@@ -130,12 +135,24 @@ fn main() -> Result<(), String> {
             println!("Server shut down successfully.");
         }
     }else if client {
-        println!("Starting client...");
 
+        CombinedLogger::init(
+            vec![
+                TermLogger::new(LevelFilter::Info, ConfigBuilder::new().set_location_level(LevelFilter::Error).set_level_padding(simplelog::LevelPadding::Right).set_target_level(LevelFilter::Off).set_time_to_local(true).build(), TerminalMode::Mixed, simplelog::ColorChoice::Auto),
+                WriteLogger::new(LevelFilter::Trace, ConfigBuilder::new().set_location_level(LevelFilter::Error).set_level_padding(simplelog::LevelPadding::Right).set_target_level(LevelFilter::Off).set_time_to_local(true).build(), File::create("client_latest.log").unwrap()),
+            ]
+        ).unwrap();
+
+        std::panic::set_hook(Box::new(|info| {
+            error!("{}", info);
+        }));
+        
+        info!("Starting client...");
+        
         // TODO: come up with a better way to handle this sdl's lifetime
         let sdl = Renderer::init_sdl().unwrap();
 
-        println!("Starting init...");
+        info!("Starting init...");
         
         let mut r = Renderer::create(&sdl)?;
 
@@ -145,7 +162,7 @@ fn main() -> Result<(), String> {
         });
         r.fonts = f;
 
-        println!("Finished init.");
+        info!("Finished init.");
 
         let mut game: Game<ClientChunk> = Game::new();
         
@@ -160,9 +177,9 @@ fn main() -> Result<(), String> {
             });
         };
 
-        println!("Starting main loop...");
+        info!("Starting main loop...");
         game.run(&sdl, Some(&mut r), &matches);
-        println!("Goodbye!");
+        info!("Goodbye!");
     }
 
     Ok(())
