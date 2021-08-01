@@ -18,7 +18,9 @@ mod game;
 
 use std::fs::File;
 use std::str::FromStr;
+use std::thread;
 
+use backtrace::Backtrace;
 use clap::App;
 use clap::Arg;
 use clap::crate_authors;
@@ -160,7 +162,12 @@ fn main() -> Result<(), String> {
         ).unwrap();
 
         std::panic::set_hook(Box::new(|info| {
-            error!("{}", info);
+
+            let thread = thread::current();
+            let name = thread.name().unwrap_or("<unnamed>");
+
+            error!("thread '{}' {}", name, info);
+            error!("See client_latest.log for more details. Backtrace:\n{:?}", Backtrace::new());
         }));
         
         info!("Starting client...");
