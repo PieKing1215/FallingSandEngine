@@ -136,10 +136,26 @@ fn main() -> Result<(), String> {
         }
     }else if client {
 
+        let debug = matches.is_present("debug");
+
         CombinedLogger::init(
             vec![
-                TermLogger::new(LevelFilter::Info, ConfigBuilder::new().set_location_level(LevelFilter::Error).set_level_padding(simplelog::LevelPadding::Right).set_target_level(LevelFilter::Off).set_time_to_local(true).build(), TerminalMode::Mixed, simplelog::ColorChoice::Auto),
-                WriteLogger::new(LevelFilter::Trace, ConfigBuilder::new().set_location_level(LevelFilter::Error).set_level_padding(simplelog::LevelPadding::Right).set_target_level(LevelFilter::Off).set_time_to_local(true).build(), File::create("client_latest.log").unwrap()),
+                TermLogger::new(if debug { LevelFilter::Trace } else { LevelFilter::Info }, 
+                    ConfigBuilder::new()
+                        .set_location_level(if debug { LevelFilter::Error } else { LevelFilter::Off })
+                        .set_level_padding(simplelog::LevelPadding::Right)
+                        .set_target_level(LevelFilter::Off)
+                        .set_time_to_local(true)
+                        .build(), 
+                    TerminalMode::Mixed, simplelog::ColorChoice::Auto),
+                WriteLogger::new(LevelFilter::Trace, 
+                    ConfigBuilder::new()
+                        .set_location_level(LevelFilter::Error)
+                        .set_level_padding(simplelog::LevelPadding::Right)
+                        .set_target_level(LevelFilter::Off)
+                        .set_time_to_local(true)
+                        .build(), 
+                    File::create("client_latest.log").unwrap()),
             ]
         ).unwrap();
 
