@@ -102,15 +102,20 @@ fn main() -> Result<(), String> {
             backend.clear().unwrap();
             backend.set_cursor(0, 0).unwrap();
 
+            let thread = thread::current();
+            let name = thread.name().unwrap_or("<unnamed>");
+            let bt = Backtrace::new();
+
             let mut c: tui::buffer::Cell = tui::buffer::Cell::default();
-            c.set_symbol(format!("{}\n", info).as_str());
+            c.set_symbol(format!("thread '{}' {}\nSee latest.log for more details. Backtrace:\n{:?}\n", name, info, bt).as_str());
             c.set_fg(tui::style::Color::LightRed);
             let t: (u16, u16, _) = (0, 0, &c);
 
             backend.draw(std::iter::once(t)).unwrap();
             backend.flush().unwrap();
 
-            log::error!("{}", info);
+            error!("thread '{}' {}", name, info);
+            error!("See latest.log for more details. Backtrace:\n{:?}", bt);
         }));
 
         let res = std::panic::catch_unwind(move || {
@@ -162,7 +167,6 @@ fn main() -> Result<(), String> {
         ).unwrap();
 
         std::panic::set_hook(Box::new(|info| {
-
             let thread = thread::current();
             let name = thread.name().unwrap_or("<unnamed>");
 
