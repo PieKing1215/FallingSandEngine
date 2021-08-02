@@ -22,6 +22,7 @@ pub struct Client {
     pub world: Option<ClientWorld>,
     pub controls: Controls,
     pub camera: Camera,
+    pub mouse_joint: Option<liquidfun::box2d::dynamics::joints::mouse_joint::MouseJoint>,
 }
 
 impl Client {
@@ -39,6 +40,7 @@ impl Client {
                 y: 0.0,
                 scale: 2.0,
             },
+            mouse_joint: None,
         }
     }
 

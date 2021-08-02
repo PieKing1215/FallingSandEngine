@@ -2,9 +2,10 @@
 use std::{borrow::BorrowMut, collections::HashMap};
 
 use crate::game::common::Settings;
-use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::body::BodyDef, particle::{ParticleDef, TENSILE_PARTICLE, particle_system::ParticleSystemDef}};
+use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::body::{BodyDef, BodyType}, particle::{ParticleDef, TENSILE_PARTICLE, particle_system::ParticleSystemDef}};
+use sdl2::pixels::Color;
 
-use super::{CHUNK_SIZE, Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}};
+use super::{CHUNK_SIZE, Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{MaterialInstance, PhysicsType, TEST_MATERIAL}, rigidbody::RigidBody};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
@@ -19,13 +20,14 @@ pub struct World<C: Chunk> {
     pub lqf_world: liquidfun::box2d::dynamics::world::World,
     pub entities: HashMap<u32, Entity>,
     pub net_mode: WorldNetworkMode,
+    pub rigidbodies: Vec<RigidBody>,
 }
 
 impl<'w, C: Chunk> World<C> {
     #[profiling::function]
     pub fn create() -> Self {
         let gravity = liquidfun::box2d::common::math::Vec2::new(0.0, 3.0);
-        let lqf_world = liquidfun::box2d::dynamics::world::World::new(&gravity);
+        let mut lqf_world = liquidfun::box2d::dynamics::world::World::new(&gravity);
 
         // let mut ground_body_def = BodyDef::default();
 	    // ground_body_def.position.set(0.0, -26.0);
@@ -133,12 +135,79 @@ impl<'w, C: Chunk> World<C> {
             particle_system.create_particle(&pd);
         }
 
-        World {
+        let mut w = World {
             chunk_handler: ChunkHandler::new(TEST_GENERATOR),
             lqf_world,
             entities: HashMap::new(),
             net_mode: WorldNetworkMode::Local,
+            rigidbodies: Vec::new(),
+        };
+
+        // add a rigidbody
+
+        let pixels = (0..40 * 40).map(|i| {
+            let x: i32 = i % 40;
+            let y: i32 = i / 40;
+            if (x - 20).abs() < 5 || (y - 20).abs() < 5 {
+                MaterialInstance {
+                    material_id: TEST_MATERIAL.id,
+                    physics: PhysicsType::Solid,
+                    color: Color::RGB(64, if (x + y) % 4 >= 2 { 191 } else { 64 }, if (x + y) % 4 > 2 { 64 } else { 191 }),
+                }
+            }else {
+                MaterialInstance::air()
+            }
+        }).collect();
+        
+        if let Ok(mut r) = RigidBody::make_bodies(pixels, 40, 40, &mut w.lqf_world, (-1.0, -7.0)) {
+            w.rigidbodies.append(&mut r);
         }
+
+        // add another rigidbody
+
+        let pixels = (0..40 * 40).map(|i| {
+            let x: i32 = i % 40;
+            let y: i32 = i / 40;
+            let dst = (x - 20) * (x - 20) + (y - 20) * (y - 20);
+            if dst > 10 * 10 && dst <= 20 * 20 && (x - 20).abs() >= 5 {
+                MaterialInstance {
+                    material_id: TEST_MATERIAL.id,
+                    physics: PhysicsType::Solid,
+                    color: Color::RGB(if (x + y) % 4 >= 2 { 191 } else { 64 }, if (x + y) % 4 > 2 { 64 } else { 191 }, 64),
+                }
+            }else {
+                MaterialInstance::air()
+            }
+        }).collect();
+        
+        if let Ok(mut r) = RigidBody::make_bodies(pixels, 40, 40, &mut w.lqf_world, (2.0, -6.0)) {
+            w.rigidbodies.append(&mut r);
+        }
+
+        for n in 0..4 {
+            // add more rigidbodies
+
+            let pixels = (0..30 * 30).map(|i| {
+                let x: i32 = i % 30 + (((i + n * 22) as f32 / 60.0).sin() * 2.0) as i32;
+                let y: i32 = i / 30;
+                let dst = (x - 15) * (x - 15) + (y - 15) * (y - 15);
+                if dst > 5 * 5 && dst <= 10 * 10  {
+                    MaterialInstance {
+                        material_id: TEST_MATERIAL.id,
+                        physics: PhysicsType::Solid,
+                        color: Color::RGB(if (x + y) % 4 >= 2 { 191 } else { 64 }, if (x + y) % 4 > 2 { 64 } else { 191 }, if (x + y) % 4 >= 2 { 191 } else { 64 }),
+                    }
+                }else {
+                    MaterialInstance::air()
+                }
+            }).collect();
+            
+            if let Ok(mut r) = RigidBody::make_bodies(pixels, 30, 30, &mut w.lqf_world, (5.0 + n as f32 * 2.0, -7.0 + n as f32 * -0.75)) {
+                w.rigidbodies.append(&mut r);
+            }
+        }
+
+        w
     }
 
     pub fn add_entity(&mut self, entity: Entity) -> u32 {
@@ -163,7 +232,7 @@ impl<'w, C: Chunk> World<C> {
         let loaders: Vec<_> = self.entities.iter().map(|(_id, e)| (e.x, e.y)).collect();
 
         self.chunk_handler.tick(tick_time, &loaders, settings);
-
+        
         for c in self.chunk_handler.loaded_chunks.borrow_mut().values_mut() {
             if c.get_b2_body().is_none() {
                 // if let Some(tr) = c.get_tris() {
@@ -218,10 +287,41 @@ impl<'w, C: Chunk> World<C> {
                 let chunk_center_x = c.get_chunk_x() * i32::from(CHUNK_SIZE) + i32::from(CHUNK_SIZE) / 2;
                 let chunk_center_y = c.get_chunk_y() * i32::from(CHUNK_SIZE) + i32::from(CHUNK_SIZE) / 2;
 
-                let dist = f32::from(CHUNK_SIZE) * 0.6;
-                let should_be_active = self.lqf_world.get_particle_system_list().iter().any(|system| {
-                    system.get_position_buffer().iter().any(|pos| (pos.x * LIQUIDFUN_SCALE as f32 - chunk_center_x as f32).abs() < dist && (pos.y * LIQUIDFUN_SCALE as f32 - chunk_center_y as f32).abs() < dist)
-                });
+                let dist_particle = f32::from(CHUNK_SIZE) * 0.6;
+                let dist_body = f32::from(CHUNK_SIZE) * 1.0;
+
+                let mut should_be_active = false;
+
+                let mut psl = self.lqf_world.get_particle_system_list();
+                while psl.is_some() && !should_be_active {
+                    let system = psl.unwrap();
+                    if system.get_position_buffer().iter().any(|pos| (pos.x * LIQUIDFUN_SCALE as f32 - chunk_center_x as f32).abs() < dist_particle && (pos.y * LIQUIDFUN_SCALE as f32 - chunk_center_y as f32).abs() < dist_particle) {
+                        should_be_active = true;
+                    }
+                    psl = system.get_next();
+                }
+
+                // TODO: see if using box2d's query methods instead of direct iteration is faster
+                let mut bl = self.lqf_world.get_body_list();
+                while bl.is_some() && !should_be_active {
+                    let body = bl.unwrap();
+
+                    match body.get_type() {
+                        BodyType::DynamicBody => {
+                            // if body.is_awake() { // this just causes flickering
+                            let pos = body.get_position();
+                            let dist_x = (pos.x * LIQUIDFUN_SCALE as f32 - chunk_center_x as f32).abs();
+                            let dist_y = (pos.y * LIQUIDFUN_SCALE as f32 - chunk_center_y as f32).abs();
+                            if dist_x < dist_body && dist_y < dist_body {
+                                should_be_active = true;
+                            }
+                            // }
+                        },
+                        BodyType::KinematicBody | BodyType::StaticBody => {},
+                    }
+
+                    bl = body.get_next();
+                }
 
                 if let Some(b) = c.get_b2_body_mut() {
                     b.set_active(should_be_active);
@@ -270,8 +370,8 @@ impl<'w, C: Chunk> World<C> {
 
 
         let time_step = settings.tick_lqf_timestep;
-        let velocity_iterations = 3;
-        let position_iterations = 2;
+        let velocity_iterations = 5;
+        let position_iterations = 3;
         self.lqf_world.step(time_step, velocity_iterations, position_iterations);
         // match self.net_mode {
         //     WorldNetworkMode::Local => {
