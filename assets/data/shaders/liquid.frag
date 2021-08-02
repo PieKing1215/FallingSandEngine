@@ -45,7 +45,7 @@ void main(void) {
 		float darken = (1 - compression) * 0.1 + 0.9;
 
 		gl_FragColor = vec4(col.rgb * darken, col.a * alpha);
-	}else if(!soft_edges && num_color >= 0.9){
+	}else if(!soft_edges && num_color >= 0.75){
 		vec4 col = total_color / num_color;
 
 		float compression = clamp((num_color - 4.0) / 4.0, 0.0, 1.0);
