@@ -614,10 +614,10 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
             |ch| ch.set((x - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16, (y - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16, mat))
     }
 
-    pub fn get(&mut self, x: i64, y: i64) -> Result<&MaterialInstance, String> {
+    pub fn get(&self, x: i64, y: i64) -> Result<&MaterialInstance, String> {
 
         let (chunk_x, chunk_y) = self.pixel_to_chunk_pos(x, y);
-        self.loaded_chunks.get_mut(&self.chunk_index(chunk_x, chunk_y))
+        self.loaded_chunks.get(&self.chunk_index(chunk_x, chunk_y))
             .map_or_else(
             || Err("Position is not loaded".to_string()), 
             |ch| ch.get((x - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16, (y - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16))
