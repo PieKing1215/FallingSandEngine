@@ -45,6 +45,7 @@ pub trait Chunk {
     fn refresh(&mut self);
     fn update_graphics(&mut self) -> Result<(), String>;
     fn set(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String>;
+    fn get(&self, x: u16, y: u16) -> Result<&MaterialInstance, String>;
     fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]);
 }
 
@@ -611,6 +612,15 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
             .map_or_else(
             || Err("Position is not loaded".to_string()), 
             |ch| ch.set((x - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16, (y - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16, mat))
+    }
+
+    pub fn get(&mut self, x: i64, y: i64) -> Result<&MaterialInstance, String> {
+
+        let (chunk_x, chunk_y) = self.pixel_to_chunk_pos(x, y);
+        self.loaded_chunks.get_mut(&self.chunk_index(chunk_x, chunk_y))
+            .map_or_else(
+            || Err("Position is not loaded".to_string()), 
+            |ch| ch.get((x - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16, (y - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16))
     }
 
     pub fn chunk_update_order(&self, chunk_x: i32, chunk_y: i32) -> u8 {

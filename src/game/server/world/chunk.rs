@@ -81,6 +81,21 @@ impl<'ch> Chunk for ServerChunk {
         Err("Invalid pixel coordinate.".to_string())
     }
 
+    // #[profiling::function] // huge performance impact
+    fn get(&self, x: u16, y: u16) -> Result<&MaterialInstance, String> {
+        if x < CHUNK_SIZE && y < CHUNK_SIZE {
+
+            if let Some(px) = &mut self.pixels {
+                let i = (x + y * CHUNK_SIZE) as usize;
+                return Ok(&px[i]);
+            }
+
+            return Err("Chunk is not ready yet.".to_string());
+        }
+
+        Err("Invalid pixel coordinate.".to_string())
+    }
+
     #[profiling::function]
     fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]) {
         for (x, y, mat) in diff.iter() {
