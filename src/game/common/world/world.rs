@@ -3,8 +3,9 @@ use std::{borrow::BorrowMut, collections::HashMap};
 
 use crate::game::common::Settings;
 use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::body::BodyDef, particle::{ParticleDef, TENSILE_PARTICLE, particle_system::ParticleSystemDef}};
+use sdl2::pixels::Color;
 
-use super::{CHUNK_SIZE, Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}};
+use super::{CHUNK_SIZE, Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::Particle};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
@@ -18,6 +19,7 @@ pub struct World<C: Chunk> {
     pub chunk_handler: ChunkHandler<TestGenerator, C>,
     pub lqf_world: liquidfun::box2d::dynamics::world::World,
     pub entities: HashMap<u32, Entity>,
+    pub particles: Vec<Particle>,
     pub net_mode: WorldNetworkMode,
 }
 
@@ -137,6 +139,7 @@ impl<'w, C: Chunk> World<C> {
             chunk_handler: ChunkHandler::new(TEST_GENERATOR),
             lqf_world,
             entities: HashMap::new(),
+            particles: Vec::new(),
             net_mode: WorldNetworkMode::Local,
         }
     }
@@ -163,6 +166,7 @@ impl<'w, C: Chunk> World<C> {
         let loaders: Vec<_> = self.entities.iter().map(|(_id, e)| (e.x, e.y)).collect();
 
         self.chunk_handler.tick(tick_time, &loaders, settings);
+        self.tick_particles(tick_time, settings);
 
         for c in self.chunk_handler.loaded_chunks.borrow_mut().values_mut() {
             if c.get_b2_body().is_none() {
@@ -237,6 +241,44 @@ impl<'w, C: Chunk> World<C> {
         // }
 
         self.chunk_handler.update_chunk_graphics();
+    }
+
+    #[profiling::function]
+    pub fn tick_particles(&mut self, tick_time: u32, settings: &Settings){
+
+        if tick_time % 15 == 0 {
+            let new_p = Particle {
+                material: MaterialInstance {
+                    material_id: TEST_MATERIAL.id,
+                    physics: PhysicsType::Sand,
+                    color: Color::RGB(64, 255, 255),
+                },
+                x: (rand::random::<f32>() - 0.5) * 10.0,
+                y: -40.0,
+                vx: (rand::random::<f32>() - 0.5) * 4.0,
+                vy: -1.0,
+            };
+
+            self.particles.push(new_p);
+        }
+
+        for p in &mut self.particles {
+            p.vy += 0.1;
+
+            let dx = p.vx;
+            let dy = p.vy;
+
+            let steps = (dx.abs() + dy.abs()) as u32 + 1;
+            for i in 0..steps {
+                let thru = i as f32 / steps as f32;
+
+                let new_x = p.x + dx * thru;
+                let new_y = p.y + dy * thru;
+
+                // TODO
+                
+            }
+        }
     }
 
     pub fn tick_lqf(&mut self, settings: &Settings) {
