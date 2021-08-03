@@ -5,7 +5,7 @@ use crate::game::common::Settings;
 use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::body::{BodyDef, BodyType}, particle::{ParticleDef, TENSILE_PARTICLE, particle_system::ParticleSystemDef}};
 use sdl2::pixels::Color;
 
-use super::{CHUNK_SIZE, Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{MaterialInstance, PhysicsType, TEST_MATERIAL}, rigidbody::RigidBody};
+use super::{CHUNK_SIZE, Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{MaterialInstance, PhysicsType, TEST_MATERIAL}, rigidbody::RigidBody, simulator};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
@@ -125,15 +125,15 @@ impl<'w, C: Chunk> World<C> {
         pd.flags.insert(TENSILE_PARTICLE);
         pd.color.set(255, 90, 255, 255);
 
-        for i in 0..15000 {
-            if i < 15000/2 {
-                pd.color.set(255, 200, 64, 191);
-            }else {
-                pd.color.set(64, 200, 255, 191);
-            }
-            pd.position.set(-7.0 + (i as f32 / 200.0) * 0.17, -6.0 - ((i % 200) as f32) * 0.17);
-            particle_system.create_particle(&pd);
-        }
+        // for i in 0..15000 {
+        //     if i < 15000/2 {
+        //         pd.color.set(255, 200, 64, 191);
+        //     }else {
+        //         pd.color.set(64, 200, 255, 191);
+        //     }
+        //     pd.position.set(-7.0 + (i as f32 / 200.0) * 0.17, -6.0 - ((i % 200) as f32) * 0.17);
+        //     particle_system.create_particle(&pd);
+        // }
 
         let mut w = World {
             chunk_handler: ChunkHandler::new(TEST_GENERATOR),
@@ -169,7 +169,13 @@ impl<'w, C: Chunk> World<C> {
             let x: i32 = i % 40;
             let y: i32 = i / 40;
             let dst = (x - 20) * (x - 20) + (y - 20) * (y - 20);
-            if dst > 10 * 10 && dst <= 20 * 20 && (x - 20).abs() >= 5 {
+            if dst <= 10 * 10 {
+                MaterialInstance {
+                    material_id: TEST_MATERIAL.id,
+                    physics: PhysicsType::Sand,
+                    color: Color::RGB(255, 64, 255),
+                }
+            }else if dst <= 20 * 20 && ((x - 20).abs() >= 5 || y > 20) {
                 MaterialInstance {
                     material_id: TEST_MATERIAL.id,
                     physics: PhysicsType::Solid,
@@ -180,7 +186,7 @@ impl<'w, C: Chunk> World<C> {
             }
         }).collect();
         
-        if let Ok(mut r) = RigidBody::make_bodies(pixels, 40, 40, &mut w.lqf_world, (2.0, -6.0)) {
+        if let Ok(mut r) = RigidBody::make_bodies(pixels, 40, 40, &mut w.lqf_world, (2.0, -6.5)) {
             w.rigidbodies.append(&mut r);
         }
 
@@ -232,6 +238,8 @@ impl<'w, C: Chunk> World<C> {
         let loaders: Vec<_> = self.entities.iter().map(|(_id, e)| (e.x, e.y)).collect();
 
         self.chunk_handler.tick(tick_time, &loaders, settings);
+
+        simulator::Simulator::simulate_rigidbodies(&mut self.chunk_handler, &mut self.rigidbodies, &mut self.lqf_world);
         
         for c in self.chunk_handler.loaded_chunks.borrow_mut().values_mut() {
             if c.get_b2_body().is_none() {

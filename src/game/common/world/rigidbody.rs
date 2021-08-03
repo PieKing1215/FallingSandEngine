@@ -104,15 +104,23 @@ impl RigidBody {
         }).collect();
 
         for (loop_i, a_loop) in loops.into_iter().enumerate() {
+            let mut n_pix = 0;
             let my_pixels = pixels.clone().into_iter().enumerate().map(|(i, m)| {
                 if nearest_loop[i] == loop_i {
+                    n_pix += 1;
                     m
                 } else {
                     MaterialInstance::air()
                 }
             }).collect();
-            let rb = RigidBody::from_tris(a_loop, my_pixels, width, height, lqf_world, position)?;
-            rbs.push(rb);
+
+            if n_pix > 0 && !a_loop.is_empty() {
+                let rb = RigidBody::from_tris(a_loop, my_pixels, width, height, lqf_world, position)?;
+                // debug!("mass = {}", rb.body.as_ref().unwrap().get_mass());
+                if rb.body.as_ref().unwrap().get_mass() > 0.0 {
+                    rbs.push(rb);
+                }
+            }
         }
 
         Ok(rbs)

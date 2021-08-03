@@ -6,6 +6,7 @@ use std::{collections::HashMap, sync::Arc};
 use futures::future::join_all;
 use lazy_static::lazy_static;
 use liquidfun::box2d::dynamics::body::Body;
+use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use tokio::runtime::Runtime;
 
@@ -46,6 +47,8 @@ pub trait Chunk {
     fn update_graphics(&mut self) -> Result<(), String>;
     fn set(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String>;
     fn get(&self, x: u16, y: u16) -> Result<&MaterialInstance, String>;
+    fn set_color(&mut self, x: u16, y: u16, color: Color) -> Result<(), String>;
+    fn get_color(&self, x: u16, y: u16) -> Result<Color, String>;
     fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]);
 }
 
@@ -603,6 +606,11 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
     #[profiling::function]
     pub fn get_chunk(&self, chunk_x: i32, chunk_y: i32) -> Option<&C> {
         self.loaded_chunks.get(&self.chunk_index(chunk_x, chunk_y)).map(std::convert::AsRef::as_ref)
+    }
+
+    #[profiling::function]
+    pub fn get_chunk_mut(&mut self, chunk_x: i32, chunk_y: i32) -> Option<&mut C> {
+        self.loaded_chunks.get_mut(&self.chunk_index(chunk_x, chunk_y)).map(std::convert::AsMut::as_mut)
     }
 
     pub fn set(&mut self, x: i64, y: i64, mat: MaterialInstance) -> Result<(), String> {

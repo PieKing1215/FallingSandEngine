@@ -1,7 +1,14 @@
+
+use liquidfun::box2d::dynamics::world::World;
 use sdl2::{pixels::Color, rect::Rect};
 
 use crate::game::common::world::material::{MaterialInstance, PhysicsType};
-use crate::game::common::world::CHUNK_SIZE;
+use crate::game::common::world::{CHUNK_SIZE, rigidbody};
+
+use super::material::AIR;
+use super::rigidbody::RigidBody;
+use super::{Chunk, ChunkHandler, LIQUIDFUN_SCALE};
+use super::gen::WorldGenerator;
 
 pub struct Simulator {
     
@@ -98,6 +105,103 @@ impl SimulationHelper for SimulationHelperChunk<'_> {
     }
 }
 
+struct SimulationHelperRigidBody<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> {
+    chunk_handler: &'a mut ChunkHandler<T, C>,
+    rigidbodies: &'a mut Vec<RigidBody>,
+}
+
+impl <T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelper for SimulationHelperRigidBody<'_, T, C> {
+    unsafe fn get_pixel_local(&self, x: i32, y: i32) -> MaterialInstance {
+        let world_mat = self.chunk_handler.get(i64::from(x), i64::from(y)); // TODO: consider changing the args to i64
+        if let Ok(m) = world_mat {
+            if m.material_id != AIR.id {
+                return *m;
+            }
+        }
+
+        for i in 0..self.rigidbodies.len() {
+            let cur = &self.rigidbodies[i];
+            if let Some(body) = &cur.body {
+                if body.is_active() {
+                    let s = (-body.get_angle()).sin();
+                    let c = (-body.get_angle()).cos();
+
+                    let tx = x as f32 - body.get_position().x * LIQUIDFUN_SCALE;
+                    let ty = y as f32 - body.get_position().y * LIQUIDFUN_SCALE;
+
+                    let ntx = (tx * c - ty * s) as i32;
+                    let nty = (tx * s + ty * c) as i32;
+
+                    if ntx >= 0 && nty >= 0 && ntx < cur.width.into() && nty < cur.width.into() {
+                        let px = cur.pixels[(ntx + nty * cur.width as i32) as usize];
+
+                        if px.material_id != AIR.id {
+                            return px;
+                        }
+                    }
+
+                }
+            }
+        }
+        
+        MaterialInstance::air()
+    }
+
+    unsafe fn set_pixel_local(&mut self, x: i32, y: i32, mat: MaterialInstance) {
+        let _ignore = self.chunk_handler.set(i64::from(x), i64::from(y), mat); // TODO: consider changing the args to i64
+    }
+
+    unsafe fn get_color_local(&self, x: i32, y: i32) -> Color {
+        let (chunk_x, chunk_y) = self.chunk_handler.pixel_to_chunk_pos(i64::from(x), i64::from(y));
+        let chunk = self.chunk_handler.get_chunk(chunk_x, chunk_y);
+
+        if let Some(ch) = chunk {
+            let col_r = ch.get_color((i64::from(x) - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16, (i64::from(y) - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16);
+            if let Ok(col) = col_r {
+                if col.a > 0 {
+                    return col;
+                }
+            }
+        }
+
+        for i in 0..self.rigidbodies.len() {
+            let cur = &self.rigidbodies[i];
+            if let Some(body) = &cur.body {
+                if body.is_active() {
+                    let s = (-body.get_angle()).sin();
+                    let c = (-body.get_angle()).cos();
+
+                    let tx = x as f32 - body.get_position().x * LIQUIDFUN_SCALE;
+                    let ty = y as f32 - body.get_position().y * LIQUIDFUN_SCALE;
+
+                    let ntx = (tx * c - ty * s) as i32;
+                    let nty = (tx * s + ty * c) as i32;
+
+                    if ntx >= 0 && nty >= 0 && ntx < cur.width.into() && nty < cur.width.into() {
+                        let px = cur.pixels[(ntx + nty * cur.width as i32) as usize];
+
+                        if px.material_id != AIR.id {
+                            return px.color;
+                        }
+                    }
+
+                }
+            }
+        }
+        
+        Color::RGBA(0, 0, 0, 0)
+    }
+
+    unsafe fn set_color_local(&mut self, x: i32, y: i32, col: Color) {
+        let (chunk_x, chunk_y) = self.chunk_handler.pixel_to_chunk_pos(i64::from(x), i64::from(y));
+        let chunk = self.chunk_handler.get_chunk_mut(chunk_x, chunk_y);
+
+        if let Some(ch) = chunk {
+            let _ignore = ch.set_color((i64::from(x) - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16, (i64::from(y) - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16, col);
+        }
+    }
+}
+
 impl Simulator {
     #[profiling::function]
     pub fn simulate_chunk(_chunk_x: i32, _chunk_y: i32, pixels_raw: [usize; 9], colors_raw: [usize; 9], dirty: &mut [bool; 9], dirty_rects: &mut [Option<Rect>; 9]) {
@@ -147,7 +251,9 @@ impl Simulator {
                 profiling::scope!("");
                 for y in (my_dirty_rect.y..(my_dirty_rect.y + my_dirty_rect.h) as i32).rev() {
                     for x in my_dirty_rect.x..(my_dirty_rect.x + my_dirty_rect.w) as i32 {
-                        if let Some(mat) = Self::simulate_pixel(x, y, &mut helper) {
+                        
+                        let cur = helper.get_pixel_local(x, y);
+                        if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper) {
                             helper.set_color_local(x, y, mat.color);
                             helper.set_pixel_local(x, y, mat);
                         }
@@ -160,9 +266,103 @@ impl Simulator {
         }
     }
 
-    fn simulate_pixel(x: i32, y: i32, helper: &mut dyn SimulationHelper) -> Option<MaterialInstance> {
+    #[allow(clippy::unnecessary_unwrap)]
+    #[allow(clippy::needless_range_loop)]
+    pub fn simulate_rigidbodies<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk>(chunk_handler: &mut ChunkHandler<T, C>, rigidbodies: &mut Vec<RigidBody>, lqf_world: &mut World) {
+        let mut dirty = vec![false; rigidbodies.len()];
+        let mut needs_remesh = vec![false; rigidbodies.len()];
+        for i in 0..rigidbodies.len() {
+
+            let rb_w = rigidbodies[i].width;
+            let rb_h = rigidbodies[i].height;
+            let body_opt = rigidbodies[i].body.as_ref();
+
+            if body_opt.is_some() {
+                let s = body_opt.unwrap().get_angle().sin();
+                let c = body_opt.unwrap().get_angle().cos();
+                let pos_x = body_opt.unwrap().get_position().x * LIQUIDFUN_SCALE;
+                let pos_y = body_opt.unwrap().get_position().y * LIQUIDFUN_SCALE;
+
+                let mut helper = SimulationHelperRigidBody {
+                    chunk_handler,
+                    rigidbodies,
+                };
+
+                for rb_y in 0..rb_w {
+                    for rb_x in 0..rb_h {
+                        let tx = f32::from(rb_x) * c - f32::from(rb_y) * s + pos_x;
+                        let ty = f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y;
+
+                        // let cur = helper.get_pixel_local(tx as i32, ty as i32);
+                        let cur = helper.rigidbodies[i].pixels[(rb_x + rb_y * rb_w) as usize];
+
+                        let res = Self::simulate_pixel(tx as i32, ty as i32, cur, &mut helper);
+
+                        // if cur.material_id != AIR.id {
+                        //     // helper.set_pixel_local(tx as i32, ty as i32, MaterialInstance {
+                        //     //     material_id: TEST_MATERIAL.id,
+                        //     //     physics: PhysicsType::Sand,
+                        //     //     color: Color::RGB(64, 255, 64),
+                        //     // });
+                        //     // helper.set_pixel_local(tx as i32, ty as i32, cur);
+
+                        // }
+
+                        if let Some(mat) = res {
+                            helper.rigidbodies[i].pixels[(rb_x + rb_y * rb_w) as usize] = mat;
+                            dirty[i] = true;
+
+                            if (cur.physics == PhysicsType::Solid && mat.physics != PhysicsType::Solid)
+                                || (cur.physics != PhysicsType::Solid && mat.physics == PhysicsType::Solid) {
+                                needs_remesh[i] = true;
+                            }
+                        }
+
+                        // helper.rigidbodies[i].height = 5;
+                    }
+                }
+            }
+        }
+
+        for i in 0..rigidbodies.len() {
+            if dirty[i] && !needs_remesh[i] { // don't bother updating the image if it's going to be destroyed anyway
+                rigidbodies[i].update_image();
+            }
+        }
+
+        let mut new_rb: Vec<RigidBody> = rigidbodies.drain(..).enumerate().flat_map(|(i, rb): (usize, RigidBody)| {
+            if needs_remesh[i] {
+                let pos = (rb.body.as_ref().unwrap().get_position().x, rb.body.as_ref().unwrap().get_position().y);
+
+                let b2_pos = rb.body.as_ref().unwrap().get_position();
+                let b2_angle = rb.body.as_ref().unwrap().get_angle();
+                let b2_linear_velocity = rb.body.as_ref().unwrap().get_linear_velocity();
+                let b2_angular_velocity = rb.body.as_ref().unwrap().get_angular_velocity();
+
+                // debug!("#bodies before = {}", lqf_world.get_body_count());
+                lqf_world.destroy_body(rb.body.as_ref().unwrap());
+                // debug!("#bodies after  = {}", lqf_world.get_body_count());
+                let mut r = rigidbody::RigidBody::make_bodies(rb.pixels, rb.width, rb.height, lqf_world, pos).unwrap_or_default();
+                // debug!("#bodies after2 = {} new pos = {:?}", lqf_world.get_body_count(), r[0].body.as_ref().unwrap().get_position());
+
+                for rb in &mut r {
+                    rb.body.as_mut().unwrap().set_transform(b2_pos, b2_angle);
+                    rb.body.as_mut().unwrap().set_linear_velocity(b2_linear_velocity);
+                    rb.body.as_mut().unwrap().set_angular_velocity(b2_angular_velocity);
+                }
+
+                r
+            } else {
+                vec![rb]
+            }
+        }).collect();
+
+        rigidbodies.append(&mut new_rb);
+
+    }
+
+    fn simulate_pixel(x: i32, y: i32, cur: MaterialInstance, helper: &mut dyn SimulationHelper) -> Option<MaterialInstance> {
         unsafe {
-            let cur = helper.get_pixel_local(x, y);
             let mut new_mat: Option<MaterialInstance> = None;
 
             #[allow(clippy::single_match)]
