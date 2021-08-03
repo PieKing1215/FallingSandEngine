@@ -2,10 +2,11 @@
 use std::{borrow::BorrowMut, collections::HashMap};
 
 use crate::game::common::Settings;
-use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::body::BodyDef, particle::{ParticleDef, TENSILE_PARTICLE, particle_system::ParticleSystemDef}};
+
+use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::body::{BodyDef, BodyType}, particle::{ParticleDef, TENSILE_PARTICLE, particle_system::ParticleSystemDef}};
 use sdl2::pixels::Color;
 
-use super::{CHUNK_SIZE, Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::Particle};
+use super::{CHUNK_SIZE, Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, rigidbody::RigidBody, simulator, particle::Particle};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
@@ -21,13 +22,14 @@ pub struct World<C: Chunk> {
     pub entities: HashMap<u32, Entity>,
     pub particles: Vec<Particle>,
     pub net_mode: WorldNetworkMode,
+    pub rigidbodies: Vec<RigidBody>,
 }
 
 impl<'w, C: Chunk> World<C> {
     #[profiling::function]
     pub fn create() -> Self {
         let gravity = liquidfun::box2d::common::math::Vec2::new(0.0, 3.0);
-        let lqf_world = liquidfun::box2d::dynamics::world::World::new(&gravity);
+        let mut lqf_world = liquidfun::box2d::dynamics::world::World::new(&gravity);
 
         // let mut ground_body_def = BodyDef::default();
 	    // ground_body_def.position.set(0.0, -26.0);
@@ -125,23 +127,96 @@ impl<'w, C: Chunk> World<C> {
         pd.flags.insert(TENSILE_PARTICLE);
         pd.color.set(255, 90, 255, 255);
 
-        for i in 0..15000 {
-            if i < 15000/2 {
-                pd.color.set(255, 200, 64, 191);
-            }else {
-                pd.color.set(64, 200, 255, 191);
-            }
-            pd.position.set(-7.0 + (i as f32 / 200.0) * 0.17, -6.0 - ((i % 200) as f32) * 0.17);
-            particle_system.create_particle(&pd);
-        }
+        // for i in 0..15000 {
+        //     if i < 15000/2 {
+        //         pd.color.set(255, 200, 64, 191);
+        //     }else {
+        //         pd.color.set(64, 200, 255, 191);
+        //     }
+        //     pd.position.set(-7.0 + (i as f32 / 200.0) * 0.17, -6.0 - ((i % 200) as f32) * 0.17);
+        //     particle_system.create_particle(&pd);
+        // }
 
-        World {
+        let mut w = World {
             chunk_handler: ChunkHandler::new(TEST_GENERATOR),
             lqf_world,
             entities: HashMap::new(),
             particles: Vec::new(),
             net_mode: WorldNetworkMode::Local,
+            rigidbodies: Vec::new(),
+        };
+
+        // add a rigidbody
+
+        let pixels = (0..40 * 40).map(|i| {
+            let x: i32 = i % 40;
+            let y: i32 = i / 40;
+            if (x - 20).abs() < 5 || (y - 20).abs() < 5 {
+                MaterialInstance {
+                    material_id: TEST_MATERIAL.id,
+                    physics: PhysicsType::Solid,
+                    color: Color::RGB(64, if (x + y) % 4 >= 2 { 191 } else { 64 }, if (x + y) % 4 > 2 { 64 } else { 191 }),
+                }
+            }else {
+                MaterialInstance::air()
+            }
+        }).collect();
+        
+        if let Ok(mut r) = RigidBody::make_bodies(pixels, 40, 40, &mut w.lqf_world, (-1.0, -7.0)) {
+            w.rigidbodies.append(&mut r);
         }
+
+        // add another rigidbody
+
+        let pixels = (0..40 * 40).map(|i| {
+            let x: i32 = i % 40;
+            let y: i32 = i / 40;
+            let dst = (x - 20) * (x - 20) + (y - 20) * (y - 20);
+            if dst <= 10 * 10 {
+                MaterialInstance {
+                    material_id: TEST_MATERIAL.id,
+                    physics: PhysicsType::Sand,
+                    color: Color::RGB(255, 64, 255),
+                }
+            }else if dst <= 20 * 20 && ((x - 20).abs() >= 5 || y > 20) {
+                MaterialInstance {
+                    material_id: TEST_MATERIAL.id,
+                    physics: PhysicsType::Solid,
+                    color: Color::RGB(if (x + y) % 4 >= 2 { 191 } else { 64 }, if (x + y) % 4 > 2 { 64 } else { 191 }, 64),
+                }
+            }else {
+                MaterialInstance::air()
+            }
+        }).collect();
+        
+        if let Ok(mut r) = RigidBody::make_bodies(pixels, 40, 40, &mut w.lqf_world, (2.0, -6.5)) {
+            w.rigidbodies.append(&mut r);
+        }
+
+        for n in 0..4 {
+            // add more rigidbodies
+
+            let pixels = (0..30 * 30).map(|i| {
+                let x: i32 = i % 30 + (((i + n * 22) as f32 / 60.0).sin() * 2.0) as i32;
+                let y: i32 = i / 30;
+                let dst = (x - 15) * (x - 15) + (y - 15) * (y - 15);
+                if dst > 5 * 5 && dst <= 10 * 10  {
+                    MaterialInstance {
+                        material_id: TEST_MATERIAL.id,
+                        physics: PhysicsType::Solid,
+                        color: Color::RGB(if (x + y) % 4 >= 2 { 191 } else { 64 }, if (x + y) % 4 > 2 { 64 } else { 191 }, if (x + y) % 4 >= 2 { 191 } else { 64 }),
+                    }
+                }else {
+                    MaterialInstance::air()
+                }
+            }).collect();
+            
+            if let Ok(mut r) = RigidBody::make_bodies(pixels, 30, 30, &mut w.lqf_world, (5.0 + n as f32 * 2.0, -7.0 + n as f32 * -0.75)) {
+                w.rigidbodies.append(&mut r);
+            }
+        }
+
+        w
     }
 
     pub fn add_entity(&mut self, entity: Entity) -> u32 {
@@ -165,9 +240,84 @@ impl<'w, C: Chunk> World<C> {
     pub fn tick(&mut self, tick_time: u32, settings: &Settings){
         let loaders: Vec<_> = self.entities.iter().map(|(_id, e)| (e.x, e.y)).collect();
 
+        for rb in &mut self.rigidbodies {
+            let rb_w = rb.width;
+            let rb_h = rb.height;
+
+            if let Some(body) = &mut rb.body {
+                let s = body.get_angle().sin();
+                let c = body.get_angle().cos();
+                let pos_x = body.get_position().x * LIQUIDFUN_SCALE;
+                let pos_y = body.get_position().y * LIQUIDFUN_SCALE;
+
+                for rb_y in 0..rb_w {
+                    for rb_x in 0..rb_h {
+                        let tx = f32::from(rb_x) * c - f32::from(rb_y) * s + pos_x;
+                        let ty = f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y;
+
+                        let cur = rb.pixels[(rb_x + rb_y * rb_w) as usize];
+                        if cur.material_id != AIR.id {
+                            let world = self.chunk_handler.get(tx as i64, ty as i64);
+                            if let Ok(mat) = world {
+                                if mat.material_id == AIR.id {
+                                    let _ignore = self.chunk_handler.set(tx as i64, ty as i64, MaterialInstance {
+                                        physics: PhysicsType::Object,
+                                        ..cur
+                                    });
+                                }else if mat.physics == PhysicsType::Sand {
+                                    // let local_point = Vec2::new(f32::from(rb_x) / f32::from(rb_w), f32::from(rb_y) / f32::from(rb_h));
+                                    let world_point = Vec2::new(tx / LIQUIDFUN_SCALE, ty / LIQUIDFUN_SCALE);
+
+                                    let point_velocity: Vec2 = body.get_linear_velocity_from_world_point(&Vec2::new(tx / LIQUIDFUN_SCALE, ty / LIQUIDFUN_SCALE));
+                                    // TODO: extract constant into material property (like weight or something)
+                                    // TODO: consider making it so the body actually comes to a stop
+                                    body.apply_force(&Vec2::new(-point_velocity.x * 0.1, -point_velocity.y * 0.1), &world_point, true);
+
+                                    // let linear_velocity = body.get_linear_velocity();
+                                    // body.set_linear_velocity(&Vec2::new(linear_velocity.x * 0.9999, linear_velocity.y * 0.9999));
+
+                                    // let angular_velocity = body.get_angular_velocity();
+                                    // body.set_angular_velocity(angular_velocity * 0.999);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         self.chunk_handler.tick(tick_time, &loaders, settings);
         self.tick_particles(tick_time, settings);
 
+        for rb in &self.rigidbodies {
+            let rb_w = rb.width;
+            let rb_h = rb.height;
+            let body_opt = rb.body.as_ref();
+
+            if body_opt.is_some() {
+                let s = body_opt.unwrap().get_angle().sin();
+                let c = body_opt.unwrap().get_angle().cos();
+                let pos_x = body_opt.unwrap().get_position().x * LIQUIDFUN_SCALE;
+                let pos_y = body_opt.unwrap().get_position().y * LIQUIDFUN_SCALE;
+
+                for rb_y in 0..rb_w {
+                    for rb_x in 0..rb_h {
+                        let tx = f32::from(rb_x) * c - f32::from(rb_y) * s + pos_x;
+                        let ty = f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y;
+
+                        let world = self.chunk_handler.get(tx as i64, ty as i64);
+                        if let Ok(mat) = world {
+                            if mat.physics == PhysicsType::Object {
+                                let _ignore = self.chunk_handler.set(tx as i64, ty as i64, MaterialInstance::air());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        simulator::Simulator::simulate_rigidbodies(&mut self.chunk_handler, &mut self.rigidbodies, &mut self.lqf_world);
+        
         for c in self.chunk_handler.loaded_chunks.borrow_mut().values_mut() {
             if c.get_b2_body().is_none() {
                 // if let Some(tr) = c.get_tris() {
@@ -222,10 +372,41 @@ impl<'w, C: Chunk> World<C> {
                 let chunk_center_x = c.get_chunk_x() * i32::from(CHUNK_SIZE) + i32::from(CHUNK_SIZE) / 2;
                 let chunk_center_y = c.get_chunk_y() * i32::from(CHUNK_SIZE) + i32::from(CHUNK_SIZE) / 2;
 
-                let dist = f32::from(CHUNK_SIZE) * 0.6;
-                let should_be_active = self.lqf_world.get_particle_system_list().iter().any(|system| {
-                    system.get_position_buffer().iter().any(|pos| (pos.x * LIQUIDFUN_SCALE as f32 - chunk_center_x as f32).abs() < dist && (pos.y * LIQUIDFUN_SCALE as f32 - chunk_center_y as f32).abs() < dist)
-                });
+                let dist_particle = f32::from(CHUNK_SIZE) * 0.6;
+                let dist_body = f32::from(CHUNK_SIZE) * 1.0;
+
+                let mut should_be_active = false;
+
+                let mut psl = self.lqf_world.get_particle_system_list();
+                while psl.is_some() && !should_be_active {
+                    let system = psl.unwrap();
+                    if system.get_position_buffer().iter().any(|pos| (pos.x * LIQUIDFUN_SCALE as f32 - chunk_center_x as f32).abs() < dist_particle && (pos.y * LIQUIDFUN_SCALE as f32 - chunk_center_y as f32).abs() < dist_particle) {
+                        should_be_active = true;
+                    }
+                    psl = system.get_next();
+                }
+
+                // TODO: see if using box2d's query methods instead of direct iteration is faster
+                let mut bl = self.lqf_world.get_body_list();
+                while bl.is_some() && !should_be_active {
+                    let body = bl.unwrap();
+
+                    match body.get_type() {
+                        BodyType::DynamicBody => {
+                            // if body.is_awake() { // this just causes flickering
+                            let pos = body.get_position();
+                            let dist_x = (pos.x * LIQUIDFUN_SCALE as f32 - chunk_center_x as f32).abs();
+                            let dist_y = (pos.y * LIQUIDFUN_SCALE as f32 - chunk_center_y as f32).abs();
+                            if dist_x < dist_body && dist_y < dist_body {
+                                should_be_active = true;
+                            }
+                            // }
+                        },
+                        BodyType::KinematicBody | BodyType::StaticBody => {},
+                    }
+
+                    bl = body.get_next();
+                }
 
                 if let Some(b) = c.get_b2_body_mut() {
                     b.set_active(should_be_active);
@@ -312,8 +493,8 @@ impl<'w, C: Chunk> World<C> {
 
 
         let time_step = settings.tick_lqf_timestep;
-        let velocity_iterations = 3;
-        let position_iterations = 2;
+        let velocity_iterations = 5;
+        let position_iterations = 3;
         self.lqf_world.step(time_step, velocity_iterations, position_iterations);
         // match self.net_mode {
         //     WorldNetworkMode::Local => {

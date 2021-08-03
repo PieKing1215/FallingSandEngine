@@ -5,6 +5,7 @@ mod simulator;
 pub mod entity;
 pub mod mesh;
 pub mod particle;
+pub mod rigidbody;
 
 pub mod gen;
 

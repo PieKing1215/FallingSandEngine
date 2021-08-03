@@ -18,6 +18,7 @@ pub enum PhysicsType {
     Sand,
     Liquid,
     Gas,
+    Object,
 }
 
 pub struct Material<'a> {

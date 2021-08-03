@@ -1,5 +1,5 @@
 use liquidfun::box2d::dynamics::body::Body;
-use sdl2::rect::Rect;
+use sdl2::{pixels::Color, rect::Rect};
 
 use crate::game::common::world::{CHUNK_SIZE, Chunk, ChunkState, material::MaterialInstance, mesh};
 
@@ -76,6 +76,52 @@ impl<'ch> Chunk for ServerChunk {
             }
 
             return Err("Chunk is not ready yet.".to_string());
+        }
+
+        Err("Invalid pixel coordinate.".to_string())
+    }
+
+    // #[profiling::function] // huge performance impact
+    fn get(&self, x: u16, y: u16) -> Result<&MaterialInstance, String> {
+        if x < CHUNK_SIZE && y < CHUNK_SIZE {
+
+            if let Some(px) = &self.pixels {
+                let i = (x + y * CHUNK_SIZE) as usize;
+                return Ok(&px[i]);
+            }
+
+            return Err("Chunk is not ready yet.".to_string());
+        }
+
+        Err("Invalid pixel coordinate.".to_string())
+    }
+
+    fn set_color(&mut self, x: u16, y: u16, color: Color) -> Result<(), String> {
+        if x < CHUNK_SIZE && y < CHUNK_SIZE {
+            let i = (x + y * CHUNK_SIZE) as usize;
+
+            self.pixel_data[i * 4]     = color.r;
+            self.pixel_data[i * 4 + 1] = color.g;
+            self.pixel_data[i * 4 + 2] = color.b;
+            self.pixel_data[i * 4 + 3] = color.a;
+            self.dirty = true;
+
+            return Ok(());
+    
+        }
+
+        Err("Invalid pixel coordinate.".to_string())
+    }
+
+    fn get_color(&self, x: u16, y: u16) -> Result<Color, String> {
+        if x < CHUNK_SIZE && y < CHUNK_SIZE {
+            let i = (x + y * CHUNK_SIZE) as usize;
+
+            return Ok(Color::RGBA(
+                self.pixel_data[i * 4], 
+                self.pixel_data[i * 4 + 1], 
+                self.pixel_data[i * 4 + 2], 
+                self.pixel_data[i * 4 + 3]));
         }
 
         Err("Invalid pixel coordinate.".to_string())

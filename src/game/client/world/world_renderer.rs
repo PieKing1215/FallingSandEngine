@@ -214,6 +214,36 @@ impl WorldRenderer {
 
         // draw solids
 
+        transform.push();
+        transform.scale(LIQUIDFUN_SCALE, LIQUIDFUN_SCALE);
+        for rb in &mut world.rigidbodies {
+            if rb.image.is_none() {
+                rb.update_image();
+            }
+
+            if let Some(body) = &rb.body {
+                if let Some(img) = &rb.image {
+                    let pos = body.get_position();
+
+                    let (width, height) = (f32::from(rb.width) / LIQUIDFUN_SCALE, f32::from(rb.height) / LIQUIDFUN_SCALE);
+
+                    let mut rect = GPURect::new(pos.x, pos.y, width, height);
+
+                    let (x1, y1) = transform.transform((rect.x, rect.y));
+                    let (x2, y2) = transform.transform((rect.x + rect.w, rect.y + rect.h));
+                    
+                    rect = GPURect::new2(x1 as f32, y1 as f32, x2 as f32, y2 as f32);
+
+                    img.blit_rect_x(None, target, 
+                        Some(rect), 
+                        body.get_angle().to_degrees(), 0.0, 0.0, 0);
+                }
+            }
+        }
+        transform.pop();
+
+        // lqf debug draw
+
         let transform_ptr: *const TransformStack = transform;
         let transform_ptr_raw = transform_ptr as usize;
 
@@ -329,7 +359,8 @@ impl BoxDraw {
         }).collect();
 
         let col = *color;
-        canvas.polygon_filled(verts, Color::RGBA((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8, 64));
+        canvas.polygon_filled(verts.clone(), Color::RGBA((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8, 127));
+        canvas.polygon(verts, Color::RGBA((col.r * 255.0) as u8, (col.g * 255.0) as u8, (col.b * 255.0) as u8, 255));
     }
 
     pub unsafe extern "C" fn draw_circle(

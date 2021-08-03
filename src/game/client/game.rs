@@ -7,7 +7,7 @@ use sdl2::{event::{Event, WindowEvent}, keyboard::Keycode, sys::SDL_WindowFlags,
 use sdl_gpu::GPUSubsystem;
 use sysinfo::{Pid, ProcessExt, SystemExt};
 
-use crate::game::{Game, common::{Settings, networking::{Packet, PacketType}, world::{WorldNetworkMode, material::MaterialInstance}}};
+use crate::game::{Game, common::{Settings, networking::{Packet, PacketType}, world::{LIQUIDFUN_SCALE, WorldNetworkMode, material::MaterialInstance}}};
 
 use super::{render::{Renderer, Sdl2Context}, world::ClientChunk};
 
@@ -102,12 +102,31 @@ impl Game<ClientChunk> {
                         Event::MouseButtonDown{mouse_btn: sdl2::mouse::MouseButton::Right, x, y, ..} => {
                             if let Some(w) = &mut self.world {
                                 if let Some(ref r) = renderer {
-                                    if let Some(ref c) = &mut self.client {
+                                    if let Some(ref mut c) = &mut self.client {
                                         let world_x = c.camera.x + (f64::from(x) - f64::from(r.window.size().0) / 2.0) / c.camera.scale;
                                         let world_y = c.camera.y + (f64::from(y) - f64::from(r.window.size().1) / 2.0) / c.camera.scale;
-                                        let (chunk_x, chunk_y) = w.chunk_handler.pixel_to_chunk_pos(world_x as i64, world_y as i64);
-                                        w.chunk_handler.force_update_chunk(chunk_x, chunk_y);
+                                        // let (chunk_x, chunk_y) = w.chunk_handler.pixel_to_chunk_pos(world_x as i64, world_y as i64);
+                                        // w.chunk_handler.force_update_chunk(chunk_x, chunk_y);
+                                        
+                                        if let Some(mj) = w.lqf_world.mouse_joint_begin(Vec2::new(world_x as f32 / LIQUIDFUN_SCALE, world_y as f32 / LIQUIDFUN_SCALE)) {
+                                            let mj: liquidfun::box2d::dynamics::joints::mouse_joint::MouseJoint = mj;
+                                            c.mouse_joint = Some(mj);
+                                            debug!("made mouse joint");
+                                        }else {
+                                            c.mouse_joint = None;
+                                            debug!("failed to make mouse joint");
+                                        }
                                     }
+                                }
+                            }
+                        },
+                        Event::MouseButtonUp{mouse_btn: sdl2::mouse::MouseButton::Right, ..} => {
+                            if let Some(w) = &mut self.world {
+                                if let Some(ref mut c) = &mut self.client {
+                                    if let Some(mj) = &c.mouse_joint {
+                                        w.lqf_world.destroy_mouse_joint(mj);
+                                    }
+                                    c.mouse_joint = None;
                                 }
                             }
                         },
@@ -131,6 +150,16 @@ impl Game<ClientChunk> {
                                                     let _ = w.chunk_handler.set(world_x as i64 + xx, world_y as i64 + yy, MaterialInstance::air());
                                                 }
                                             }
+                                        }
+                                    }
+                                }
+                            }else if mousestate.right() {
+                                if let Some(ref r) = renderer {
+                                    if let Some(ref mut c) = &mut self.client {
+                                        let world_x = c.camera.x + (f64::from(x) - f64::from(r.window.size().0) / 2.0) / c.camera.scale;
+                                        let world_y = c.camera.y + (f64::from(y) - f64::from(r.window.size().1) / 2.0) / c.camera.scale;
+                                        if let Some(mj) = &mut c.mouse_joint {
+                                            mj.set_target(Vec2::new(world_x as f32 / LIQUIDFUN_SCALE, world_y as f32 / LIQUIDFUN_SCALE));
                                         }
                                     }
                                 }

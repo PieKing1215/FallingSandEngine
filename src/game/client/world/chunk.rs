@@ -103,6 +103,37 @@ impl<'ch> Chunk for ClientChunk {
         Err("Invalid pixel coordinate.".to_string())
     }
 
+    // #[profiling::function] // huge performance impact
+    fn get(&self, x: u16, y: u16) -> Result<&MaterialInstance, String> {
+        if x < CHUNK_SIZE && y < CHUNK_SIZE {
+
+            if let Some(px) = &self.pixels {
+                let i = (x + y * CHUNK_SIZE) as usize;
+                return Ok(&px[i]);
+            }
+
+            return Err("Chunk is not ready yet.".to_string());
+        }
+
+        Err("Invalid pixel coordinate.".to_string())
+    }
+
+    fn set_color(&mut self, x: u16, y: u16, color: Color) -> Result<(), String> {
+        if x < CHUNK_SIZE && y < CHUNK_SIZE {
+            return self.graphics.set(x, y, color);
+        }
+
+        Err("Invalid pixel coordinate.".to_string())
+    }
+
+    fn get_color(&self, x: u16, y: u16) -> Result<Color, String> {
+        if x < CHUNK_SIZE && y < CHUNK_SIZE {
+            return self.graphics.get(x, y);
+        }
+
+        Err("Invalid pixel coordinate.".to_string())
+    }
+
     #[profiling::function]
     fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]) {
         for (x, y, mat) in diff {
@@ -201,6 +232,22 @@ impl<'cg> ChunkGraphics {
             self.dirty = true;
 
             return Ok(());
+        }
+
+        Err("Invalid pixel coordinate.".to_string())
+    }
+
+    // #[profiling::function] // huge performance impact
+    pub fn get(&self, x: u16, y: u16) -> Result<Color, String> {
+        if x < CHUNK_SIZE && y < CHUNK_SIZE {
+            // self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
+            let i = (x + y * CHUNK_SIZE) as usize;
+
+            return Ok(Color::RGBA(
+                self.pixel_data[i * 4], 
+                self.pixel_data[i * 4 + 1], 
+                self.pixel_data[i * 4 + 2], 
+                self.pixel_data[i * 4 + 3]));
         }
 
         Err("Invalid pixel coordinate.".to_string())
