@@ -5,7 +5,7 @@ use crate::game::common::Settings;
 use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::body::{BodyDef, BodyType}, particle::{ParticleDef, TENSILE_PARTICLE, particle_system::ParticleSystemDef}};
 use sdl2::pixels::Color;
 
-use super::{CHUNK_SIZE, Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{MaterialInstance, PhysicsType, TEST_MATERIAL}, rigidbody::RigidBody, simulator};
+use super::{CHUNK_SIZE, Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, rigidbody::RigidBody, simulator};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
@@ -237,7 +237,80 @@ impl<'w, C: Chunk> World<C> {
     pub fn tick(&mut self, tick_time: u32, settings: &Settings){
         let loaders: Vec<_> = self.entities.iter().map(|(_id, e)| (e.x, e.y)).collect();
 
+        for rb in &mut self.rigidbodies {
+            let rb_w = rb.width;
+            let rb_h = rb.height;
+
+            if let Some(body) = &mut rb.body {
+                let s = body.get_angle().sin();
+                let c = body.get_angle().cos();
+                let pos_x = body.get_position().x * LIQUIDFUN_SCALE;
+                let pos_y = body.get_position().y * LIQUIDFUN_SCALE;
+
+                for rb_y in 0..rb_w {
+                    for rb_x in 0..rb_h {
+                        let tx = f32::from(rb_x) * c - f32::from(rb_y) * s + pos_x;
+                        let ty = f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y;
+
+                        let cur = rb.pixels[(rb_x + rb_y * rb_w) as usize];
+                        if cur.material_id != AIR.id {
+                            let world = self.chunk_handler.get(tx as i64, ty as i64);
+                            if let Ok(mat) = world {
+                                if mat.material_id == AIR.id {
+                                    let _ignore = self.chunk_handler.set(tx as i64, ty as i64, MaterialInstance {
+                                        physics: PhysicsType::Object,
+                                        ..cur
+                                    });
+                                }else if mat.physics == PhysicsType::Sand {
+                                    // let local_point = Vec2::new(f32::from(rb_x) / f32::from(rb_w), f32::from(rb_y) / f32::from(rb_h));
+                                    let world_point = Vec2::new(tx / LIQUIDFUN_SCALE, ty / LIQUIDFUN_SCALE);
+
+                                    let point_velocity: Vec2 = body.get_linear_velocity_from_world_point(&Vec2::new(tx / LIQUIDFUN_SCALE, ty / LIQUIDFUN_SCALE));
+                                    // TODO: extract constant into material property (like weight or something)
+                                    // TODO: consider making it so the body actually comes to a stop
+                                    body.apply_force(&Vec2::new(-point_velocity.x * 0.1, -point_velocity.y * 0.1), &world_point, true);
+
+                                    // let linear_velocity = body.get_linear_velocity();
+                                    // body.set_linear_velocity(&Vec2::new(linear_velocity.x * 0.9999, linear_velocity.y * 0.9999));
+
+                                    // let angular_velocity = body.get_angular_velocity();
+                                    // body.set_angular_velocity(angular_velocity * 0.999);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         self.chunk_handler.tick(tick_time, &loaders, settings);
+
+        for rb in &self.rigidbodies {
+            let rb_w = rb.width;
+            let rb_h = rb.height;
+            let body_opt = rb.body.as_ref();
+
+            if body_opt.is_some() {
+                let s = body_opt.unwrap().get_angle().sin();
+                let c = body_opt.unwrap().get_angle().cos();
+                let pos_x = body_opt.unwrap().get_position().x * LIQUIDFUN_SCALE;
+                let pos_y = body_opt.unwrap().get_position().y * LIQUIDFUN_SCALE;
+
+                for rb_y in 0..rb_w {
+                    for rb_x in 0..rb_h {
+                        let tx = f32::from(rb_x) * c - f32::from(rb_y) * s + pos_x;
+                        let ty = f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y;
+
+                        let world = self.chunk_handler.get(tx as i64, ty as i64);
+                        if let Ok(mat) = world {
+                            if mat.physics == PhysicsType::Object {
+                                let _ignore = self.chunk_handler.set(tx as i64, ty as i64, MaterialInstance::air());
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         simulator::Simulator::simulate_rigidbodies(&mut self.chunk_handler, &mut self.rigidbodies, &mut self.lqf_world);
         
