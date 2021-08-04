@@ -11,6 +11,7 @@ use sdl2::rect::Rect;
 use tokio::runtime::Runtime;
 
 use super::gen::WorldGenerator;
+use super::material::PhysicsType;
 use crate::game::common::world::material::MaterialInstance;
 
 pub const CHUNK_SIZE: u16 = 128;
@@ -629,6 +630,43 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
             .map_or_else(
             || Err("Position is not loaded".to_string()), 
             |ch| ch.get((x - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16, (y - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16))
+    }
+
+    pub fn displace(&mut self, x: i64, y: i64, material: MaterialInstance) -> bool {
+        let mut succeeded = false;
+
+        let scan_w = 32;
+        let scan_h = 32;
+        let mut scan_x = 0;
+        let mut scan_y = 0;
+        let mut scan_dx = 0;
+        let mut scan_dy = -1;
+        let scan_max_i = scan_w.max(scan_h) * scan_w.max(scan_h); // the max is pointless now but could change w or h later
+
+        for _ in 0..scan_max_i {
+            if (scan_x >= -scan_w / 2) && (scan_x <= scan_w / 2) && (scan_y >= -scan_h / 2) && (scan_y <= scan_h / 2) {
+                if let Ok(scan_mat) = self.get(x + i64::from(scan_x), y + i64::from(scan_y)) {
+                    if scan_mat.physics == PhysicsType::Air 
+                        && self.set(x + i64::from(scan_x), y + i64::from(scan_y), material).is_ok() {
+                        succeeded = true;
+                        break;
+                    }
+                }
+            }
+
+            // update scan coordinates
+
+            if (scan_x == scan_y) || ((scan_x < 0) && (scan_x == -scan_y)) || ((scan_x > 0) && (scan_x == 1 - scan_y)) {
+                let temp = scan_dx;
+                scan_dx = -scan_dy;
+                scan_dy = temp;
+            }
+
+            scan_x += scan_dx;
+            scan_y += scan_dy;
+        }
+
+        succeeded
     }
 
     pub fn chunk_update_order(&self, chunk_x: i32, chunk_y: i32) -> u8 {

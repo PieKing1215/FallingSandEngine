@@ -240,7 +240,8 @@ impl<'w, C: Chunk> World<C> {
     pub fn tick(&mut self, tick_time: u32, settings: &Settings){
         let loaders: Vec<_> = self.entities.iter().map(|(_id, e)| (e.x, e.y)).collect();
 
-        for rb in &mut self.rigidbodies {
+        for rb_i in 0..self.rigidbodies.len() {
+            let rb = &mut self.rigidbodies[rb_i];
             let rb_w = rb.width;
             let rb_h = rb.height;
 
@@ -274,13 +275,16 @@ impl<'w, C: Chunk> World<C> {
                                     body.apply_force(&Vec2::new(-point_velocity.x * 0.1, -point_velocity.y * 0.1), &world_point, true);
 
                                     if point_velocity.x.abs() > 0.01 && point_velocity.y.abs() > 0.01 {
-                                        let part = Particle::new(*mat, tx as f32, ty as f32, point_velocity.x * 0.1, point_velocity.y * 0.1);
+                                        let m = *mat;
+                                        // TODO: flip the velocity if there's no openings in the original direction
+                                        //       might help with particles getting stuck and upwarping
+                                        let part = Particle::new(*mat, tx as f32, ty as f32, point_velocity.x * 0.1, point_velocity.y * 0.1 - 0.5);
                                         let res = self.chunk_handler.set(tx as i64, ty as i64, MaterialInstance {
                                             physics: PhysicsType::Object,
                                             ..cur
                                         });
 
-                                        if res.is_ok() {
+                                        if res.is_ok() && !self.chunk_handler.displace(tx as i64, ty as i64, m) {
                                             self.particles.push(part);
                                         }
                                     }
@@ -501,38 +505,8 @@ impl<'w, C: Chunk> World<C> {
 
                             match self.chunk_handler.get(lx as i64, ly as i64) {
                                 Ok(m) if m.physics != PhysicsType::Air => {
-                                    let mut succeeded = false;
-
-                                    let scan_w = 32;
-                                    let scan_h = 32;
-                                    let mut scan_x = 0;
-                                    let mut scan_y = 0;
-                                    let mut scan_dx = 0;
-                                    let mut scan_dy = -1;
-                                    let scan_max_i = scan_w.max(scan_h) * scan_w.max(scan_h); // the max is pointless now but could change w or h later
-
-                                    for _ in 0..scan_max_i {
-                                        if (scan_x >= -scan_w / 2) && (scan_x <= scan_w / 2) && (scan_y >= -scan_h / 2) && (scan_y <= scan_h / 2) {
-                                            if let Ok(scan_mat) = self.chunk_handler.get(p.x as i64 + i64::from(scan_x), p.y as i64 + i64::from(scan_y)) {
-                                                if scan_mat.physics == PhysicsType::Air 
-                                                    && self.chunk_handler.set(p.x as i64 + i64::from(scan_x), p.y as i64 + i64::from(scan_y), p.material).is_ok() {
-                                                    succeeded = true;
-                                                    break;
-                                                }
-                                            }
-                                        }
-
-                                        // update scan coordinates
-
-                                        if (scan_x == scan_y) || ((scan_x < 0) && (scan_x == -scan_y)) || ((scan_x > 0) && (scan_x == 1 - scan_y)) {
-                                            let temp = scan_dx;
-                                            scan_dx = -scan_dy;
-                                            scan_dy = temp;
-                                        }
-
-                                        scan_x += scan_dx;
-                                        scan_y += scan_dy;
-                                    }
+                                    
+                                    let succeeded = self.chunk_handler.displace(p.x as i64, p.y as i64, p.material);
 
                                     if succeeded {
                                         keep_map[i] = false;
