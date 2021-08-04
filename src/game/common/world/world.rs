@@ -286,11 +286,13 @@ impl<'w, C: Chunk> World<C> {
 
                                         if res.is_ok() && !self.chunk_handler.displace(tx as i64, ty as i64, m) {
                                             self.particles.push(part);
+                                            body.apply_force(&Vec2::new(-point_velocity.x * 0.5, -point_velocity.y * 0.5), &world_point, true);
+                                            
+                                            let linear_velocity = body.get_linear_velocity();
+                                            body.set_linear_velocity(&Vec2::new(linear_velocity.x * 0.99, linear_velocity.y * 0.99));
                                         }
                                     }
 
-                                    // let linear_velocity = body.get_linear_velocity();
-                                    // body.set_linear_velocity(&Vec2::new(linear_velocity.x * 0.9999, linear_velocity.y * 0.9999));
 
                                     // let angular_velocity = body.get_angular_velocity();
                                     // body.set_angular_velocity(angular_velocity * 0.999);
