@@ -6,7 +6,7 @@ use crate::game::common::Settings;
 use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::body::{BodyDef, BodyType}, particle::{ParticleDef, TENSILE_PARTICLE, particle_system::ParticleSystemDef}};
 use sdl2::pixels::Color;
 
-use super::{CHUNK_SIZE, Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, rigidbody::RigidBody, simulator, particle::Particle};
+use super::{CHUNK_SIZE, Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, Material, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{InObjectState, Particle}, rigidbody::RigidBody, simulator};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
@@ -273,6 +273,15 @@ impl<'w, C: Chunk> World<C> {
                                     // TODO: consider making it so the body actually comes to a stop
                                     body.apply_force(&Vec2::new(-point_velocity.x * 0.1, -point_velocity.y * 0.1), &world_point, true);
 
+                                    if point_velocity.x.abs() > 0.01 && point_velocity.y.abs() > 0.01 {
+                                        let part = Particle::new(*mat, tx as f32, ty as f32, point_velocity.x * 0.1, point_velocity.y * 0.1);
+                                        let res = self.chunk_handler.set(tx as i64, ty as i64, MaterialInstance::air());
+
+                                        if res.is_ok() {
+                                            self.particles.push(part);
+                                        }
+                                    }
+
                                     // let linear_velocity = body.get_linear_velocity();
                                     // body.set_linear_velocity(&Vec2::new(linear_velocity.x * 0.9999, linear_velocity.y * 0.9999));
 
@@ -427,39 +436,126 @@ impl<'w, C: Chunk> World<C> {
     #[profiling::function]
     pub fn tick_particles(&mut self, tick_time: u32, settings: &Settings){
 
-        if tick_time % 15 == 0 {
-            let new_p = Particle {
-                material: MaterialInstance {
-                    material_id: TEST_MATERIAL.id,
-                    physics: PhysicsType::Sand,
-                    color: Color::RGB(64, 255, 255),
-                },
-                x: (rand::random::<f32>() - 0.5) * 10.0,
-                y: -40.0,
-                vx: (rand::random::<f32>() - 0.5) * 4.0,
-                vy: -1.0,
-            };
+        let new_p = Particle::new(
+            MaterialInstance {
+                material_id: TEST_MATERIAL.id,
+                physics: PhysicsType::Sand,
+                color: Color::RGB(64, 255, 255),
+            },
+            (rand::random::<f32>() - 0.5) * 10.0,
+            -100.0,
+            (rand::random::<f32>() - 0.5) * 4.0,
+            (rand::random::<f32>() - 0.75) * 2.0,
+        );
 
-            self.particles.push(new_p);
-        }
+        self.particles.push(new_p);
 
-        for p in &mut self.particles {
+        let mut keep_map = vec![true; self.particles.len()];
+
+        #[allow(clippy::needless_range_loop)]
+        for i in 0..self.particles.len() {
+
+            let p = &mut self.particles[i];
+
             p.vy += 0.1;
+
+            let lx = p.x;
+            let ly = p.y;
 
             let dx = p.vx;
             let dy = p.vy;
 
             let steps = (dx.abs() + dy.abs()) as u32 + 1;
-            for i in 0..steps {
-                let thru = i as f32 / steps as f32;
+            for s in 0..steps {
+                let thru = (s + 1) as f32 / steps as f32;
 
-                let new_x = p.x + dx * thru;
-                let new_y = p.y + dy * thru;
+                p.x = lx + dx * thru;
+                p.y = ly + dy * thru;
 
-                // TODO
-                
+                if let Ok(mat) = self.chunk_handler.get(p.x as i64, p.y as i64) {
+                    if mat.physics == PhysicsType::Air {
+                        p.in_object_state = InObjectState::Outside;
+                    }else{
+                        let is_object = mat.physics == PhysicsType::Object;
+
+                        match p.in_object_state {
+                            InObjectState::FirstFrame => {
+                                if is_object {
+                                    p.in_object_state = InObjectState::Inside;
+                                }else {
+                                    p.in_object_state = InObjectState::Outside;
+                                }
+                            },
+                            InObjectState::Inside => {
+                                if !is_object {
+                                    p.in_object_state = InObjectState::Outside;
+                                }
+                            },
+                            InObjectState::Outside => {},
+                        }
+
+                        if !is_object || p.in_object_state == InObjectState::Outside {
+
+                            match self.chunk_handler.get(lx as i64, ly as i64) {
+                                Ok(m) if m.physics != PhysicsType::Air => {
+                                    let mut succeeded = false;
+
+                                    let scan_w = 32;
+                                    let scan_h = 32;
+                                    let mut scan_x = 0;
+                                    let mut scan_y = 0;
+                                    let mut scan_dx = 0;
+                                    let mut scan_dy = -1;
+                                    let scan_max_i = scan_w.max(scan_h) * scan_w.max(scan_h); // the max is pointless now but could change w or h later
+
+                                    for _ in 0..scan_max_i {
+                                        if (scan_x >= -scan_w / 2) && (scan_x <= scan_w / 2) && (scan_y >= -scan_h / 2) && (scan_y <= scan_h / 2) {
+                                            if let Ok(scan_mat) = self.chunk_handler.get(p.x as i64 + i64::from(scan_x), p.y as i64 + i64::from(scan_y)) {
+                                                if scan_mat.physics == PhysicsType::Air 
+                                                    && self.chunk_handler.set(p.x as i64 + i64::from(scan_x), p.y as i64 + i64::from(scan_y), p.material).is_ok() {
+                                                    succeeded = true;
+                                                    break;
+                                                }
+                                            }
+                                        }
+
+                                        // update scan coordinates
+
+                                        if (scan_x == scan_y) || ((scan_x < 0) && (scan_x == -scan_y)) || ((scan_x > 0) && (scan_x == 1 - scan_y)) {
+                                            let temp = scan_dx;
+                                            scan_dx = -scan_dy;
+                                            scan_dy = temp;
+                                        }
+
+                                        scan_x += scan_dx;
+                                        scan_y += scan_dy;
+                                    }
+
+                                    if succeeded {
+                                        keep_map[i] = false;
+                                    }else{
+                                        // upwarp if completely blocked
+                                        p.vy = -4.0;
+                                        p.y -= 16.0;
+                                    }
+                                    
+                                    break;
+                                },
+                                _ => {
+                                    if self.chunk_handler.set(lx as i64, ly as i64, p.material).is_ok() {
+                                        keep_map[i] = false;
+                                        break;
+                                    }
+                                },
+                            }
+                        }
+                    }
+                }
             }
         }
+
+        let mut iter = keep_map.iter();
+        self.particles.retain(|_| *iter.next().unwrap());
     }
 
     pub fn tick_lqf(&mut self, settings: &Settings) {
