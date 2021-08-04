@@ -275,7 +275,10 @@ impl<'w, C: Chunk> World<C> {
 
                                     if point_velocity.x.abs() > 0.01 && point_velocity.y.abs() > 0.01 {
                                         let part = Particle::new(*mat, tx as f32, ty as f32, point_velocity.x * 0.1, point_velocity.y * 0.1);
-                                        let res = self.chunk_handler.set(tx as i64, ty as i64, MaterialInstance::air());
+                                        let res = self.chunk_handler.set(tx as i64, ty as i64, MaterialInstance {
+                                            physics: PhysicsType::Object,
+                                            ..cur
+                                        });
 
                                         if res.is_ok() {
                                             self.particles.push(part);
