@@ -288,7 +288,7 @@ impl<'w, C: Chunk> World<C> {
                                             self.particles.push(part);
                                             body.apply_force(&Vec2::new(-point_velocity.x * 0.5, -point_velocity.y * 0.5), &world_point, true);
                                             
-                                            let linear_velocity = body.get_linear_velocity();
+                                            let linear_velocity = *body.get_linear_velocity();
                                             body.set_linear_velocity(&Vec2::new(linear_velocity.x * 0.99, linear_velocity.y * 0.99));
                                         }
                                     }
