@@ -274,28 +274,43 @@ impl<'w, C: Chunk> World<C> {
                                     // TODO: consider making it so the body actually comes to a stop
                                     body.apply_force(&Vec2::new(-point_velocity.x * 0.1, -point_velocity.y * 0.1), &world_point, true);
 
-                                    if point_velocity.x.abs() > 0.01 && point_velocity.y.abs() > 0.01 {
+                                    if point_velocity.x.abs() > 1.0 || point_velocity.y.abs() > 1.0 {
                                         let m = *mat;
-                                        // TODO: flip the velocity if there's no openings in the original direction
-                                        //       might help with particles getting stuck and upwarping
-                                        let part = Particle::new(*mat, tx as f32, ty as f32, point_velocity.x * 0.1, point_velocity.y * 0.1 - 0.5);
+                                        let mut part = Particle::new(*mat, tx as f32, ty as f32, point_velocity.x * 0.1, point_velocity.y * 0.1 - 0.5);
                                         let res = self.chunk_handler.set(tx as i64, ty as i64, MaterialInstance {
                                             physics: PhysicsType::Object,
                                             ..cur
                                         });
 
-                                        if res.is_ok() && !self.chunk_handler.displace(tx as i64, ty as i64, m) {
-                                            self.particles.push(part);
-                                            body.apply_force(&Vec2::new(-point_velocity.x * 0.5, -point_velocity.y * 0.5), &world_point, true);
-                                            
-                                            let linear_velocity = *body.get_linear_velocity();
-                                            body.set_linear_velocity(&Vec2::new(linear_velocity.x * 0.99, linear_velocity.y * 0.99));
+                                        if res.is_ok() {
+                                            match self.chunk_handler.get((part.x + part.vx) as i64, (part.y + part.vy) as i64) {
+                                                Ok(m_test) if m_test.physics != PhysicsType::Air => {
+                                                    part.vx *= -1.0;
+                                                    part.vy *= -1.0;
+
+                                                    self.particles.push(part);
+                                                    body.apply_force(&Vec2::new(-point_velocity.x * 0.5, -point_velocity.y * 0.5), &world_point, true);
+
+                                                    let linear_velocity = *body.get_linear_velocity();
+                                                    body.set_linear_velocity(&Vec2::new(linear_velocity.x * 0.999, linear_velocity.y * 0.999));
+
+                                                    let angular_velocity = body.get_angular_velocity();
+                                                    body.set_angular_velocity(angular_velocity * 0.999);
+                                                },
+                                                _ => {
+                                                    if !self.chunk_handler.displace(tx as i64, ty as i64, m) {
+                                                        self.particles.push(part);
+                                                        body.apply_force(&Vec2::new(-point_velocity.x * 0.75, -point_velocity.y * 0.75), &world_point, true);
+                                                        
+                                                        let linear_velocity = *body.get_linear_velocity();
+                                                        body.set_linear_velocity(&Vec2::new(linear_velocity.x * 0.9, linear_velocity.y * 0.9));
+                                                    }
+                                                },
+                                            }
                                         }
+                                    }else {
+                                        body.apply_force(&Vec2::new(-point_velocity.x * 0.1, -point_velocity.y * 0.1), &world_point, true);
                                     }
-
-
-                                    // let angular_velocity = body.get_angular_velocity();
-                                    // body.set_angular_velocity(angular_velocity * 0.999);
                                 }
                             }
                         }
