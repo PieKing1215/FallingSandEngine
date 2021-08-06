@@ -3,10 +3,10 @@ use std::{borrow::BorrowMut, collections::HashMap};
 
 use crate::game::common::Settings;
 
-use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::body::{BodyDef, BodyType}, particle::{ParticleDef, TENSILE_PARTICLE, particle_system::ParticleSystemDef}};
+use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::body::{BodyDef, BodyType}};
 use sdl2::pixels::Color;
 
-use super::{CHUNK_SIZE, Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, Material, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{InObjectState, Particle}, rigidbody::RigidBody, simulator};
+use super::{CHUNK_SIZE, Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{InObjectState, Particle}, rigidbody::RigidBody, simulator};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
@@ -115,17 +115,17 @@ impl<'w, C: Chunk> World<C> {
         // ground_box.set_as_box_oriented(0.4, 24.0, &Vec2{x: 0.0, y: 0.0}, -0.5);
         // ground_body.create_fixture_from_shape(&ground_box, 0.0);
 
-        let particle_system_def = ParticleSystemDef {
-            radius: 0.19, 
-            surface_tension_pressure_strength: 0.1, 
-            surface_tension_normal_strength: 0.1, 
-            damping_strength: 0.001, 
-            ..ParticleSystemDef::default() 
-        };
-	    let particle_system = lqf_world.create_particle_system(&particle_system_def);
-        let mut pd = ParticleDef::default();
-        pd.flags.insert(TENSILE_PARTICLE);
-        pd.color.set(255, 90, 255, 255);
+        // let particle_system_def = ParticleSystemDef {
+        //     radius: 0.19, 
+        //     surface_tension_pressure_strength: 0.1, 
+        //     surface_tension_normal_strength: 0.1, 
+        //     damping_strength: 0.001, 
+        //     ..ParticleSystemDef::default() 
+        // };
+	    // let particle_system = lqf_world.create_particle_system(&particle_system_def);
+        // let mut pd = ParticleDef::default();
+        // pd.flags.insert(TENSILE_PARTICLE);
+        // pd.color.set(255, 90, 255, 255);
 
         // for i in 0..15000 {
         //     if i < 15000/2 {
@@ -148,7 +148,7 @@ impl<'w, C: Chunk> World<C> {
 
         // add a rigidbody
 
-        let pixels = (0..40 * 40).map(|i| {
+        let pixels: Vec<_> = (0..40 * 40).map(|i| {
             let x: i32 = i % 40;
             let y: i32 = i / 40;
             if (x - 20).abs() < 5 || (y - 20).abs() < 5 {
@@ -162,13 +162,13 @@ impl<'w, C: Chunk> World<C> {
             }
         }).collect();
         
-        if let Ok(mut r) = RigidBody::make_bodies(pixels, 40, 40, &mut w.lqf_world, (-1.0, -7.0)) {
+        if let Ok(mut r) = RigidBody::make_bodies(&pixels, 40, 40, &mut w.lqf_world, (-1.0, -7.0)) {
             w.rigidbodies.append(&mut r);
         }
 
         // add another rigidbody
 
-        let pixels = (0..40 * 40).map(|i| {
+        let pixels: Vec<_> = (0..40 * 40).map(|i| {
             let x: i32 = i % 40;
             let y: i32 = i / 40;
             let dst = (x - 20) * (x - 20) + (y - 20) * (y - 20);
@@ -189,14 +189,14 @@ impl<'w, C: Chunk> World<C> {
             }
         }).collect();
         
-        if let Ok(mut r) = RigidBody::make_bodies(pixels, 40, 40, &mut w.lqf_world, (2.0, -6.5)) {
+        if let Ok(mut r) = RigidBody::make_bodies(&pixels, 40, 40, &mut w.lqf_world, (2.0, -6.5)) {
             w.rigidbodies.append(&mut r);
         }
 
         for n in 0..4 {
             // add more rigidbodies
 
-            let pixels = (0..30 * 30).map(|i| {
+            let pixels: Vec<_> = (0..30 * 30).map(|i| {
                 let x: i32 = i % 30 + (((i + n * 22) as f32 / 60.0).sin() * 2.0) as i32;
                 let y: i32 = i / 30;
                 let dst = (x - 15) * (x - 15) + (y - 15) * (y - 15);
@@ -211,7 +211,7 @@ impl<'w, C: Chunk> World<C> {
                 }
             }).collect();
             
-            if let Ok(mut r) = RigidBody::make_bodies(pixels, 30, 30, &mut w.lqf_world, (5.0 + n as f32 * 2.0, -7.0 + n as f32 * -0.75)) {
+            if let Ok(mut r) = RigidBody::make_bodies(&pixels, 30, 30, &mut w.lqf_world, (5.0 + n as f32 * 2.0, -7.0 + n as f32 * -0.75)) {
                 w.rigidbodies.append(&mut r);
             }
         }
@@ -458,7 +458,7 @@ impl<'w, C: Chunk> World<C> {
     }
 
     #[profiling::function]
-    pub fn tick_particles(&mut self, tick_time: u32, settings: &Settings){
+    pub fn tick_particles(&mut self, _tick_time: u32, _settings: &Settings){
 
         let new_p = Particle::new(
             MaterialInstance {

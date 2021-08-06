@@ -147,7 +147,7 @@ impl <T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelp
                     let nty = (tx * s + ty * c) as i32;
 
                     if ntx >= 0 && nty >= 0 && ntx < cur.width.into() && nty < cur.width.into() {
-                        let px = cur.pixels[(ntx + nty * cur.width as i32) as usize];
+                        let px = cur.pixels[(ntx + nty * i32::from(cur.width)) as usize];
 
                         if px.material_id != AIR.id {
                             return px;
@@ -192,7 +192,7 @@ impl <T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelp
                     let nty = (tx * s + ty * c) as i32;
 
                     if ntx >= 0 && nty >= 0 && ntx < cur.width.into() && nty < cur.width.into() {
-                        let px = cur.pixels[(ntx + nty * cur.width as i32) as usize];
+                        let px = cur.pixels[(ntx + nty * i32::from(cur.width)) as usize];
 
                         if px.material_id != AIR.id {
                             return px.color;
@@ -366,7 +366,7 @@ impl Simulator {
                 // debug!("#bodies before = {}", lqf_world.get_body_count());
                 lqf_world.destroy_body(rb.body.as_ref().unwrap());
                 // debug!("#bodies after  = {}", lqf_world.get_body_count());
-                let mut r = rigidbody::RigidBody::make_bodies(rb.pixels, rb.width, rb.height, lqf_world, pos).unwrap_or_default();
+                let mut r = rigidbody::RigidBody::make_bodies(&rb.pixels, rb.width, rb.height, lqf_world, pos).unwrap_or_default();
                 // debug!("#bodies after2 = {} new pos = {:?}", lqf_world.get_body_count(), r[0].body.as_ref().unwrap().get_position());
 
                 for rb in &mut r {

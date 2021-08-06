@@ -70,7 +70,7 @@ impl RigidBody {
         self.image = Some(img);
     }
 
-    pub fn make_bodies(pixels: Vec<MaterialInstance>, width: u16, height: u16, lqf_world: &mut liquidfun::box2d::dynamics::world::World, position: (f32, f32)) -> Result<Vec<RigidBody>, String> {
+    pub fn make_bodies(pixels: &[MaterialInstance], width: u16, height: u16, lqf_world: &mut liquidfun::box2d::dynamics::world::World, position: (f32, f32)) -> Result<Vec<RigidBody>, String> {
         let values = mesh::pixels_to_valuemap(&pixels);
         let mesh = mesh::generate_mesh_only_simplified(&values, u32::from(width), u32::from(height))?;
 
@@ -105,7 +105,7 @@ impl RigidBody {
 
         for (loop_i, a_loop) in loops.into_iter().enumerate() {
             let mut n_pix = 0;
-            let my_pixels = pixels.clone().into_iter().enumerate().map(|(i, m)| {
+            let my_pixels = pixels.to_owned().into_iter().enumerate().map(|(i, m)| {
                 if nearest_loop[i] == loop_i {
                     n_pix += 1;
                     m
