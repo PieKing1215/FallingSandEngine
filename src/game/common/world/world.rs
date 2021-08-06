@@ -319,7 +319,7 @@ impl<'w, C: Chunk> World<C> {
             }
         }
 
-        self.chunk_handler.tick(tick_time, &loaders, settings);
+        self.chunk_handler.tick(tick_time, &loaders, settings, &mut self.particles);
         self.tick_particles(tick_time, settings);
 
         for rb in &self.rigidbodies {
@@ -349,7 +349,7 @@ impl<'w, C: Chunk> World<C> {
             }
         }
 
-        simulator::Simulator::simulate_rigidbodies(&mut self.chunk_handler, &mut self.rigidbodies, &mut self.lqf_world);
+        simulator::Simulator::simulate_rigidbodies(&mut self.chunk_handler, &mut self.rigidbodies, &mut self.lqf_world, &mut self.particles);
         
         for c in self.chunk_handler.loaded_chunks.borrow_mut().values_mut() {
             if c.get_b2_body().is_none() {

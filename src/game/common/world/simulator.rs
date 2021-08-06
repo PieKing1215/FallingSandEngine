@@ -6,6 +6,7 @@ use crate::game::common::world::material::{MaterialInstance, PhysicsType};
 use crate::game::common::world::{CHUNK_SIZE, rigidbody};
 
 use super::material::AIR;
+use super::particle::Particle;
 use super::rigidbody::RigidBody;
 use super::{Chunk, ChunkHandler, LIQUIDFUN_SCALE};
 use super::gen::WorldGenerator;
@@ -19,6 +20,7 @@ trait SimulationHelper {
     unsafe fn set_pixel_local(&mut self, x: i32, y: i32, mat: MaterialInstance);
     unsafe fn get_color_local(&self, x: i32, y: i32) -> Color;
     unsafe fn set_color_local(&mut self, x: i32, y: i32, col: Color);
+    fn add_particle(&mut self, particle: Particle);
 }
 
 struct SimulationHelperChunk<'a> {
@@ -30,6 +32,9 @@ struct SimulationHelperChunk<'a> {
     min_y: [u16; 9],
     max_x: [u16; 9],
     max_y: [u16; 9],
+    particles: &'a mut Vec<Particle>,
+    chunk_x: i32,
+    chunk_y: i32,
 }
 
 impl SimulationHelperChunk<'_> {
@@ -103,11 +108,20 @@ impl SimulationHelper for SimulationHelperChunk<'_> {
     unsafe fn set_color_local(&mut self, x: i32, y: i32, col: Color) {
         self.set_color_from_index(Self::local_to_indices(x, y), col);
     }
+
+    fn add_particle(&mut self, particle: Particle) {
+        self.particles.push(Particle {
+            x: particle.x + self.chunk_x as f32 * f32::from(CHUNK_SIZE),
+            y: particle.y + self.chunk_y as f32 * f32::from(CHUNK_SIZE),
+            ..particle
+        });
+    }
 }
 
 struct SimulationHelperRigidBody<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> {
     chunk_handler: &'a mut ChunkHandler<T, C>,
     rigidbodies: &'a mut Vec<RigidBody>,
+    particles: &'a mut Vec<Particle>,
 }
 
 impl <T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelper for SimulationHelperRigidBody<'_, T, C> {
@@ -200,11 +214,16 @@ impl <T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelp
             let _ignore = ch.set_color((i64::from(x) - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16, (i64::from(y) - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16, col);
         }
     }
+
+    fn add_particle(&mut self, particle: Particle) {
+        self.particles.push(particle);
+    }
 }
+
 
 impl Simulator {
     #[profiling::function]
-    pub fn simulate_chunk(_chunk_x: i32, _chunk_y: i32, pixels_raw: [usize; 9], colors_raw: [usize; 9], dirty: &mut [bool; 9], dirty_rects: &mut [Option<Rect>; 9]) {
+    pub fn simulate_chunk(chunk_x: i32, chunk_y: i32, pixels_raw: [usize; 9], colors_raw: [usize; 9], dirty: &mut [bool; 9], dirty_rects: &mut [Option<Rect>; 9], particles: &mut Vec<Particle>) {
         const CENTER_CHUNK: usize = 4;
 
         let my_dirty_rect_o = dirty_rects[CENTER_CHUNK];
@@ -245,6 +264,9 @@ impl Simulator {
                 min_y: [CHUNK_SIZE + 1; 9],
                 max_x: [0; 9],
                 max_y: [0; 9],
+                particles,
+                chunk_x,
+                chunk_y,
             };
 
             {
@@ -253,6 +275,7 @@ impl Simulator {
                     for x in my_dirty_rect.x..(my_dirty_rect.x + my_dirty_rect.w) as i32 {
                         
                         let cur = helper.get_pixel_local(x, y);
+
                         if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper) {
                             helper.set_color_local(x, y, mat.color);
                             helper.set_pixel_local(x, y, mat);
@@ -268,7 +291,7 @@ impl Simulator {
 
     #[allow(clippy::unnecessary_unwrap)]
     #[allow(clippy::needless_range_loop)]
-    pub fn simulate_rigidbodies<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk>(chunk_handler: &mut ChunkHandler<T, C>, rigidbodies: &mut Vec<RigidBody>, lqf_world: &mut World) {
+    pub fn simulate_rigidbodies<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk>(chunk_handler: &mut ChunkHandler<T, C>, rigidbodies: &mut Vec<RigidBody>, lqf_world: &mut World, particles: &mut Vec<Particle>) {
         let mut dirty = vec![false; rigidbodies.len()];
         let mut needs_remesh = vec![false; rigidbodies.len()];
         for i in 0..rigidbodies.len() {
@@ -286,6 +309,7 @@ impl Simulator {
                 let mut helper = SimulationHelperRigidBody {
                     chunk_handler,
                     rigidbodies,
+                    particles,
                 };
 
                 for rb_y in 0..rb_w {
@@ -363,7 +387,7 @@ impl Simulator {
 
     fn simulate_pixel(x: i32, y: i32, cur: MaterialInstance, helper: &mut dyn SimulationHelper) -> Option<MaterialInstance> {
         unsafe {
-            let mut new_mat: Option<MaterialInstance> = None;
+            let mut new_mat = None;
 
             #[allow(clippy::single_match)]
             match cur.physics {
@@ -385,9 +409,21 @@ impl Simulator {
                         //     (*pixels[below2_i.0])[below2_i.1] = cur;
                         //     new_mat = Some(MaterialInstance::air());
                         // }else {
+
+                        let empty_below = (0..4).all(|i| {
+                            let pix = helper.get_pixel_local(x, y + i + 2); // don't include myself or one below
+                            pix.physics == PhysicsType::Air
+                        });
+
+                        if empty_below {
+                            helper.add_particle(Particle::new(cur, x as f32, y as f32, (rand::random::<f32>() - 0.5) * 0.5, 1.0 + rand::random::<f32>()));
+                        } else {
                             helper.set_color_local(x, y + 1, cur.color);
                             helper.set_pixel_local(x, y + 1, cur);
-                            new_mat = Some(MaterialInstance::air());
+                        }
+                        
+                        new_mat = Some(MaterialInstance::air());
+                            
                         // }
                     }else if bl_can && br_can {
                         if rand::random::<bool>() {

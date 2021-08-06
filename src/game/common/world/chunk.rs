@@ -12,6 +12,7 @@ use tokio::runtime::Runtime;
 
 use super::gen::WorldGenerator;
 use super::material::PhysicsType;
+use super::particle::Particle;
 use crate::game::common::world::material::MaterialInstance;
 
 pub const CHUNK_SIZE: u16 = 128;
@@ -90,7 +91,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
     // #[profiling::function] // breaks clippy
     #[warn(clippy::too_many_lines)]
-    pub fn tick(&mut self, tick_time: u32, loaders: &[(f64, f64)], settings: &Settings){ // TODO: `camera` should be replaced with like a vec of entities or something
+    pub fn tick(&mut self, tick_time: u32, loaders: &[(f64, f64)], settings: &Settings, particles: &mut Vec<Particle>){ // TODO: `camera` should be replaced with like a vec of entities or something
         profiling::scope!("tick");
         
         let unload_zone: Vec<Rect> = loaders.iter().map(|l| self.get_unload_zone(*l)).collect();
@@ -433,23 +434,25 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
                         let mut dirty = [false; 9];
                         let mut dirty_rects = e.4;
-                        Simulator::simulate_chunk(ch_pos.0, ch_pos.1, e.2, e.3, &mut dirty, &mut dirty_rects);
+                        let mut particles = Vec::new();
+                        Simulator::simulate_chunk(ch_pos.0, ch_pos.1, e.2, e.3, &mut dirty, &mut dirty_rects, &mut particles);
 
-                        (ch_pos, dirty, dirty_rects)
+                        (ch_pos, dirty, dirty_rects, particles)
                     }).collect();
 
                     let futs2: Vec<_> = futs.into_iter().map(|f| RT.spawn(f)).collect();
 
                     #[allow(clippy::type_complexity)]
-                    let b: Vec<Result<((i32, i32), [bool; 9], [Option<Rect>; 9]), _>>;
+                    let mut b: Vec<Result<((i32, i32), [bool; 9], [Option<Rect>; 9], Vec<Particle>), _>>;
                     {
                         profiling::scope!("wait for threads", format!("#futs = {}", futs2.len()).as_str());
                         b = RT.block_on(join_all(futs2));
                     }
                     
-                    for r in b {
+                    for r in &mut b {
                         profiling::scope!("apply");
-                        let (ch_pos, dirty, dirty_rects) = r.as_ref().unwrap();
+                        let (ch_pos, dirty, dirty_rects, parts) = r.as_mut().unwrap();
+                        particles.append(parts);
                         for i in 0..9 {
                             let rel_ch_x = (i % 3) - 1;
                             let rel_ch_y = (i / 3) - 1;
@@ -853,9 +856,10 @@ mod tests {
         assert!(!ch.is_chunk_loaded(-3, 2));
 
         // do a few ticks to load some chunks
-        ch.tick(0, &[(110.0, -120.0)], &Settings::default());
+        let mut parts = Vec::new();
+        ch.tick(0, &[(110.0, -120.0)], &Settings::default(), &mut parts);
         while !ch.load_queue.is_empty() {
-            ch.tick(0, &[(110.0, -120.0)], &Settings::default());
+            ch.tick(0, &[(110.0, -120.0)], &Settings::default(), &mut parts);
         }
 
         assert!(ch.is_chunk_loaded(11, -12));
@@ -880,7 +884,7 @@ mod tests {
         assert!(ch.get_chunk(-120, 11).is_none());
 
         // should unload since no loaders are nearby
-        ch.tick(0, &[], &Settings::default());
+        ch.tick(0, &[], &Settings::default(), &mut parts);
 
         assert!(!ch.is_chunk_loaded(11, -12));
         assert!(!ch.is_chunk_loaded(-3, 2));
