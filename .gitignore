@@ -1,6 +1,6 @@
 
 latest.log
-client_latest.log
+gamedir/logs/client_latest.log
 
 # vscode
 .vscode/*

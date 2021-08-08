@@ -1,12 +1,12 @@
 
-use std::cell::RefCell;
+use std::{cell::RefCell, fs};
 
 use imgui::{WindowFlags, im_str};
 use sdl2::{VideoSubsystem, pixels::Color, ttf::{Font, Sdl2TtfContext}, video::Window};
 use sdl_gpu::{GPURect, GPUSubsystem, GPUTarget, shaders::Shader};
 
 use super::TransformStack;
-use crate::game::{Game, client::world::{ClientChunk, WorldRenderer}};
+use crate::game::{Game, client::world::{ClientChunk, WorldRenderer}, common::FileHelper};
 
 pub struct Renderer<'ttf> {
     pub fonts: Option<Fonts<'ttf>>,
@@ -47,7 +47,7 @@ impl<'a> Renderer<'a> {
         })
     }
 
-    pub fn create(sdl: &Sdl2Context) -> Result<Self, String> {
+    pub fn create(sdl: &Sdl2Context, file_helper: &FileHelper) -> Result<Self, String> {
         
         let window = sdl.sdl_video.window("FallingSandRust", 1200, 800)
             .opengl() // allow getting opengl context
@@ -70,8 +70,9 @@ impl<'a> Renderer<'a> {
 
         let shaders = Shaders {
             liquid_shader: Shader::load_shader_program(
-                include_str!("../../../../assets/data/shaders/common.vert"), 
-                include_str!("../../../../assets/data/shaders/liquid.frag"))?,
+                fs::read_to_string(file_helper.asset_path("data/shaders/common.vert")).map_err(|e| e.to_string())?.as_str(), 
+                fs::read_to_string(file_helper.asset_path("data/shaders/liquid.frag")).map_err(|e| e.to_string())?.as_str()
+            )?,
         };
 
         Ok(Renderer {

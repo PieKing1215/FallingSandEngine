@@ -17,6 +17,7 @@
 mod game;
 
 use std::fs::File;
+use std::path::Path;
 use std::str::FromStr;
 use std::thread;
 
@@ -45,6 +46,7 @@ use crate::game::client::render::Renderer;
 use crate::game::client::render::Fonts;
 use crate::game::client::world::ClientChunk;
 use crate::game::client::world::ClientWorld;
+use crate::game::common::FileHelper;
 use crate::game::common::world::entity::Entity;
 use crate::game::server::world::ServerChunk;
 
@@ -72,6 +74,18 @@ fn main() -> Result<(), String> {
         .takes_value(true)
         .value_name("IP:PORT")
         .help("Connect to a server automatically"))
+    .arg(Arg::with_name("game-dir")
+        .long("game-dir")
+        .takes_value(true)
+        .value_name("PATH")
+        .default_value("./gamedir/")
+        .help("Set the game directory"))
+    .arg(Arg::with_name("assets-dir")
+        .long("assets-dir")
+        .takes_value(true)
+        .value_name("PATH")
+        .default_value("./gamedir/assets/")
+        .help("Set the assets directory"))
     .subcommand(App::new("server")
         .about("Run dedicated server")
         .arg(Arg::with_name("port")
@@ -83,6 +97,21 @@ fn main() -> Result<(), String> {
             .validator(is_type::<u16>)
             .help("The port to run the server on")))
     .get_matches();
+
+    let file_helper = FileHelper::new(
+        matches.value_of("game-dir").unwrap().into(),
+        matches.value_of("assets-dir").unwrap().into()
+    );
+
+    if !file_helper.game_path("").exists() {
+        info!("game dir missing, creating it...");
+        std::fs::create_dir_all(file_helper.game_path("")).expect("Failed to create game dir:");
+    }
+
+    if !file_helper.asset_path("").exists() {
+        info!("asset dir missing, creating it...");
+        std::fs::create_dir_all(file_helper.asset_path("")).expect("Failed to create asset dir:");
+    }
 
     let server = matches.subcommand_matches("server").is_some();
     let client = !server;
@@ -145,6 +174,11 @@ fn main() -> Result<(), String> {
 
         let debug = matches.is_present("debug");
 
+        if !file_helper.game_path("logs/").exists() {
+            info!("logs dir missing, creating it...");
+            std::fs::create_dir_all(file_helper.game_path("logs/")).expect("Failed to create logs dir:");
+        }
+
         CombinedLogger::init(
             vec![
                 TermLogger::new(if debug { LevelFilter::Trace } else { LevelFilter::Info }, 
@@ -162,7 +196,7 @@ fn main() -> Result<(), String> {
                         .set_target_level(LevelFilter::Off)
                         .set_time_to_local(true)
                         .build(), 
-                    File::create("client_latest.log").unwrap()),
+                    File::create(file_helper.game_path("logs/client_latest.log")).unwrap()),
             ]
         ).unwrap();
 
@@ -181,9 +215,9 @@ fn main() -> Result<(), String> {
 
         info!("Starting init...");
         
-        let mut r = Renderer::create(&sdl)?;
-
-        let pixel_operator2 = sdl.sdl_ttf.load_font("./assets/font/pixel_operator/PixelOperator.ttf", 16).unwrap();
+        let mut r = Renderer::create(&sdl, &file_helper).expect("Renderer::create failed"); // want to panic
+        
+        let pixel_operator2 = sdl.sdl_ttf.load_font(file_helper.asset_path("font/pixel_operator/PixelOperator.ttf"), 16).unwrap();
         let f = Some(Fonts {
             pixel_operator: pixel_operator2,
         });

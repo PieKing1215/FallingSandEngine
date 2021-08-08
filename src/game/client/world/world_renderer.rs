@@ -171,42 +171,42 @@ impl WorldRenderer {
             let mut liquid_target = self.liquid_image.get_target();
             liquid_target.clear();
 
-            let particle_system = world.lqf_world.get_particle_system_list().unwrap();
+            if let Some(particle_system) = world.lqf_world.get_particle_system_list() {
+                let particle_count = particle_system.get_particle_count();
+                let particle_colors: &[b2ParticleColor] = particle_system.get_color_buffer();
+                let particle_positions: &[Vec2] = particle_system.get_position_buffer();
 
-            let particle_count = particle_system.get_particle_count();
-            let particle_colors: &[b2ParticleColor] = particle_system.get_color_buffer();
-            let particle_positions: &[Vec2] = particle_system.get_position_buffer();
+                for i in 0..particle_count as usize {
+                    let pos = particle_positions[i];
+                    let color = particle_colors[i];
+                    let cam_x = camera.x.floor();
+                    let cam_y = camera.y.floor();
+                    GPUSubsystem::set_shape_blend_mode(sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_SET);
+                    let color = Color::RGBA(color.r, color.g, color.b, color.a);
+                    // let color = Color::RGBA(64, 90, 255, 191);
+                    liquid_target.pixel(pos.x * LIQUIDFUN_SCALE - cam_x as f32 + 1920.0/4.0 - 1.0, pos.y * LIQUIDFUN_SCALE - cam_y as f32 + 1080.0/4.0 - 1.0, color);
+                    // liquid_target.circle_filled(pos.x * 2.0 - camera.x as f32 + 1920.0/4.0, pos.y * 2.0 - camera.y as f32 + 1080.0/4.0, 2.0, Color::RGB(100, 100, 255));
+                }
 
-            for i in 0..particle_count as usize {
-                let pos = particle_positions[i];
-                let color = particle_colors[i];
-                let cam_x = camera.x.floor();
-                let cam_y = camera.y.floor();
-                GPUSubsystem::set_shape_blend_mode(sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_SET);
-                let color = Color::RGBA(color.r, color.g, color.b, color.a);
-                // let color = Color::RGBA(64, 90, 255, 191);
-                liquid_target.pixel(pos.x * LIQUIDFUN_SCALE - cam_x as f32 + 1920.0/4.0 - 1.0, pos.y * LIQUIDFUN_SCALE - cam_y as f32 + 1080.0/4.0 - 1.0, color);
-                // liquid_target.circle_filled(pos.x * 2.0 - camera.x as f32 + 1920.0/4.0, pos.y * 2.0 - camera.y as f32 + 1080.0/4.0, 2.0, Color::RGB(100, 100, 255));
-            }
+                GPUSubsystem::set_shape_blend_mode(sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_NORMAL);
 
-            GPUSubsystem::set_shape_blend_mode(sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_NORMAL);
+                let mut liquid_target2 = self.liquid_image2.get_target();
+                liquid_target2.clear();
 
-            let mut liquid_target2 = self.liquid_image2.get_target();
-            liquid_target2.clear();
+                // TODO: add this method to sdl-gpu-rust
+                unsafe {
+                    GPU_SetBlendMode(&mut self.liquid_image.raw, sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_SET);
+                }
+                
+                shaders.liquid_shader.activate();
+                self.liquid_image.blit_rect(None::<GPURect>, &mut liquid_target2, None);
+                Shader::deactivate();
 
-            // TODO: add this method to sdl-gpu-rust
-            unsafe {
-                GPU_SetBlendMode(&mut self.liquid_image.raw, sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_SET);
-            }
-            
-            shaders.liquid_shader.activate();
-            self.liquid_image.blit_rect(None::<GPURect>, &mut liquid_target2, None);
-            Shader::deactivate();
-
-            // TODO: add this method to sdl-gpu-rust
-            unsafe {
-                GPU_SetBlendMode(&mut self.liquid_image.raw, sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_NORMAL);
-            }
+                // TODO: add this method to sdl-gpu-rust
+                unsafe {
+                    GPU_SetBlendMode(&mut self.liquid_image.raw, sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_NORMAL);
+                }
+            };
         }
 
         // TODO: transforming screen zone here is not the right way to do this, it causes some jumping when x or y switch between + and -
