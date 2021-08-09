@@ -144,7 +144,7 @@ fn main() -> Result<(), String> {
             backend.flush().unwrap();
 
             error!("thread '{}' {}", name, info);
-            error!("See latest.log for more details. Backtrace:\n{:?}", bt);
+            error!("See server_latest.log for more details. Backtrace:\n{:?}", bt);
         }));
 
         let res = std::panic::catch_unwind(move || {
@@ -159,7 +159,7 @@ fn main() -> Result<(), String> {
             };
 
             println!("Starting main loop...");
-            match game.run(&matches, &mut terminal) {
+            match game.run(&matches, &mut terminal, &file_helper) {
                 Ok(_) => {},
                 Err(e) => panic!("Server encountered a fatal error: {}", e),
             }

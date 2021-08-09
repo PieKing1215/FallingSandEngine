@@ -8,17 +8,21 @@ use log::{debug, error, info, warn};
 use tui::{Frame, Terminal, backend::Backend, layout::{Constraint, Layout}, style::Style, text::{Span, Spans}, widgets::{Block, Borders, Paragraph, Wrap}};
 use tui_logger::{TuiLoggerSmartWidget, TuiWidgetState};
 
-use crate::game::{Game, common::{commands::CommandHandler, networking::{PVec2, Packet, PacketType}, world::{CHUNK_SIZE, Chunk, ChunkState}}};
+use crate::game::{Game, common::{FileHelper, commands::CommandHandler, networking::{PVec2, Packet, PacketType}, world::{CHUNK_SIZE, Chunk, ChunkState}}};
 
 use super::world::ServerChunk;
 
 impl Game<ServerChunk> {
     #[profiling::function]
-    pub fn run<TB: Backend>(&mut self, args: &ArgMatches, term: &mut Terminal<TB>) -> Result<(), String> {
+    pub fn run<TB: Backend>(&mut self, args: &ArgMatches, term: &mut Terminal<TB>, file_helper: &FileHelper) -> Result<(), String> {
 
         tui_logger::init_logger(log::LevelFilter::Trace).unwrap();
         tui_logger::set_default_level(log::LevelFilter::Trace);
-        tui_logger::set_log_file("latest.log").unwrap();
+        if !file_helper.game_path("logs/").exists() {
+            info!("logs dir missing, creating it...");
+            std::fs::create_dir_all(file_helper.game_path("logs/")).expect("Failed to create logs dir:");
+        }
+        tui_logger::set_log_file(file_helper.game_path("logs/server_latest.log").to_str().expect("Server log path must be UTF-8.")).unwrap();
 
         term.clear().unwrap();
 
@@ -251,31 +255,31 @@ impl Game<ServerChunk> {
                     lqf_ticks += 1;
 
                     if lqf_ticks % 10 == 0 {
-                        let particle_system = w.lqf_world.get_particle_system_list().unwrap();
+                        if let Some(particle_system) = w.lqf_world.get_particle_system_list() {
+                            let particle_positions: &[Vec2] = particle_system.get_position_buffer();
+                            let particle_velocities: &[Vec2] = particle_system.get_velocity_buffer();
+                            for c in &mut connections {
 
-                        let particle_positions: &[Vec2] = particle_system.get_position_buffer();
-                        let particle_velocities: &[Vec2] = particle_system.get_velocity_buffer();
-                        for c in &mut connections {
+                                let packet = Packet{ 
+                                    packet_type: PacketType::SyncLiquidFunPacket {
+                                        positions: particle_positions.iter().map(|v2| PVec2 {x: v2.x, y: v2.y}).collect(),
+                                        velocities: particle_velocities.iter().map(|v2| PVec2 {x: v2.x, y: v2.y}).collect(),
+                                    },
+                                };
+                                // let buf = serde_json::to_string(&packet).unwrap().into_bytes();
+                                // let size_buf = serde_json::to_string(&(buf.len() as u32)).unwrap().into_bytes();
+                                let buf = bincode::serialize(&packet).unwrap();
+                                let size_buf = bincode::serialize(&(buf.len() as u32)).unwrap();
 
-                            let packet = Packet{ 
-                                packet_type: PacketType::SyncLiquidFunPacket {
-                                    positions: particle_positions.iter().map(|v2| PVec2 {x: v2.x, y: v2.y}).collect(),
-                                    velocities: particle_velocities.iter().map(|v2| PVec2 {x: v2.x, y: v2.y}).collect(),
-                                },
-                            };
-                            // let buf = serde_json::to_string(&packet).unwrap().into_bytes();
-                            // let size_buf = serde_json::to_string(&(buf.len() as u32)).unwrap().into_bytes();
-                            let buf = bincode::serialize(&packet).unwrap();
-                            let size_buf = bincode::serialize(&(buf.len() as u32)).unwrap();
+                                c.0.set_nonblocking(false).unwrap();
+                                c.0.write_all(&size_buf).unwrap();
+                                c.0.flush().unwrap();
+                                c.0.write_all(&buf).unwrap();
+                                c.0.flush().unwrap();
+                                c.0.set_nonblocking(true).unwrap();
 
-                            c.0.set_nonblocking(false).unwrap();
-                            c.0.write_all(&size_buf).unwrap();
-                            c.0.flush().unwrap();
-                            c.0.write_all(&buf).unwrap();
-                            c.0.flush().unwrap();
-                            c.0.set_nonblocking(true).unwrap();
-
-                            // println!("Wrote SyncChunkPacket");
+                                // println!("Wrote SyncChunkPacket");
+                            }   
                         }
                     }
 
