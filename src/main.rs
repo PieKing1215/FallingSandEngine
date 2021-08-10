@@ -209,6 +209,10 @@ fn main() -> Result<(), String> {
         }));
         
         info!("Starting client...");
+
+        let worlds = game::common::world::World::<ClientChunk>::find_files(file_helper.game_path("saves/")).expect("Failed to load worlds list");
+        log::debug!("{:?}", worlds);
+        log::debug!("{:?}", game::common::world::World::<ClientChunk>::parse_file_tree_metas(worlds).expect("World meta parse failed"));
         
         // TODO: come up with a better way to handle this sdl's lifetime
         let sdl = Renderer::init_sdl().unwrap();

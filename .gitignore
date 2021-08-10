@@ -1,5 +1,7 @@
 
 gamedir/logs/*
+gamedir/saves/*
+!gamedir/saves/template
 
 # vscode
 .vscode/*
