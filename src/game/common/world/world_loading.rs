@@ -27,7 +27,7 @@ impl<'w, C: Chunk> World<C> {
             if entry.path().is_dir() {
                 res.push(Self::find_files(entry.path())?);
             } else {
-                res.push(WorldTreeNode::World(entry.path()));
+                return Ok(WorldTreeNode::World(entry.path()));
             }
         }
 
