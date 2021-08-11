@@ -7,7 +7,7 @@ use sdl2::{event::{Event, WindowEvent}, keyboard::Keycode, sys::SDL_WindowFlags,
 use sdl_gpu::GPUSubsystem;
 use sysinfo::{Pid, ProcessExt, SystemExt};
 
-use crate::game::{Game, common::{Settings, networking::{Packet, PacketType}, world::{LIQUIDFUN_SCALE, WorldNetworkMode, material::MaterialInstance}}};
+use crate::game::{Game, client::{Client, world::ClientWorld}, common::{Settings, networking::{Packet, PacketType}, world::{LIQUIDFUN_SCALE, World, WorldNetworkMode, entity::Entity, material::MaterialInstance}}};
 
 use super::{render::{Renderer, Sdl2Context}, world::ClientChunk};
 
@@ -235,6 +235,31 @@ impl Game<ClientChunk> {
                 prev_tick_time = now;
                 let st = Instant::now();
                 self.tick();
+
+                if let Some(client) = &mut self.client {
+                    for act in client.main_menu.action_queue.drain(..) {
+                        match act {
+                            crate::game::client::ui::MainMenuAction::Quit => {
+                                break 'mainLoop;
+                            },
+                            crate::game::client::ui::MainMenuAction::LoadWorld(path) => {
+                                let world_meta = crate::game::common::world::World::<ClientChunk>::parse_file_meta(path).expect("Failed to parse file meta");
+                                info!("Load world \"{}\"...", world_meta.name);
+                                self.world = Some(World::create());
+
+                                if let Some(w) = &mut self.world {
+                                    let pl_id = w.add_entity(Entity {
+                                        x: 0.0,
+                                        y: 0.0,
+                                    });
+                                    client.world = Some(ClientWorld {
+                                        local_entity_id: Some(pl_id),
+                                    });
+                                };
+                            },
+                        }
+                    }
+                }
 
                 if let Some(stream) = &mut network {
                     let start = Instant::now();

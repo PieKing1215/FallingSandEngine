@@ -14,15 +14,15 @@ use super::world::ServerChunk;
 
 impl Game<ServerChunk> {
     #[profiling::function]
-    pub fn run<TB: Backend>(&mut self, args: &ArgMatches, term: &mut Terminal<TB>, file_helper: &FileHelper) -> Result<(), String> {
+    pub fn run<TB: Backend>(&mut self, args: &ArgMatches, term: &mut Terminal<TB>) -> Result<(), String> {
 
         tui_logger::init_logger(log::LevelFilter::Trace).unwrap();
         tui_logger::set_default_level(log::LevelFilter::Trace);
-        if !file_helper.game_path("logs/").exists() {
+        if !self.file_helper.game_path("logs/").exists() {
             info!("logs dir missing, creating it...");
-            std::fs::create_dir_all(file_helper.game_path("logs/")).expect("Failed to create logs dir:");
+            std::fs::create_dir_all(self.file_helper.game_path("logs/")).expect("Failed to create logs dir:");
         }
-        tui_logger::set_log_file(file_helper.game_path("logs/server_latest.log").to_str().expect("Server log path must be UTF-8.")).unwrap();
+        tui_logger::set_log_file(self.file_helper.game_path("logs/server_latest.log").to_str().expect("Server log path must be UTF-8.")).unwrap();
 
         term.clear().unwrap();
 

@@ -2,7 +2,7 @@ use sdl2::{event::Event, keyboard::Keycode};
 
 use crate::game::common::world::World;
 
-use super::world::{ClientChunk, ClientWorld};
+use super::{ui::MainMenu, world::{ClientChunk, ClientWorld}};
 
 // TODO: actually implement this properly with functions and stuff instead of just raw field accesses
 pub struct Controls {
@@ -23,6 +23,7 @@ pub struct Client {
     pub controls: Controls,
     pub camera: Camera,
     pub mouse_joint: Option<liquidfun::box2d::dynamics::joints::mouse_joint::MouseJoint>,
+    pub main_menu: MainMenu,
 }
 
 impl Client {
@@ -41,6 +42,7 @@ impl Client {
                 scale: 2.0,
             },
             mouse_joint: None,
+            main_menu: MainMenu { state: super::ui::MainMenuState::Main, action_queue: Vec::new() }
         }
     }
 

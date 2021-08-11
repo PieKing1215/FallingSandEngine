@@ -5,6 +5,7 @@ use crate::game::common::world::World;
 use std::time::Instant;
 
 use super::client::Client;
+use super::common::FileHelper;
 use super::common::world::Chunk;
 
 
@@ -15,6 +16,7 @@ pub struct Game<C: Chunk> {
     pub fps_counter: FPSCounter,
     pub process_stats: ProcessStats,
     pub settings: Settings,
+    pub file_helper: FileHelper,
     pub client: Option<Client>,
 }
 
@@ -36,7 +38,7 @@ pub struct FPSCounter {
 
 impl<'a, 'b, C: Chunk> Game<C> {
     #[profiling::function]
-    pub fn new() -> Self {
+    pub fn new(file_helper: FileHelper) -> Self {
         Game {
             world: Some(World::create()),
             tick_time: 0,
@@ -56,6 +58,7 @@ impl<'a, 'b, C: Chunk> Game<C> {
                 memory: None,
             },
             settings: Settings::default(),
+            file_helper,
             client: None,
         }
     }

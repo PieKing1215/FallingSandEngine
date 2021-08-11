@@ -149,7 +149,7 @@ fn main() -> Result<(), String> {
 
         let res = std::panic::catch_unwind(move || {
             println!("Starting server...");
-            let mut game: Game<ServerChunk> = Game::new();
+            let mut game: Game<ServerChunk> = Game::new(file_helper);
 
             if let Some(w) = &mut game.world {
                 w.add_entity(Entity {
@@ -159,7 +159,7 @@ fn main() -> Result<(), String> {
             };
 
             println!("Starting main loop...");
-            match game.run(&matches, &mut terminal, &file_helper) {
+            match game.run(&matches, &mut terminal) {
                 Ok(_) => {},
                 Err(e) => panic!("Server encountered a fatal error: {}", e),
             }
@@ -210,10 +210,6 @@ fn main() -> Result<(), String> {
         
         info!("Starting client...");
 
-        let worlds = game::common::world::World::<ClientChunk>::find_files(file_helper.game_path("saves/")).expect("Failed to load worlds list");
-        log::debug!("{:?}", worlds);
-        log::debug!("{:?}", game::common::world::World::<ClientChunk>::parse_file_tree_metas(worlds).expect("World meta parse failed"));
-        
         // TODO: come up with a better way to handle this sdl's lifetime
         let sdl = Renderer::init_sdl().unwrap();
 
@@ -229,7 +225,7 @@ fn main() -> Result<(), String> {
 
         info!("Finished init.");
 
-        let mut game: Game<ClientChunk> = Game::new();
+        let mut game: Game<ClientChunk> = Game::new(file_helper);
         
         if let Some(w) = &mut game.world {
             let pl_id = w.add_entity(Entity {

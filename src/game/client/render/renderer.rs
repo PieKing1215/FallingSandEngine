@@ -106,6 +106,8 @@ impl<'a> Renderer<'a> {
                 game.settings.imgui(&ui);
             }
 
+            game.client.as_mut().expect("Missing client in Renderer::render ??").main_menu.render(&ui, &game.file_helper);
+
             imgui::Window::new(im_str!("Stats"))
             .size([300.0, 300.0], imgui::Condition::FirstUseEver)
             .position_pivot([1.0, 1.0])
