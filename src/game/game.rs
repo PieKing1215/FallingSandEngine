@@ -40,7 +40,7 @@ impl<'a, 'b, C: Chunk> Game<C> {
     #[profiling::function]
     pub fn new(file_helper: FileHelper) -> Self {
         Game {
-            world: Some(World::create()),
+            world: Some(World::create(None)),
             tick_time: 0,
             frame_count: 0,
             fps_counter: FPSCounter {

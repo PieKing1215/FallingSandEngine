@@ -52,6 +52,6 @@ impl<'w, C: Chunk> World<C> {
     }
 
     pub fn from_file<P: AsRef<Path>>(path: P) -> Self {
-        Self::create()
+        Self::create(Some(path.as_ref().to_path_buf()))
     }
 }

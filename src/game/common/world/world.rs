@@ -1,5 +1,5 @@
 
-use std::{borrow::BorrowMut, collections::HashMap};
+use std::{borrow::BorrowMut, collections::HashMap, path::PathBuf};
 
 use crate::game::common::Settings;
 
@@ -27,7 +27,7 @@ pub struct World<C: Chunk> {
 
 impl<'w, C: Chunk> World<C> {
     #[profiling::function]
-    pub fn create() -> Self {
+    pub fn create(path: Option<PathBuf>) -> Self {
         let gravity = liquidfun::box2d::common::math::Vec2::new(0.0, 3.0);
         let mut lqf_world = liquidfun::box2d::dynamics::world::World::new(&gravity);
 
@@ -138,7 +138,7 @@ impl<'w, C: Chunk> World<C> {
         // }
 
         let mut w = World {
-            chunk_handler: ChunkHandler::new(TEST_GENERATOR),
+            chunk_handler: ChunkHandler::new(TEST_GENERATOR, path),
             lqf_world,
             entities: HashMap::new(),
             particles: Vec::new(),
@@ -446,6 +446,13 @@ impl<'w, C: Chunk> World<C> {
                 }
             }
         }
+
+        // let bods: Vec<_> = self.lqf_world.get_body_iterator().filter(|b| matches!(b.get_type(), BodyType::StaticBody) && !self.chunk_handler.is_pixel_loaded((b.get_position().x / LIQUIDFUN_SCALE + 0.5) as i64, (b.get_position().y / LIQUIDFUN_SCALE + 0.5) as i64)).collect();
+
+        // log::debug!("# = {}", bods.len());
+        // for b in bods {
+        //     self.lqf_world.destroy_body(&b);
+        // }
 
         // match self.net_mode {
         //     WorldNetworkMode::Local => {

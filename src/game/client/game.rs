@@ -243,9 +243,14 @@ impl Game<ClientChunk> {
                                 break 'mainLoop;
                             },
                             crate::game::client::ui::MainMenuAction::LoadWorld(path) => {
-                                let world_meta = crate::game::common::world::World::<ClientChunk>::parse_file_meta(path).expect("Failed to parse file meta");
+                                let world_meta = crate::game::common::world::World::<ClientChunk>::parse_file_meta(path.clone()).expect("Failed to parse file meta");
+                                if let Some(w) = &mut self.world {
+                                    info!("Unload current world...");
+                                    w.chunk_handler.unload_all_chunks().expect("Chunk unload failed");
+                                }
+
                                 info!("Load world \"{}\"...", world_meta.name);
-                                self.world = Some(World::create());
+                                self.world = Some(World::create(Some(path.parent().expect("World meta file has no parent directory ??").to_path_buf())));
 
                                 if let Some(w) = &mut self.world {
                                     let pl_id = w.add_entity(Entity {
@@ -458,6 +463,11 @@ impl Game<ClientChunk> {
                 ::std::thread::sleep(Duration::new(0, 1_000_000)); // 1ms sleep so the computer doesn't explode
             }
             counter_last_frame = Instant::now();
+        }
+
+        if let Some(w) = &mut self.world {
+            info!("Unload current world...");
+            w.chunk_handler.unload_all_chunks().expect("Chunk unload failed");
         }
 
         info!("Closing...");

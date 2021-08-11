@@ -1,6 +1,9 @@
 
 use crate::game::{common::world::simulator::Simulator};
 use crate::game::common::Settings;
+use std::borrow::{Borrow, BorrowMut};
+use std::convert::TryInto;
+use std::path::PathBuf;
 use std::{collections::HashMap, sync::Arc};
 
 use futures::future::join_all;
@@ -9,6 +12,7 @@ use liquidfun::box2d::dynamics::body::Body;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use tokio::runtime::Runtime;
+use serde::{Serialize, Deserialize};
 
 use super::gen::WorldGenerator;
 use super::material::PhysicsType;
@@ -68,16 +72,25 @@ pub struct ChunkHandler<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chu
     /** The size of the "presentable" area (not necessarily the current window size) */
     pub screen_size: (u16, u16),
     pub generator: T,
+    pub path: Option<PathBuf>,
+}
+
+
+#[derive(Serialize, Deserialize)]
+struct ChunkSaveFormat {
+    pixels: Vec<MaterialInstance>,
+    colors: Vec<u8>,
 }
 
 impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandler<T, C> {
     #[profiling::function]
-    pub fn new(generator: T) -> Self {
+    pub fn new(generator: T, path: Option<PathBuf>) -> Self {
         ChunkHandler {
             loaded_chunks: HashMap::new(),
             load_queue: vec![],
             screen_size: (1920 / 2, 1080 / 2),
-            generator
+            generator,
+            path,
         }
     }
 
@@ -138,7 +151,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                 match state {
                     ChunkState::Cached => {
                         if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
-                            self.unload_chunk(&self.loaded_chunks.get(&key).unwrap());
+                            self.unload_chunk(key);
                             keep_map[i] = false;
                         }else if active_zone.iter().any(|z| rect.has_intersection(*z)) {
                             let chunk_x = self.loaded_chunks.get(&key).unwrap().get_chunk_x();
@@ -224,13 +237,60 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
                         }else if num_loaded_this_tick < 32 {
                             // TODO: load from file
-                            
-                            self.loaded_chunks.get_mut(&key).unwrap().set_state(ChunkState::Generating(0));
-                            
+
                             let chunk_x = self.loaded_chunks.get_mut(&key).unwrap().get_chunk_x();
                             let chunk_y = self.loaded_chunks.get_mut(&key).unwrap().get_chunk_y();
 
-                            to_exec.push((i, chunk_x, chunk_y));
+                            let mut should_generate = true;
+                            
+                            if let Some(path) = &self.path {
+                                let chunk_path_root = path.join("chunks/");
+                                if !chunk_path_root.exists() {
+                                    std::fs::create_dir_all(&chunk_path_root).expect(format!("Failed to create chunk directory @ {:?}", chunk_path_root).as_str());
+                                }
+                                let chunk_path = chunk_path_root.join(format!("{}_{}.chunk", chunk_x, chunk_y));
+                                if chunk_path.exists() {
+                                    if let Ok(data) = std::fs::read(&chunk_path) {
+                                        match bincode::deserialize(&data) {
+                                            Ok(res) => {
+                                                let save: ChunkSaveFormat = res;
+
+                                                if save.pixels.len() == (CHUNK_SIZE as usize * CHUNK_SIZE as usize) as usize {
+                                                    self.loaded_chunks.get_mut(&key).unwrap().set_state(ChunkState::Cached);
+                                                    self.loaded_chunks.get_mut(&key).unwrap().set_pixels(&save.pixels.try_into().unwrap());
+                                                    self.loaded_chunks.get_mut(&key).unwrap().mark_dirty();
+                                                    let _ = self.loaded_chunks.get_mut(&key).unwrap().generate_mesh();
+
+                                                    if save.colors.len() == (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4) as usize {
+                                                        self.loaded_chunks.get_mut(&key).unwrap().set_pixel_colors(&save.colors.try_into().unwrap());
+                                                    }else {
+                                                        log::error!("colors Vec is the wrong size: {} (expected {})", save.colors.len(), CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4);
+                                                        self.loaded_chunks.get_mut(&key).unwrap().refresh();
+                                                    }
+
+                                                    should_generate = false;
+                                                }else {
+                                                    log::error!("pixels Vec is the wrong size: {} (expected {})", save.pixels.len(), CHUNK_SIZE * CHUNK_SIZE);
+                                                    self.loaded_chunks.get_mut(&key).unwrap().set_state(ChunkState::Cached);
+                                                }
+                                            },
+                                            Err(e) => {
+                                                log::error!("Chunk parse failed @ {},{} -> {:?}: {:?}", chunk_x, chunk_y, chunk_path, e);
+                                                self.loaded_chunks.get_mut(&key).unwrap().set_state(ChunkState::Cached);
+                                            },
+                                        }
+                                    }else{
+                                        log::error!("Chunk load failed @ {},{} -> {:?}", chunk_x, chunk_y, chunk_path);
+                                        self.loaded_chunks.get_mut(&key).unwrap().set_state(ChunkState::Cached);
+                                    }
+                                }
+                            }
+
+                            if should_generate {
+                                self.loaded_chunks.get_mut(&key).unwrap().set_state(ChunkState::Generating(0));
+                                to_exec.push((i, chunk_x, chunk_y));
+                            }
+                            
                             // generation_pool.spawn_ok(fut);
                             num_loaded_this_tick += 1;
                         }
@@ -283,7 +343,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                     match state {
                         ChunkState::NotGenerated => {
                             if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
-                                self.unload_chunk(&self.loaded_chunks.get(&key).unwrap());
+                                self.unload_chunk(key);
                                 keep_map[i] = false;
                             }
                         },
@@ -325,7 +385,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                 }
 
                                 if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
-                                    self.unload_chunk(&self.loaded_chunks.get(&key).unwrap());
+                                    self.unload_chunk(key);
                                     keep_map[i] = false;
                                 }
                             }
@@ -540,8 +600,49 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
     }
 
     #[profiling::function]
-    fn unload_chunk(&self, _chunk: &C){
-        // write to file, free textures, etc
+    fn unload_chunk(&mut self, index: u32) -> Result<(), Box<dyn std::error::Error>>{
+        let chunk = self.loaded_chunks.get_mut(&index).unwrap();
+        // if let Some(body) = chunk.get_b2_body() {
+        //     body.get_world().destroy_body(body);
+        //     chunk.set_b2_body(None);
+        // }
+
+        if let Some(path) = &self.path {
+            if let Some(pixels) = chunk.get_pixels() {    
+                let chunk_path_root = path.join("chunks/");
+                if !chunk_path_root.exists() {
+                    std::fs::create_dir_all(&chunk_path_root).expect(format!("Failed to create chunk directory @ {:?}", chunk_path_root).as_str());
+                }
+                let chunk_path = chunk_path_root.join(format!("{}_{}.chunk", chunk.get_chunk_x(), chunk.get_chunk_y()));
+                let mut contents = Vec::new();
+
+                let save = ChunkSaveFormat {
+                    pixels: pixels.to_vec(),
+                    colors: chunk.get_colors().to_vec(),
+                };
+
+                let pixel_data: Vec<u8> = bincode::serialize(&save)?;
+                contents.extend(pixel_data);
+                
+                let r = std::fs::write(&chunk_path, contents);
+                if r.is_err() {
+                    log::error!("Chunk unload failed @ {},{} -> {:?}", chunk.get_chunk_x(), chunk.get_chunk_y(), chunk_path);
+                }
+                r?;
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn unload_all_chunks(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        #[allow(clippy::for_kv_map)] // want ? to work
+        let keys = self.loaded_chunks.keys().copied().collect::<Vec<u32>>();
+        for i in keys {
+            self.unload_chunk(i)?;
+        }
+        self.loaded_chunks.clear();
+        Ok(())
     }
 
     #[profiling::function]
@@ -723,7 +824,7 @@ mod tests {
 
     #[test]
     fn chunk_index_correct() {
-        let ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{});
+        let ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{}, None);
 
         // center
         assert_eq!(ch.chunk_index(0, 0), 0);
@@ -766,7 +867,7 @@ mod tests {
 
     #[test]
     fn chunk_index_inv_correct() {
-        let ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{});
+        let ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{}, None);
         
         // center
         assert_eq!(ch.chunk_index_inv(0),  (0, 0));
@@ -809,7 +910,7 @@ mod tests {
 
     #[test]
     fn chunk_index_correctly_invertible() {
-        let ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{});
+        let ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{}, None);
 
         for _ in 0..1000 {
             let x: i32 = rand::thread_rng().gen_range(-10000..10000);
@@ -825,7 +926,7 @@ mod tests {
 
     #[test]
     fn chunk_loading() {
-        let mut ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{});
+        let mut ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{}, None);
 
         assert_eq!(ch.load_queue.len(), 0);
         assert_eq!(ch.loaded_chunks.len(), 0);
@@ -893,7 +994,7 @@ mod tests {
 
     #[test]
     fn chunk_update_order() {
-        let ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{});
+        let ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{}, None);
 
         for _ in 0..100 {
             let x: i32 = rand::thread_rng().gen_range(-10000..10000);
@@ -917,7 +1018,7 @@ mod tests {
 
     #[test]
     fn zones() {
-        let ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{});
+        let ch: ChunkHandler<TestGenerator, ServerChunk> = ChunkHandler::<_, ServerChunk>::new(TestGenerator{}, None);
 
         let center = (12.3, -42.2);
         let screen = ch.get_screen_zone(center);

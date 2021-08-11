@@ -5,6 +5,7 @@
 
 #![allow(clippy::multiple_crate_versions)]
 
+#![allow(clippy::expect_fun_call)]
 #![allow(clippy::struct_excessive_bools)]
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::let_underscore_drop)]
