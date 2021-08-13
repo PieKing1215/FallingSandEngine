@@ -447,13 +447,6 @@ impl<'w, C: Chunk> World<C> {
             }
         }
 
-        // let bods: Vec<_> = self.lqf_world.get_body_iterator().filter(|b| matches!(b.get_type(), BodyType::StaticBody) && !self.chunk_handler.is_pixel_loaded((b.get_position().x / LIQUIDFUN_SCALE + 0.5) as i64, (b.get_position().y / LIQUIDFUN_SCALE + 0.5) as i64)).collect();
-
-        // log::debug!("# = {}", bods.len());
-        // for b in bods {
-        //     self.lqf_world.destroy_body(&b);
-        // }
-
         // match self.net_mode {
         //     WorldNetworkMode::Local => {
         //         self.chunk_handler.tick(tick_time, loaders, settings);

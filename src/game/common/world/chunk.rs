@@ -602,10 +602,12 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
     #[profiling::function]
     fn unload_chunk(&mut self, index: u32) -> Result<(), Box<dyn std::error::Error>>{
         let chunk = self.loaded_chunks.get_mut(&index).unwrap();
-        // if let Some(body) = chunk.get_b2_body() {
-        //     body.get_world().destroy_body(body);
-        //     chunk.set_b2_body(None);
-        // }
+        if let Some(body) = chunk.get_b2_body() {
+            let mut lqf_world = body.get_world();
+            lqf_world.destroy_body(body);
+            chunk.set_b2_body(None);
+            std::mem::forget(lqf_world); // need to forget otherwise the deconstructor calls b2World_Delete
+        }
 
         if let Some(path) = &self.path {
             if let Some(pixels) = chunk.get_pixels() {    
