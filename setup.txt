@@ -1,3 +1,12 @@
+# Windows
+cargo install cargo-vcpkg
+cargo vcpkg build
+cargo build
+
+# Linux
+## note: there may be other libs that you need to install if you don't have them
+sudo apt-get install clang
+
 cargo install cargo-vcpkg
 cargo vcpkg build
 cargo build
