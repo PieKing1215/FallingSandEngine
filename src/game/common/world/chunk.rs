@@ -655,6 +655,16 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
         Ok(())
     }
 
+    pub fn save_all_chunks(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        #[allow(clippy::for_kv_map)] // want ? to work
+        let keys = self.loaded_chunks.keys().copied().collect::<Vec<u32>>();
+        for i in keys {
+            self.save_chunk(i)?;
+        }
+        self.loaded_chunks.clear();
+        Ok(())
+    }
+
     #[profiling::function]
     pub fn queue_load_chunk(&mut self, chunk_x: i32, chunk_y: i32) -> bool {
         // make sure not loaded
