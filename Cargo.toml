@@ -39,6 +39,7 @@ simplelog = "0.10.0"
 #      can't use 0.6.3 since it uses an old version of tui
 tui-logger = { git = "https://github.com/gin66/tui-logger" }
 backtrace = "0.3.61"
+specs = "0.17.0"
 
 # mesh generation
 contour = "0.4.0"

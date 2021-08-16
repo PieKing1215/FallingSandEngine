@@ -5,8 +5,9 @@ use crate::game::common::{Settings, world::ChunkState};
 
 use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::body::{BodyDef, BodyType}};
 use sdl2::pixels::Color;
+use specs::WorldExt;
 
-use super::{CHUNK_SIZE, Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{InObjectState, Particle}, rigidbody::RigidBody, simulator};
+use super::{CHUNK_SIZE, Chunk, ChunkHandler, Position, Velocity, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{InObjectState, Particle}, rigidbody::RigidBody, simulator};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
@@ -17,6 +18,7 @@ pub enum WorldNetworkMode {
 }
 
 pub struct World<C: Chunk> {
+    pub ecs: specs::World,
     pub path: Option<PathBuf>,
     pub chunk_handler: ChunkHandler<TestGenerator, C>,
     pub lqf_world: liquidfun::box2d::dynamics::world::World,
@@ -162,7 +164,12 @@ impl<'w, C: Chunk> World<C> {
             }
         }
 
+        let mut ecs = specs::World::new();
+        ecs.register::<Position>();
+        ecs.register::<Velocity>();
+
         let mut w = World {
+            ecs,
             chunk_handler: ChunkHandler::new(TEST_GENERATOR, path.clone()),
             path,
             lqf_world,
