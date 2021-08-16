@@ -661,7 +661,6 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
         for i in keys {
             self.save_chunk(i)?;
         }
-        self.loaded_chunks.clear();
         Ok(())
     }
 
