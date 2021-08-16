@@ -609,6 +609,14 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
             std::mem::forget(lqf_world); // need to forget otherwise the deconstructor calls b2World_Delete
         }
 
+        self.save_chunk(index)?;
+
+        Ok(())
+    }
+
+    #[profiling::function]
+    pub fn save_chunk(&mut self, index: u32) -> Result<(), Box<dyn std::error::Error>>{
+        let chunk = self.loaded_chunks.get_mut(&index).ok_or("Chunk not loaded")?;
         if let Some(path) = &self.path {
             if let Some(pixels) = chunk.get_pixels() {    
                 let chunk_path_root = path.join("chunks/");
@@ -628,7 +636,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                 
                 let r = std::fs::write(&chunk_path, contents);
                 if r.is_err() {
-                    log::error!("Chunk unload failed @ {},{} -> {:?}", chunk.get_chunk_x(), chunk.get_chunk_y(), chunk_path);
+                    log::error!("Chunk save failed @ {},{} -> {:?}", chunk.get_chunk_x(), chunk.get_chunk_y(), chunk_path);
                 }
                 r?;
             }
