@@ -151,6 +151,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                 match state {
                     ChunkState::Cached => {
                         if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
+                            self.save_chunk(key);
                             self.unload_chunk(key);
                             keep_map[i] = false;
                         }else if active_zone.iter().any(|z| rect.has_intersection(*z)) {
@@ -343,6 +344,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                     match state {
                         ChunkState::NotGenerated => {
                             if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
+                                self.save_chunk(key);
                                 self.unload_chunk(key);
                                 keep_map[i] = false;
                             }
@@ -385,6 +387,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                 }
 
                                 if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
+                                    self.save_chunk(key);
                                     self.unload_chunk(key);
                                     keep_map[i] = false;
                                 }
@@ -599,6 +602,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
     }
 
+    #[allow(clippy::unnecessary_wraps)]
     #[profiling::function]
     fn unload_chunk(&mut self, index: u32) -> Result<(), Box<dyn std::error::Error>>{
         let chunk = self.loaded_chunks.get_mut(&index).unwrap();
@@ -608,9 +612,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
             chunk.set_b2_body(None);
             std::mem::forget(lqf_world); // need to forget otherwise the deconstructor calls b2World_Delete
         }
-
-        self.save_chunk(index)?;
-
+        
         Ok(())
     }
 

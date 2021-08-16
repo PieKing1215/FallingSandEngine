@@ -246,7 +246,8 @@ impl Game<ClientChunk> {
                                 let world_meta = crate::game::common::world::World::<ClientChunk>::parse_file_meta(path.clone()).expect("Failed to parse file meta");
                                 if let Some(w) = &mut self.world {
                                     info!("Unload current world...");
-                                    w.chunk_handler.unload_all_chunks().expect("Chunk unload failed");
+                                    w.save().expect("World save failed");
+                                    w.close().expect("World unload failed");
                                 }
 
                                 info!("Load world \"{}\"...", world_meta.name);
@@ -467,7 +468,8 @@ impl Game<ClientChunk> {
 
         if let Some(w) = &mut self.world {
             info!("Unload current world...");
-            w.chunk_handler.unload_all_chunks().expect("Chunk unload failed");
+            w.save().expect("World save failed");
+            w.close().expect("World unload failed");
         }
 
         info!("Closing...");

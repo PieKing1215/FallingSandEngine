@@ -1,7 +1,7 @@
 
 use std::{borrow::BorrowMut, collections::HashMap, path::PathBuf};
 
-use crate::game::common::Settings;
+use crate::game::common::{Settings, world::ChunkState};
 
 use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::body::{BodyDef, BodyType}};
 use sdl2::pixels::Color;
@@ -17,6 +17,7 @@ pub enum WorldNetworkMode {
 }
 
 pub struct World<C: Chunk> {
+    pub path: Option<PathBuf>,
     pub chunk_handler: ChunkHandler<TestGenerator, C>,
     pub lqf_world: liquidfun::box2d::dynamics::world::World,
     pub entities: HashMap<u32, Entity>,
@@ -137,11 +138,36 @@ impl<'w, C: Chunk> World<C> {
         //     particle_system.create_particle(&pd);
         // }
 
+        let mut particles = Vec::new();
+
+        if let Some(path) = &path {
+            let particles_path = path.join("particles.dat");
+            if particles_path.exists() {
+                match std::fs::read(&particles_path) {
+                    Ok(data) => {
+                        match bincode::deserialize(&data) {
+                            Ok(res) => {
+                                let save: Vec<Particle> = res;
+                                particles = save;
+                            },
+                            Err(e) => {
+                                log::error!("Particles parse failed @ {:?}: {:?}", particles_path, e);
+                            },
+                        }
+                    },
+                    Err(e) => log::error!("Particles load failed @ {:?}: {:?}", particles_path, e),
+                }
+            }else{
+                log::error!("Particles file missing @ {:?}", particles_path);
+            }
+        }
+
         let mut w = World {
-            chunk_handler: ChunkHandler::new(TEST_GENERATOR, path),
+            chunk_handler: ChunkHandler::new(TEST_GENERATOR, path.clone()),
+            path,
             lqf_world,
             entities: HashMap::new(),
-            particles: Vec::new(),
+            particles,
             net_mode: WorldNetworkMode::Local,
             rigidbodies: Vec::new(),
         };
@@ -217,6 +243,35 @@ impl<'w, C: Chunk> World<C> {
         }
 
         w
+    }
+
+    pub fn close(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.chunk_handler.unload_all_chunks()?;
+
+        Ok(())
+    }
+
+    pub fn save(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+
+        if let Some(path) = &self.path {
+            let particles_path = path.join("particles.dat");
+            let mut contents = Vec::new();
+
+            let save = &self.particles;
+
+            let pixel_data: Vec<u8> = bincode::serialize(&save)?;
+            contents.extend(pixel_data);
+            
+            let r = std::fs::write(&particles_path, contents);
+            if r.is_err() {
+                log::error!("Particles save failed @ {:?}", particles_path);
+            }
+            r?;
+        }
+
+        self.chunk_handler.save_all_chunks()?;
+
+        Ok(())
     }
 
     pub fn add_entity(&mut self, entity: Entity) -> u32 {
@@ -481,10 +536,16 @@ impl<'w, C: Chunk> World<C> {
 
             let p = &mut self.particles[i];
 
-            p.vy += 0.1;
-
             let lx = p.x;
             let ly = p.y;
+
+            let (chunk_x, chunk_y) = self.chunk_handler.pixel_to_chunk_pos(lx as i64, ly as i64);
+            // skip if chunk not active
+            if !matches!(self.chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active) {
+                continue;
+            }
+
+            p.vy += 0.1;
 
             let dx = p.vx;
             let dy = p.vy;

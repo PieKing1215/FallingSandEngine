@@ -1,6 +1,8 @@
 use super::material::MaterialInstance;
 
+use serde::{Serialize, Deserialize};
 
+#[derive(Serialize, Deserialize)]
 pub struct Particle {
     pub material: MaterialInstance,
     pub x: f32,
@@ -21,7 +23,7 @@ impl Particle {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Serialize, Deserialize)]
 pub enum InObjectState {
     FirstFrame,
     Inside,
