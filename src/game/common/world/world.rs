@@ -1,13 +1,13 @@
 
-use std::{borrow::BorrowMut, collections::HashMap, path::PathBuf};
+use std::{borrow::BorrowMut, cell::RefCell, collections::HashMap, path::PathBuf};
 
 use crate::game::common::{Settings, world::ChunkState};
 
 use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::body::{BodyDef, BodyType}};
 use sdl2::pixels::Color;
-use specs::WorldExt;
+use specs::{Builder, RunNow, WorldExt};
 
-use super::{CHUNK_SIZE, Chunk, ChunkHandler, ChunkHandlerGeneric, Position, Velocity, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{InObjectState, Particle}, rigidbody::RigidBody, simulator};
+use super::{CHUNK_SIZE, Chunk, ChunkHandler, ChunkHandlerGeneric, ChunkHandlerResource, Position, Velocity, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{InObjectState, Particle, UpdateParticles}, rigidbody::RigidBody, simulator};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
@@ -23,7 +23,6 @@ pub struct World<C: Chunk> {
     pub chunk_handler: ChunkHandler<TestGenerator, C>,
     pub lqf_world: liquidfun::box2d::dynamics::world::World,
     pub entities: HashMap<u32, Entity>,
-    pub particles: Vec<Particle>,
     pub net_mode: WorldNetworkMode,
     pub rigidbodies: Vec<RigidBody>,
 }
@@ -140,31 +139,31 @@ impl<'w, C: Chunk> World<C> {
         //     particle_system.create_particle(&pd);
         // }
 
-        let mut particles = Vec::new();
-
-        if let Some(path) = &path {
-            let particles_path = path.join("particles.dat");
-            if particles_path.exists() {
-                match std::fs::read(&particles_path) {
-                    Ok(data) => {
-                        match bincode::deserialize(&data) {
-                            Ok(res) => {
-                                let save: Vec<Particle> = res;
-                                particles = save;
-                            },
-                            Err(e) => {
-                                log::error!("Particles parse failed @ {:?}: {:?}", particles_path, e);
-                            },
-                        }
-                    },
-                    Err(e) => log::error!("Particles load failed @ {:?}: {:?}", particles_path, e),
-                }
-            }else{
-                log::error!("Particles file missing @ {:?}", particles_path);
-            }
-        }
+        // TODO: this will get saved in the ecs; delete this
+        // if let Some(path) = &path {
+        //     let particles_path = path.join("particles.dat");
+        //     if particles_path.exists() {
+        //         match std::fs::read(&particles_path) {
+        //             Ok(data) => {
+        //                 match bincode::deserialize(&data) {
+        //                     Ok(res) => {
+        //                         let save: Vec<Particle> = res;
+        //                         particles = save;
+        //                     },
+        //                     Err(e) => {
+        //                         log::error!("Particles parse failed @ {:?}: {:?}", particles_path, e);
+        //                     },
+        //                 }
+        //             },
+        //             Err(e) => log::error!("Particles load failed @ {:?}: {:?}", particles_path, e),
+        //         }
+        //     }else{
+        //         log::error!("Particles file missing @ {:?}", particles_path);
+        //     }
+        // }
 
         let mut ecs = specs::World::new();
+        ecs.register::<Particle>();
         ecs.register::<Position>();
         ecs.register::<Velocity>();
 
@@ -174,7 +173,6 @@ impl<'w, C: Chunk> World<C> {
             path,
             lqf_world,
             entities: HashMap::new(),
-            particles,
             net_mode: WorldNetworkMode::Local,
             rigidbodies: Vec::new(),
         };
@@ -260,21 +258,22 @@ impl<'w, C: Chunk> World<C> {
 
     pub fn save(&mut self) -> Result<(), Box<dyn std::error::Error>> {
 
-        if let Some(path) = &self.path {
-            let particles_path = path.join("particles.dat");
-            let mut contents = Vec::new();
+        // TODO: this will get saved in the ecs; delete this
+        // if let Some(path) = &self.path {
+        //     let particles_path = path.join("particles.dat");
+        //     let mut contents = Vec::new();
 
-            let save = &self.particles;
+        //     let save = &self.particles;
 
-            let pixel_data: Vec<u8> = bincode::serialize(&save)?;
-            contents.extend(pixel_data);
+        //     let pixel_data: Vec<u8> = bincode::serialize(&save)?;
+        //     contents.extend(pixel_data);
             
-            let r = std::fs::write(&particles_path, contents);
-            if r.is_err() {
-                log::error!("Particles save failed @ {:?}", particles_path);
-            }
-            r?;
-        }
+        //     let r = std::fs::write(&particles_path, contents);
+        //     if r.is_err() {
+        //         log::error!("Particles save failed @ {:?}", particles_path);
+        //     }
+        //     r?;
+        // }
 
         self.chunk_handler.save_all_chunks()?;
 
@@ -338,19 +337,22 @@ impl<'w, C: Chunk> World<C> {
 
                                     if point_velocity.x.abs() > 1.0 || point_velocity.y.abs() > 1.0 {
                                         let m = *mat;
-                                        let mut part = Particle::new(*mat, tx as f32, ty as f32, point_velocity.x * 0.1, point_velocity.y * 0.1 - 0.5);
+                                        let mut part = Particle::of(*mat);
+                                        let mut part_pos = Position { x: tx as f32, y: ty as f32 };
+                                        let mut part_vel = Velocity { x: point_velocity.x * 0.1, y: point_velocity.y * 0.1 - 0.5 };
+
                                         let res = self.chunk_handler.set(tx as i64, ty as i64, MaterialInstance {
                                             physics: PhysicsType::Object,
                                             ..cur
                                         });
 
                                         if res.is_ok() {
-                                            match self.chunk_handler.get((part.x + part.vx) as i64, (part.y + part.vy) as i64) {
+                                            match self.chunk_handler.get((part_pos.x + part_vel.x) as i64, (part_pos.y + part_vel.y) as i64) {
                                                 Ok(m_test) if m_test.physics != PhysicsType::Air => {
-                                                    part.vx *= -1.0;
-                                                    part.vy *= -1.0;
+                                                    part_vel.x *= -1.0;
+                                                    part_vel.y *= -1.0;
 
-                                                    self.particles.push(part);
+                                                    self.ecs.create_entity().with(part).with(part_pos).with(part_vel).build();
                                                     body.apply_force(&Vec2::new(-point_velocity.x * 0.5, -point_velocity.y * 0.5), &world_point, true);
 
                                                     let linear_velocity = *body.get_linear_velocity();
@@ -361,7 +363,7 @@ impl<'w, C: Chunk> World<C> {
                                                 },
                                                 _ => {
                                                     if !self.chunk_handler.displace(tx as i64, ty as i64, m) {
-                                                        self.particles.push(part);
+                                                        self.ecs.create_entity().with(part).with(part_pos).with(part_vel).build();
                                                         body.apply_force(&Vec2::new(-point_velocity.x * 0.75, -point_velocity.y * 0.75), &world_point, true);
                                                         
                                                         let linear_velocity = *body.get_linear_velocity();
@@ -381,8 +383,10 @@ impl<'w, C: Chunk> World<C> {
             }
         }
 
-        self.chunk_handler.tick(tick_time, &loaders, settings, &mut self.particles);
-        self.tick_particles(tick_time, settings);
+        self.chunk_handler.tick(tick_time, &loaders, settings, &mut self.ecs);
+        let mut update_particles = UpdateParticles { chunk_handler: &mut self.chunk_handler };
+        update_particles.run_now(&self.ecs);
+        self.ecs.maintain();
 
         for rb in &self.rigidbodies {
             let rb_w = rb.width;
@@ -411,7 +415,11 @@ impl<'w, C: Chunk> World<C> {
             }
         }
 
-        simulator::Simulator::simulate_rigidbodies(&mut self.chunk_handler, &mut self.rigidbodies, &mut self.lqf_world, &mut self.particles);
+        let mut new_parts = Vec::new();
+        simulator::Simulator::simulate_rigidbodies(&mut self.chunk_handler, &mut self.rigidbodies, &mut self.lqf_world, &mut new_parts);
+        for p in new_parts {
+            self.ecs.create_entity().with(p.0).with(p.1).with(p.2).build();
+        }
         
         for c in self.chunk_handler.loaded_chunks.borrow_mut().values_mut() {
             if c.get_b2_body().is_none() {
@@ -517,107 +525,6 @@ impl<'w, C: Chunk> World<C> {
         // }
 
         self.chunk_handler.update_chunk_graphics();
-    }
-
-    #[profiling::function]
-    pub fn tick_particles(&mut self, _tick_time: u32, _settings: &Settings){
-
-        let new_p = Particle::new(
-            MaterialInstance {
-                material_id: TEST_MATERIAL.id,
-                physics: PhysicsType::Sand,
-                color: Color::RGB(64, 255, 255),
-            },
-            (rand::random::<f32>() - 0.5) * 10.0,
-            -100.0,
-            (rand::random::<f32>() - 0.5) * 4.0,
-            (rand::random::<f32>() - 0.75) * 2.0,
-        );
-
-        self.particles.push(new_p);
-
-        let mut keep_map = vec![true; self.particles.len()];
-
-        #[allow(clippy::needless_range_loop)]
-        for i in 0..self.particles.len() {
-
-            let p = &mut self.particles[i];
-
-            let lx = p.x;
-            let ly = p.y;
-
-            let (chunk_x, chunk_y) = self.chunk_handler.pixel_to_chunk_pos(lx as i64, ly as i64);
-            // skip if chunk not active
-            if !matches!(self.chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active) {
-                continue;
-            }
-
-            p.vy += 0.1;
-
-            let dx = p.vx;
-            let dy = p.vy;
-
-            let steps = (dx.abs() + dy.abs()) as u32 + 1;
-            for s in 0..steps {
-                let thru = (s + 1) as f32 / steps as f32;
-
-                p.x = lx + dx * thru;
-                p.y = ly + dy * thru;
-
-                if let Ok(mat) = self.chunk_handler.get(p.x as i64, p.y as i64) {
-                    if mat.physics == PhysicsType::Air {
-                        p.in_object_state = InObjectState::Outside;
-                    }else{
-                        let is_object = mat.physics == PhysicsType::Object;
-
-                        match p.in_object_state {
-                            InObjectState::FirstFrame => {
-                                if is_object {
-                                    p.in_object_state = InObjectState::Inside;
-                                }else {
-                                    p.in_object_state = InObjectState::Outside;
-                                }
-                            },
-                            InObjectState::Inside => {
-                                if !is_object {
-                                    p.in_object_state = InObjectState::Outside;
-                                }
-                            },
-                            InObjectState::Outside => {},
-                        }
-
-                        if !is_object || p.in_object_state == InObjectState::Outside {
-
-                            match self.chunk_handler.get(lx as i64, ly as i64) {
-                                Ok(m) if m.physics != PhysicsType::Air => {
-                                    
-                                    let succeeded = self.chunk_handler.displace(p.x as i64, p.y as i64, p.material);
-
-                                    if succeeded {
-                                        keep_map[i] = false;
-                                    }else{
-                                        // upwarp if completely blocked
-                                        p.vy = -4.0;
-                                        p.y -= 16.0;
-                                    }
-                                    
-                                    break;
-                                },
-                                _ => {
-                                    if self.chunk_handler.set(lx as i64, ly as i64, p.material).is_ok() {
-                                        keep_map[i] = false;
-                                        break;
-                                    }
-                                },
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        let mut iter = keep_map.iter();
-        self.particles.retain(|_| *iter.next().unwrap());
     }
 
     pub fn tick_lqf(&mut self, settings: &Settings) {

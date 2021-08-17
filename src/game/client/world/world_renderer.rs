@@ -3,8 +3,9 @@ use std::{iter, ptr::slice_from_raw_parts};
 use liquidfun::box2d::common::{b2draw::{self, B2Draw_New, b2Color, b2ParticleColor, b2Transform, b2Vec2, int32}, math::Vec2};
 use sdl2::{pixels::Color, rect::Rect};
 use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, shaders::Shader, sys::{GPU_FilterEnum, GPU_FormatEnum, GPU_SetBlendMode}};
+use specs::{Join, WriteStorage};
 
-use crate::game::{client::{Client, render::{Fonts, RenderCanvas, Renderable, Sdl2Context, Shaders, TransformStack}}, common::{Settings, world::{CHUNK_SIZE, ChunkState, ChunkHandlerGeneric, LIQUIDFUN_SCALE, World, gen::WorldGenerator}}};
+use crate::game::{client::{Client, render::{Fonts, RenderCanvas, Renderable, Sdl2Context, Shaders, TransformStack}}, common::{Settings, world::{CHUNK_SIZE, ChunkHandlerGeneric, ChunkState, LIQUIDFUN_SCALE, Position, World, gen::WorldGenerator, particle::Particle}}};
 
 use super::{ClientChunk, ClientWorld};
 
@@ -259,11 +260,25 @@ impl WorldRenderer {
             transform.pop();
         }
 
-        for p in &world.particles {
-            let (x1, y1) = transform.transform((p.x - 0.5, p.y - 0.5));
-            let (x2, y2) = transform.transform((p.x + 0.5, p.y + 0.5));
+        let (
+            particle_storage,
+            position_storage,
+        ) = world.ecs.system_data::<(
+            WriteStorage<Particle>,
+            WriteStorage<Position>,
+        )>();
+
+        for (p, pos) in (&particle_storage, &position_storage).join() {
+            let (x1, y1) = transform.transform((pos.x - 0.5, pos.y - 0.5));
+            let (x2, y2) = transform.transform((pos.x + 0.5, pos.y + 0.5));
             target.rectangle_filled(x1 as f32, y1 as f32, x2 as f32, y2 as f32, p.material.color);
         }
+        
+        // for p in &world.particles {
+        //     let (x1, y1) = transform.transform((p.x - 0.5, p.y - 0.5));
+        //     let (x2, y2) = transform.transform((p.x + 0.5, p.y + 0.5));
+        //     target.rectangle_filled(x1 as f32, y1 as f32, x2 as f32, y2 as f32, p.material.color);
+        // }
 
         world.entities.iter().for_each(|(_id, e)| {
             transform.push();

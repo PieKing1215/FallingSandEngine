@@ -1,4 +1,5 @@
 
+use crate::game::common::world::{Position, Velocity};
 use crate::game::{common::world::simulator::Simulator};
 use crate::game::common::Settings;
 use std::borrow::{Borrow, BorrowMut};
@@ -11,6 +12,7 @@ use lazy_static::lazy_static;
 use liquidfun::box2d::dynamics::body::Body;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
+use specs::{Builder, WorldExt};
 use tokio::runtime::Runtime;
 use serde::{Serialize, Deserialize};
 
@@ -66,6 +68,7 @@ pub enum ChunkState {
     Active,
 }
 
+#[derive(Debug)]
 pub struct ChunkHandler<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> {
     pub loaded_chunks: HashMap<u32, Box<C>>,
     load_queue: Vec<(i32, i32)>,
@@ -77,7 +80,7 @@ pub struct ChunkHandler<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chu
 
 pub trait ChunkHandlerGeneric {
     fn update_chunk_graphics(&mut self);
-    fn tick(&mut self, tick_time: u32, loaders: &[(f64, f64)], settings: &Settings, particles: &mut Vec<Particle>);
+    fn tick(&mut self, tick_time: u32, loaders: &[(f64, f64)], settings: &Settings, world: &mut specs::World);
     fn save_chunk(&mut self, index: u32) -> Result<(), Box<dyn std::error::Error>>;
     fn unload_all_chunks(&mut self) -> Result<(), Box<dyn std::error::Error>>;
     fn save_all_chunks(&mut self) -> Result<(), Box<dyn std::error::Error>>;
@@ -119,7 +122,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
     // #[profiling::function] // breaks clippy
     #[warn(clippy::too_many_lines)]
-    fn tick(&mut self, tick_time: u32, loaders: &[(f64, f64)], settings: &Settings, particles: &mut Vec<Particle>){ // TODO: `camera` should be replaced with like a vec of entities or something
+    fn tick(&mut self, tick_time: u32, loaders: &[(f64, f64)], settings: &Settings, world: &mut specs::World){ // TODO: `camera` should be replaced with like a vec of entities or something
         profiling::scope!("tick");
         
         let unload_zone: Vec<Rect> = loaders.iter().map(|l| self.get_unload_zone(*l)).collect();
@@ -521,16 +524,20 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                     let futs2: Vec<_> = futs.into_iter().map(|f| RT.spawn(f)).collect();
 
                     #[allow(clippy::type_complexity)]
-                    let mut b: Vec<Result<((i32, i32), [bool; 9], [Option<Rect>; 9], Vec<Particle>), _>>;
+                    let mut b: Vec<Result<((i32, i32), [bool; 9], [Option<Rect>; 9], Vec<(Particle, Position, Velocity)>), _>>;
                     {
                         profiling::scope!("wait for threads", format!("#futs = {}", futs2.len()).as_str());
                         b = RT.block_on(join_all(futs2));
                     }
                     
-                    for r in &mut b {
+                    for r in b {
                         profiling::scope!("apply");
-                        let (ch_pos, dirty, dirty_rects, parts) = r.as_mut().unwrap();
-                        particles.append(parts);
+                        let (ch_pos, dirty, dirty_rects, parts) = r.unwrap();
+                        
+                        for p in parts {
+                            world.create_entity().with(p.0).with(p.1).with(p.2).build();
+                        }
+
                         for i in 0..9 {
                             let rel_ch_x = (i % 3) - 1;
                             let rel_ch_y = (i / 3) - 1;
@@ -1014,10 +1021,14 @@ mod tests {
         assert!(!ch.is_chunk_loaded(-3, 2));
 
         // do a few ticks to load some chunks
-        let mut parts = Vec::new();
-        ch.tick(0, &[(110.0, -120.0)], &Settings::default(), &mut parts);
+        let mut ecs = specs::World::new();
+        ecs.register::<Particle>();
+        ecs.register::<Position>();
+        ecs.register::<Velocity>();
+
+        ch.tick(0, &[(110.0, -120.0)], &Settings::default(), &mut ecs);
         while !ch.load_queue.is_empty() {
-            ch.tick(0, &[(110.0, -120.0)], &Settings::default(), &mut parts);
+            ch.tick(0, &[(110.0, -120.0)], &Settings::default(), &mut ecs);
         }
 
         assert!(ch.is_chunk_loaded(11, -12));
@@ -1042,7 +1053,7 @@ mod tests {
         assert!(ch.get_chunk(-120, 11).is_none());
 
         // should unload since no loaders are nearby
-        ch.tick(0, &[], &Settings::default(), &mut parts);
+        ch.tick(0, &[], &Settings::default(), &mut ecs);
 
         assert!(!ch.is_chunk_loaded(11, -12));
         assert!(!ch.is_chunk_loaded(-3, 2));

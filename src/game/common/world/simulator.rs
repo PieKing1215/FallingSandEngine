@@ -8,7 +8,7 @@ use crate::game::common::world::{CHUNK_SIZE, rigidbody};
 use super::material::AIR;
 use super::particle::Particle;
 use super::rigidbody::RigidBody;
-use super::{Chunk, ChunkHandler, ChunkHandlerGeneric, LIQUIDFUN_SCALE};
+use super::{Chunk, ChunkHandler, ChunkHandlerGeneric, LIQUIDFUN_SCALE, Position, Velocity};
 use super::gen::WorldGenerator;
 
 pub struct Simulator {
@@ -20,7 +20,7 @@ trait SimulationHelper {
     unsafe fn set_pixel_local(&mut self, x: i32, y: i32, mat: MaterialInstance);
     unsafe fn get_color_local(&self, x: i32, y: i32) -> Color;
     unsafe fn set_color_local(&mut self, x: i32, y: i32, col: Color);
-    fn add_particle(&mut self, particle: Particle);
+    fn add_particle(&mut self, material: MaterialInstance, pos: Position, vel: Velocity);
 }
 
 struct SimulationHelperChunk<'a> {
@@ -32,7 +32,7 @@ struct SimulationHelperChunk<'a> {
     min_y: [u16; 9],
     max_x: [u16; 9],
     max_y: [u16; 9],
-    particles: &'a mut Vec<Particle>,
+    particles: &'a mut Vec<(Particle, Position, Velocity)>,
     chunk_x: i32,
     chunk_y: i32,
 }
@@ -109,19 +109,18 @@ impl SimulationHelper for SimulationHelperChunk<'_> {
         self.set_color_from_index(Self::local_to_indices(x, y), col);
     }
 
-    fn add_particle(&mut self, particle: Particle) {
-        self.particles.push(Particle {
-            x: particle.x + self.chunk_x as f32 * f32::from(CHUNK_SIZE),
-            y: particle.y + self.chunk_y as f32 * f32::from(CHUNK_SIZE),
-            ..particle
-        });
+    fn add_particle(&mut self, material: MaterialInstance, pos: Position, vel: Velocity) {
+        self.particles.push((Particle::of(material), Position {
+            x: pos.x + self.chunk_x as f32 * f32::from(CHUNK_SIZE),
+            y: pos.y + self.chunk_y as f32 * f32::from(CHUNK_SIZE),
+        }, vel));
     }
 }
 
 struct SimulationHelperRigidBody<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> {
     chunk_handler: &'a mut ChunkHandler<T, C>,
     rigidbodies: &'a mut Vec<RigidBody>,
-    particles: &'a mut Vec<Particle>,
+    particles: &'a mut Vec<(Particle, Position, Velocity)>,
 }
 
 impl <T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelper for SimulationHelperRigidBody<'_, T, C> {
@@ -215,15 +214,14 @@ impl <T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelp
         }
     }
 
-    fn add_particle(&mut self, particle: Particle) {
-        self.particles.push(particle);
+    fn add_particle(&mut self, material: MaterialInstance, pos: Position, vel: Velocity) {
+        self.particles.push((Particle::of(material), pos, vel));
     }
 }
 
-
 impl Simulator {
     #[profiling::function]
-    pub fn simulate_chunk(chunk_x: i32, chunk_y: i32, pixels_raw: [usize; 9], colors_raw: [usize; 9], dirty: &mut [bool; 9], dirty_rects: &mut [Option<Rect>; 9], particles: &mut Vec<Particle>) {
+    pub fn simulate_chunk(chunk_x: i32, chunk_y: i32, pixels_raw: [usize; 9], colors_raw: [usize; 9], dirty: &mut [bool; 9], dirty_rects: &mut [Option<Rect>; 9], particles: &mut Vec<(Particle, Position, Velocity)>) {
         const CENTER_CHUNK: usize = 4;
 
         let my_dirty_rect_o = dirty_rects[CENTER_CHUNK];
@@ -291,7 +289,7 @@ impl Simulator {
 
     #[allow(clippy::unnecessary_unwrap)]
     #[allow(clippy::needless_range_loop)]
-    pub fn simulate_rigidbodies<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk>(chunk_handler: &mut ChunkHandler<T, C>, rigidbodies: &mut Vec<RigidBody>, lqf_world: &mut World, particles: &mut Vec<Particle>) {
+    pub fn simulate_rigidbodies<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk>(chunk_handler: &mut ChunkHandler<T, C>, rigidbodies: &mut Vec<RigidBody>, lqf_world: &mut World, particles: &mut Vec<(Particle, Position, Velocity)>) {
         let mut dirty = vec![false; rigidbodies.len()];
         let mut needs_remesh = vec![false; rigidbodies.len()];
         for i in 0..rigidbodies.len() {
@@ -416,7 +414,15 @@ impl Simulator {
                         });
 
                         if empty_below {
-                            helper.add_particle(Particle::new(cur, x as f32, y as f32, (rand::random::<f32>() - 0.5) * 0.5, 1.0 + rand::random::<f32>()));
+                            helper.add_particle(cur,
+                                Position{ 
+                                    x: x as f32, 
+                                    y: y as f32 
+                                }, 
+                                Velocity { 
+                                    x: (rand::random::<f32>() - 0.5) * 0.5, 
+                                    y: 1.0 + rand::random::<f32>() 
+                                });
                         } else {
                             helper.set_color_local(x, y + 1, cur.color);
                             helper.set_pixel_local(x, y + 1, cur);
