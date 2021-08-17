@@ -8,7 +8,7 @@ use crate::game::common::world::{CHUNK_SIZE, rigidbody};
 use super::material::AIR;
 use super::particle::Particle;
 use super::rigidbody::RigidBody;
-use super::{Chunk, ChunkHandler, LIQUIDFUN_SCALE};
+use super::{Chunk, ChunkHandler, ChunkHandlerGeneric, LIQUIDFUN_SCALE};
 use super::gen::WorldGenerator;
 
 pub struct Simulator {

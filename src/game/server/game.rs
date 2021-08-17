@@ -8,8 +8,7 @@ use log::{debug, error, info, warn};
 use tui::{Frame, Terminal, backend::Backend, layout::{Constraint, Layout}, style::Style, text::{Span, Spans}, widgets::{Block, Borders, Paragraph, Wrap}};
 use tui_logger::{TuiLoggerSmartWidget, TuiWidgetState};
 
-use crate::game::{Game, common::{FileHelper, commands::CommandHandler, networking::{PVec2, Packet, PacketType}, world::{CHUNK_SIZE, Chunk, ChunkState}}};
-
+use crate::game::{Game, common::{FileHelper, commands::CommandHandler, networking::{PVec2, Packet, PacketType}, world::{CHUNK_SIZE, Chunk, ChunkState, ChunkHandlerGeneric}}};
 use super::world::ServerChunk;
 
 impl Game<ServerChunk> {
