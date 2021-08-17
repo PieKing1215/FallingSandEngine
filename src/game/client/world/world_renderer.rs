@@ -4,7 +4,7 @@ use liquidfun::box2d::common::{b2draw::{self, B2Draw_New, b2Color, b2ParticleCol
 use sdl2::{pixels::Color, rect::Rect};
 use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, shaders::Shader, sys::{GPU_FilterEnum, GPU_FormatEnum, GPU_SetBlendMode}};
 
-use crate::game::{client::{Client, render::{Fonts, RenderCanvas, Renderable, Sdl2Context, Shaders, TransformStack}}, common::{Settings, world::{CHUNK_SIZE, ChunkState, LIQUIDFUN_SCALE, World, gen::WorldGenerator}}};
+use crate::game::{client::{Client, render::{Fonts, RenderCanvas, Renderable, Sdl2Context, Shaders, TransformStack}}, common::{Settings, world::{CHUNK_SIZE, ChunkState, ChunkHandlerGeneric, LIQUIDFUN_SCALE, World, gen::WorldGenerator}}};
 
 use super::{ClientChunk, ClientWorld};
 

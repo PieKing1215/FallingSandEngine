@@ -5,7 +5,7 @@ use liquidfun::box2d::dynamics::body::Body;
 use sdl2::{pixels::Color, rect::Rect};
 use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, sys::{GPU_FilterEnum, GPU_FormatEnum}};
 
-use crate::game::{client::render::{Fonts, Renderable, Sdl2Context, TransformStack}, common::{Settings, world::{CHUNK_SIZE, Chunk, ChunkHandler, ChunkState, gen::WorldGenerator, material::MaterialInstance, mesh}}};
+use crate::game::{client::render::{Fonts, Renderable, Sdl2Context, TransformStack}, common::{Settings, world::{CHUNK_SIZE, Chunk, ChunkHandler, ChunkHandlerGeneric, ChunkState, gen::WorldGenerator, material::MaterialInstance, mesh}}};
 
 pub struct ClientChunk {
     pub chunk_x: i32,

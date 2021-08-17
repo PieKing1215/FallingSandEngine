@@ -7,7 +7,7 @@ use sdl2::{event::{Event, WindowEvent}, keyboard::Keycode, sys::SDL_WindowFlags,
 use sdl_gpu::GPUSubsystem;
 use sysinfo::{Pid, ProcessExt, SystemExt};
 
-use crate::game::{Game, common::{Settings, networking::{Packet, PacketType}, world::{LIQUIDFUN_SCALE, WorldNetworkMode, material::MaterialInstance}}};
+use crate::game::{Game, common::{Settings, networking::{Packet, PacketType}, world::{LIQUIDFUN_SCALE, ChunkHandlerGeneric, WorldNetworkMode, material::MaterialInstance}}};
 
 use super::{render::{Renderer, Sdl2Context}, world::ClientChunk};
 

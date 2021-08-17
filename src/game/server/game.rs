@@ -9,7 +9,7 @@ use tui::{Frame, Terminal, backend::Backend, layout::{Constraint, Layout}, style
 use tui_logger::{TuiLoggerSmartWidget, TuiWidgetState};
 
 use crate::game::{Game, common::{commands::CommandHandler, networking::{PVec2, Packet, PacketType}, world::{CHUNK_SIZE, Chunk, ChunkState}}};
-
+use crate::game::common::world::ChunkHandlerGeneric;
 use super::world::ServerChunk;
 
 impl Game<ServerChunk> {

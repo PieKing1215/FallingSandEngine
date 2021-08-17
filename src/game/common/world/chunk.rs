@@ -18,7 +18,7 @@ use crate::game::common::world::material::MaterialInstance;
 pub const CHUNK_SIZE: u16 = 128;
 
 pub trait Chunk {
-    fn new_empty(chunk_x: i32, chunk_y: i32) -> Self;
+    fn new_empty(chunk_x: i32, chunk_y: i32) -> Self where Self: Sized;
 
     fn get_chunk_x(&self) -> i32;
     fn get_chunk_y(&self) -> i32;
@@ -70,19 +70,33 @@ pub struct ChunkHandler<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chu
     pub generator: T,
 }
 
-impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandler<T, C> {
-    #[profiling::function]
-    pub fn new(generator: T) -> Self {
-        ChunkHandler {
-            loaded_chunks: HashMap::new(),
-            load_queue: vec![],
-            screen_size: (1920 / 2, 1080 / 2),
-            generator
-        }
-    }
+pub trait ChunkHandlerGeneric {
+    fn update_chunk_graphics(&mut self);
+    fn tick(&mut self, tick_time: u32, loaders: &[(f64, f64)], settings: &Settings, particles: &mut Vec<Particle>);
+    fn queue_load_chunk(&mut self, chunk_x: i32, chunk_y: i32) -> bool;
+    fn chunk_index(&self, chunk_x: i32, chunk_y: i32) -> u32;
+    fn chunk_index_inv(&self, index: u32) -> (i32, i32);
+    fn is_chunk_loaded(&self, chunk_x: i32, chunk_y: i32) -> bool;
+    fn is_pixel_loaded(&self, x: i64, y: i64) -> bool;
+    fn pixel_to_chunk_pos(&self, x: i64, y: i64) -> (i32, i32);
+    fn get_chunk(&self, chunk_x: i32, chunk_y: i32) -> Option<& dyn Chunk>;
+    fn get_chunk_mut(&mut self, chunk_x: i32, chunk_y: i32) -> Option<&mut dyn Chunk>;
+    fn set(&mut self, x: i64, y: i64, mat: MaterialInstance) -> Result<(), String>;
+    fn get(&self, x: i64, y: i64) -> Result<&MaterialInstance, String>;
+    fn displace(&mut self, x: i64, y: i64, material: MaterialInstance) -> bool;
+    fn chunk_update_order(&self, chunk_x: i32, chunk_y: i32) -> u8;
+    fn force_update_chunk(&mut self, chunk_x: i32, chunk_y: i32);
+    fn get_zone(&self, center: (f64, f64), padding: u16) -> Rect;
+    fn get_screen_zone(&self, center: (f64, f64)) -> Rect;
+    fn get_active_zone(&self, center: (f64, f64)) -> Rect;
+    fn get_load_zone(&self, center: (f64, f64)) -> Rect;
+    fn get_unload_zone(&self, center: (f64, f64)) -> Rect;
+}
+
+impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandlerGeneric for ChunkHandler<T, C> {
 
     #[profiling::function]
-    pub fn update_chunk_graphics(&mut self){
+    fn update_chunk_graphics(&mut self){
         let keys = self.loaded_chunks.keys().copied().collect::<Vec<u32>>();
         for key in keys {
             self.loaded_chunks.get_mut(&key).unwrap().update_graphics().unwrap();
@@ -91,7 +105,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
     // #[profiling::function] // breaks clippy
     #[warn(clippy::too_many_lines)]
-    pub fn tick(&mut self, tick_time: u32, loaders: &[(f64, f64)], settings: &Settings, particles: &mut Vec<Particle>){ // TODO: `camera` should be replaced with like a vec of entities or something
+    fn tick(&mut self, tick_time: u32, loaders: &[(f64, f64)], settings: &Settings, particles: &mut Vec<Particle>){ // TODO: `camera` should be replaced with like a vec of entities or something
         profiling::scope!("tick");
         
         let unload_zone: Vec<Rect> = loaders.iter().map(|l| self.get_unload_zone(*l)).collect();
@@ -540,12 +554,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
     }
 
     #[profiling::function]
-    fn unload_chunk(&self, _chunk: &C){
-        // write to file, free textures, etc
-    }
-
-    #[profiling::function]
-    pub fn queue_load_chunk(&mut self, chunk_x: i32, chunk_y: i32) -> bool {
+    fn queue_load_chunk(&mut self, chunk_x: i32, chunk_y: i32) -> bool {
         // make sure not loaded
         if self.is_chunk_loaded(chunk_x, chunk_y) {
             return false;
@@ -561,13 +570,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
         true
     }
 
-    #[profiling::function]
-    fn load_chunk(&mut self, chunk_x: i32, chunk_y: i32){
-        let chunk = Chunk::new_empty(chunk_x, chunk_y);
-        self.loaded_chunks.insert(self.chunk_index(chunk_x, chunk_y), Box::new(chunk));
-    }
-
-    pub fn chunk_index(&self, chunk_x: i32, chunk_y: i32) -> u32 {
+    fn chunk_index(&self, chunk_x: i32, chunk_y: i32) -> u32 {
         let int_to_nat = |i: i32| if i >= 0 {(2 * i) as u32}else{(-2 * i - 1) as u32};
         let xx: u32 = int_to_nat(chunk_x);
         let yy: u32 = int_to_nat(chunk_y);
@@ -577,8 +580,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
         ((u64::from(xx + yy) * u64::from(xx + yy + 1)) / 2 + u64::from(yy)) as u32
     }
     
-
-    pub fn chunk_index_inv(&self, index: u32) -> (i32, i32) {
+    fn chunk_index_inv(&self, index: u32) -> (i32, i32) {
         let w = (((8 * u64::from(index) + 1) as f64).sqrt() - 1.0).floor() as u64 / 2;
         let t = (w * w + w) / 2;
         let yy = u64::from(index) - t;
@@ -591,33 +593,23 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
     }
 
     #[profiling::function]
-    pub fn is_chunk_loaded(&self, chunk_x: i32, chunk_y: i32) -> bool {
+    fn is_chunk_loaded(&self, chunk_x: i32, chunk_y: i32) -> bool {
         self.loaded_chunks.contains_key(&self.chunk_index(chunk_x, chunk_y))
     }
 
     #[profiling::function]
-    pub fn is_pixel_loaded(&self, x: i64, y: i64) -> bool {
+    fn is_pixel_loaded(&self, x: i64, y: i64) -> bool {
         let chunk_pos = self.pixel_to_chunk_pos(x, y);
         self.is_chunk_loaded(chunk_pos.0, chunk_pos.1)
     }
 
     #[profiling::function]
-    pub fn pixel_to_chunk_pos(&self, x: i64, y: i64) -> (i32, i32) {
+    fn pixel_to_chunk_pos(&self, x: i64, y: i64) -> (i32, i32) {
         ((x as f64 / f64::from(CHUNK_SIZE)).floor() as i32,
             (y as f64 / f64::from(CHUNK_SIZE)).floor() as i32)
     }
 
-    #[profiling::function]
-    pub fn get_chunk(&self, chunk_x: i32, chunk_y: i32) -> Option<&C> {
-        self.loaded_chunks.get(&self.chunk_index(chunk_x, chunk_y)).map(std::convert::AsRef::as_ref)
-    }
-
-    #[profiling::function]
-    pub fn get_chunk_mut(&mut self, chunk_x: i32, chunk_y: i32) -> Option<&mut C> {
-        self.loaded_chunks.get_mut(&self.chunk_index(chunk_x, chunk_y)).map(std::convert::AsMut::as_mut)
-    }
-
-    pub fn set(&mut self, x: i64, y: i64, mat: MaterialInstance) -> Result<(), String> {
+    fn set(&mut self, x: i64, y: i64, mat: MaterialInstance) -> Result<(), String> {
 
         let (chunk_x, chunk_y) = self.pixel_to_chunk_pos(x, y);
         self.loaded_chunks.get_mut(&self.chunk_index(chunk_x, chunk_y))
@@ -626,7 +618,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
             |ch| ch.set((x - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16, (y - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16, mat))
     }
 
-    pub fn get(&self, x: i64, y: i64) -> Result<&MaterialInstance, String> {
+    fn get(&self, x: i64, y: i64) -> Result<&MaterialInstance, String> {
 
         let (chunk_x, chunk_y) = self.pixel_to_chunk_pos(x, y);
         self.loaded_chunks.get(&self.chunk_index(chunk_x, chunk_y))
@@ -635,7 +627,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
             |ch| ch.get((x - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16, (y - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16))
     }
 
-    pub fn displace(&mut self, x: i64, y: i64, material: MaterialInstance) -> bool {
+    fn displace(&mut self, x: i64, y: i64, material: MaterialInstance) -> bool {
         let mut succeeded = false;
 
         let scan_w = 32;
@@ -672,44 +664,86 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
         succeeded
     }
 
-    pub fn chunk_update_order(&self, chunk_x: i32, chunk_y: i32) -> u8 {
+    fn chunk_update_order(&self, chunk_x: i32, chunk_y: i32) -> u8 {
         let yy = (-chunk_y).rem_euclid(2) as u8;
         let xx = chunk_x.rem_euclid(2) as u8;
         
         yy * 2 + xx
     }
 
-    pub fn force_update_chunk(&mut self, chunk_x: i32, chunk_y: i32) {
+    fn force_update_chunk(&mut self, chunk_x: i32, chunk_y: i32) {
         if let Some(ch) = self.loaded_chunks.get_mut(&self.chunk_index(chunk_x, chunk_y)) {
             ch.set_dirty_rect(Some(Rect::new(0, 0, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE))));
         }
     }
 
     #[profiling::function]
-    pub fn get_zone(&self, center: (f64, f64), padding: u16) -> Rect {
+    fn get_chunk(&self, chunk_x: i32, chunk_y: i32) -> Option<& dyn Chunk> {
+        self.loaded_chunks.get(&self.chunk_index(chunk_x, chunk_y)).map(std::convert::AsRef::as_ref).map(|c| {
+            // TODO: I can't figure out how to make this less stupid
+            let dc: &dyn Chunk = c;
+            dc
+        })
+    }
+
+    #[profiling::function]
+    fn get_chunk_mut(&mut self, chunk_x: i32, chunk_y: i32) -> Option<&mut dyn Chunk> {
+        self.loaded_chunks.get_mut(&self.chunk_index(chunk_x, chunk_y)).map(std::convert::AsMut::as_mut).map(|c| {
+            // TODO: I can't figure out how to make this less stupid
+            let dc: &mut dyn Chunk = c;
+            dc
+        })
+    }
+
+    #[profiling::function]
+    fn get_zone(&self, center: (f64, f64), padding: u16) -> Rect {
         let width = self.screen_size.0 + padding * 2;
         let height = self.screen_size.1 + padding * 2;
         Rect::new(center.0 as i32 - i32::from(width / 2), center.1 as i32 - i32::from(height / 2), u32::from(width), u32::from(height))
     }
 
     #[profiling::function]
-    pub fn get_screen_zone(&self, center: (f64, f64)) -> Rect {
+    fn get_screen_zone(&self, center: (f64, f64)) -> Rect {
         self.get_zone(center, 0)
     }
 
     #[profiling::function]
-    pub fn get_active_zone(&self, center: (f64, f64)) -> Rect {
+    fn get_active_zone(&self, center: (f64, f64)) -> Rect {
         self.get_zone(center, CHUNK_SIZE)
     }
 
     #[profiling::function]
-    pub fn get_load_zone(&self, center: (f64, f64)) -> Rect {
+    fn get_load_zone(&self, center: (f64, f64)) -> Rect {
         self.get_zone(center, CHUNK_SIZE * 5)
     }
 
     #[profiling::function]
-    pub fn get_unload_zone(&self, center: (f64, f64)) -> Rect {
+    fn get_unload_zone(&self, center: (f64, f64)) -> Rect {
         self.get_zone(center, CHUNK_SIZE * 10)
+    }
+
+}
+
+impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandler<T, C> {
+    #[profiling::function]
+    pub fn new(generator: T) -> Self {
+        ChunkHandler {
+            loaded_chunks: HashMap::new(),
+            load_queue: vec![],
+            screen_size: (1920 / 2, 1080 / 2),
+            generator
+        }
+    }
+
+    #[profiling::function]
+    fn unload_chunk(&self, _chunk: &C){
+        // write to file, free textures, etc
+    }
+
+    #[profiling::function]
+    fn load_chunk(&mut self, chunk_x: i32, chunk_y: i32){
+        let chunk = Chunk::new_empty(chunk_x, chunk_y);
+        self.loaded_chunks.insert(self.chunk_index(chunk_x, chunk_y), Box::new(chunk));
     }
 }
 

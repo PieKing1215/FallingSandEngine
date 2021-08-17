@@ -6,7 +6,7 @@ use crate::game::common::Settings;
 use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::body::{BodyDef, BodyType}};
 use sdl2::pixels::Color;
 
-use super::{CHUNK_SIZE, Chunk, ChunkHandler, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{InObjectState, Particle}, rigidbody::RigidBody, simulator};
+use super::{CHUNK_SIZE, Chunk, ChunkHandler, ChunkHandlerGeneric, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{InObjectState, Particle}, rigidbody::RigidBody, simulator};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
