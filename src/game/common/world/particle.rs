@@ -5,7 +5,7 @@ use super::{Chunk, ChunkHandlerGeneric, Position, Velocity, gen::WorldGenerator,
 
 use sdl2::pixels::Color;
 use serde::{Serialize, Deserialize};
-use specs::{Component, Entities, Join, Read, ReadExpect, System, Write, WriteExpect, WriteStorage, storage::BTreeStorage};
+use specs::{Component, Entities, Join, ParJoin, Read, ReadExpect, System, Write, WriteExpect, WriteStorage, prelude::ParallelIterator, storage::BTreeStorage};
 
 // #[derive(Serialize, Deserialize)]
 // pub struct Particle {
@@ -81,8 +81,10 @@ impl<'a> System<'a> for UpdateParticles<'a> {
         }).expect("Failed to insert Particle");
         pos.insert(new_p, Position{x: (rand::random::<f32>() - 0.5) * 10.0, y: -100.0}).expect("Failed to insert Position");
         vel.insert(new_p, Velocity{x: (rand::random::<f32>() - 0.5) * 4.0, y: (rand::random::<f32>() - 0.75) * 2.0}).expect("Failed to insert Velocity");
-
-        for (ent, part, pos, vel) in (&entities, &mut particle, &mut pos, &mut vel).join() {
+        
+        // TODO: if I can ever get ChunkHandler to be Send (+ Sync would be ideal), can use par_join and organize a bit for big performance gain
+        //       iirc right now, ChunkHandler<ServerChunk> is Send + !Sync and ChunkHandler<ClientChunk> is !Send + !Sync (because of the GPUImage in ChunkGraphics)
+        (&entities, &mut particle, &mut pos, &mut vel).join().for_each(|(ent, part, pos, vel)| {
             // profiling::scope!("Particle");
 
             let lx = pos.x;
@@ -91,7 +93,7 @@ impl<'a> System<'a> for UpdateParticles<'a> {
             let (chunk_x, chunk_y) = chunk_handler.pixel_to_chunk_pos(lx as i64, ly as i64);
             // skip if chunk not active
             if !matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active) {
-                continue;
+                return;
             }
 
             vel.y += 0.1;
@@ -157,6 +159,6 @@ impl<'a> System<'a> for UpdateParticles<'a> {
                     }
                 }
             }
-        }
+        });
     }
 }
