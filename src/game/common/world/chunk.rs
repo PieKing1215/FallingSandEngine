@@ -713,18 +713,18 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
         (x, y)
     }
 
-    #[profiling::function]
+    // #[profiling::function]
     fn is_chunk_loaded(&self, chunk_x: i32, chunk_y: i32) -> bool {
         self.loaded_chunks.contains_key(&self.chunk_index(chunk_x, chunk_y))
     }
 
-    #[profiling::function]
+    // #[profiling::function]
     fn is_pixel_loaded(&self, x: i64, y: i64) -> bool {
         let chunk_pos = self.pixel_to_chunk_pos(x, y);
         self.is_chunk_loaded(chunk_pos.0, chunk_pos.1)
     }
 
-    #[profiling::function]
+    // #[profiling::function]
     fn pixel_to_chunk_pos(&self, x: i64, y: i64) -> (i32, i32) {
         ((x as f64 / f64::from(CHUNK_SIZE)).floor() as i32,
             (y as f64 / f64::from(CHUNK_SIZE)).floor() as i32)
@@ -798,7 +798,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
         }
     }
 
-    #[profiling::function]
+    // #[profiling::function]
     fn get_chunk(&self, chunk_x: i32, chunk_y: i32) -> Option<& dyn Chunk> {
         self.loaded_chunks.get(&self.chunk_index(chunk_x, chunk_y)).map(std::convert::AsRef::as_ref).map(|c| {
             // TODO: I can't figure out how to make this less stupid
@@ -807,7 +807,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
         })
     }
 
-    #[profiling::function]
+    // #[profiling::function]
     fn get_chunk_mut(&mut self, chunk_x: i32, chunk_y: i32) -> Option<&mut dyn Chunk> {
         self.loaded_chunks.get_mut(&self.chunk_index(chunk_x, chunk_y)).map(std::convert::AsMut::as_mut).map(|c| {
             // TODO: I can't figure out how to make this less stupid

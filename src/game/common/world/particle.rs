@@ -64,6 +64,7 @@ impl<'a> System<'a> for UpdateParticles<'a> {
                        WriteStorage<'a, Position>,
                        WriteStorage<'a, Velocity>);
 
+    #[profiling::function]
     fn run(&mut self, data: Self::SystemData) {
         let (entities, mut particle, mut pos, mut vel) = data;
         // let chunk_handler = chunk_handler.unwrap().0;
@@ -82,6 +83,7 @@ impl<'a> System<'a> for UpdateParticles<'a> {
         vel.insert(new_p, Velocity{x: (rand::random::<f32>() - 0.5) * 4.0, y: (rand::random::<f32>() - 0.75) * 2.0}).expect("Failed to insert Velocity");
 
         for (ent, part, pos, vel) in (&entities, &mut particle, &mut pos, &mut vel).join() {
+            // profiling::scope!("Particle");
 
             let lx = pos.x;
             let ly = pos.y;
@@ -97,8 +99,9 @@ impl<'a> System<'a> for UpdateParticles<'a> {
             let dx = vel.x;
             let dy = vel.y;
 
-            let steps = (dx.abs() + dy.abs()) as u32 + 1;
+            let steps = (dx.abs() + dy.abs()).sqrt() as u32 + 1;
             for s in 0..steps {
+                // profiling::scope!("step");
                 let thru = (s + 1) as f32 / steps as f32;
 
                 pos.x = lx + dx * thru;
