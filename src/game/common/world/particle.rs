@@ -64,8 +64,9 @@ impl<'a> System<'a> for UpdateParticles<'a> {
                        WriteStorage<'a, Position>,
                        WriteStorage<'a, Velocity>);
 
-    #[profiling::function]
     fn run(&mut self, data: Self::SystemData) {
+        profiling::scope!("UpdateParticles::run");
+
         let (entities, mut particle, mut pos, mut vel) = data;
         // let chunk_handler = chunk_handler.unwrap().0;
         let chunk_handler = &mut self.chunk_handler;

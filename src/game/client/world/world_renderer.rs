@@ -52,6 +52,7 @@ impl WorldRenderer {
 
     #[warn(clippy::too_many_arguments)]
     #[warn(clippy::too_many_lines)]
+    #[profiling::function]
     pub fn render(&mut self, world: &mut World<ClientChunk>, target: &mut GPUTarget, transform: &mut TransformStack, delta_time: f64, sdl: &Sdl2Context, fonts: &Fonts, settings: &Settings, shaders: &Shaders, client: &mut Option<Client>) {
 
         if world.lqf_world.get_debug_draw().is_none() {
@@ -215,33 +216,36 @@ impl WorldRenderer {
 
         // draw solids
 
-        transform.push();
-        transform.scale(LIQUIDFUN_SCALE, LIQUIDFUN_SCALE);
-        for rb in &mut world.rigidbodies {
-            if rb.image.is_none() {
-                rb.update_image();
-            }
+        {
+            profiling::scope!("rigidbodies");
+            transform.push();
+            transform.scale(LIQUIDFUN_SCALE, LIQUIDFUN_SCALE);
+            for rb in &mut world.rigidbodies {
+                if rb.image.is_none() {
+                    rb.update_image();
+                }
 
-            if let Some(body) = &rb.body {
-                if let Some(img) = &rb.image {
-                    let pos = body.get_position();
+                if let Some(body) = &rb.body {
+                    if let Some(img) = &rb.image {
+                        let pos = body.get_position();
 
-                    let (width, height) = (f32::from(rb.width) / LIQUIDFUN_SCALE, f32::from(rb.height) / LIQUIDFUN_SCALE);
+                        let (width, height) = (f32::from(rb.width) / LIQUIDFUN_SCALE, f32::from(rb.height) / LIQUIDFUN_SCALE);
 
-                    let mut rect = GPURect::new(pos.x, pos.y, width, height);
+                        let mut rect = GPURect::new(pos.x, pos.y, width, height);
 
-                    let (x1, y1) = transform.transform((rect.x, rect.y));
-                    let (x2, y2) = transform.transform((rect.x + rect.w, rect.y + rect.h));
-                    
-                    rect = GPURect::new2(x1 as f32, y1 as f32, x2 as f32, y2 as f32);
+                        let (x1, y1) = transform.transform((rect.x, rect.y));
+                        let (x2, y2) = transform.transform((rect.x + rect.w, rect.y + rect.h));
+                        
+                        rect = GPURect::new2(x1 as f32, y1 as f32, x2 as f32, y2 as f32);
 
-                    img.blit_rect_x(None, target, 
-                        Some(rect), 
-                        body.get_angle().to_degrees(), 0.0, 0.0, 0);
+                        img.blit_rect_x(None, target, 
+                            Some(rect), 
+                            body.get_angle().to_degrees(), 0.0, 0.0, 0);
+                    }
                 }
             }
+            transform.pop();
         }
-        transform.pop();
 
         // lqf debug draw
 
@@ -254,24 +258,29 @@ impl WorldRenderer {
         let mut data = Some((canvas_ptr_raw, transform_ptr_raw));
 
         if settings.debug && settings.lqf_dbg_draw {
+            profiling::scope!("lqf debug");
             transform.push();
             transform.scale(LIQUIDFUN_SCALE, LIQUIDFUN_SCALE);
             world.lqf_world.debug_draw((&mut data as *mut Option<(usize, usize)>).cast::<std::ffi::c_void>());
             transform.pop();
         }
 
-        let (
-            particle_storage,
-            position_storage,
-        ) = world.ecs.system_data::<(
-            WriteStorage<Particle>,
-            WriteStorage<Position>,
-        )>();
+        
+        {
+            profiling::scope!("particles");
+            let (
+                particle_storage,
+                position_storage,
+            ) = world.ecs.system_data::<(
+                WriteStorage<Particle>,
+                WriteStorage<Position>,
+            )>();
 
-        for (p, pos) in (&particle_storage, &position_storage).join() {
-            let (x1, y1) = transform.transform((pos.x - 0.5, pos.y - 0.5));
-            let (x2, y2) = transform.transform((pos.x + 0.5, pos.y + 0.5));
-            target.rectangle_filled(x1 as f32, y1 as f32, x2 as f32, y2 as f32, p.material.color);
+            (&particle_storage, &position_storage).join().for_each(|(p, pos)| {
+                let (x1, y1) = transform.transform((pos.x - 0.5, pos.y - 0.5));
+                let (x2, y2) = transform.transform((pos.x + 0.5, pos.y + 0.5));
+                target.rectangle_filled(x1 as f32, y1 as f32, x2 as f32, y2 as f32, p.material.color);
+            });
         }
         
         // for p in &world.particles {
@@ -279,19 +288,20 @@ impl WorldRenderer {
         //     let (x2, y2) = transform.transform((p.x + 0.5, p.y + 0.5));
         //     target.rectangle_filled(x1 as f32, y1 as f32, x2 as f32, y2 as f32, p.material.color);
         // }
+        {
+            profiling::scope!("entities");
+            world.entities.iter().for_each(|(_id, e)| {
+                transform.push();
+                transform.translate(e.x, e.y);
 
-        world.entities.iter().for_each(|(_id, e)| {
-            transform.push();
-            transform.translate(e.x, e.y);
+                let (x1, y1) = transform.transform((-6.0, -10.0));
+                let (x2, y2) = transform.transform((6.0, 10.0));
 
-            let (x1, y1) = transform.transform((-6.0, -10.0));
-            let (x2, y2) = transform.transform((6.0, 10.0));
+                target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(255, 0, 0, 255));
 
-            target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(255, 0, 0, 255));
-
-            transform.pop();
-        });
-
+                transform.pop();
+            });
+        }
         // canvas.set_clip_rect(clip);
         
         if settings.debug && settings.draw_chunk_grid {
