@@ -2,10 +2,11 @@ use core::fmt::Debug;
 use std::sync::{Arc, Mutex};
 
 use specs::{Component, VecStorage};
+use serde::{Serialize, Deserialize};
 
 use super::{Chunk, ChunkHandler, ChunkHandlerGeneric, gen::WorldGenerator};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Position {
     pub x: f32,
     pub y: f32,
@@ -15,7 +16,7 @@ impl Component for Position {
     type Storage = VecStorage<Self>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Velocity {
     pub x: f32,
     pub y: f32,
@@ -32,3 +33,5 @@ impl Debug for ChunkHandlerResource<'_> {
         write!(f, "ChunkHandlerGeneric")
     }
 }
+
+pub struct FilePersistent;

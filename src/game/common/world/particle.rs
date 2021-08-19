@@ -1,11 +1,11 @@
 use std::marker::PhantomData;
 
 use crate::game::common::world::{ChunkState, ecs::ChunkHandlerResource, material::{PhysicsType, TEST_MATERIAL}};
-use super::{Chunk, ChunkHandlerGeneric, Position, Velocity, gen::WorldGenerator, material::MaterialInstance};
+use super::{Chunk, ChunkHandlerGeneric, FilePersistent, Position, Velocity, gen::WorldGenerator, material::MaterialInstance};
 
 use sdl2::pixels::Color;
 use serde::{Serialize, Deserialize};
-use specs::{Component, Entities, Join, ParJoin, Read, ReadExpect, System, Write, WriteExpect, WriteStorage, prelude::ParallelIterator, storage::BTreeStorage};
+use specs::{Component, Entities, Join, ParJoin, Read, ReadExpect, System, Write, WriteExpect, WriteStorage, prelude::ParallelIterator, saveload::{MarkerAllocator, SimpleMarker, SimpleMarkerAllocator}, storage::BTreeStorage};
 
 // #[derive(Serialize, Deserialize)]
 // pub struct Particle {
@@ -28,7 +28,7 @@ use specs::{Component, Entities, Join, ParJoin, Read, ReadExpect, System, Write,
 //     }
 // }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Particle {
     pub material: MaterialInstance,
     in_object_state: InObjectState,
@@ -47,7 +47,7 @@ impl Component for Particle {
     type Storage = BTreeStorage<Self>;
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub enum InObjectState {
     FirstFrame,
     Inside,
@@ -59,7 +59,10 @@ pub struct UpdateParticles<'a>{
 }
 
 impl<'a> System<'a> for UpdateParticles<'a> {
+    #[allow(clippy::type_complexity)]
     type SystemData = (Entities<'a>,
+                       Write<'a, SimpleMarkerAllocator<FilePersistent>>,
+                       WriteStorage<'a, SimpleMarker<FilePersistent>>,
                        WriteStorage<'a, Particle>,
                        WriteStorage<'a, Position>,
                        WriteStorage<'a, Velocity>);
@@ -67,7 +70,7 @@ impl<'a> System<'a> for UpdateParticles<'a> {
     fn run(&mut self, data: Self::SystemData) {
         profiling::scope!("UpdateParticles::run");
 
-        let (entities, mut particle, mut pos, mut vel) = data;
+        let (entities, mut marker_alloc, mut markers, mut particle, mut pos, mut vel) = data;
         // let chunk_handler = chunk_handler.unwrap().0;
         let chunk_handler = &mut self.chunk_handler;
 
@@ -82,6 +85,7 @@ impl<'a> System<'a> for UpdateParticles<'a> {
         }).expect("Failed to insert Particle");
         pos.insert(new_p, Position{x: (rand::random::<f32>() - 0.5) * 10.0, y: -100.0}).expect("Failed to insert Position");
         vel.insert(new_p, Velocity{x: (rand::random::<f32>() - 0.5) * 4.0, y: (rand::random::<f32>() - 0.75) * 2.0}).expect("Failed to insert Velocity");
+        marker_alloc.mark(new_p, &mut markers);
         
         // TODO: if I can ever get ChunkHandler to be Send (+ Sync would be ideal), can use par_join and organize a bit for big performance gain
         //       iirc right now, ChunkHandler<ServerChunk> is Send + !Sync and ChunkHandler<ClientChunk> is !Send + !Sync (because of the GPUImage in ChunkGraphics)

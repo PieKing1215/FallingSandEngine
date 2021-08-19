@@ -1,13 +1,13 @@
 
-use std::{borrow::BorrowMut, cell::RefCell, collections::HashMap, path::PathBuf};
+use std::{borrow::BorrowMut, cell::RefCell, collections::HashMap, convert::Infallible, path::PathBuf};
 
 use crate::game::common::{Settings, world::ChunkState};
 
 use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::body::{BodyDef, BodyType}};
 use sdl2::pixels::Color;
-use specs::{Builder, RunNow, WorldExt};
+use specs::{Builder, Entities, Read, ReadStorage, RunNow, WorldExt, Write, WriteStorage, saveload::{MarkedBuilder, SimpleMarker, SimpleMarkerAllocator}};
 
-use super::{CHUNK_SIZE, Chunk, ChunkHandler, ChunkHandlerGeneric, ChunkHandlerResource, Position, Velocity, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{InObjectState, Particle, UpdateParticles}, rigidbody::RigidBody, simulator};
+use super::{CHUNK_SIZE, Chunk, ChunkHandler, ChunkHandlerGeneric, ChunkHandlerResource, FilePersistent, Position, Velocity, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{InObjectState, Particle, UpdateParticles}, rigidbody::RigidBody, simulator};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
@@ -139,33 +139,66 @@ impl<'w, C: Chunk> World<C> {
         //     particle_system.create_particle(&pd);
         // }
 
-        // TODO: this will get saved in the ecs; delete this
-        // if let Some(path) = &path {
-        //     let particles_path = path.join("particles.dat");
-        //     if particles_path.exists() {
-        //         match std::fs::read(&particles_path) {
-        //             Ok(data) => {
-        //                 match bincode::deserialize(&data) {
-        //                     Ok(res) => {
-        //                         let save: Vec<Particle> = res;
-        //                         particles = save;
-        //                     },
-        //                     Err(e) => {
-        //                         log::error!("Particles parse failed @ {:?}: {:?}", particles_path, e);
-        //                     },
-        //                 }
-        //             },
-        //             Err(e) => log::error!("Particles load failed @ {:?}: {:?}", particles_path, e),
-        //         }
-        //     }else{
-        //         log::error!("Particles file missing @ {:?}", particles_path);
-        //     }
-        // }
-
         let mut ecs = specs::World::new();
+        ecs.register::<SimpleMarker<FilePersistent>>();
+        ecs.insert(SimpleMarkerAllocator::<FilePersistent>::default());
         ecs.register::<Particle>();
         ecs.register::<Position>();
         ecs.register::<Velocity>();
+
+        if let Some(path) = &path {
+            let particles_path = path.join("particles.dat");
+            if particles_path.exists() {
+                match std::fs::File::open(particles_path.clone()) {
+                    Ok(f) => {
+                        let (
+                            entities,
+                            mut marker_storage,
+                            mut marker_allocator,
+                            particle_storage,
+                            position_storage,
+                            velocity_storage,
+                        ) = ecs.system_data::<(
+                            Entities,
+                            WriteStorage<SimpleMarker<FilePersistent>>,
+                            Write<SimpleMarkerAllocator<FilePersistent>>,
+                            WriteStorage<Particle>,
+                            WriteStorage<Position>,
+                            WriteStorage<Velocity>,
+                        )>();
+    
+                        let mut deserializer = bincode::Deserializer::with_reader(f, bincode::options());
+                        // let mut deserializer = serde_json::Deserializer::from_reader(f);
+                        if let Err(e) = specs::saveload::DeserializeComponents
+                                        ::<Infallible, SimpleMarker<FilePersistent>>
+                                        ::deserialize(
+                                            &mut (particle_storage, position_storage, velocity_storage),  // tuple of WriteStorage<'a, _>
+                                            &entities,                              // Entities<'a>
+                                            &mut marker_storage,                    // WriteStorage<'a SimpleMarker<A>>
+                                            &mut marker_allocator,                  // Write<'a, SimpleMarkerAllocator<A>>
+                                            &mut deserializer,                      // serde::Deserializer
+                                        ) {
+                            log::error!("Failed to read particles from file @ {:?}: {:?}", particles_path, e);
+                        };
+
+                        let (
+                            particle_storage,
+                        ) = ecs.system_data::<(
+                            ReadStorage<Particle>,
+                        )>();
+                        log::debug!("Loaded {} particles.", particle_storage.count());
+                    },
+                    Err(e) => {
+                        log::error!("Failed to open particles file for reading @ {:?}: {:?}", particles_path, e);
+                    },
+                };
+
+                ecs.maintain();
+                
+            }else{
+                log::error!("Particles file missing @ {:?}", particles_path);
+            }
+        }
 
         let mut w = World {
             ecs,
@@ -258,22 +291,43 @@ impl<'w, C: Chunk> World<C> {
 
     pub fn save(&mut self) -> Result<(), Box<dyn std::error::Error>> {
 
-        // TODO: this will get saved in the ecs; delete this
-        // if let Some(path) = &self.path {
-        //     let particles_path = path.join("particles.dat");
-        //     let mut contents = Vec::new();
-
-        //     let save = &self.particles;
-
-        //     let pixel_data: Vec<u8> = bincode::serialize(&save)?;
-        //     contents.extend(pixel_data);
+        if let Some(path) = &self.path {
+            let particles_path = path.join("particles.dat");
             
-        //     let r = std::fs::write(&particles_path, contents);
-        //     if r.is_err() {
-        //         log::error!("Particles save failed @ {:?}", particles_path);
-        //     }
-        //     r?;
-        // }
+            match std::fs::File::create(particles_path.clone()) {
+                Ok(f) => {
+                    let (
+                        entities,
+                        marker_storage,
+                        particle_storage,
+                        position_storage,
+                        velocity_storage,
+                    ) = self.ecs.system_data::<(
+                        Entities,
+                        ReadStorage<SimpleMarker<FilePersistent>>,
+                        ReadStorage<Particle>,
+                        ReadStorage<Position>,
+                        ReadStorage<Velocity>,
+                    )>();
+
+                    let mut serializer = bincode::Serializer::new(f, bincode::options());
+                    // let mut serializer = serde_json::Serializer::new(f);
+                    if let Err(e) = specs::saveload::SerializeComponents
+                                            ::<Infallible, SimpleMarker<FilePersistent>>
+                                            ::serialize(
+                                                &(particle_storage, position_storage, velocity_storage),      // tuple of ReadStorage<'a, _>
+                                                &entities,                              // Entities<'a>
+                                                &marker_storage,                        // ReadStorage<'a, SimpleMarker<A>>
+                                                &mut serializer,                        // serde::Serializer
+                                            ) {
+                        log::error!("Failed to write particles to file @ {:?}: {:?}", particles_path, e);
+                    };
+                },
+                Err(e) => {
+                    log::error!("Failed to open particles file for writing @ {:?}: {:?}", particles_path, e);
+                },
+            };
+        }
 
         self.chunk_handler.save_all_chunks()?;
 
@@ -352,7 +406,9 @@ impl<'w, C: Chunk> World<C> {
                                                     part_vel.x *= -1.0;
                                                     part_vel.y *= -1.0;
 
-                                                    self.ecs.create_entity().with(part).with(part_pos).with(part_vel).build();
+                                                    self.ecs.create_entity().with(part).with(part_pos).with(part_vel)
+                                                        .marked::<SimpleMarker<FilePersistent>>().build();
+
                                                     body.apply_force(&Vec2::new(-point_velocity.x * 0.5, -point_velocity.y * 0.5), &world_point, true);
 
                                                     let linear_velocity = *body.get_linear_velocity();
@@ -363,7 +419,9 @@ impl<'w, C: Chunk> World<C> {
                                                 },
                                                 _ => {
                                                     if !self.chunk_handler.displace(tx as i64, ty as i64, m) {
-                                                        self.ecs.create_entity().with(part).with(part_pos).with(part_vel).build();
+                                                        self.ecs.create_entity().with(part).with(part_pos).with(part_vel)
+                                                            .marked::<SimpleMarker<FilePersistent>>().build();
+
                                                         body.apply_force(&Vec2::new(-point_velocity.x * 0.75, -point_velocity.y * 0.75), &world_point, true);
                                                         
                                                         let linear_velocity = *body.get_linear_velocity();

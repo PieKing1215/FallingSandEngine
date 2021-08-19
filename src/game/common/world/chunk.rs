@@ -1,5 +1,5 @@
 
-use crate::game::common::world::{Position, Velocity};
+use crate::game::common::world::{FilePersistent, Position, Velocity};
 use crate::game::{common::world::simulator::Simulator};
 use crate::game::common::Settings;
 use std::borrow::{Borrow, BorrowMut};
@@ -12,6 +12,7 @@ use lazy_static::lazy_static;
 use liquidfun::box2d::dynamics::body::Body;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
+use specs::saveload::{MarkedBuilder, SimpleMarker};
 use specs::{Builder, WorldExt};
 use tokio::runtime::Runtime;
 use serde::{Serialize, Deserialize};
@@ -535,7 +536,8 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                         let (ch_pos, dirty, dirty_rects, parts) = r.unwrap();
                         
                         for p in parts {
-                            world.create_entity().with(p.0).with(p.1).with(p.2).build();
+                            world.create_entity().with(p.0).with(p.1).with(p.2)
+                                .marked::<SimpleMarker<FilePersistent>>().build();
                         }
 
                         for i in 0..9 {
@@ -883,8 +885,9 @@ mod tests {
     use super::*;
 
     use rand::Rng;
+    use specs::saveload::{SimpleMarker, SimpleMarkerAllocator};
 
-    use crate::game::{common::world::gen::TestGenerator, server::world::ServerChunk};
+    use crate::game::{common::world::{FilePersistent, gen::TestGenerator}, server::world::ServerChunk};
 
     #[test]
     fn chunk_index_correct() {
@@ -1022,6 +1025,8 @@ mod tests {
 
         // do a few ticks to load some chunks
         let mut ecs = specs::World::new();
+        ecs.register::<SimpleMarker<FilePersistent>>();
+        ecs.insert(SimpleMarkerAllocator::<FilePersistent>::default());
         ecs.register::<Particle>();
         ecs.register::<Position>();
         ecs.register::<Velocity>();
