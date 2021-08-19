@@ -283,11 +283,6 @@ impl WorldRenderer {
             });
         }
         
-        // for p in &world.particles {
-        //     let (x1, y1) = transform.transform((p.x - 0.5, p.y - 0.5));
-        //     let (x2, y2) = transform.transform((p.x + 0.5, p.y + 0.5));
-        //     target.rectangle_filled(x1 as f32, y1 as f32, x2 as f32, y2 as f32, p.material.color);
-        // }
         {
             profiling::scope!("entities");
             world.entities.iter().for_each(|(_id, e)| {
