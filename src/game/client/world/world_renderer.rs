@@ -5,7 +5,7 @@ use sdl2::{pixels::Color, rect::Rect};
 use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, shaders::Shader, sys::{GPU_FilterEnum, GPU_FormatEnum, GPU_SetBlendMode}};
 use specs::{Entities, Join, ReadStorage, WriteStorage};
 
-use crate::game::{client::{Client, render::{Fonts, RenderCanvas, Renderable, Sdl2Context, Shaders, TransformStack}}, common::{Settings, world::{CHUNK_SIZE, ChunkHandlerGeneric, ChunkState, LIQUIDFUN_SCALE, Position, Velocity, World, entity::{GameEntity, Hitbox, PhysicsEntity}, gen::WorldGenerator, particle::Particle}}};
+use crate::game::{client::{Client, render::{Fonts, RenderCanvas, Renderable, Sdl2Context, Shaders, TransformStack}}, common::{Settings, world::{AutoTarget, CHUNK_SIZE, Camera, ChunkHandlerGeneric, ChunkState, LIQUIDFUN_SCALE, Position, Velocity, World, entity::{GameEntity, Hitbox, PhysicsEntity}, gen::WorldGenerator, particle::Particle}}};
 
 use super::{ClientChunk, ClientWorld};
 
@@ -61,51 +61,43 @@ impl WorldRenderer {
 
         // draw world
 
-        if let Some(cl) = client {
-            if let Some(local) = cl.world.as_ref().and_then(|cw| cw.local_entity) {
-                let (
-                    position_storage,
-                ) = world.ecs.system_data::<(
-                    WriteStorage<Position>,
-                )>();
+        let (
+            position_storage,
+            camera_storage,
+        ) = world.ecs.system_data::<(
+            ReadStorage<Position>,
+            ReadStorage<Camera>,
+        )>();
 
-                if let Some(pos) = position_storage.get(local) {
-                    cl.camera.x += (pos.x - cl.camera.x) * (delta_time * 10.0).clamp(0.0, 1.0);
-                    cl.camera.y += (pos.y - cl.camera.y) * (delta_time * 10.0).clamp(0.0, 1.0);
-                }
-            }
-        }
+        let camera_pos = (&position_storage, &camera_storage).join().find_map(|(p, c)| Some(p.clone())).expect("No Camera in world!");
 
         let loader_pos = match client {
             Some(Client{world: Some(ClientWorld{local_entity}), .. }) => {
                 if let Some(local) = local_entity {
-                    let (
-                        position_storage,
-                    ) = world.ecs.system_data::<(
-                        WriteStorage<Position>,
-                    )>();
-    
                     if let Some(pos) = position_storage.get(*local) {
                         (pos.x, pos.y)
                     }else {
-                        (client.as_mut().unwrap().camera.x, client.as_mut().unwrap().camera.y)
+                        (camera_pos.x, camera_pos.y)
                     }
                 }else {
-                    (client.as_mut().unwrap().camera.x, client.as_mut().unwrap().camera.y)
+                    (camera_pos.x, camera_pos.y)
                 }
             },
-            _ => (client.as_mut().unwrap().camera.x, client.as_mut().unwrap().camera.y)
+            _ => (camera_pos.x, camera_pos.y)
         };
 
-        let camera = &mut client.as_mut().unwrap().camera;
+        drop(position_storage);
+        drop(camera_storage);
+
+        let camera_scale = client.as_ref().unwrap().camera_scale;
 
         transform.push();
         transform.translate(f64::from(target.width()) / 2.0, f64::from(target.height()) / 2.0);
-        transform.scale(camera.scale, camera.scale);
-        transform.translate(-camera.x, -camera.y);
+        transform.scale(camera_scale, camera_scale);
+        transform.translate(-camera_pos.x, -camera_pos.y);
 
 
-        let screen_zone = world.chunk_handler.get_screen_zone((camera.x, camera.y)); // note we always use the camera for the screen zone
+        let screen_zone = world.chunk_handler.get_screen_zone((camera_pos.x, camera_pos.y)); // note we always use the camera for the screen zone
         let active_zone = world.chunk_handler.get_active_zone(loader_pos);
         let load_zone = world.chunk_handler.get_load_zone(loader_pos);
         let unload_zone = world.chunk_handler.get_unload_zone(loader_pos);
@@ -201,13 +193,13 @@ impl WorldRenderer {
                 for i in 0..particle_count as usize {
                     let pos = particle_positions[i];
                     let color = particle_colors[i];
-                    let cam_x = camera.x.floor();
-                    let cam_y = camera.y.floor();
+                    let cam_x = camera_pos.x.floor();
+                    let cam_y = camera_pos.y.floor();
                     GPUSubsystem::set_shape_blend_mode(sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_SET);
                     let color = Color::RGBA(color.r, color.g, color.b, color.a);
                     // let color = Color::RGBA(64, 90, 255, 191);
                     liquid_target.pixel(pos.x * LIQUIDFUN_SCALE - cam_x as f32 + 1920.0/4.0 - 1.0, pos.y * LIQUIDFUN_SCALE - cam_y as f32 + 1080.0/4.0 - 1.0, color);
-                    // liquid_target.circle_filled(pos.x * 2.0 - camera.x as f32 + 1920.0/4.0, pos.y * 2.0 - camera.y as f32 + 1080.0/4.0, 2.0, Color::RGB(100, 100, 255));
+                    // liquid_target.circle_filled(pos.x * 2.0 - camera_pos.x as f32 + 1920.0/4.0, pos.y * 2.0 - camera_pos.y as f32 + 1080.0/4.0, 2.0, Color::RGB(100, 100, 255));
                 }
 
                 GPUSubsystem::set_shape_blend_mode(sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_NORMAL);
@@ -356,14 +348,43 @@ impl WorldRenderer {
 
                 transform.pop();
             });
+
+            let (
+                position_storage,
+                target_storage,
+            ) = world.ecs.system_data::<(
+                ReadStorage<Position>,
+                ReadStorage<AutoTarget>,
+            )>();
+
+            (&position_storage, &target_storage).join().for_each(|(pos, at)| {
+                transform.push();
+                transform.translate(pos.x, pos.y);
+
+                let (x1, y1) = transform.transform((-1.0, -1.0));
+                let (x2, y2) = transform.transform((1.0, 1.0));
+
+                target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(64, 255, 64, 255));
+   
+                transform.pop();
+
+                
+                let target_pos = at.get_target_pos(&position_storage);
+                if let Some(target_pos) = target_pos {
+                    let (line_x1, line_y1) = transform.transform((pos.x, pos.y));
+                    let (line_x2, line_y2) = transform.transform((target_pos.x, target_pos.y));
+
+                    target.line(line_x1 as f32, line_y1 as f32, line_x2 as f32, line_y2 as f32, Color::RGBA(255, 255, 64, 127));
+                }
+            });
         }
         // canvas.set_clip_rect(clip);
         
         if settings.debug && settings.draw_chunk_grid {
             for x in -10..10 {
                 for y in -10..10 {
-                    let rc_x = x + (camera.x / f64::from(CHUNK_SIZE)) as i32;
-                    let rc_y = y + (camera.y / f64::from(CHUNK_SIZE)) as i32;
+                    let rc_x = x + (camera_pos.x / f64::from(CHUNK_SIZE)) as i32;
+                    let rc_y = y + (camera_pos.y / f64::from(CHUNK_SIZE)) as i32;
                     let rc = Rect::new(rc_x * i32::from(CHUNK_SIZE), rc_y * i32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
                     target.rectangle2(transform.transform_rect(rc), Color::RGBA(64, 64, 64, 127))
                 }

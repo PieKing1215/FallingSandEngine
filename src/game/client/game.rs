@@ -5,10 +5,10 @@ use liquidfun::box2d::common::math::Vec2;
 use log::{debug, error, info, warn};
 use sdl2::{event::{Event, WindowEvent}, keyboard::Keycode, sys::SDL_WindowFlags, video::{FullscreenType, SwapInterval}};
 use sdl_gpu::GPUSubsystem;
-use specs::{Builder, WorldExt};
+use specs::{Builder, Join, ReadStorage, WorldExt, WriteStorage};
 use sysinfo::{Pid, ProcessExt, SystemExt};
 
-use crate::game::{Game, client::{Client, world::ClientWorld}, common::{Settings, networking::{Packet, PacketType}, world::{ChunkHandlerGeneric, LIQUIDFUN_SCALE, Loader, Position, World, WorldNetworkMode, entity::{GameEntity, Hitbox, Player}, material::MaterialInstance}}};
+use crate::game::{Game, client::{Client, world::ClientWorld}, common::{Settings, networking::{Packet, PacketType}, world::{Camera, ChunkHandlerGeneric, DeltaTime, LIQUIDFUN_SCALE, Loader, Position, World, WorldNetworkMode, entity::{GameEntity, Hitbox, Player}, material::MaterialInstance}}};
 
 use super::{render::{Renderer, Sdl2Context}, world::ClientChunk};
 
@@ -45,6 +45,8 @@ impl Game<ClientChunk> {
         let mut shift_key = false;
 
         let mut last_frame = Instant::now();
+        let mut counter_last_frame = Instant::now();
+
         let mut counter_last_frame = Instant::now();
 
         let mut sys = sysinfo::System::new();
@@ -86,7 +88,7 @@ impl Game<ClientChunk> {
                         Event::MouseWheel { y, .. } => {
                             if let Some(c) = &mut self.client {
                                 if shift_key {
-                                    let mut v = c.camera.scale + 0.1 * f64::from(y);
+                                    let mut v = c.camera_scale + 0.1 * f64::from(y);
                                     if y > 0 {
                                         v = v.ceil();
                                     }else {
@@ -94,9 +96,9 @@ impl Game<ClientChunk> {
                                     }
 
                                     v = v.clamp(1.0, 10.0);
-                                    c.camera.scale = v;
+                                    c.camera_scale = v;
                                 }else{
-                                    c.camera.scale = (c.camera.scale * (1.0 + 0.1 * f64::from(y))).clamp(0.01, 10.0);
+                                    c.camera_scale = (c.camera_scale * (1.0 + 0.1 * f64::from(y))).clamp(0.01, 10.0);
                                 }
                             }
                         },
@@ -104,18 +106,31 @@ impl Game<ClientChunk> {
                             if let Some(w) = &mut self.world {
                                 if let Some(ref r) = renderer {
                                     if let Some(ref mut c) = &mut self.client {
-                                        let world_x = c.camera.x + (f64::from(x) - f64::from(r.window.size().0) / 2.0) / c.camera.scale;
-                                        let world_y = c.camera.y + (f64::from(y) - f64::from(r.window.size().1) / 2.0) / c.camera.scale;
-                                        // let (chunk_x, chunk_y) = w.chunk_handler.pixel_to_chunk_pos(world_x as i64, world_y as i64);
-                                        // w.chunk_handler.force_update_chunk(chunk_x, chunk_y);
+
+                                        let (
+                                            position_storage,
+                                            camera_storage,
+                                        ) = w.ecs.system_data::<(
+                                            ReadStorage<Position>,
+                                            ReadStorage<Camera>,
+                                        )>();
+                            
+                                        let camera_pos = (&position_storage, &camera_storage).join().find_map(|(p, c)| Some(p));
                                         
-                                        if let Some(mj) = w.lqf_world.mouse_joint_begin(Vec2::new(world_x as f32 / LIQUIDFUN_SCALE, world_y as f32 / LIQUIDFUN_SCALE)) {
-                                            let mj: liquidfun::box2d::dynamics::joints::mouse_joint::MouseJoint = mj;
-                                            c.mouse_joint = Some(mj);
-                                            debug!("made mouse joint");
-                                        }else {
-                                            c.mouse_joint = None;
-                                            debug!("failed to make mouse joint");
+                                        if let Some(camera_pos) = camera_pos {
+                                            let world_x = camera_pos.x + (f64::from(x) - f64::from(r.window.size().0) / 2.0) / c.camera_scale;
+                                            let world_y = camera_pos.y + (f64::from(y) - f64::from(r.window.size().1) / 2.0) / c.camera_scale;
+                                            // let (chunk_x, chunk_y) = w.chunk_handler.pixel_to_chunk_pos(world_x as i64, world_y as i64);
+                                            // w.chunk_handler.force_update_chunk(chunk_x, chunk_y);
+                                            
+                                            if let Some(mj) = w.lqf_world.mouse_joint_begin(Vec2::new(world_x as f32 / LIQUIDFUN_SCALE, world_y as f32 / LIQUIDFUN_SCALE)) {
+                                                let mj: liquidfun::box2d::dynamics::joints::mouse_joint::MouseJoint = mj;
+                                                c.mouse_joint = Some(mj);
+                                                debug!("made mouse joint");
+                                            }else {
+                                                c.mouse_joint = None;
+                                                debug!("failed to make mouse joint");
+                                            }
                                         }
                                     }
                                 }
@@ -133,34 +148,74 @@ impl Game<ClientChunk> {
                         },
                         Event::MouseMotion{xrel, yrel, mousestate , x, y, ..} => {
                             if mousestate.left() {
-                                if let Some(c) = &mut self.client {
-                                    // this doesn't do anything if game.client_entity_id exists
-                                    //     since the renderer will snap the camera to the client entity
-                                    c.camera.x -= f64::from(xrel) / c.camera.scale;
-                                    c.camera.y -= f64::from(yrel) / c.camera.scale;
+                                if let Some(w) = &mut self.world {
+                                    if let Some(c) = &mut self.client {
+                                        let (
+                                            mut position_storage,
+                                            camera_storage,
+                                        ) = w.ecs.system_data::<(
+                                            WriteStorage<Position>,
+                                            ReadStorage<Camera>,
+                                        )>();
+                            
+                                        let camera_pos = (&mut position_storage, &camera_storage).join().find_map(|(p, c)| Some(p));
+                                        
+                                        if let Some(camera_pos) = camera_pos {
+                                            // this doesn't do anything if game.client_entity_id exists
+                                            //     since the renderer will snap the camera to the client entity
+                                            camera_pos.x -= f64::from(xrel) / c.camera_scale;
+                                            camera_pos.y -= f64::from(yrel) / c.camera_scale;
+                                        }
+                                    }
                                 }
                             }else if mousestate.middle() {
                                 if let Some(w) = &mut self.world {
                                     if let Some(ref c) = &mut self.client {
                                         if let Some(ref r) = renderer {
-                                            let world_x = c.camera.x + (f64::from(x) - f64::from(r.window.size().0) / 2.0) / c.camera.scale;
-                                            let world_y = c.camera.y + (f64::from(y) - f64::from(r.window.size().1) / 2.0) / c.camera.scale;
+                                            let (
+                                                position_storage,
+                                                camera_storage,
+                                            ) = w.ecs.system_data::<(
+                                                ReadStorage<Position>,
+                                                ReadStorage<Camera>,
+                                            )>();
+                                
+                                            let camera_pos = (&position_storage, &camera_storage).join().find_map(|(p, c)| Some(p));
+                                            
+                                            if let Some(camera_pos) = camera_pos {
+                                                let world_x = camera_pos.x + (f64::from(x) - f64::from(r.window.size().0) / 2.0) / c.camera_scale;
+                                                let world_y = camera_pos.y + (f64::from(y) - f64::from(r.window.size().1) / 2.0) / c.camera_scale;
 
-                                            for xx in -3..=3 {
-                                                for yy in -3..=3 {
-                                                    let _ = w.chunk_handler.set(world_x as i64 + xx, world_y as i64 + yy, MaterialInstance::air());
+                                                for xx in -3..=3 {
+                                                    for yy in -3..=3 {
+                                                        let _ = w.chunk_handler.set(world_x as i64 + xx, world_y as i64 + yy, MaterialInstance::air());
+                                                    }
                                                 }
                                             }
                                         }
                                     }
                                 }
                             }else if mousestate.right() {
-                                if let Some(ref r) = renderer {
-                                    if let Some(ref mut c) = &mut self.client {
-                                        let world_x = c.camera.x + (f64::from(x) - f64::from(r.window.size().0) / 2.0) / c.camera.scale;
-                                        let world_y = c.camera.y + (f64::from(y) - f64::from(r.window.size().1) / 2.0) / c.camera.scale;
-                                        if let Some(mj) = &mut c.mouse_joint {
-                                            mj.set_target(Vec2::new(world_x as f32 / LIQUIDFUN_SCALE, world_y as f32 / LIQUIDFUN_SCALE));
+                                if let Some(w) = &mut self.world {
+                                    if let Some(ref r) = renderer {
+                                        if let Some(ref mut c) = &mut self.client {
+                                            let (
+                                                position_storage,
+                                                camera_storage,
+                                            ) = w.ecs.system_data::<(
+                                                ReadStorage<Position>,
+                                                ReadStorage<Camera>,
+                                            )>();
+                                
+                                            let camera_pos = (&position_storage, &camera_storage).join().find_map(|(p, c)| Some(p));
+                                            
+                                            if let Some(camera_pos) = camera_pos {
+                                                let world_x = camera_pos.x + (f64::from(x) - f64::from(r.window.size().0) / 2.0) / c.camera_scale;
+                                                let world_y = camera_pos.y + (f64::from(y) - f64::from(r.window.size().1) / 2.0) / c.camera_scale;
+                                                if let Some(mj) = &mut c.mouse_joint {
+                                                    mj.set_target(Vec2::new(world_x as f32 / LIQUIDFUN_SCALE, world_y as f32 / LIQUIDFUN_SCALE));
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -176,12 +231,12 @@ impl Game<ClientChunk> {
             }
 
             let now = std::time::Instant::now();
-
+            let delta = now.saturating_duration_since(last_frame);
+            last_frame = now;
             if let Some(r) = &mut renderer {
                 r.imgui_sdl2.prepare_frame(r.imgui.io_mut(), &r.window, &event_pump.mouse_state());
-                let delta = now.saturating_duration_since(last_frame);
+                
                 let delta_s = delta.as_secs() as f32 + delta.subsec_nanos() as f32 / 1_000_000_000.0;
-                last_frame = now;
                 r.imgui.io_mut().delta_time = delta_s;
             }
 
@@ -433,12 +488,15 @@ impl Game<ClientChunk> {
 
             // render
 
+            if let Some(w) = &mut self.world {
+                w.frame(delta); // this delta is more accurate than the one based on counter_last_frame
+            }
+
             if let Some(r) = &mut renderer {
                 profiling::scope!("rendering");
 
-                let delta_time = Instant::now().saturating_duration_since(counter_last_frame).as_secs_f64();
-
-                self.render(r, sdl, delta_time);
+                let delta_time = Instant::now().saturating_duration_since(counter_last_frame);
+                self.render(r, sdl, delta_time.as_secs_f64());
 
                 self.frame_count += 1;
                 self.fps_counter.frames += 1;

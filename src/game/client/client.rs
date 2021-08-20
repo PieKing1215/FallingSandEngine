@@ -13,16 +13,10 @@ pub struct Controls {
     pub right: bool,
 }
 
-pub struct Camera {
-    pub x: f64,
-    pub y: f64,
-    pub scale: f64,
-}
-
 pub struct Client {
     pub world: Option<ClientWorld>,
     pub controls: Controls,
-    pub camera: Camera,
+    pub camera_scale: f64,
     pub mouse_joint: Option<liquidfun::box2d::dynamics::joints::mouse_joint::MouseJoint>,
     pub main_menu: MainMenu,
 }
@@ -37,11 +31,7 @@ impl Client {
                 left: false,
                 right: false,
             },
-            camera: Camera {
-                x: 0.0,
-                y: 0.0,
-                scale: 2.0,
-            },
+            camera_scale: 2.0,
             mouse_joint: None,
             main_menu: MainMenu { state: super::ui::MainMenuState::Main, action_queue: Vec::new() }
         }

@@ -1,5 +1,5 @@
 
-use std::{borrow::BorrowMut, cell::RefCell, collections::HashMap, convert::Infallible, path::PathBuf};
+use std::{borrow::BorrowMut, cell::RefCell, collections::HashMap, convert::Infallible, path::PathBuf, time::Duration};
 
 use crate::game::common::{Settings, world::ChunkState};
 
@@ -7,7 +7,7 @@ use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2dr
 use sdl2::pixels::Color;
 use specs::{Builder, Entities, Read, ReadStorage, RunNow, WorldExt, Write, WriteStorage, saveload::{MarkedBuilder, SimpleMarker, SimpleMarkerAllocator}};
 
-use super::{CHUNK_SIZE, Chunk, ChunkHandler, ChunkHandlerGeneric, ChunkHandlerResource, FilePersistent, Loader, Position, Velocity, entity::{GameEntity, Hitbox, PhysicsEntity, Player}, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{InObjectState, Particle, UpdateParticles}, rigidbody::RigidBody, simulator};
+use super::{AutoTarget, CHUNK_SIZE, Camera, Chunk, ChunkHandler, ChunkHandlerGeneric, ChunkHandlerResource, DeltaTime, FilePersistent, Loader, Position, UpdateAutoTargets, Velocity, entity::{GameEntity, Hitbox, PhysicsEntity, Player}, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{InObjectState, Particle, UpdateParticles}, rigidbody::RigidBody, simulator};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
@@ -141,6 +141,7 @@ impl<'w, C: Chunk> World<C> {
         let mut ecs = specs::World::new();
         ecs.register::<SimpleMarker<FilePersistent>>();
         ecs.insert(SimpleMarkerAllocator::<FilePersistent>::default());
+        ecs.insert(DeltaTime(Duration::from_millis(1)));
         ecs.register::<Position>();
         ecs.register::<Velocity>();
         ecs.register::<Particle>();
@@ -149,6 +150,8 @@ impl<'w, C: Chunk> World<C> {
         ecs.register::<Player>();
         ecs.register::<PhysicsEntity>();
         ecs.register::<Hitbox>();
+        ecs.register::<AutoTarget>();
+        ecs.register::<Camera>();
 
         if let Some(path) = &path {
             let particles_path = path.join("particles.dat");
@@ -613,6 +616,14 @@ impl<'w, C: Chunk> World<C> {
         //     },
         //     WorldNetworkMode::Remote => {},
         // }
+    }
+
+    pub fn frame(&mut self, delta_time: Duration) {
+        *self.ecs.write_resource::<DeltaTime>() = DeltaTime(delta_time);
+
+        let mut update_auto_targets = UpdateAutoTargets;
+        update_auto_targets.run_now(&self.ecs);
+
     }
 }
 

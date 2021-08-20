@@ -50,8 +50,11 @@ use crate::game::client::render::Fonts;
 use crate::game::client::world::ClientChunk;
 use crate::game::client::world::ClientWorld;
 use crate::game::common::FileHelper;
+use crate::game::common::world::AutoTarget;
+use crate::game::common::world::Camera;
 use crate::game::common::world::Loader;
 use crate::game::common::world::Position;
+use crate::game::common::world::Target;
 use crate::game::common::world::entity::GameEntity;
 use crate::game::common::world::entity::Hitbox;
 use crate::game::common::world::entity::PhysicsEntity;
@@ -241,6 +244,15 @@ fn main() -> Result<(), String> {
                 .with(Position{ x: 0.0, y: 0.0 })
                 .with(Hitbox { x1: -6.0, y1: -10.0, x2: 6.0, y2: 10.0 })
                 .with(Loader)
+                .build();
+
+            let _camera = w.ecs.create_entity()
+                .with(Camera)
+                .with(Position{ x: 0.0, y: 0.0 })
+                .with(AutoTarget {
+                    target: Target::Entity(player),
+                    offset: (0.0, 0.0),
+                })
                 .build();
 
             game.client.as_mut().unwrap().world = Some(ClientWorld {

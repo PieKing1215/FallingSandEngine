@@ -37,6 +37,7 @@ impl Game<ServerChunk> {
         let mut prev_tick_time = std::time::Instant::now();
         let mut prev_tick_lqf_time = std::time::Instant::now();
 
+        let mut last_frame = Instant::now();
         let mut counter_last_frame = Instant::now();
 
         let mut do_tick_next = false;
@@ -290,6 +291,13 @@ impl Game<ServerChunk> {
             do_tick_lqf_next = can_tick && now.saturating_duration_since(prev_tick_lqf_time).as_nanos() > 1_000_000_000 / u128::from(self.settings.tick_lqf_speed); // intended is 60 ticks per second
 
             // render
+
+            let now = Instant::now();
+            let delta = now.saturating_duration_since(last_frame);
+            last_frame = now;
+            if let Some(w) = &mut self.world {
+                w.frame(delta); // this delta is more accurate than the one based on counter_last_frame
+            }
 
             self.fps_counter.frames += 1;
             if now.saturating_duration_since(self.fps_counter.last_update).as_millis() >= 1000 {
