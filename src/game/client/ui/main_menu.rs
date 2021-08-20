@@ -1,11 +1,8 @@
 use std::path::PathBuf;
 
 use imgui::{WindowFlags, im_str};
-use lazy_static::__Deref;
 
 use crate::game::{self, client::world::ClientChunk, common::{FileHelper, world::{WorldMeta, WorldTreeNode}}};
-
-use super::UI;
 
 
 pub struct MainMenu {

@@ -111,8 +111,8 @@ impl SimulationHelper for SimulationHelperChunk<'_> {
 
     fn add_particle(&mut self, material: MaterialInstance, pos: Position, vel: Velocity) {
         self.particles.push((Particle::of(material), Position {
-            x: pos.x + self.chunk_x as f64 * f64::from(CHUNK_SIZE),
-            y: pos.y + self.chunk_y as f64 * f64::from(CHUNK_SIZE),
+            x: pos.x + f64::from(self.chunk_x) * f64::from(CHUNK_SIZE),
+            y: pos.y + f64::from(self.chunk_y) * f64::from(CHUNK_SIZE),
         }, vel));
     }
 }
@@ -142,11 +142,11 @@ impl <T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelp
                     let tx = x as f32 - body.get_position().x * LIQUIDFUN_SCALE;
                     let ty = y as f32 - body.get_position().y * LIQUIDFUN_SCALE;
 
-                    let ntx = (tx * c - ty * s) as i32;
-                    let nty = (tx * s + ty * c) as i32;
+                    let nt_x = (tx * c - ty * s) as i32;
+                    let nt_y = (tx * s + ty * c) as i32;
 
-                    if ntx >= 0 && nty >= 0 && ntx < cur.width.into() && nty < cur.width.into() {
-                        let px = cur.pixels[(ntx + nty * i32::from(cur.width)) as usize];
+                    if nt_x >= 0 && nt_y >= 0 && nt_x < cur.width.into() && nt_y < cur.width.into() {
+                        let px = cur.pixels[(nt_x + nt_y * i32::from(cur.width)) as usize];
 
                         if px.material_id != AIR.id {
                             return px;
@@ -187,11 +187,11 @@ impl <T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelp
                     let tx = x as f32 - body.get_position().x * LIQUIDFUN_SCALE;
                     let ty = y as f32 - body.get_position().y * LIQUIDFUN_SCALE;
 
-                    let ntx = (tx * c - ty * s) as i32;
-                    let nty = (tx * s + ty * c) as i32;
+                    let nt_x = (tx * c - ty * s) as i32;
+                    let nt_y = (tx * s + ty * c) as i32;
 
-                    if ntx >= 0 && nty >= 0 && ntx < cur.width.into() && nty < cur.width.into() {
-                        let px = cur.pixels[(ntx + nty * i32::from(cur.width)) as usize];
+                    if nt_x >= 0 && nt_y >= 0 && nt_x < cur.width.into() && nt_y < cur.width.into() {
+                        let px = cur.pixels[(nt_x + nt_y * i32::from(cur.width)) as usize];
 
                         if px.material_id != AIR.id {
                             return px.color;
@@ -416,8 +416,8 @@ impl Simulator {
                         if empty_below {
                             helper.add_particle(cur,
                                 Position{ 
-                                    x: x as f64, 
-                                    y: y as f64 
+                                    x: f64::from(x), 
+                                    y: f64::from(y),
                                 }, 
                                 Velocity { 
                                     x: (rand::random::<f64>() - 0.5) * 0.5, 

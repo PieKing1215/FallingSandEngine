@@ -18,7 +18,6 @@
 mod game;
 
 use std::fs::File;
-use std::path::Path;
 use std::str::FromStr;
 use std::thread;
 
@@ -58,7 +57,6 @@ use crate::game::common::world::Target;
 use crate::game::common::world::TargetStyle;
 use crate::game::common::world::entity::GameEntity;
 use crate::game::common::world::entity::Hitbox;
-use crate::game::common::world::entity::PhysicsEntity;
 use crate::game::common::world::entity::Player;
 use crate::game::server::world::ServerChunk;
 
@@ -164,7 +162,12 @@ fn main() -> Result<(), String> {
             let mut game: Game<ServerChunk> = Game::new(file_helper);
 
             if let Some(w) = &mut game.world {
-                let player = w.ecs.create_entity().with(Player).with(GameEntity).with(Position{ x: 0.0, y: 0.0 }).with(Loader).build();
+                let _player = w.ecs.create_entity()
+                    .with(Player)
+                    .with(GameEntity)
+                    .with(Position{ x: 0.0, y: 0.0 })
+                    .with(Loader)
+                    .build();
             };
 
             println!("Starting main loop...");

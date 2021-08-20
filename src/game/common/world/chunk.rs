@@ -2,7 +2,6 @@
 use crate::game::common::world::{FilePersistent, Loader, Position, Velocity};
 use crate::game::{common::world::simulator::Simulator};
 use crate::game::common::Settings;
-use std::borrow::{Borrow, BorrowMut};
 use std::convert::TryInto;
 use std::path::PathBuf;
 use std::{collections::HashMap, sync::Arc};
@@ -178,8 +177,12 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                 match state {
                     ChunkState::Cached => {
                         if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
-                            self.save_chunk(key);
-                            self.unload_chunk(key);
+                            if let Err(e) = self.save_chunk(key) {
+                                log::error!("Chunk @ {}, {} failed to save: {:?}", self.chunk_index_inv(key).0, self.chunk_index_inv(key).1, e);
+                            };
+                            if let Err(e) = self.unload_chunk(key) {
+                                log::error!("Chunk @ {}, {} failed to unload: {:?}", self.chunk_index_inv(key).0, self.chunk_index_inv(key).1, e);
+                            };
                             keep_map[i] = false;
                         }else if active_zone.iter().any(|z| rect.has_intersection(*z)) {
                             let chunk_x = self.loaded_chunks.get(&key).unwrap().get_chunk_x();
@@ -371,8 +374,12 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                     match state {
                         ChunkState::NotGenerated => {
                             if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
-                                self.save_chunk(key);
-                                self.unload_chunk(key);
+                                if let Err(e) = self.save_chunk(key) {
+                                    log::error!("Chunk @ {}, {} failed to save: {:?}", self.chunk_index_inv(key).0, self.chunk_index_inv(key).1, e);
+                                };
+                                if let Err(e) = self.unload_chunk(key) {
+                                    log::error!("Chunk @ {}, {} failed to unload: {:?}", self.chunk_index_inv(key).0, self.chunk_index_inv(key).1, e);
+                                };
                                 keep_map[i] = false;
                             }
                         },
@@ -414,8 +421,12 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                 }
 
                                 if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
-                                    self.save_chunk(key);
-                                    self.unload_chunk(key);
+                                    if let Err(e) = self.save_chunk(key) {
+                                        log::error!("Chunk @ {}, {} failed to save: {:?}", self.chunk_index_inv(key).0, self.chunk_index_inv(key).1, e);
+                                    };
+                                    if let Err(e) = self.unload_chunk(key) {
+                                        log::error!("Chunk @ {}, {} failed to unload: {:?}", self.chunk_index_inv(key).0, self.chunk_index_inv(key).1, e);
+                                    };
                                     keep_map[i] = false;
                                 }
                             }
@@ -536,7 +547,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                     let futs2: Vec<_> = futs.into_iter().map(|f| RT.spawn(f)).collect();
 
                     #[allow(clippy::type_complexity)]
-                    let mut b: Vec<Result<((i32, i32), [bool; 9], [Option<Rect>; 9], Vec<(Particle, Position, Velocity)>), _>>;
+                    let b: Vec<Result<((i32, i32), [bool; 9], [Option<Rect>; 9], Vec<(Particle, Position, Velocity)>), _>>;
                     {
                         profiling::scope!("wait for threads", format!("#futs = {}", futs2.len()).as_str());
                         b = RT.block_on(join_all(futs2));
@@ -768,8 +779,8 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
         let scan_h = 32;
         let mut scan_x = 0;
         let mut scan_y = 0;
-        let mut scan_dx = 0;
-        let mut scan_dy = -1;
+        let mut scan_delta_x = 0;
+        let mut scan_delta_y = -1;
         let scan_max_i = scan_w.max(scan_h) * scan_w.max(scan_h); // the max is pointless now but could change w or h later
 
         for _ in 0..scan_max_i {
@@ -786,13 +797,13 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
             // update scan coordinates
 
             if (scan_x == scan_y) || ((scan_x < 0) && (scan_x == -scan_y)) || ((scan_x > 0) && (scan_x == 1 - scan_y)) {
-                let temp = scan_dx;
-                scan_dx = -scan_dy;
-                scan_dy = temp;
+                let temp = scan_delta_x;
+                scan_delta_x = -scan_delta_y;
+                scan_delta_y = temp;
             }
 
-            scan_x += scan_dx;
-            scan_y += scan_dy;
+            scan_x += scan_delta_x;
+            scan_y += scan_delta_y;
         }
 
         succeeded
@@ -1071,7 +1082,7 @@ mod tests {
         assert!(ch.get_chunk(-120, 11).is_none());
 
         // should unload since no loaders are nearby
-        ecs.delete_entity(loader);
+        assert_eq!(ecs.delete_entity(loader), Ok(()));
         ch.tick(0,  &Settings::default(), &mut ecs);
 
         assert!(!ch.is_chunk_loaded(11, -12));

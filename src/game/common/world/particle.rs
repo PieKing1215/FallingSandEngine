@@ -1,11 +1,10 @@
-use std::marker::PhantomData;
 
-use crate::game::common::world::{ChunkState, ecs::ChunkHandlerResource, material::{PhysicsType, TEST_MATERIAL}};
-use super::{Chunk, ChunkHandlerGeneric, FilePersistent, Position, Velocity, gen::WorldGenerator, material::MaterialInstance};
+use crate::game::common::world::{ChunkState, material::{PhysicsType, TEST_MATERIAL}};
+use super::{ChunkHandlerGeneric, FilePersistent, Position, Velocity, material::MaterialInstance};
 
 use sdl2::pixels::Color;
 use serde::{Serialize, Deserialize};
-use specs::{Component, Entities, Join, ParJoin, Read, ReadExpect, System, Write, WriteExpect, WriteStorage, prelude::ParallelIterator, saveload::{MarkerAllocator, SimpleMarker, SimpleMarkerAllocator}, storage::BTreeStorage};
+use specs::{Component, Entities, Join, System, Write, WriteStorage, saveload::{MarkerAllocator, SimpleMarker, SimpleMarkerAllocator}, storage::BTreeStorage};
 
 // #[derive(Serialize, Deserialize)]
 // pub struct Particle {
@@ -72,7 +71,7 @@ impl<'a> System<'a> for UpdateParticles<'a> {
 
         let (entities, mut marker_alloc, mut markers, mut particle, mut pos, mut vel) = data;
         // let chunk_handler = chunk_handler.unwrap().0;
-        let chunk_handler = &mut self.chunk_handler;
+        let chunk_handler = &mut *self.chunk_handler;
 
         let new_p = entities.create();
         particle.insert(new_p, Particle {
@@ -109,7 +108,7 @@ impl<'a> System<'a> for UpdateParticles<'a> {
             let steps = (dx.abs() + dy.abs()).sqrt() as u32 + 1;
             for s in 0..steps {
                 // profiling::scope!("step");
-                let thru = (s + 1) as f64 / steps as f64;
+                let thru = f64::from(s + 1) / f64::from(steps);
 
                 pos.x = lx + dx * thru;
                 pos.y = ly + dy * thru;

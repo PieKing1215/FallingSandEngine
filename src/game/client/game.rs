@@ -8,7 +8,7 @@ use sdl_gpu::GPUSubsystem;
 use specs::{Builder, Join, ReadStorage, WorldExt, WriteStorage};
 use sysinfo::{Pid, ProcessExt, SystemExt};
 
-use crate::game::{Game, client::{Client, world::ClientWorld}, common::{Settings, networking::{Packet, PacketType}, world::{Camera, ChunkHandlerGeneric, DeltaTime, LIQUIDFUN_SCALE, Loader, Position, World, WorldNetworkMode, entity::{GameEntity, Hitbox, Player}, material::MaterialInstance}}};
+use crate::game::{Game, client::{world::ClientWorld}, common::{Settings, networking::{Packet, PacketType}, world::{Camera, ChunkHandlerGeneric, LIQUIDFUN_SCALE, Loader, Position, World, WorldNetworkMode, entity::{GameEntity, Hitbox, Player}, material::MaterialInstance}}};
 
 use super::{render::{Renderer, Sdl2Context}, world::ClientChunk};
 
@@ -45,7 +45,6 @@ impl Game<ClientChunk> {
         let mut shift_key = false;
 
         let mut last_frame = Instant::now();
-        let mut counter_last_frame = Instant::now();
 
         let mut counter_last_frame = Instant::now();
 
@@ -115,7 +114,7 @@ impl Game<ClientChunk> {
                                             ReadStorage<Camera>,
                                         )>();
                             
-                                        let camera_pos = (&position_storage, &camera_storage).join().find_map(|(p, c)| Some(p));
+                                        let camera_pos = (&position_storage, &camera_storage).join().find_map(|(p, _c)| Some(p));
                                         
                                         if let Some(camera_pos) = camera_pos {
                                             let world_x = camera_pos.x + (f64::from(x) - f64::from(r.window.size().0) / 2.0) / c.camera_scale;
@@ -158,7 +157,7 @@ impl Game<ClientChunk> {
                                             ReadStorage<Camera>,
                                         )>();
                             
-                                        let camera_pos = (&mut position_storage, &camera_storage).join().find_map(|(p, c)| Some(p));
+                                        let camera_pos = (&mut position_storage, &camera_storage).join().find_map(|(p, _c)| Some(p));
                                         
                                         if let Some(camera_pos) = camera_pos {
                                             // this doesn't do anything if game.client_entity_id exists
@@ -180,7 +179,7 @@ impl Game<ClientChunk> {
                                                 ReadStorage<Camera>,
                                             )>();
                                 
-                                            let camera_pos = (&position_storage, &camera_storage).join().find_map(|(p, c)| Some(p));
+                                            let camera_pos = (&position_storage, &camera_storage).join().find_map(|(p, _c)| Some(p));
                                             
                                             if let Some(camera_pos) = camera_pos {
                                                 let world_x = camera_pos.x + (f64::from(x) - f64::from(r.window.size().0) / 2.0) / c.camera_scale;
@@ -207,7 +206,7 @@ impl Game<ClientChunk> {
                                                 ReadStorage<Camera>,
                                             )>();
                                 
-                                            let camera_pos = (&position_storage, &camera_storage).join().find_map(|(p, c)| Some(p));
+                                            let camera_pos = (&position_storage, &camera_storage).join().find_map(|(p, _c)| Some(p));
                                             
                                             if let Some(camera_pos) = camera_pos {
                                                 let world_x = camera_pos.x + (f64::from(x) - f64::from(r.window.size().0) / 2.0) / c.camera_scale;

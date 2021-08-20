@@ -3,7 +3,7 @@ use std::{iter, ptr::slice_from_raw_parts};
 use liquidfun::box2d::common::{b2draw::{self, B2Draw_New, b2Color, b2ParticleColor, b2Transform, b2Vec2, int32}, math::Vec2};
 use sdl2::{pixels::Color, rect::Rect};
 use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, shaders::Shader, sys::{GPU_FilterEnum, GPU_FormatEnum, GPU_SetBlendMode}};
-use specs::{Entities, Join, ReadStorage, WriteStorage};
+use specs::{Join, ReadStorage, WriteStorage};
 
 use crate::game::{client::{Client, render::{Fonts, RenderCanvas, Renderable, Sdl2Context, Shaders, TransformStack}}, common::{Settings, world::{AutoTarget, CHUNK_SIZE, Camera, ChunkHandlerGeneric, ChunkState, LIQUIDFUN_SCALE, Position, Velocity, World, entity::{GameEntity, Hitbox, PhysicsEntity}, gen::WorldGenerator, particle::Particle}}};
 
@@ -53,7 +53,7 @@ impl WorldRenderer {
     #[warn(clippy::too_many_arguments)]
     #[warn(clippy::too_many_lines)]
     #[profiling::function]
-    pub fn render(&mut self, world: &mut World<ClientChunk>, target: &mut GPUTarget, transform: &mut TransformStack, delta_time: f64, sdl: &Sdl2Context, fonts: &Fonts, settings: &Settings, shaders: &Shaders, client: &mut Option<Client>) {
+    pub fn render(&mut self, world: &mut World<ClientChunk>, target: &mut GPUTarget, transform: &mut TransformStack, _delta_time: f64, sdl: &Sdl2Context, fonts: &Fonts, settings: &Settings, shaders: &Shaders, client: &mut Option<Client>) {
 
         if world.lqf_world.get_debug_draw().is_none() {
             self.init(world);
@@ -69,19 +69,13 @@ impl WorldRenderer {
             ReadStorage<Camera>,
         )>();
 
-        let camera_pos = (&position_storage, &camera_storage).join().find_map(|(p, c)| Some(p.clone())).expect("No Camera in world!");
+        let camera_pos = (&position_storage, &camera_storage).join().find_map(|(p, _c)| Some(p.clone())).expect("No Camera in world!");
 
         let loader_pos = match client {
             Some(Client{world: Some(ClientWorld{local_entity}), .. }) => {
-                if let Some(local) = local_entity {
-                    if let Some(pos) = position_storage.get(*local) {
-                        (pos.x, pos.y)
-                    }else {
-                        (camera_pos.x, camera_pos.y)
-                    }
-                }else {
-                    (camera_pos.x, camera_pos.y)
-                }
+                local_entity.and_then(|local| position_storage.get(local))
+                    .or(Some(&camera_pos))
+                    .map(|pos| (pos.x, pos.y)).unwrap()
             },
             _ => (camera_pos.x, camera_pos.y)
         };

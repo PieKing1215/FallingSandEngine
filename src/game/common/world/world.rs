@@ -1,13 +1,13 @@
 
-use std::{borrow::BorrowMut, cell::RefCell, collections::HashMap, convert::Infallible, path::PathBuf, time::Duration};
+use std::{borrow::BorrowMut, convert::Infallible, path::PathBuf, time::Duration};
 
-use crate::game::common::{Settings, world::ChunkState};
+use crate::game::common::Settings;
 
 use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::body::{BodyDef, BodyType}};
 use sdl2::pixels::Color;
-use specs::{Builder, Entities, Read, ReadStorage, RunNow, WorldExt, Write, WriteStorage, saveload::{MarkedBuilder, SimpleMarker, SimpleMarkerAllocator}};
+use specs::{Builder, Entities, ReadStorage, RunNow, WorldExt, Write, WriteStorage, saveload::{MarkedBuilder, SimpleMarker, SimpleMarkerAllocator}};
 
-use super::{AutoTarget, CHUNK_SIZE, Camera, Chunk, ChunkHandler, ChunkHandlerGeneric, ChunkHandlerResource, DeltaTime, FilePersistent, Loader, Position, UpdateAutoTargets, Velocity, entity::{GameEntity, Hitbox, PhysicsEntity, Player}, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{InObjectState, Particle, UpdateParticles}, rigidbody::RigidBody, simulator};
+use super::{AutoTarget, CHUNK_SIZE, Camera, Chunk, ChunkHandler, ChunkHandlerGeneric, DeltaTime, FilePersistent, Loader, Position, UpdateAutoTargets, Velocity, entity::{GameEntity, Hitbox, PhysicsEntity, Player}, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{Particle, UpdateParticles}, rigidbody::RigidBody, simulator};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
@@ -30,7 +30,7 @@ impl<'w, C: Chunk> World<C> {
     #[profiling::function]
     pub fn create(path: Option<PathBuf>) -> Self {
         let gravity = liquidfun::box2d::common::math::Vec2::new(0.0, 3.0);
-        let mut lqf_world = liquidfun::box2d::dynamics::world::World::new(&gravity);
+        let lqf_world = liquidfun::box2d::dynamics::world::World::new(&gravity);
 
         // let mut ground_body_def = BodyDef::default();
 	    // ground_body_def.position.set(0.0, -26.0);
@@ -379,9 +379,9 @@ impl<'w, C: Chunk> World<C> {
 
                                     if point_velocity.x.abs() > 1.0 || point_velocity.y.abs() > 1.0 {
                                         let m = *mat;
-                                        let mut part = Particle::of(*mat);
-                                        let mut part_pos = Position { x: tx as f64, y: ty as f64 };
-                                        let mut part_vel = Velocity { x: (point_velocity.x * 0.1) as f64, y: (point_velocity.y * 0.1 - 0.5) as f64 };
+                                        let part = Particle::of(*mat);
+                                        let part_pos = Position { x: f64::from(tx), y: f64::from(ty) };
+                                        let mut part_vel = Velocity { x: f64::from(point_velocity.x * 0.1), y: f64::from(point_velocity.y * 0.1 - 0.5) };
 
                                         let res = self.chunk_handler.set(tx as i64, ty as i64, MaterialInstance {
                                             physics: PhysicsType::Object,

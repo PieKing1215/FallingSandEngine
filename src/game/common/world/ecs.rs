@@ -1,11 +1,10 @@
-use std::ops::{Deref, Range};
+use std::ops::Deref;
 use core::fmt::Debug;
-use std::sync::{Arc, Mutex};
 
 use specs::{Component, Entities, Join, NullStorage, Read, ReadStorage, Storage, System, VecStorage, WriteStorage, storage::{BTreeStorage, MaskedStorage}};
 use serde::{Serialize, Deserialize};
 
-use super::{Chunk, ChunkHandler, ChunkHandlerGeneric, gen::WorldGenerator};
+use super::ChunkHandlerGeneric;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Position {
@@ -55,12 +54,14 @@ impl Component for Camera {
 }
 
 // TODO: try to figure out a good way to make this Serialize/Deserialize
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum Target {
     Entity(specs::Entity),
     Position(Position),
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub enum TargetStyle {
     Locked,
