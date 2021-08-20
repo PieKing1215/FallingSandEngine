@@ -55,6 +55,7 @@ use crate::game::common::world::Camera;
 use crate::game::common::world::Loader;
 use crate::game::common::world::Position;
 use crate::game::common::world::Target;
+use crate::game::common::world::TargetStyle;
 use crate::game::common::world::entity::GameEntity;
 use crate::game::common::world::entity::Hitbox;
 use crate::game::common::world::entity::PhysicsEntity;
@@ -252,6 +253,7 @@ fn main() -> Result<(), String> {
                 .with(AutoTarget {
                     target: Target::Entity(player),
                     offset: (0.0, 0.0),
+                    style: TargetStyle::Locked,
                 })
                 .build();
 

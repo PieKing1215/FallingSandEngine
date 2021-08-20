@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::ops::{Deref, Range};
 use core::fmt::Debug;
 use std::sync::{Arc, Mutex};
 
@@ -47,13 +47,6 @@ impl Component for Loader {
     type Storage = NullStorage<Self>;
 }
 
-// TODO: try to figure out a good way to make this Serialize/Deserialize
-#[derive(Debug, Clone)]
-pub enum Target {
-    Entity(specs::Entity),
-    Position(Position),
-}
-
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Camera;
 
@@ -63,9 +56,24 @@ impl Component for Camera {
 
 // TODO: try to figure out a good way to make this Serialize/Deserialize
 #[derive(Debug, Clone)]
+pub enum Target {
+    Entity(specs::Entity),
+    Position(Position),
+}
+
+#[derive(Debug, Clone)]
+pub enum TargetStyle {
+    Locked,
+    Linear(f64),
+    EaseOut(f64),
+}
+
+// TODO: try to figure out a good way to make this Serialize/Deserialize
+#[derive(Debug, Clone)]
 pub struct AutoTarget {
     pub target: Target,
     pub offset: (f64, f64),
+    pub style: TargetStyle,
 }
 
 impl AutoTarget {
@@ -74,7 +82,7 @@ where S: Deref<Target = MaskedStorage<Position>> {
         match &self.target {
             Target::Entity(e) => pos_storage.get(*e).cloned(),
             Target::Position(p) => Some(p.clone()),
-        }
+        }.map(|p| Position{ x: p.x + self.offset.0, y: p.y + self.offset.1 })
     }
 }
 
@@ -99,8 +107,28 @@ impl<'a> System<'a> for UpdateAutoTargets {
         (&entities, &target).join().for_each(|(entity, at)| {
             if let Some(target_pos) = at.get_target_pos(&pos_storage) {
                 let pos = pos_storage.get_mut(entity).expect("AutoTarget missing Position");
-                pos.x += (target_pos.x - pos.x) * (0.5 * delta_time.0.as_secs_f64()).clamp(0.0, 1.0);
-                pos.y += (target_pos.y - pos.y) * (0.5 * delta_time.0.as_secs_f64()).clamp(0.0, 1.0);
+                match at.style {
+                    TargetStyle::Locked => {
+                        pos.x = target_pos.x;
+                        pos.y = target_pos.y;
+                    },
+                    TargetStyle::EaseOut(factor) => {
+                        pos.x += (target_pos.x - pos.x) * (factor * delta_time.0.as_secs_f64()).clamp(0.0, 1.0);
+                        pos.y += (target_pos.y - pos.y) * (factor * delta_time.0.as_secs_f64()).clamp(0.0, 1.0);
+                    },
+                    TargetStyle::Linear(speed) => {
+                        let dx = target_pos.x - pos.x;
+                        let dy = target_pos.y - pos.y;
+                        let mag = (dx * dx + dy * dy).sqrt();
+                        if mag <= speed * delta_time.0.as_secs_f64() {
+                            pos.x = target_pos.x;
+                            pos.y = target_pos.y;
+                        }else if mag > 0.0 {
+                            pos.x += dx / mag * speed * delta_time.0.as_secs_f64();
+                            pos.y += dy / mag * speed * delta_time.0.as_secs_f64();
+                        }
+                    },
+                }
             }
         });
 
