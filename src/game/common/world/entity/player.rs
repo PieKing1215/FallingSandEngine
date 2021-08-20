@@ -1,12 +1,9 @@
 use specs::{Component, storage::BTreeStorage};
 use serde::{Serialize, Deserialize};
 
-mod player;
-pub use player::*;
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GameEntity;
+pub struct Player;
 
-impl Component for GameEntity {
+impl Component for Player {
     type Storage = BTreeStorage<Self>;
 }

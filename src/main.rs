@@ -38,6 +38,8 @@ use simplelog::ConfigBuilder;
 use simplelog::TermLogger;
 use simplelog::TerminalMode;
 use simplelog::WriteLogger;
+use specs::Builder;
+use specs::WorldExt;
 use tui::Terminal;
 use tui::backend::Backend;
 use tui::backend::CrosstermBackend;
@@ -48,7 +50,10 @@ use crate::game::client::render::Fonts;
 use crate::game::client::world::ClientChunk;
 use crate::game::client::world::ClientWorld;
 use crate::game::common::FileHelper;
-use crate::game::common::world::entity::Entity;
+use crate::game::common::world::Loader;
+use crate::game::common::world::Position;
+use crate::game::common::world::entity::GameEntity;
+use crate::game::common::world::entity::Player;
 use crate::game::server::world::ServerChunk;
 
 #[allow(clippy::needless_pass_by_value)]
@@ -153,10 +158,7 @@ fn main() -> Result<(), String> {
             let mut game: Game<ServerChunk> = Game::new(file_helper);
 
             if let Some(w) = &mut game.world {
-                w.add_entity(Entity {
-                    x: 0.0,
-                    y: 0.0,
-                });
+                let player = w.ecs.create_entity().with(Player).with(GameEntity).with(Position{ x: 0.0, y: 0.0 }).with(Loader).build();
             };
 
             println!("Starting main loop...");
@@ -229,13 +231,12 @@ fn main() -> Result<(), String> {
         let mut game: Game<ClientChunk> = Game::new(file_helper);
         
         if let Some(w) = &mut game.world {
-            let pl_id = w.add_entity(Entity {
-                x: 0.0,
-                y: 0.0,
-            });
             game.client = Some(Client::new());
+
+            let player = w.ecs.create_entity().with(Player).with(GameEntity).with(Position{ x: 0.0, y: 0.0 }).with(Loader).build();
+
             game.client.as_mut().unwrap().world = Some(ClientWorld {
-                local_entity_id: Some(pl_id),
+                local_entity: Some(player),
             });
         };
 

@@ -3,9 +3,9 @@ use std::{iter, ptr::slice_from_raw_parts};
 use liquidfun::box2d::common::{b2draw::{self, B2Draw_New, b2Color, b2ParticleColor, b2Transform, b2Vec2, int32}, math::Vec2};
 use sdl2::{pixels::Color, rect::Rect};
 use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, shaders::Shader, sys::{GPU_FilterEnum, GPU_FormatEnum, GPU_SetBlendMode}};
-use specs::{Join, WriteStorage};
+use specs::{Entities, Join, ReadStorage, WriteStorage};
 
-use crate::game::{client::{Client, render::{Fonts, RenderCanvas, Renderable, Sdl2Context, Shaders, TransformStack}}, common::{Settings, world::{CHUNK_SIZE, ChunkHandlerGeneric, ChunkState, LIQUIDFUN_SCALE, Position, World, gen::WorldGenerator, particle::Particle}}};
+use crate::game::{client::{Client, render::{Fonts, RenderCanvas, Renderable, Sdl2Context, Shaders, TransformStack}}, common::{Settings, world::{CHUNK_SIZE, ChunkHandlerGeneric, ChunkState, LIQUIDFUN_SCALE, Position, World, entity::GameEntity, gen::WorldGenerator, particle::Particle}}};
 
 use super::{ClientChunk, ClientWorld};
 
@@ -62,17 +62,37 @@ impl WorldRenderer {
         // draw world
 
         if let Some(cl) = client {
-            if let Some(e_id) = cl.world.as_ref().and_then(|cw| cw.local_entity_id) {
-                if let Some(ent) = world.get_entity(e_id) {
-                    cl.camera.x += (ent.x - cl.camera.x) * (delta_time * 10.0).clamp(0.0, 1.0);
-                    cl.camera.y += (ent.y - cl.camera.y) * (delta_time * 10.0).clamp(0.0, 1.0);
+            if let Some(local) = cl.world.as_ref().and_then(|cw| cw.local_entity) {
+                let (
+                    position_storage,
+                ) = world.ecs.system_data::<(
+                    WriteStorage<Position>,
+                )>();
+
+                if let Some(pos) = position_storage.get(local) {
+                    cl.camera.x += (pos.x - cl.camera.x) * (delta_time * 10.0).clamp(0.0, 1.0);
+                    cl.camera.y += (pos.y - cl.camera.y) * (delta_time * 10.0).clamp(0.0, 1.0);
                 }
             }
         }
 
         let loader_pos = match client {
-            Some(Client{world: Some(ClientWorld{local_entity_id: Some(eid)}), .. }) => {
-                world.get_entity_mut(*eid).map_or_else(|| (client.as_mut().unwrap().camera.x, client.as_mut().unwrap().camera.y), |e| (e.x, e.y))
+            Some(Client{world: Some(ClientWorld{local_entity}), .. }) => {
+                if let Some(local) = local_entity {
+                    let (
+                        position_storage,
+                    ) = world.ecs.system_data::<(
+                        WriteStorage<Position>,
+                    )>();
+    
+                    if let Some(pos) = position_storage.get(*local) {
+                        (pos.x, pos.y)
+                    }else {
+                        (client.as_mut().unwrap().camera.x, client.as_mut().unwrap().camera.y)
+                    }
+                }else {
+                    (client.as_mut().unwrap().camera.x, client.as_mut().unwrap().camera.y)
+                }
             },
             _ => (client.as_mut().unwrap().camera.x, client.as_mut().unwrap().camera.y)
         };
@@ -285,9 +305,20 @@ impl WorldRenderer {
         
         {
             profiling::scope!("entities");
-            world.entities.iter().for_each(|(_id, e)| {
+
+            let (
+                entities,
+                game_entity_storage,
+                position_storage,
+            ) = world.ecs.system_data::<(
+                Entities,
+                ReadStorage<GameEntity>,
+                ReadStorage<Position>,
+            )>();
+
+            (&game_entity_storage, &position_storage).join().for_each(|(ge, pos)| {
                 transform.push();
-                transform.translate(e.x, e.y);
+                transform.translate(pos.x, pos.y);
 
                 let (x1, y1) = transform.transform((-6.0, -10.0));
                 let (x2, y2) = transform.transform((6.0, 10.0));

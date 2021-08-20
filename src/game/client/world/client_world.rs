@@ -4,7 +4,7 @@ use crate::game::common::world::{World, material::MaterialInstance};
 use super::ClientChunk;
 
 pub struct ClientWorld {
-    pub local_entity_id: Option<u32>,
+    pub local_entity: Option<specs::Entity>,
 }
 
 impl ClientWorld {

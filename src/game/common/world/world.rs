@@ -7,7 +7,7 @@ use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2dr
 use sdl2::pixels::Color;
 use specs::{Builder, Entities, Read, ReadStorage, RunNow, WorldExt, Write, WriteStorage, saveload::{MarkedBuilder, SimpleMarker, SimpleMarkerAllocator}};
 
-use super::{CHUNK_SIZE, Chunk, ChunkHandler, ChunkHandlerGeneric, ChunkHandlerResource, FilePersistent, Position, Velocity, entity::Entity, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{InObjectState, Particle, UpdateParticles}, rigidbody::RigidBody, simulator};
+use super::{CHUNK_SIZE, Chunk, ChunkHandler, ChunkHandlerGeneric, ChunkHandlerResource, FilePersistent, Loader, Position, Velocity, entity::{GameEntity, Player}, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{InObjectState, Particle, UpdateParticles}, rigidbody::RigidBody, simulator};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
@@ -22,7 +22,6 @@ pub struct World<C: Chunk> {
     pub path: Option<PathBuf>,
     pub chunk_handler: ChunkHandler<TestGenerator, C>,
     pub lqf_world: liquidfun::box2d::dynamics::world::World,
-    pub entities: HashMap<u32, Entity>,
     pub net_mode: WorldNetworkMode,
     pub rigidbodies: Vec<RigidBody>,
 }
@@ -142,9 +141,12 @@ impl<'w, C: Chunk> World<C> {
         let mut ecs = specs::World::new();
         ecs.register::<SimpleMarker<FilePersistent>>();
         ecs.insert(SimpleMarkerAllocator::<FilePersistent>::default());
-        ecs.register::<Particle>();
         ecs.register::<Position>();
         ecs.register::<Velocity>();
+        ecs.register::<Particle>();
+        ecs.register::<GameEntity>();
+        ecs.register::<Loader>();
+        ecs.register::<Player>();
 
         if let Some(path) = &path {
             let particles_path = path.join("particles.dat");
@@ -205,7 +207,6 @@ impl<'w, C: Chunk> World<C> {
             chunk_handler: ChunkHandler::new(TEST_GENERATOR, path.clone()),
             path,
             lqf_world,
-            entities: HashMap::new(),
             net_mode: WorldNetworkMode::Local,
             rigidbodies: Vec::new(),
         };
@@ -334,26 +335,8 @@ impl<'w, C: Chunk> World<C> {
         Ok(())
     }
 
-    pub fn add_entity(&mut self, entity: Entity) -> u32 {
-        let mut id = rand::random::<u32>();
-        while self.entities.contains_key(&id) {
-            id = rand::random::<u32>();
-        }
-        self.entities.insert(id, entity);
-        id
-    }
-
-    pub fn get_entity(&self, id: u32) -> Option<&Entity> {
-        self.entities.get(&id)
-    }
-
-    pub fn get_entity_mut(&mut self, id: u32) -> Option<&mut Entity> {
-        self.entities.get_mut(&id)
-    }
-
     #[profiling::function]
     pub fn tick(&mut self, tick_time: u32, settings: &Settings){
-        let loaders: Vec<_> = self.entities.iter().map(|(_id, e)| (e.x, e.y)).collect();
 
         for rb_i in 0..self.rigidbodies.len() {
             let rb = &mut self.rigidbodies[rb_i];
@@ -392,8 +375,8 @@ impl<'w, C: Chunk> World<C> {
                                     if point_velocity.x.abs() > 1.0 || point_velocity.y.abs() > 1.0 {
                                         let m = *mat;
                                         let mut part = Particle::of(*mat);
-                                        let mut part_pos = Position { x: tx as f32, y: ty as f32 };
-                                        let mut part_vel = Velocity { x: point_velocity.x * 0.1, y: point_velocity.y * 0.1 - 0.5 };
+                                        let mut part_pos = Position { x: tx as f64, y: ty as f64 };
+                                        let mut part_vel = Velocity { x: (point_velocity.x * 0.1) as f64, y: (point_velocity.y * 0.1 - 0.5) as f64 };
 
                                         let res = self.chunk_handler.set(tx as i64, ty as i64, MaterialInstance {
                                             physics: PhysicsType::Object,
@@ -441,7 +424,7 @@ impl<'w, C: Chunk> World<C> {
             }
         }
 
-        self.chunk_handler.tick(tick_time, &loaders, settings, &mut self.ecs);
+        self.chunk_handler.tick(tick_time, settings, &mut self.ecs);
         let mut update_particles = UpdateParticles { chunk_handler: &mut self.chunk_handler };
         update_particles.run_now(&self.ecs);
         self.ecs.maintain();

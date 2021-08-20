@@ -1,15 +1,15 @@
 use core::fmt::Debug;
 use std::sync::{Arc, Mutex};
 
-use specs::{Component, VecStorage};
+use specs::{Component, NullStorage, VecStorage};
 use serde::{Serialize, Deserialize};
 
 use super::{Chunk, ChunkHandler, ChunkHandlerGeneric, gen::WorldGenerator};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Position {
-    pub x: f32,
-    pub y: f32,
+    pub x: f64,
+    pub y: f64,
 }
 
 impl Component for Position {
@@ -18,8 +18,8 @@ impl Component for Position {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Velocity {
-    pub x: f32,
-    pub y: f32,
+    pub x: f64,
+    pub y: f64,
 }
 
 impl Component for Velocity {
@@ -35,3 +35,10 @@ impl Debug for ChunkHandlerResource<'_> {
 }
 
 pub struct FilePersistent;
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+pub struct Loader;
+
+impl Component for Loader {
+    type Storage = NullStorage<Self>;
+}

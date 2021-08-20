@@ -5,9 +5,10 @@ use liquidfun::box2d::common::math::Vec2;
 use log::{debug, error, info, warn};
 use sdl2::{event::{Event, WindowEvent}, keyboard::Keycode, sys::SDL_WindowFlags, video::{FullscreenType, SwapInterval}};
 use sdl_gpu::GPUSubsystem;
+use specs::{Builder, WorldExt};
 use sysinfo::{Pid, ProcessExt, SystemExt};
 
-use crate::game::{Game, client::{Client, world::ClientWorld}, common::{Settings, networking::{Packet, PacketType}, world::{LIQUIDFUN_SCALE, ChunkHandlerGeneric, World, WorldNetworkMode, entity::Entity, material::MaterialInstance}}};
+use crate::game::{Game, client::{Client, world::ClientWorld}, common::{Settings, networking::{Packet, PacketType}, world::{ChunkHandlerGeneric, LIQUIDFUN_SCALE, Loader, Position, World, WorldNetworkMode, entity::{GameEntity, Player}, material::MaterialInstance}}};
 
 use super::{render::{Renderer, Sdl2Context}, world::ClientChunk};
 
@@ -254,12 +255,10 @@ impl Game<ClientChunk> {
                                 self.world = Some(World::create(Some(path.parent().expect("World meta file has no parent directory ??").to_path_buf())));
 
                                 if let Some(w) = &mut self.world {
-                                    let pl_id = w.add_entity(Entity {
-                                        x: 0.0,
-                                        y: 0.0,
-                                    });
+                                    let player = w.ecs.create_entity().with(Player).with(GameEntity).with(Position{ x: 0.0, y: 0.0 }).with(Loader).build();
+
                                     client.world = Some(ClientWorld {
-                                        local_entity_id: Some(pl_id),
+                                        local_entity: Some(player),
                                     });
                                 };
                             },

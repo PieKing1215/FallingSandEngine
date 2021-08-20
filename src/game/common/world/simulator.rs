@@ -111,8 +111,8 @@ impl SimulationHelper for SimulationHelperChunk<'_> {
 
     fn add_particle(&mut self, material: MaterialInstance, pos: Position, vel: Velocity) {
         self.particles.push((Particle::of(material), Position {
-            x: pos.x + self.chunk_x as f32 * f32::from(CHUNK_SIZE),
-            y: pos.y + self.chunk_y as f32 * f32::from(CHUNK_SIZE),
+            x: pos.x + self.chunk_x as f64 * f64::from(CHUNK_SIZE),
+            y: pos.y + self.chunk_y as f64 * f64::from(CHUNK_SIZE),
         }, vel));
     }
 }
@@ -416,12 +416,12 @@ impl Simulator {
                         if empty_below {
                             helper.add_particle(cur,
                                 Position{ 
-                                    x: x as f32, 
-                                    y: y as f32 
+                                    x: x as f64, 
+                                    y: y as f64 
                                 }, 
                                 Velocity { 
-                                    x: (rand::random::<f32>() - 0.5) * 0.5, 
-                                    y: 1.0 + rand::random::<f32>() 
+                                    x: (rand::random::<f64>() - 0.5) * 0.5, 
+                                    y: 1.0 + rand::random::<f64>() 
                                 });
                         } else {
                             helper.set_color_local(x, y + 1, cur.color);

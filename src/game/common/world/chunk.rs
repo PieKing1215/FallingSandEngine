@@ -1,5 +1,5 @@
 
-use crate::game::common::world::{FilePersistent, Position, Velocity};
+use crate::game::common::world::{FilePersistent, Loader, Position, Velocity};
 use crate::game::{common::world::simulator::Simulator};
 use crate::game::common::Settings;
 use std::borrow::{Borrow, BorrowMut};
@@ -13,7 +13,7 @@ use liquidfun::box2d::dynamics::body::Body;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use specs::saveload::{MarkedBuilder, SimpleMarker};
-use specs::{Builder, WorldExt};
+use specs::{Builder, Join, ReadStorage, WorldExt};
 use tokio::runtime::Runtime;
 use serde::{Serialize, Deserialize};
 
@@ -81,7 +81,7 @@ pub struct ChunkHandler<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chu
 
 pub trait ChunkHandlerGeneric {
     fn update_chunk_graphics(&mut self);
-    fn tick(&mut self, tick_time: u32, loaders: &[(f64, f64)], settings: &Settings, world: &mut specs::World);
+    fn tick(&mut self, tick_time: u32, settings: &Settings, world: &mut specs::World);
     fn save_chunk(&mut self, index: u32) -> Result<(), Box<dyn std::error::Error>>;
     fn unload_all_chunks(&mut self) -> Result<(), Box<dyn std::error::Error>>;
     fn save_all_chunks(&mut self) -> Result<(), Box<dyn std::error::Error>>;
@@ -123,14 +123,22 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
     // #[profiling::function] // breaks clippy
     #[warn(clippy::too_many_lines)]
-    fn tick(&mut self, tick_time: u32, loaders: &[(f64, f64)], settings: &Settings, world: &mut specs::World){ // TODO: `camera` should be replaced with like a vec of entities or something
+    fn tick(&mut self, tick_time: u32, settings: &Settings, world: &mut specs::World){ // TODO: `camera` should be replaced with like a vec of entities or something
         profiling::scope!("tick");
+
+        let (
+            loaders,
+            positions,
+        ) = world.system_data::<(
+            ReadStorage<Loader>,
+            ReadStorage<Position>,
+        )>();
         
-        let unload_zone: Vec<Rect> = loaders.iter().map(|l| self.get_unload_zone(*l)).collect();
-        let load_zone: Vec<Rect> = loaders.iter().map(|l| self.get_load_zone(*l)).collect();
-        let active_zone: Vec<Rect> = loaders.iter().map(|l| self.get_active_zone(*l)).collect();
-        let _screen_zone: Vec<Rect> = loaders.iter().map(|l| self.get_screen_zone(*l)).collect();
-        
+        let unload_zone: Vec<Rect> = (&loaders, &positions).join().map(|(_, p)| self.get_unload_zone((p.x, p.y))).collect();
+        let load_zone: Vec<Rect> = (&loaders, &positions).join().map(|(_, p)| self.get_load_zone((p.x, p.y))).collect();
+        let active_zone: Vec<Rect> = (&loaders, &positions).join().map(|(_, p)| self.get_active_zone((p.x, p.y))).collect();
+        let _screen_zone: Vec<Rect> = (&loaders, &positions).join().map(|(_, p)| self.get_screen_zone((p.x, p.y))).collect();
+
         if settings.load_chunks {
             {
                 profiling::scope!("queue chunk loading");
@@ -232,15 +240,15 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                         let c2_x = self.loaded_chunks.get(b).unwrap().get_chunk_x() * i32::from(CHUNK_SIZE);
                         let c2_y = self.loaded_chunks.get(b).unwrap().get_chunk_y() * i32::from(CHUNK_SIZE);
 
-                        let d1 = loaders.iter().map(|l| {
-                            let x = (l.0 as i32 - c1_x).abs();
-                            let y = (l.1 as i32 - c1_y).abs();
+                        let d1 = (&loaders, &positions).join().map(|(_, p)| {
+                            let x = (p.x as i32 - c1_x).abs();
+                            let y = (p.y as i32 - c1_y).abs();
                             x + y
                         }).min().unwrap();
 
-                        let d2 = loaders.iter().map(|l| {
-                            let x = (l.0 as i32 - c2_x).abs();
-                            let y = (l.1 as i32 - c2_y).abs();
+                        let d2 = (&loaders, &positions).join().map(|(_, p)| {
+                            let x = (p.x as i32 - c2_x).abs();
+                            let y = (p.y as i32 - c2_y).abs();
                             x + y
                         }).min().unwrap();
 
@@ -420,6 +428,9 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                 self.loaded_chunks.retain(|_, _| *iter.next().unwrap());
             }
         }
+
+        drop(loaders);
+        drop(positions);
 
         {
             profiling::scope!("chunk simulate");
@@ -1031,9 +1042,11 @@ mod tests {
         ecs.register::<Position>();
         ecs.register::<Velocity>();
 
-        ch.tick(0, &[(110.0, -120.0)], &Settings::default(), &mut ecs);
+        let loader = ecs.create_entity().with(Position{ x: 110.0, y: -120.0 }).with(Loader).build();
+
+        ch.tick(0,  &Settings::default(), &mut ecs);
         while !ch.load_queue.is_empty() {
-            ch.tick(0, &[(110.0, -120.0)], &Settings::default(), &mut ecs);
+            ch.tick(0, &Settings::default(), &mut ecs);
         }
 
         assert!(ch.is_chunk_loaded(11, -12));
@@ -1058,7 +1071,8 @@ mod tests {
         assert!(ch.get_chunk(-120, 11).is_none());
 
         // should unload since no loaders are nearby
-        ch.tick(0, &[], &Settings::default(), &mut ecs);
+        ecs.delete_entity(loader);
+        ch.tick(0,  &Settings::default(), &mut ecs);
 
         assert!(!ch.is_chunk_loaded(11, -12));
         assert!(!ch.is_chunk_loaded(-3, 2));

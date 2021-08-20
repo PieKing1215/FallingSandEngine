@@ -1,6 +1,7 @@
 use sdl2::{event::Event, keyboard::Keycode};
+use specs::WriteStorage;
 
-use crate::game::common::world::World;
+use crate::game::common::world::{Position, World};
 
 use super::{ui::MainMenu, world::{ClientChunk, ClientWorld}};
 
@@ -50,12 +51,18 @@ impl Client {
         if let Some(w) = &mut self.world {
             w.tick(world);
 
-            if let Some(eid) = w.local_entity_id {
-                if let Some(le) = world.get_entity_mut(eid) {
-                    if self.controls.up { le.y -= 4.0 }
-                    if self.controls.down { le.y += 4.0 }
-                    if self.controls.left { le.x -= 4.0 }
-                    if self.controls.right { le.x += 4.0 }
+            if let Some(eid) = w.local_entity {
+                let (
+                    mut position_storage,
+                ) = world.ecs.system_data::<(
+                    WriteStorage<Position>,
+                )>();
+
+                if let Some(pos) = position_storage.get_mut(eid) {
+                    if self.controls.up    { pos.y -= 4.0 }
+                    if self.controls.down  { pos.y += 4.0 }
+                    if self.controls.left  { pos.x -= 4.0 }
+                    if self.controls.right { pos.x += 4.0 }
                 }
             }
         }

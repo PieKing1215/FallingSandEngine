@@ -83,8 +83,8 @@ impl<'a> System<'a> for UpdateParticles<'a> {
             },
             in_object_state: InObjectState::FirstFrame,
         }).expect("Failed to insert Particle");
-        pos.insert(new_p, Position{x: (rand::random::<f32>() - 0.5) * 10.0, y: -100.0}).expect("Failed to insert Position");
-        vel.insert(new_p, Velocity{x: (rand::random::<f32>() - 0.5) * 4.0, y: (rand::random::<f32>() - 0.75) * 2.0}).expect("Failed to insert Velocity");
+        pos.insert(new_p, Position{x: (rand::random::<f64>() - 0.5) * 10.0, y: -100.0}).expect("Failed to insert Position");
+        vel.insert(new_p, Velocity{x: (rand::random::<f64>() - 0.5) * 4.0, y: (rand::random::<f64>() - 0.75) * 2.0}).expect("Failed to insert Velocity");
         marker_alloc.mark(new_p, &mut markers);
         
         // TODO: if I can ever get ChunkHandler to be Send (+ Sync would be ideal), can use par_join and organize a bit for big performance gain
@@ -109,7 +109,7 @@ impl<'a> System<'a> for UpdateParticles<'a> {
             let steps = (dx.abs() + dy.abs()).sqrt() as u32 + 1;
             for s in 0..steps {
                 // profiling::scope!("step");
-                let thru = (s + 1) as f32 / steps as f32;
+                let thru = (s + 1) as f64 / steps as f64;
 
                 pos.x = lx + dx * thru;
                 pos.y = ly + dy * thru;
