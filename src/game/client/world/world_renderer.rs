@@ -5,7 +5,7 @@ use sdl2::{pixels::Color, rect::Rect};
 use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, shaders::Shader, sys::{GPU_FilterEnum, GPU_FormatEnum, GPU_SetBlendMode}};
 use specs::{Entities, Join, ReadStorage, WriteStorage};
 
-use crate::game::{client::{Client, render::{Fonts, RenderCanvas, Renderable, Sdl2Context, Shaders, TransformStack}}, common::{Settings, world::{CHUNK_SIZE, ChunkHandlerGeneric, ChunkState, LIQUIDFUN_SCALE, Position, World, entity::GameEntity, gen::WorldGenerator, particle::Particle}}};
+use crate::game::{client::{Client, render::{Fonts, RenderCanvas, Renderable, Sdl2Context, Shaders, TransformStack}}, common::{Settings, world::{CHUNK_SIZE, ChunkHandlerGeneric, ChunkState, LIQUIDFUN_SCALE, Position, Velocity, World, entity::{GameEntity, Hitbox, PhysicsEntity}, gen::WorldGenerator, particle::Particle}}};
 
 use super::{ClientChunk, ClientWorld};
 
@@ -304,26 +304,55 @@ impl WorldRenderer {
         }
         
         {
-            profiling::scope!("entities");
+            profiling::scope!("ecs debug");
 
             let (
-                entities,
                 game_entity_storage,
                 position_storage,
+                velocity_storage,
+                physics_storage,
             ) = world.ecs.system_data::<(
-                Entities,
                 ReadStorage<GameEntity>,
                 ReadStorage<Position>,
+                ReadStorage<Velocity>,
+                ReadStorage<PhysicsEntity>,
             )>();
 
-            (&game_entity_storage, &position_storage).join().for_each(|(ge, pos)| {
+            (&game_entity_storage, &position_storage, velocity_storage.maybe(), physics_storage.maybe()).join().for_each(|(_ge, pos, vel, _phys): (&GameEntity, &Position, Option<&Velocity>, Option<&PhysicsEntity>)| {
                 transform.push();
                 transform.translate(pos.x, pos.y);
 
-                let (x1, y1) = transform.transform((-6.0, -10.0));
-                let (x2, y2) = transform.transform((6.0, 10.0));
+                let (x1, y1) = transform.transform((-1.0, -1.0));
+                let (x2, y2) = transform.transform((1.0, 1.0));
 
-                target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(255, 0, 0, 255));
+                target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(64, 255, 64, 255));
+                
+                if let Some(vel) = vel {
+                    let (vel_x1, vel_y1) = transform.transform((0.0, 0.0));
+                    let (vel_x2, vel_y2) = transform.transform((vel.x, vel.y));
+
+                    target.line(vel_x1 as f32, vel_y1 as f32, vel_x2 as f32, vel_y2 as f32, Color::RGBA(64, 255, 64, 255));
+                }
+
+                transform.pop();
+            });
+
+            let (
+                position_storage,
+                hitbox_storage,
+            ) = world.ecs.system_data::<(
+                ReadStorage<Position>,
+                ReadStorage<Hitbox>,
+            )>();
+
+            (&position_storage, &hitbox_storage).join().for_each(|(pos, hit)| {
+                transform.push();
+                transform.translate(pos.x, pos.y);
+
+                let (x1, y1) = transform.transform((f64::from(hit.x1), f64::from(hit.y1)));
+                let (x2, y2) = transform.transform((f64::from(hit.x2), f64::from(hit.y2)));
+
+                target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(255, 64, 64, 255));
 
                 transform.pop();
             });

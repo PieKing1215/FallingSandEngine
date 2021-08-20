@@ -53,6 +53,8 @@ use crate::game::common::FileHelper;
 use crate::game::common::world::Loader;
 use crate::game::common::world::Position;
 use crate::game::common::world::entity::GameEntity;
+use crate::game::common::world::entity::Hitbox;
+use crate::game::common::world::entity::PhysicsEntity;
 use crate::game::common::world::entity::Player;
 use crate::game::server::world::ServerChunk;
 
@@ -233,7 +235,13 @@ fn main() -> Result<(), String> {
         if let Some(w) = &mut game.world {
             game.client = Some(Client::new());
 
-            let player = w.ecs.create_entity().with(Player).with(GameEntity).with(Position{ x: 0.0, y: 0.0 }).with(Loader).build();
+            let player = w.ecs.create_entity()
+                .with(Player)
+                .with(GameEntity)
+                .with(Position{ x: 0.0, y: 0.0 })
+                .with(Hitbox { x1: -6.0, y1: -10.0, x2: 6.0, y2: 10.0 })
+                .with(Loader)
+                .build();
 
             game.client.as_mut().unwrap().world = Some(ClientWorld {
                 local_entity: Some(player),

@@ -8,7 +8,7 @@ use sdl_gpu::GPUSubsystem;
 use specs::{Builder, WorldExt};
 use sysinfo::{Pid, ProcessExt, SystemExt};
 
-use crate::game::{Game, client::{Client, world::ClientWorld}, common::{Settings, networking::{Packet, PacketType}, world::{ChunkHandlerGeneric, LIQUIDFUN_SCALE, Loader, Position, World, WorldNetworkMode, entity::{GameEntity, Player}, material::MaterialInstance}}};
+use crate::game::{Game, client::{Client, world::ClientWorld}, common::{Settings, networking::{Packet, PacketType}, world::{ChunkHandlerGeneric, LIQUIDFUN_SCALE, Loader, Position, World, WorldNetworkMode, entity::{GameEntity, Hitbox, Player}, material::MaterialInstance}}};
 
 use super::{render::{Renderer, Sdl2Context}, world::ClientChunk};
 
@@ -255,7 +255,13 @@ impl Game<ClientChunk> {
                                 self.world = Some(World::create(Some(path.parent().expect("World meta file has no parent directory ??").to_path_buf())));
 
                                 if let Some(w) = &mut self.world {
-                                    let player = w.ecs.create_entity().with(Player).with(GameEntity).with(Position{ x: 0.0, y: 0.0 }).with(Loader).build();
+                                    let player = w.ecs.create_entity()
+                                    .with(Player)
+                                    .with(GameEntity)
+                                    .with(Position{ x: 0.0, y: 0.0 })
+                                    .with(Hitbox { x1: -6.0, y1: -10.0, x2: 6.0, y2: 10.0 })
+                                    .with(Loader)
+                                    .build();
 
                                     client.world = Some(ClientWorld {
                                         local_entity: Some(player),
