@@ -6,7 +6,7 @@ use super::{ChunkHandlerGeneric, FilePersistent, Position, Velocity, material::M
 
 use sdl2::pixels::Color;
 use serde::{Serialize, Deserialize};
-use specs::{Component, Entities, Join, ParJoin, System, Write, WriteStorage, prelude::ParallelIterator, saveload::{MarkerAllocator, SimpleMarker, SimpleMarkerAllocator}, storage::BTreeStorage};
+use specs::{Component, Entities, Join, ParJoin, System, VecStorage, Write, WriteStorage, prelude::ParallelIterator, saveload::{MarkerAllocator, SimpleMarker, SimpleMarkerAllocator}};
 
 // #[derive(Serialize, Deserialize)]
 // pub struct Particle {
@@ -45,7 +45,7 @@ impl Particle {
 }
 
 impl Component for Particle {
-    type Storage = BTreeStorage<Self>;
+    type Storage = VecStorage<Self>;
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
