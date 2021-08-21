@@ -1,10 +1,12 @@
 
+use std::sync::RwLock;
+
 use crate::game::common::world::{ChunkState, material::{PhysicsType, TEST_MATERIAL}};
 use super::{ChunkHandlerGeneric, FilePersistent, Position, Velocity, material::MaterialInstance};
 
 use sdl2::pixels::Color;
 use serde::{Serialize, Deserialize};
-use specs::{Component, Entities, Join, System, Write, WriteStorage, saveload::{MarkerAllocator, SimpleMarker, SimpleMarkerAllocator}, storage::BTreeStorage};
+use specs::{Component, Entities, Join, ParJoin, System, Write, WriteStorage, prelude::ParallelIterator, saveload::{MarkerAllocator, SimpleMarker, SimpleMarkerAllocator}, storage::BTreeStorage};
 
 // #[derive(Serialize, Deserialize)]
 // pub struct Particle {
@@ -54,7 +56,7 @@ pub enum InObjectState {
 }
 
 pub struct UpdateParticles<'a>{
-    pub chunk_handler: &'a mut (dyn ChunkHandlerGeneric)
+    pub chunk_handler: &'a mut (dyn ChunkHandlerGeneric + Send + Sync)
 }
 
 impl<'a> System<'a> for UpdateParticles<'a> {
@@ -71,7 +73,8 @@ impl<'a> System<'a> for UpdateParticles<'a> {
 
         let (entities, mut marker_alloc, mut markers, mut particle, mut pos, mut vel) = data;
         // let chunk_handler = chunk_handler.unwrap().0;
-        let chunk_handler = &mut *self.chunk_handler;
+        // let chunk_handler = &mut *self.chunk_handler;
+        let chunk_handler_rw = RwLock::new(&mut self.chunk_handler);
 
         let new_p = entities.create();
         particle.insert(new_p, Particle {
@@ -88,17 +91,19 @@ impl<'a> System<'a> for UpdateParticles<'a> {
         
         // TODO: if I can ever get ChunkHandler to be Send (+ Sync would be ideal), can use par_join and organize a bit for big performance gain
         //       iirc right now, ChunkHandler<ServerChunk> is Send + !Sync and ChunkHandler<ClientChunk> is !Send + !Sync (because of the GPUImage in ChunkGraphics)
-        (&entities, &mut particle, &mut pos, &mut vel).join().for_each(|(ent, part, pos, vel)| {
-            // profiling::scope!("Particle");
+        (&entities, &mut particle, &mut pos, &mut vel).par_join().for_each(|(ent, part, pos, vel)| {
+            profiling::scope!("Particle");
 
             let lx = pos.x;
             let ly = pos.y;
 
+            let chunk_handler = chunk_handler_rw.read().expect("Failed to lock for read");
             let (chunk_x, chunk_y) = chunk_handler.pixel_to_chunk_pos(lx as i64, ly as i64);
             // skip if chunk not active
             if !matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active) {
                 return;
             }
+            drop(chunk_handler);
 
             vel.y += 0.1;
 
@@ -112,8 +117,10 @@ impl<'a> System<'a> for UpdateParticles<'a> {
 
                 pos.x = lx + dx * thru;
                 pos.y = ly + dy * thru;
-
-                if let Ok(mat) = chunk_handler.get(pos.x as i64, pos.y as i64) {
+                let chunk_handler = chunk_handler_rw.read().expect("Failed to lock for read");
+                let scan_m  = chunk_handler.get(pos.x as i64, pos.y as i64).map(|m| *m);
+                drop(chunk_handler);
+                if let Ok(mat) = scan_m {
                     if mat.physics == PhysicsType::Air {
                         part.in_object_state = InObjectState::Outside;
                     }else{
@@ -137,10 +144,15 @@ impl<'a> System<'a> for UpdateParticles<'a> {
 
                         if !is_object || part.in_object_state == InObjectState::Outside {
 
-                            match chunk_handler.get(lx as i64, ly as i64) {
+                            let chunk_handler = chunk_handler_rw.read().expect("Failed to lock for read");
+                            let scan_m_l  = chunk_handler.get(lx as i64, ly as i64).map(|m| *m);
+                            drop(chunk_handler);
+                            match scan_m_l {
                                 Ok(m) if m.physics != PhysicsType::Air => {
                                     
+                                    let mut chunk_handler = chunk_handler_rw.write().expect("Failed to lock for read");
                                     let succeeded = chunk_handler.displace(pos.x as i64, pos.y as i64, part.material);
+                                    drop(chunk_handler);
 
                                     if succeeded {
                                         entities.delete(ent).expect("Failed to delete particle");
@@ -153,6 +165,7 @@ impl<'a> System<'a> for UpdateParticles<'a> {
                                     break;
                                 },
                                 _ => {
+                                    let mut chunk_handler = chunk_handler_rw.write().expect("Failed to lock for read");
                                     if chunk_handler.set(lx as i64, ly as i64, part.material).is_ok() {
                                         entities.delete(ent).expect("Failed to delete particle");
                                         break;
