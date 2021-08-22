@@ -33,6 +33,8 @@ pub struct Settings {
     pub tick_lqf_speed: u16,
     pub tick_lqf_timestep: f32,
     pub load_chunks: bool,
+    pub simulate_chunks: bool,
+    pub simulate_particles: bool,
     pub pause_on_lost_focus: bool,
 }
 
@@ -67,6 +69,8 @@ impl Default for Settings {
             tick_lqf_speed: 60,
             tick_lqf_timestep: 1.0 / 45.0,
             load_chunks: true,
+            simulate_chunks: true,
+            simulate_particles: true,
             pause_on_lost_focus: false,
         }
     }

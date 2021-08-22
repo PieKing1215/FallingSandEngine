@@ -71,7 +71,7 @@ pub enum ChunkState {
 #[derive(Debug)]
 pub struct ChunkHandler<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> {
     pub loaded_chunks: HashMap<u32, Box<C>>,
-    load_queue: Vec<(i32, i32)>,
+    pub load_queue: Vec<(i32, i32)>,
     /** The size of the "presentable" area (not necessarily the current window size) */
     pub screen_size: (u16, u16),
     pub generator: T,
@@ -443,7 +443,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
         drop(loaders);
         drop(positions);
 
-        {
+        if settings.simulate_chunks {
             profiling::scope!("chunk simulate");
 
             lazy_static! {

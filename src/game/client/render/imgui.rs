@@ -98,6 +98,8 @@ impl Settings {
                 ui.unindent();
                 
                 ui.checkbox(im_str!("load_chunks"), &mut self.load_chunks);
+                ui.checkbox(im_str!("simulate_chunks"), &mut self.simulate_chunks);
+                ui.checkbox(im_str!("simulate_particles"), &mut self.simulate_particles);
                 ui.checkbox(im_str!("pause_on_lost_focus"), &mut self.pause_on_lost_focus);
             });
         });

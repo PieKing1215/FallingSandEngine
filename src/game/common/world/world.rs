@@ -430,9 +430,12 @@ impl<'w, C: Chunk> World<C> {
         }
 
         self.chunk_handler.tick(tick_time, settings, &mut self.ecs);
-        let mut update_particles = UpdateParticles { chunk_handler: &mut self.chunk_handler };
-        update_particles.run_now(&self.ecs);
-        self.ecs.maintain();
+        
+        if settings.simulate_particles {
+            let mut update_particles = UpdateParticles { chunk_handler: &mut self.chunk_handler };
+            update_particles.run_now(&self.ecs);
+            self.ecs.maintain();
+        }
 
         for rb in &self.rigidbodies {
             let rb_w = rb.width;
