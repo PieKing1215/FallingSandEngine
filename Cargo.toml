@@ -76,6 +76,6 @@ opt-level = 1
 [dev-dependencies]
 criterion = "0.3"
 
-[[bench]]
-name = "benchmark"
-harness = false
+# [[bench]]
+# name = "benchmark"
+# harness = false

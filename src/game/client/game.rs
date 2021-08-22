@@ -494,8 +494,9 @@ impl Game<ClientChunk> {
             if let Some(r) = &mut renderer {
                 profiling::scope!("rendering");
 
+                let partial_ticks = now.saturating_duration_since(prev_tick_time).as_secs_f64() / (1.0 / f64::from(self.settings.tick_speed));
                 let delta_time = Instant::now().saturating_duration_since(counter_last_frame);
-                self.render(r, sdl, delta_time.as_secs_f64());
+                self.render(r, sdl, delta_time.as_secs_f64(), partial_ticks);
 
                 self.frame_count += 1;
                 self.fps_counter.frames += 1;
@@ -537,8 +538,8 @@ impl Game<ClientChunk> {
         info!("Closing...");
     }
 
-    pub fn render(&mut self, renderer: &mut Renderer, sdl: &Sdl2Context, delta_time: f64) {
-        renderer.render(sdl, self, delta_time);
+    pub fn render(&mut self, renderer: &mut Renderer, sdl: &Sdl2Context, delta_time: f64, partial_ticks: f64) {
+        renderer.render(sdl, self, delta_time, partial_ticks);
     }
 
     #[profiling::function]

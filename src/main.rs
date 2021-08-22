@@ -55,8 +55,11 @@ use crate::game::common::world::Loader;
 use crate::game::common::world::Position;
 use crate::game::common::world::Target;
 use crate::game::common::world::TargetStyle;
+use crate::game::common::world::Velocity;
 use crate::game::common::world::entity::GameEntity;
 use crate::game::common::world::entity::Hitbox;
+use crate::game::common::world::entity::Persistent;
+use crate::game::common::world::entity::PhysicsEntity;
 use crate::game::common::world::entity::Player;
 use crate::game::server::world::ServerChunk;
 
@@ -245,7 +248,10 @@ fn main() -> Result<(), String> {
             let player = w.ecs.create_entity()
                 .with(Player)
                 .with(GameEntity)
-                .with(Position{ x: 0.0, y: 0.0 })
+                .with(PhysicsEntity)
+                .with(Persistent)
+                .with(Position{ x: 0.0, y: -20.0 })
+                .with(Velocity{ x: 0.0, y: 0.0 })
                 .with(Hitbox { x1: -6.0, y1: -10.0, x2: 6.0, y2: 10.0 })
                 .with(Loader)
                 .build();
@@ -253,6 +259,7 @@ fn main() -> Result<(), String> {
             let _camera = w.ecs.create_entity()
                 .with(Camera)
                 .with(Position{ x: 0.0, y: 0.0 })
+                .with(Velocity{ x: 0.0, y: 0.0 })
                 .with(AutoTarget {
                     target: Target::Entity(player),
                     offset: (0.0, 0.0),

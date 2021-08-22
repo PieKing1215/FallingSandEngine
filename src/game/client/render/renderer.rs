@@ -88,11 +88,11 @@ impl<'a> Renderer<'a> {
     }
 
     #[profiling::function]
-    pub fn render(&mut self, sdl: &Sdl2Context, game: &mut Game<ClientChunk>, delta_time: f64){
+    pub fn render(&mut self, sdl: &Sdl2Context, game: &mut Game<ClientChunk>, delta_time: f64, partial_ticks: f64){
 
         self.target.borrow_mut().clear();
 
-        self.render_internal(sdl, game, delta_time);
+        self.render_internal(sdl, game, delta_time, partial_ticks);
 
         let target = &mut self.target.borrow_mut();
 
@@ -173,7 +173,7 @@ impl<'a> Renderer<'a> {
     }
 
     #[profiling::function]
-    fn render_internal(&mut self, sdl: &Sdl2Context, game: &mut Game<ClientChunk>, delta_time: f64){
+    fn render_internal(&mut self, sdl: &Sdl2Context, game: &mut Game<ClientChunk>, delta_time: f64, partial_ticks: f64){
         let target = &mut self.target.borrow_mut();
         
         target.rectangle2(GPURect::new(40.0 + ((game.tick_time as f32 / 5.0).sin() * 20.0), 
@@ -191,7 +191,7 @@ impl<'a> Renderer<'a> {
         }
 
         if let Some(w) = &mut game.world {
-            self.world_renderer.render(w, target, &mut TransformStack::new(), delta_time, sdl, &self.fonts.as_ref().unwrap(), &game.settings, &self.shaders, &mut game.client);
+            self.world_renderer.render(w, target, &mut TransformStack::new(), delta_time, sdl, &self.fonts.as_ref().unwrap(), &game.settings, &self.shaders, &mut game.client, partial_ticks);
         }
         
     }

@@ -85,6 +85,14 @@ where S: Deref<Target = MaskedStorage<Position>> {
             Target::Position(p) => Some(p.clone()),
         }.map(|p| Position{ x: p.x + self.offset.0, y: p.y + self.offset.1 })
     }
+
+    pub fn get_target_vel<S>(&self, vel_storage: &Storage<Velocity, S>) -> Option<Velocity> 
+where S: Deref<Target = MaskedStorage<Velocity>> {
+        match &self.target {
+            Target::Entity(e) => vel_storage.get(*e).cloned(),
+            Target::Position(_) => None,
+        }
+    }
 }
 
 impl Component for AutoTarget {
@@ -98,12 +106,13 @@ impl<'a> System<'a> for UpdateAutoTargets {
     type SystemData = (Entities<'a>,
                        Read<'a, DeltaTime>,
                        ReadStorage<'a, AutoTarget>,
-                       WriteStorage<'a, Position>);
+                       WriteStorage<'a, Position>,
+                       WriteStorage<'a, Velocity>);
 
     fn run(&mut self, data: Self::SystemData) {
         profiling::scope!("UpdateAutoTargets::run");
 
-        let (entities, delta_time, target, mut pos_storage) = data;
+        let (entities, delta_time, target, mut pos_storage, mut vel_storage) = data;
 
         (&entities, &target).join().for_each(|(entity, at)| {
             if let Some(target_pos) = at.get_target_pos(&pos_storage) {
@@ -129,6 +138,12 @@ impl<'a> System<'a> for UpdateAutoTargets {
                             pos.y += dy / mag * speed * delta_time.0.as_secs_f64();
                         }
                     },
+                }
+            }
+
+            if let Some(target_vel) = at.get_target_vel(&vel_storage) {
+                if let Some(vel) = vel_storage.get_mut(entity) {
+                    *vel = target_vel;
                 }
             }
         });

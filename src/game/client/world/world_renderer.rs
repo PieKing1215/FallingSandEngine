@@ -53,7 +53,7 @@ impl WorldRenderer {
     #[warn(clippy::too_many_arguments)]
     #[warn(clippy::too_many_lines)]
     #[profiling::function]
-    pub fn render(&mut self, world: &mut World<ClientChunk>, target: &mut GPUTarget, transform: &mut TransformStack, _delta_time: f64, sdl: &Sdl2Context, fonts: &Fonts, settings: &Settings, shaders: &Shaders, client: &mut Option<Client>) {
+    pub fn render(&mut self, world: &mut World<ClientChunk>, target: &mut GPUTarget, transform: &mut TransformStack, _delta_time: f64, sdl: &Sdl2Context, fonts: &Fonts, settings: &Settings, shaders: &Shaders, client: &mut Option<Client>, partial_ticks: f64) {
 
         if world.lqf_world.get_debug_draw().is_none() {
             self.init(world);
@@ -63,13 +63,20 @@ impl WorldRenderer {
 
         let (
             position_storage,
+            velocity_storage,
             camera_storage,
         ) = world.ecs.system_data::<(
             ReadStorage<Position>,
+            ReadStorage<Velocity>,
             ReadStorage<Camera>,
         )>();
 
-        let camera_pos = (&position_storage, &camera_storage).join().find_map(|(p, _c)| Some(p.clone())).expect("No Camera in world!");
+        let camera_pos = (&position_storage, velocity_storage.maybe(), &camera_storage).join().find_map(|(p, v, _c)| {
+            Some(Position {
+                x: p.x + v.map_or(0.0, |v| v.x) * partial_ticks,
+                y: p.y + v.map_or(0.0, |v| v.y) * partial_ticks,
+            })
+        }).expect("No Camera in world!");
 
         let loader_pos = match client {
             Some(Client{world: Some(ClientWorld{local_entity}), .. }) => {
@@ -81,6 +88,7 @@ impl WorldRenderer {
         };
 
         drop(position_storage);
+        drop(velocity_storage);
         drop(camera_storage);
 
         let camera_scale = client.as_ref().unwrap().camera_scale;
@@ -305,71 +313,97 @@ impl WorldRenderer {
             )>();
 
             (&game_entity_storage, &position_storage, velocity_storage.maybe(), physics_storage.maybe()).join().for_each(|(_ge, pos, vel, _phys): (&GameEntity, &Position, Option<&Velocity>, Option<&PhysicsEntity>)| {
-                transform.push();
-                transform.translate(pos.x, pos.y);
-
-                let (x1, y1) = transform.transform((-1.0, -1.0));
-                let (x2, y2) = transform.transform((1.0, 1.0));
-
-                target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(64, 255, 64, 255));
+                let mut draw = |x: f64, y: f64, alpha: u8| {
+                    transform.push();
+                    transform.translate(x, y);
+    
+                    let (x1, y1) = transform.transform((-1.0, -1.0));
+                    let (x2, y2) = transform.transform((1.0, 1.0));
+    
+                    target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(64, 255, 64, alpha));
+                    
+                    if let Some(vel) = vel {
+                        let (vel_x1, vel_y1) = transform.transform((0.0, 0.0));
+                        let (vel_x2, vel_y2) = transform.transform((vel.x, vel.y));
+    
+                        target.line(vel_x1 as f32, vel_y1 as f32, vel_x2 as f32, vel_y2 as f32, Color::RGBA(64, 255, 64, alpha));
+                    }
+    
+                    transform.pop();
+                };
                 
-                if let Some(vel) = vel {
-                    let (vel_x1, vel_y1) = transform.transform((0.0, 0.0));
-                    let (vel_x2, vel_y2) = transform.transform((vel.x, vel.y));
-
-                    target.line(vel_x1 as f32, vel_y1 as f32, vel_x2 as f32, vel_y2 as f32, Color::RGBA(64, 255, 64, 255));
-                }
-
-                transform.pop();
+                let lerp_x = pos.x + vel.map_or(0.0, |v| v.x) * partial_ticks;
+                let lerp_y = pos.y + vel.map_or(0.0, |v| v.y) * partial_ticks;
+                draw(lerp_x, lerp_y, 255);
+                draw(pos.x, pos.y, 80);
             });
 
             let (
                 position_storage,
                 hitbox_storage,
+                velocity_storage,
             ) = world.ecs.system_data::<(
                 ReadStorage<Position>,
                 ReadStorage<Hitbox>,
+                ReadStorage<Velocity>,
             )>();
 
-            (&position_storage, &hitbox_storage).join().for_each(|(pos, hit)| {
-                transform.push();
-                transform.translate(pos.x, pos.y);
+            (&position_storage, &hitbox_storage, velocity_storage.maybe()).join().for_each(|(pos, hit, vel)| {
+                let mut draw = |x: f64, y: f64, alpha: u8| {
+                    transform.push();
+                    transform.translate(x, y);
 
-                let (x1, y1) = transform.transform((f64::from(hit.x1), f64::from(hit.y1)));
-                let (x2, y2) = transform.transform((f64::from(hit.x2), f64::from(hit.y2)));
+                    let (x1, y1) = transform.transform((f64::from(hit.x1), f64::from(hit.y1)));
+                    let (x2, y2) = transform.transform((f64::from(hit.x2), f64::from(hit.y2)));
 
-                target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(255, 64, 64, 255));
+                    target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(255, 64, 64, alpha));
 
-                transform.pop();
+                    transform.pop();
+                };
+                
+                let lerp_x = pos.x + vel.map_or(0.0, |v| v.x) * partial_ticks;
+                let lerp_y = pos.y + vel.map_or(0.0, |v| v.y) * partial_ticks;
+                draw(lerp_x, lerp_y, 255);
+                draw(pos.x, pos.y, 80);
             });
 
             let (
                 position_storage,
+                velocity_storage,
                 target_storage,
             ) = world.ecs.system_data::<(
                 ReadStorage<Position>,
+                ReadStorage<Velocity>,
                 ReadStorage<AutoTarget>,
             )>();
 
-            (&position_storage, &target_storage).join().for_each(|(pos, at)| {
-                transform.push();
-                transform.translate(pos.x, pos.y);
+            (&position_storage, velocity_storage.maybe(), &target_storage).join().for_each(|(pos, vel, at)| {
+                let mut draw = |x: f64, y: f64, alpha: u8| {
+                    transform.push();
+                    transform.translate(x, y);
 
-                let (x1, y1) = transform.transform((-1.0, -1.0));
-                let (x2, y2) = transform.transform((1.0, 1.0));
+                    let (x1, y1) = transform.transform((-1.0, -1.0));
+                    let (x2, y2) = transform.transform((1.0, 1.0));
 
-                target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(64, 255, 64, 255));
-   
-                transform.pop();
+                    target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(64, 255, 64, alpha));
+    
 
+                    
+                    let target_pos = at.get_target_pos(&position_storage);
+                    if let Some(target_pos) = target_pos {
+                        let (line_x1, line_y1) = (0.0, 0.0);
+                        let (line_x2, line_y2) = (target_pos.x - x, target_pos.y - y);
+
+                        target.line(line_x1 as f32, line_y1 as f32, line_x2 as f32, line_y2 as f32, Color::RGBA(255, 255, 64, alpha/2));
+                    }
+
+                    transform.pop();
+                };
                 
-                let target_pos = at.get_target_pos(&position_storage);
-                if let Some(target_pos) = target_pos {
-                    let (line_x1, line_y1) = transform.transform((pos.x, pos.y));
-                    let (line_x2, line_y2) = transform.transform((target_pos.x, target_pos.y));
-
-                    target.line(line_x1 as f32, line_y1 as f32, line_x2 as f32, line_y2 as f32, Color::RGBA(255, 255, 64, 127));
-                }
+                let lerp_x = pos.x + vel.map_or(0.0, |v| v.x) * partial_ticks;
+                let lerp_y = pos.y + vel.map_or(0.0, |v| v.y) * partial_ticks;
+                draw(lerp_x, lerp_y, 255);
+                draw(pos.x, pos.y, 80);
             });
         }
         // canvas.set_clip_rect(clip);
