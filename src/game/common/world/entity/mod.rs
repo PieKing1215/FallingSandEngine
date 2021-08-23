@@ -70,13 +70,39 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
         (&entities, &mut pos, &mut vel, &mut game_ent, &mut phys_ent, persistent.maybe(), &mut hitbox).join().for_each(|(ent, pos, vel, game_ent, phys_ent, persistent, hitbox): (specs::Entity, &mut Position, &mut Velocity, &mut GameEntity, &mut PhysicsEntity, Option<&Persistent>, &mut Hitbox)| {
             // profiling::scope!("Particle");
 
-            let lx = pos.x;
-            let ly = pos.y;
-
-            let (chunk_x, chunk_y) = chunk_handler.pixel_to_chunk_pos(lx as i64, ly as i64);
+            let (chunk_x, chunk_y) = chunk_handler.pixel_to_chunk_pos(pos.x as i64, pos.y as i64);
             // skip if chunk not active
             if persistent.is_none() && !matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active) {
                 return;
+            }
+
+            let steps_x = ((hitbox.x2 - hitbox.x1).signum() * (hitbox.x2 - hitbox.x1).abs().ceil()) as u16;
+            let steps_y = ((hitbox.y2 - hitbox.y1).signum() * (hitbox.y2 - hitbox.y1).abs().ceil()) as u16;
+
+            // if currently intersected, try to get out
+
+            let mut n_intersect = 0;
+            let mut avg_in_x = 0.0;
+            let mut avg_in_y = 0.0;
+
+            for h_dx in 0..=steps_x {
+                let h_dx = (h_dx as f32 / steps_x as f32) * (hitbox.x2 - hitbox.x1) + hitbox.x1;
+                for h_dy in 0..=steps_y {
+                    let h_dy = (h_dy as f32 / steps_y as f32) * (hitbox.y2 - hitbox.y1) + hitbox.y1;
+
+                    if let Ok(mat) = chunk_handler.get((pos.x + h_dx as f64).floor() as i64, (pos.y + h_dy as f64).floor() as i64) {
+                        if mat.physics == PhysicsType::Solid || mat.physics == PhysicsType::Sand {
+                            n_intersect += 1;
+                            avg_in_x += h_dx;
+                            avg_in_y += h_dy;
+                        }
+                    }
+                }
+            }
+
+            if n_intersect > 0 {
+                pos.x += if avg_in_x == 0.0 { 0.0 } else { -avg_in_x.signum() } as f64;
+                pos.y += if avg_in_y == 0.0 { 0.0 } else { -avg_in_y.signum() } as f64;
             }
 
             vel.y += 0.1;
@@ -84,8 +110,8 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
             let dx = vel.x;
             let dy = vel.y;
 
-            let mut new_pos_x = lx;
-            let mut new_pos_y = ly;
+            let mut new_pos_x = pos.x;
+            let mut new_pos_y = pos.y;
 
             let steps = ((dx.abs() + dy.abs()) as u32 + 1).max(2);
             for s in 0..steps {
@@ -98,9 +124,6 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                 let mut collided_x = false;
                 let mut collided_y = false;
 
-                let steps_x = ((hitbox.x2 - hitbox.x1).signum() * (hitbox.x2 - hitbox.x1).abs().ceil()) as u16;
-                let steps_y = ((hitbox.y2 - hitbox.y1).signum() * (hitbox.y2 - hitbox.y1).abs().ceil()) as u16;
-                
                 let edge_clip_distance = 2.0;
 
                 for h_dx in 0..=steps_x {
