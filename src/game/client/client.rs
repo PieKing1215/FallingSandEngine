@@ -51,10 +51,10 @@ impl Client {
                 )>();
 
                 if let Some(vel) = velocity_storage.get_mut(eid) {
-                    if self.controls.up    { vel.y -= 2.0 }
-                    if self.controls.down  { vel.y += 2.0 }
-                    if self.controls.left  { vel.x -= 2.0 }
-                    if self.controls.right { vel.x += 2.0 }
+                    if self.controls.up    { vel.y -= 0.5 }
+                    if self.controls.down  { vel.y += 0.5 }
+                    if self.controls.left  { vel.x -= 0.5 }
+                    if self.controls.right { vel.x += 0.5 }
                 }
             }
         }
