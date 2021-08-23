@@ -1,4 +1,4 @@
-use specs::{Component, Entities, Join, System, Write, WriteStorage, storage::BTreeStorage};
+use specs::{Component, Entities, Join, System, WriteStorage, storage::BTreeStorage};
 use serde::{Serialize, Deserialize};
 
 mod player;
@@ -59,7 +59,7 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
     fn run(&mut self, data: Self::SystemData) {
         profiling::scope!("UpdatePhysicsEntities::run");
 
-        let (entities, mut pos, mut vel, mut game_ent, mut phys_ent, mut persistent, mut hitbox) = data;
+        let (entities, mut pos, mut vel, mut game_ent, mut phys_ent, persistent, mut hitbox) = data;
         // let chunk_handler = chunk_handler.unwrap().0;
         let chunk_handler = &mut *self.chunk_handler;
 
@@ -67,7 +67,7 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
 
         // TODO: if I can ever get ChunkHandler to be Send (+ Sync would be ideal), can use par_join and organize a bit for big performance gain
         //       iirc right now, ChunkHandler<ServerChunk> is Send + !Sync and ChunkHandler<ClientChunk> is !Send + !Sync (because of the GPUImage in ChunkGraphics)
-        (&entities, &mut pos, &mut vel, &mut game_ent, &mut phys_ent, persistent.maybe(), &mut hitbox).join().for_each(|(ent, pos, vel, game_ent, phys_ent, persistent, hitbox): (specs::Entity, &mut Position, &mut Velocity, &mut GameEntity, &mut PhysicsEntity, Option<&Persistent>, &mut Hitbox)| {
+        (&entities, &mut pos, &mut vel, &mut game_ent, &mut phys_ent, persistent.maybe(), &mut hitbox).join().for_each(|(_ent, pos, vel, _game_ent, _phys_ent, persistent, hitbox): (specs::Entity, &mut Position, &mut Velocity, &mut GameEntity, &mut PhysicsEntity, Option<&Persistent>, &mut Hitbox)| {
             // profiling::scope!("Particle");
 
             let (chunk_x, chunk_y) = chunk_handler.pixel_to_chunk_pos(pos.x as i64, pos.y as i64);
@@ -86,11 +86,11 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
             let mut avg_in_y = 0.0;
 
             for h_dx in 0..=steps_x {
-                let h_dx = (h_dx as f32 / steps_x as f32) * (hitbox.x2 - hitbox.x1) + hitbox.x1;
+                let h_dx = (f32::from(h_dx) / f32::from(steps_x)) * (hitbox.x2 - hitbox.x1) + hitbox.x1;
                 for h_dy in 0..=steps_y {
-                    let h_dy = (h_dy as f32 / steps_y as f32) * (hitbox.y2 - hitbox.y1) + hitbox.y1;
+                    let h_dy = (f32::from(h_dy) / f32::from(steps_y)) * (hitbox.y2 - hitbox.y1) + hitbox.y1;
 
-                    if let Ok(mat) = chunk_handler.get((pos.x + h_dx as f64).floor() as i64, (pos.y + h_dy as f64).floor() as i64) {
+                    if let Ok(mat) = chunk_handler.get((pos.x + f64::from(h_dx)).floor() as i64, (pos.y + f64::from(h_dy)).floor() as i64) {
                         if mat.physics == PhysicsType::Solid || mat.physics == PhysicsType::Sand {
                             n_intersect += 1;
                             avg_in_x += h_dx;
@@ -101,8 +101,8 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
             }
 
             if n_intersect > 0 {
-                pos.x += if avg_in_x == 0.0 { 0.0 } else { -avg_in_x.signum() } as f64;
-                pos.y += if avg_in_y == 0.0 { 0.0 } else { -avg_in_y.signum() } as f64;
+                pos.x += f64::from(if avg_in_x == 0.0 { 0.0 } else { -avg_in_x.signum() });
+                pos.y += f64::from(if avg_in_y == 0.0 { 0.0 } else { -avg_in_y.signum() });
             }
 
             vel.y += 0.1;
@@ -114,12 +114,11 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
             let mut new_pos_y = pos.y;
 
             let steps = ((dx.abs() + dy.abs()) as u32 + 1).max(2);
-            for s in 0..steps {
+            for _ in 0..steps {
                 // profiling::scope!("step");
-                let thru = f64::from(s + 1) / f64::from(steps);
 
-                new_pos_x += dx / steps as f64;
-                new_pos_y += dy / steps as f64;
+                new_pos_x += dx / f64::from(steps);
+                new_pos_y += dy / f64::from(steps);
 
                 let mut collided_x = false;
                 let mut collided_y = false;
@@ -127,25 +126,31 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                 let edge_clip_distance = 2.0;
 
                 for h_dx in 0..=steps_x {
-                    let h_dx = (h_dx as f32 / steps_x as f32) * (hitbox.x2 - hitbox.x1) + hitbox.x1;
+                    let h_dx = (f32::from(h_dx) / f32::from(steps_x)) * (hitbox.x2 - hitbox.x1) + hitbox.x1;
                     for h_dy in 0..=steps_y {
-                        let h_dy = (h_dy as f32 / steps_y as f32) * (hitbox.y2 - hitbox.y1) + hitbox.y1;
+                        let h_dy = (f32::from(h_dy) / f32::from(steps_y)) * (hitbox.y2 - hitbox.y1) + hitbox.y1;
 
-                        if let Ok(mat) = chunk_handler.get((new_pos_x + h_dx as f64).floor() as i64, (pos.y + h_dy as f64).floor() as i64) {
+                        if let Ok(mat) = chunk_handler.get((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + f64::from(h_dy)).floor() as i64).map(|m| *m) {
                             if mat.physics == PhysicsType::Solid || mat.physics == PhysicsType::Sand {
                                 if h_dy - hitbox.y1 < edge_clip_distance {
-                                    let clip_y = ((pos.y + h_dy as f64).floor() + 1.0) - (pos.y + hitbox.y1 as f64) + 0.05;
+                                    let clip_y = ((pos.y + f64::from(h_dy)).floor() + 1.0) - (pos.y + f64::from(hitbox.y1)) + 0.05;
                                     // log::debug!("clip_y = {}", clip_y);
                                     let mut would_clip_collide = false;
-                                    'clip_collide: for h_dx in 0..=steps_x {
-                                        let h_dx = (h_dx as f32 / steps_x as f32) * (hitbox.x2 - hitbox.x1) + hitbox.x1;
+                                    'clip_collide_a: for h_dx in 0..=steps_x {
+                                        let h_dx = (f32::from(h_dx) / f32::from(steps_x)) * (hitbox.x2 - hitbox.x1) + hitbox.x1;
                                         for h_dy in 0..=steps_y {
-                                            let h_dy = (h_dy as f32 / steps_y as f32) * (hitbox.y2 - hitbox.y1) + hitbox.y1;
+                                            let h_dy = (f32::from(h_dy) / f32::from(steps_y)) * (hitbox.y2 - hitbox.y1) + hitbox.y1;
                     
-                                            if let Ok(mat) = chunk_handler.get((new_pos_x + h_dx as f64).floor() as i64, (pos.y + clip_y + h_dy as f64).floor() as i64) {
+                                            if let Ok(mat) = chunk_handler.get((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + clip_y + f64::from(h_dy)).floor() as i64).map(|m| *m) {
                                                 if mat.physics == PhysicsType::Solid || mat.physics == PhysicsType::Sand {
                                                     would_clip_collide = true;
-                                                    break 'clip_collide;
+                                                    if debug_visualize {
+                                                        let _ignore = chunk_handler.set((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + clip_y + f64::from(h_dy)).floor() as i64, MaterialInstance {
+                                                            color: sdl2::pixels::Color::RGB(255, 255, 0),
+                                                            ..mat
+                                                        });
+                                                    }
+                                                    break 'clip_collide_a;
                                                 }
                                             }
                                         }
@@ -153,12 +158,6 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
 
                                     if would_clip_collide {
                                         collided_x = true;
-                                        if debug_visualize {
-                                            let _ignore = chunk_handler.set((new_pos_x + h_dx as f64).floor() as i64, (pos.y + clip_y + h_dy as f64).floor() as i64, MaterialInstance {
-                                                color: sdl2::pixels::Color::RGB(255, 255, 0),
-                                                ..*mat
-                                            });
-                                        }
                                     } else {
                                         new_pos_y += clip_y;
                                         pos.y += clip_y;
@@ -171,24 +170,24 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                                         vel.x *= (1.0 - (clip_y.abs() / 3.0).powi(4)).clamp(0.5, 1.0);
                                     }
                                 }else if hitbox.y2 - h_dy < edge_clip_distance {
-                                    let clip_y = (pos.y + h_dy as f64).floor() - (pos.y + hitbox.y2 as f64) - 0.05;
+                                    let clip_y = (pos.y + f64::from(h_dy)).floor() - (pos.y + f64::from(hitbox.y2)) - 0.05;
                                     // log::debug!("clip_y = {}", clip_y);
                                     let mut would_clip_collide = false;
-                                    'clip_collide: for h_dx in 0..=steps_x {
-                                        let h_dx = (h_dx as f32 / steps_x as f32) * (hitbox.x2 - hitbox.x1) + hitbox.x1;
+                                    'clip_collide_b: for h_dx in 0..=steps_x {
+                                        let h_dx = (f32::from(h_dx) / f32::from(steps_x)) * (hitbox.x2 - hitbox.x1) + hitbox.x1;
                                         for h_dy in 0..=steps_y {
-                                            let h_dy = (h_dy as f32 / steps_y as f32) * (hitbox.y2 - hitbox.y1) + hitbox.y1;
+                                            let h_dy = (f32::from(h_dy) / f32::from(steps_y)) * (hitbox.y2 - hitbox.y1) + hitbox.y1;
                     
-                                            if let Ok(mat) = chunk_handler.get((new_pos_x + h_dx as f64).floor() as i64, (pos.y + clip_y + h_dy as f64).floor() as i64) {
+                                            if let Ok(mat) = chunk_handler.get((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + clip_y + f64::from(h_dy)).floor() as i64).map(|m| *m) {
                                                 if mat.physics == PhysicsType::Solid || mat.physics == PhysicsType::Sand {
                                                     would_clip_collide = true;
                                                     if debug_visualize {
-                                                        let _ignore = chunk_handler.set((new_pos_x + h_dx as f64).floor() as i64, (pos.y + clip_y + h_dy as f64).floor() as i64, MaterialInstance {
+                                                        let _ignore = chunk_handler.set((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + clip_y + f64::from(h_dy)).floor() as i64, MaterialInstance {
                                                             color: sdl2::pixels::Color::RGB(127, 127, 0),
-                                                            ..*mat
+                                                            ..mat
                                                         });
                                                     }
-                                                    break 'clip_collide;
+                                                    break 'clip_collide_b;
                                                 }
                                             }
                                         }
@@ -210,9 +209,9 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                                 } else {
                                     collided_x = true;
                                     if debug_visualize {
-                                        let _ignore = chunk_handler.set((new_pos_x + h_dx as f64).floor() as i64, (pos.y + h_dy as f64).floor() as i64, MaterialInstance {
+                                        let _ignore = chunk_handler.set((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + f64::from(h_dy)).floor() as i64, MaterialInstance {
                                             color: sdl2::pixels::Color::RGB(255, 255, 0),
-                                            ..*mat
+                                            ..mat
                                         });
                                     }
                                     // break 'collision;
@@ -229,17 +228,17 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                 }
 
                 'collision: for h_dx in 0..=steps_x {
-                    let h_dx = (h_dx as f32 / steps_x as f32) * (hitbox.x2 - hitbox.x1) + hitbox.x1;
+                    let h_dx = (f32::from(h_dx) / f32::from(steps_x)) * (hitbox.x2 - hitbox.x1) + hitbox.x1;
                     for h_dy in 0..=steps_y {
-                        let h_dy = (h_dy as f32 / steps_y as f32) * (hitbox.y2 - hitbox.y1) + hitbox.y1;
+                        let h_dy = (f32::from(h_dy) / f32::from(steps_y)) * (hitbox.y2 - hitbox.y1) + hitbox.y1;
 
-                        if let Ok(mat) = chunk_handler.get((pos.x + h_dx as f64).floor() as i64, (new_pos_y + h_dy as f64).floor() as i64) {
+                        if let Ok(mat) = chunk_handler.get((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64).map(|m| *m) {
                             if mat.physics == PhysicsType::Solid || mat.physics == PhysicsType::Sand {
                                 collided_y = true;
                                 if debug_visualize {
-                                    let _ignore = chunk_handler.set((pos.x + h_dx as f64).floor() as i64, (new_pos_y + h_dy as f64).floor() as i64, MaterialInstance {
+                                    let _ignore = chunk_handler.set((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, MaterialInstance {
                                         color: sdl2::pixels::Color::RGB(255, 0, 255),
-                                        ..*mat
+                                        ..mat
                                     });
                                 }
                                 break 'collision;

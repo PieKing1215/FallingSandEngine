@@ -14,6 +14,7 @@
 #![allow(clippy::module_inception)]
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::items_after_statements)]
+#![allow(clippy::similar_names)]
 
 mod game;
 
