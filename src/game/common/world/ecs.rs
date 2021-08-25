@@ -1,10 +1,14 @@
-use std::ops::Deref;
+use std::{borrow::BorrowMut, ops::Deref, sync::{Arc, Mutex}};
 use core::fmt::Debug;
 
+use liquidfun::box2d::{common::math::Vec2, dynamics::body::Body};
 use specs::{Component, Entities, Join, NullStorage, Read, ReadStorage, Storage, System, VecStorage, WriteStorage, storage::{BTreeStorage, MaskedStorage}};
 use serde::{Serialize, Deserialize};
+use bitflags::bitflags;
 
-use super::ChunkHandlerGeneric;
+use crate::game::common::world::LIQUIDFUN_SCALE;
+
+use super::{ChunkHandlerGeneric, entity::Hitbox};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Position {
@@ -148,5 +152,102 @@ impl<'a> System<'a> for UpdateAutoTargets {
             }
         });
 
+    }
+}
+
+bitflags! {
+    pub struct CollisionFlags: u16 {
+        const ENTITY    = 0b0000_0001;
+        const WORLD     = 0b0000_0010;
+        const RIGIDBODY = 0b0000_0100;
+        const PLAYER    = Self::ENTITY.bits;
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct B2BodyComponent {
+    pub body: Arc<Mutex<Body>>,
+}
+
+impl B2BodyComponent {
+    pub fn of(body: Body) -> Self {
+        Self {
+            body: Arc::new(Mutex::new(body)),
+        }
+    }
+}
+
+impl Component for B2BodyComponent {
+    type Storage = BTreeStorage<Self>;
+}
+
+pub struct UpdateB2Bodies;
+
+impl<'a> System<'a> for UpdateB2Bodies {
+    #[allow(clippy::type_complexity)]
+    type SystemData = (ReadStorage<'a, Hitbox>,
+                       WriteStorage<'a, B2BodyComponent>,
+                       WriteStorage<'a, Position>,
+                       WriteStorage<'a, Velocity>);
+
+    fn run(&mut self, data: Self::SystemData) {
+        profiling::scope!("UpdateB2Bodies::run");
+
+        let (hitboxes, mut b2bodies, mut pos, mut vel) = data;
+
+        (&hitboxes, &mut b2bodies, &mut pos, &mut vel).join().for_each(|(_hitbox, body, pos, vel)| {
+            let mut body = body.body.borrow_mut().lock().expect("UpdateB2Bodies: Lock body failed");
+            let np = Vec2::new(pos.x as f32 / LIQUIDFUN_SCALE, pos.y as f32 / LIQUIDFUN_SCALE);
+            body.set_transform(&np, 0.0);
+            body.set_linear_velocity(&Vec2::new(vel.x as f32, vel.y as f32));
+        });
+    }
+}
+
+pub struct ApplyB2Bodies;
+
+impl<'a> System<'a> for ApplyB2Bodies {
+    #[allow(clippy::type_complexity)]
+    type SystemData = (ReadStorage<'a, Hitbox>,
+                       ReadStorage<'a, B2BodyComponent>,
+                       WriteStorage<'a, Position>,
+                       WriteStorage<'a, Velocity>);
+
+    fn run(&mut self, data: Self::SystemData) {
+        profiling::scope!("ApplyB2Bodies::run");
+
+        let (hitboxes, b2bodies, mut pos, mut vel) = data;
+
+        (&hitboxes, &b2bodies, &mut pos, &mut vel).join().for_each(|(_hitbox, body, pos, vel)| {
+            let body = body.body.lock().expect("ApplyB2Bodies: Lock body failed");
+
+            // TODO: I want to take this into account since b2d will update the position when clipping
+            //         but since it also adds the velocity, it causes the player to clip into walls slightly (causing jitter)
+            // pos.x = f64::from(body.get_position().x * LIQUIDFUN_SCALE);
+            // pos.y = f64::from(body.get_position().y * LIQUIDFUN_SCALE);
+
+            let vel_before = vel.clone();
+
+            vel.x = f64::from(body.get_linear_velocity().x);
+            vel.y = f64::from(body.get_linear_velocity().y);
+
+            let vel_change = Velocity {
+                x: vel.x - vel_before.x,
+                y: vel.y - vel_before.y,
+            };
+
+            let vel_change_limit = 30.0;
+            let vel_change_mag = vel_change.x * vel_change.x + vel_change.y * vel_change.y;
+
+            if vel_change_mag > vel_change_limit / 10.0 { // arbitrary limit to simplify math when vel_change_mag is too small to notice
+                // function that takes x: [0..inf], y: [0..inf] and maps it to x: [0..inf], y: [0..vel_change_limit]
+                // see https://www.desmos.com/calculator/oi3loraack for a comparison of some functions
+                let new_mag = (vel_change_mag / vel_change_limit).tanh() * vel_change_limit;
+
+                log::debug!("Limited body velocity change ({} -> {})", vel_change_mag, new_mag);
+                vel.x = vel_before.x + vel_change.x * (new_mag / vel_change_mag);
+                vel.y = vel_before.y + vel_change.y * (new_mag / vel_change_mag);
+            }
+        });
     }
 }

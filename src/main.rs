@@ -29,6 +29,11 @@ use clap::crate_authors;
 use clap::crate_name;
 use clap::crate_version;
 use game::Game;
+use liquidfun::box2d::collision::shapes::polygon_shape::PolygonShape;
+use liquidfun::box2d::common::math::Vec2;
+use liquidfun::box2d::dynamics::body::BodyDef;
+use liquidfun::box2d::dynamics::body::BodyType;
+use liquidfun::box2d::dynamics::fixture::FixtureDef;
 use log::LevelFilter;
 use log::error;
 use log::info;
@@ -51,7 +56,9 @@ use crate::game::client::world::ClientChunk;
 use crate::game::client::world::ClientWorld;
 use crate::game::common::FileHelper;
 use crate::game::common::world::AutoTarget;
+use crate::game::common::world::B2BodyComponent;
 use crate::game::common::world::Camera;
+use crate::game::common::world::LIQUIDFUN_SCALE;
 use crate::game::common::world::Loader;
 use crate::game::common::world::Position;
 use crate::game::common::world::Target;
@@ -63,6 +70,7 @@ use crate::game::common::world::entity::Persistent;
 use crate::game::common::world::entity::PhysicsEntity;
 use crate::game::common::world::entity::Player;
 use crate::game::server::world::ServerChunk;
+use crate::game::common::world::CollisionFlags;
 
 #[allow(clippy::needless_pass_by_value)]
 fn is_type<T: FromStr>(val: String) -> Result<(), String>
@@ -246,6 +254,23 @@ fn main() -> Result<(), String> {
         if let Some(w) = &mut game.world {
             game.client = Some(Client::new());
 
+            let body_def = BodyDef {
+                body_type: BodyType::DynamicBody,
+                fixed_rotation: true,
+                gravity_scale: 0.0,
+                bullet: true,
+                ..BodyDef::default()
+            };
+            let body = w.lqf_world.create_body(&body_def);
+            let mut dynamic_box = PolygonShape::new();
+            dynamic_box.set_as_box(12.0 / LIQUIDFUN_SCALE / 2.0, 20.0 / LIQUIDFUN_SCALE / 2.0);
+            let mut fixture_def = FixtureDef::new(&dynamic_box);
+            fixture_def.density = 1.5;
+            fixture_def.friction = 0.3;
+            fixture_def.filter.category_bits = CollisionFlags::PLAYER.bits();
+            fixture_def.filter.mask_bits = (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits();
+            body.create_fixture(&fixture_def);
+
             let player = w.ecs.create_entity()
                 .with(Player)
                 .with(GameEntity)
@@ -255,6 +280,7 @@ fn main() -> Result<(), String> {
                 .with(Velocity{ x: 0.0, y: 0.0 })
                 .with(Hitbox { x1: -6.0, y1: -10.0, x2: 6.0, y2: 10.0 })
                 .with(Loader)
+                .with(B2BodyComponent::of(body))
                 .build();
 
             let _camera = w.ecs.create_entity()

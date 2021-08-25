@@ -3,11 +3,11 @@ use std::{borrow::BorrowMut, convert::Infallible, path::PathBuf, time::Duration}
 
 use crate::game::common::Settings;
 
-use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::body::{BodyDef, BodyType}};
+use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::{body::{BodyDef, BodyType}, fixture::FixtureDef}};
 use sdl2::pixels::Color;
 use specs::{Builder, Entities, ReadStorage, RunNow, WorldExt, Write, WriteStorage, saveload::{MarkedBuilder, SimpleMarker, SimpleMarkerAllocator}};
 
-use super::{AutoTarget, CHUNK_SIZE, Camera, Chunk, ChunkHandler, ChunkHandlerGeneric, DeltaTime, FilePersistent, Loader, Position, UpdateAutoTargets, Velocity, entity::{GameEntity, Hitbox, Persistent, PhysicsEntity, Player, UpdatePhysicsEntities}, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{Particle, UpdateParticles}, rigidbody::RigidBody, simulator};
+use super::{CollisionFlags, ApplyB2Bodies, AutoTarget, B2BodyComponent, CHUNK_SIZE, Camera, Chunk, ChunkHandler, ChunkHandlerGeneric, DeltaTime, FilePersistent, Loader, Position, UpdateAutoTargets, UpdateB2Bodies, Velocity, entity::{GameEntity, Hitbox, Persistent, PhysicsEntity, Player, UpdatePhysicsEntities}, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{Particle, UpdateParticles}, rigidbody::RigidBody, simulator};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
@@ -153,6 +153,7 @@ impl<'w, C: Chunk> World<C> {
         ecs.register::<AutoTarget>();
         ecs.register::<Camera>();
         ecs.register::<Persistent>();
+        ecs.register::<B2BodyComponent>();
 
         if let Some(path) = &path {
             let particles_path = path.join("particles.dat");
@@ -517,7 +518,12 @@ impl<'w, C: Chunk> World<C> {
 
                             let mut chain = ChainShape::new();
                             chain.create_chain(&verts, verts.len() as i32);
-                            body.create_fixture_from_shape(&chain, 0.0);
+
+                            let mut fixture_def = FixtureDef::new(&chain);
+                            fixture_def.density = 0.0;
+                            fixture_def.filter.category_bits = CollisionFlags::WORLD.bits();
+                            fixture_def.filter.mask_bits = CollisionFlags::RIGIDBODY.bits();
+                            body.create_fixture(&fixture_def);
                         }
 
                     }
@@ -611,10 +617,12 @@ impl<'w, C: Chunk> World<C> {
             }
         }
 
+        let mut update_bodies = UpdateB2Bodies;
+        update_bodies.run_now(&self.ecs);
 
         let time_step = settings.tick_lqf_timestep;
-        let velocity_iterations = 5;
-        let position_iterations = 3;
+        let velocity_iterations = 8;
+        let position_iterations = 4;
         self.lqf_world.step(time_step, velocity_iterations, position_iterations);
         // match self.net_mode {
         //     WorldNetworkMode::Local => {
@@ -625,6 +633,9 @@ impl<'w, C: Chunk> World<C> {
         //     },
         //     WorldNetworkMode::Remote => {},
         // }
+
+        let mut apply_bodies = ApplyB2Bodies;
+        apply_bodies.run_now(&self.ecs);
     }
 
     pub fn frame(&mut self, delta_time: Duration) {

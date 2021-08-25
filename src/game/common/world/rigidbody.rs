@@ -1,8 +1,8 @@
 
-use liquidfun::box2d::{collision::shapes::polygon_shape::PolygonShape, dynamics::body::{Body, BodyDef, BodyType}};
+use liquidfun::box2d::{collision::shapes::polygon_shape::PolygonShape, dynamics::{body::{Body, BodyDef, BodyType}, fixture::FixtureDef}};
 use sdl_gpu::{GPUImage, GPURect, GPUSubsystem};
 
-use super::{LIQUIDFUN_SCALE, material::MaterialInstance, mesh};
+use super::{CollisionFlags, LIQUIDFUN_SCALE, material::MaterialInstance, mesh};
 
 pub struct RigidBody {
     pub width: u16,
@@ -47,7 +47,12 @@ impl RigidBody {
 
             let mut sh = PolygonShape::new();
             sh.set(verts);
-            bod.create_fixture_from_shape(&sh, 1.0);
+
+            let mut fixture_def = FixtureDef::new(&sh);
+            fixture_def.density = 1.0;
+            fixture_def.filter.category_bits = CollisionFlags::RIGIDBODY.bits();
+            fixture_def.filter.mask_bits = CollisionFlags::all().bits();
+            bod.create_fixture(&fixture_def);
         }
 
         Ok(Self {
@@ -153,7 +158,12 @@ impl RigidBody {
 
                 let mut sh = PolygonShape::new();
                 sh.set(verts);
-                bod.create_fixture_from_shape(&sh, 1.0);
+
+                let mut fixture_def = FixtureDef::new(&sh);
+                fixture_def.density = 1.0;
+                fixture_def.filter.category_bits = CollisionFlags::RIGIDBODY.bits();
+                fixture_def.filter.mask_bits = CollisionFlags::all().bits();
+                bod.create_fixture(&fixture_def);
             }
         }
 
