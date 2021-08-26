@@ -1,7 +1,8 @@
 
 use crate::game::common::world::{ChunkState, material::{PhysicsType, TEST_MATERIAL}};
-use super::{ChunkHandlerGeneric, FilePersistent, Position, Velocity, material::MaterialInstance};
+use super::{ChunkHandlerGeneric, FilePersistent, Position, Velocity, entity::Hitbox, material::MaterialInstance};
 
+use rand::prelude::Distribution;
 use sdl2::pixels::Color;
 use serde::{Serialize, Deserialize};
 use specs::{Component, Entities, Join, System, VecStorage, Write, WriteStorage, saveload::{MarkerAllocator, SimpleMarker, SimpleMarkerAllocator}};
@@ -64,12 +65,13 @@ impl<'a> System<'a> for UpdateParticles<'a> {
                        WriteStorage<'a, SimpleMarker<FilePersistent>>,
                        WriteStorage<'a, Particle>,
                        WriteStorage<'a, Position>,
-                       WriteStorage<'a, Velocity>);
+                       WriteStorage<'a, Velocity>,
+                       WriteStorage<'a, Hitbox>);
 
     fn run(&mut self, data: Self::SystemData) {
         profiling::scope!("UpdateParticles::run");
 
-        let (entities, mut marker_alloc, mut markers, mut particle, mut pos, mut vel) = data;
+        let (entities, mut marker_alloc, mut markers, mut particle, mut pos, mut vel, mut hitbox) = data;
         // let chunk_handler = chunk_handler.unwrap().0;
         let chunk_handler = &mut *self.chunk_handler;
 
@@ -163,6 +165,30 @@ impl<'a> System<'a> for UpdateParticles<'a> {
                     }
                 }
             }
+        });
+
+        (&entities, &mut particle, &pos).join().for_each(|(ent, _part, my_pos)| {
+            // profiling::scope!("Particle");
+
+            // let (chunk_x, chunk_y) = chunk_handler.pixel_to_chunk_pos(my_pos.x as i64, my_pos.y as i64);
+            // // skip if chunk not active
+            // if !matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active) {
+            //     return;
+            // }
+
+            (&entities, &hitbox, &pos).join().for_each(|(p_ent, hb, pos)| {
+                if my_pos.x >= f64::from(hb.x1) + pos.x 
+                && my_pos.y >= f64::from(hb.y1) + pos.y
+                && my_pos.x <  f64::from(hb.x2) + pos.x
+                && my_pos.y <  f64::from(hb.y2) + pos.y {
+                    let p = vel.get(p_ent).cloned();
+                    let mp = vel.get_mut(ent);
+                    if let (Some(mp), Some(p)) = (mp, p) {
+                        mp.x += (-p.x - mp.x) * 0.5  + rand::distributions::Uniform::from(-1.0..=1.0).sample(&mut rand::thread_rng());
+                        mp.y += (-p.y - mp.y) * 0.25 + rand::distributions::Uniform::from(-1.0..=1.0).sample(&mut rand::thread_rng());
+                    }
+                }
+            });
         });
     }
 }
