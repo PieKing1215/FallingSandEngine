@@ -1,7 +1,7 @@
 use sdl2::{event::Event, keyboard::Keycode};
 use specs::WriteStorage;
 
-use crate::game::common::world::{Velocity, World};
+use crate::game::common::world::{Velocity, World, entity::{PhysicsEntity, Player, PlayerJumpState, PlayerMovementMode}};
 
 use super::{input::{Controls, InputEvent, KeyControl, KeyControlMode, MultiControl, MultiControlMode}, ui::MainMenu, world::{ClientChunk, ClientWorld}};
 
@@ -38,6 +38,7 @@ impl Client {
                     Box::new(KeyControl::new(Keycode::Space, KeyControlMode::Momentary)),
                     Box::new(KeyControl::new(Keycode::C, KeyControlMode::Momentary)),
                 ])),
+                free_fly: Box::new(KeyControl::new(Keycode::Kp1, KeyControlMode::Rising)),
             },
             camera_scale: 2.0,
             mouse_joint: None,
@@ -51,16 +52,86 @@ impl Client {
 
             if let Some(eid) = w.local_entity {
                 let (
+                    mut player,
+                    mut phys_ent,
                     mut velocity_storage,
                 ) = world.ecs.system_data::<(
+                    WriteStorage<Player>,
+                    WriteStorage<PhysicsEntity>,
                     WriteStorage<Velocity>,
                 )>();
 
-                if let Some(vel) = velocity_storage.get_mut(eid) {
-                    if self.controls.up.get()    { vel.y -= 0.5 }
-                    if self.controls.down.get()  { vel.y += 0.5 }
-                    if self.controls.left.get()  { vel.x -= 0.5 }
-                    if self.controls.right.get() { vel.x += 0.5 }
+                let player = player.get_mut(eid).expect("Missing Player component on local_entity");
+                let phys_ent = phys_ent.get_mut(eid).expect("Missing PhysicsEntity component on local_entity");
+                
+                match player.movement {
+                    PlayerMovementMode::Normal { ref mut state, ref mut boost } => {
+                        if let Some(vel) = velocity_storage.get_mut(eid) {
+
+                            let mut target_x: f64 = 
+                                if self.controls.left.get() { -7.0 } else { 0.0 } + 
+                                if self.controls.right.get() { 7.0 } else { 0.0 };
+                            let mut inv_accel_x = if phys_ent.on_ground { 6.0 } else { 12.0 };
+
+                            if phys_ent.on_ground {
+                                *boost = 1.0;
+                            } else {
+                                vel.x *= 0.99;
+                                vel.y *= 0.99;
+                            }
+
+                            if self.controls.jump.get() && phys_ent.on_ground { 
+                                vel.y -= 10.0;
+                                target_x *= 2.0;
+                                inv_accel_x *= 0.5;
+
+                                *state = PlayerJumpState::Jumping;
+                            }
+
+                            // if self.controls.up.get()    { vel.y -= 0.5 }
+                            #[allow(clippy::collapsible_if)]
+                            if *state == PlayerJumpState::None {
+                                if self.controls.jump.get() && !phys_ent.on_ground && *boost > 0.0 {
+                                    vel.y -= 0.7;
+                                    *boost -= 0.05;
+                                }
+                            }else if *state == PlayerJumpState::Jumping {
+                                if !self.controls.jump.get() {
+                                    if !phys_ent.on_ground && vel.y < 0.0 { 
+                                        vel.y *= 0.8;
+                                    }
+                                    *state = PlayerJumpState::None;
+                                }
+                            }
+
+                            if self.controls.down.get()  { vel.y += 0.1 }
+
+
+                            if phys_ent.on_ground && vel.x.abs() >= 0.001 && target_x.abs() >= 0.001 && target_x.signum() != vel.x.signum() {
+                                inv_accel_x *= 0.5;
+                            }
+
+                            if target_x.abs() > 0.0 {
+                                vel.x += (target_x - vel.x) / inv_accel_x;
+                            }
+                        }
+
+                        if self.controls.free_fly.get() {
+                            player.movement = PlayerMovementMode::Free;
+                        }
+                    },
+                    PlayerMovementMode::Free => {
+                        if let Some(vel) = velocity_storage.get_mut(eid) {
+                            if self.controls.up.get()    { vel.y -= 0.7 }
+                            if self.controls.down.get()  { vel.y += 0.5 }
+                            if self.controls.left.get()  { vel.x -= 0.5 }
+                            if self.controls.right.get() { vel.x += 0.5 }
+                        }
+
+                        if self.controls.free_fly.get() {
+                            player.movement = PlayerMovementMode::Normal { state: PlayerJumpState::None, boost: 1.0 };
+                        }
+                    },
                 }
             }
         }

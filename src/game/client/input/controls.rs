@@ -1,5 +1,6 @@
 use sdl2::keyboard::Keycode;
 
+#[derive(Debug)]
 pub enum InputEvent<'a> {
     SDL2Event(&'a sdl2::event::Event)
 }
@@ -11,6 +12,8 @@ pub struct Controls {
     pub right: Box<dyn Control<bool>>,
     
     pub jump: Box<dyn Control<bool>>,
+
+    pub free_fly: Box<dyn Control<bool>>,
 }
 
 impl Controls {
@@ -21,6 +24,8 @@ impl Controls {
         self.right.process(event);
 
         self.jump.process(event);
+
+        self.free_fly.process(event);
     }
 }
 
@@ -95,6 +100,7 @@ impl Control<bool> for KeyControl {
     }
 
     fn process(&mut self, event: &InputEvent) {
+        // log::debug!("{:?}", event);
         #[allow(clippy::match_wildcard_for_single_variants)]
         match event {
             InputEvent::SDL2Event(sdl2::event::Event::KeyDown { keycode: Some(k), repeat, .. }) if *k == self.key => {

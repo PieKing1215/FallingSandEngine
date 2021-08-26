@@ -68,6 +68,7 @@ use crate::game::common::world::entity::Hitbox;
 use crate::game::common::world::entity::Persistent;
 use crate::game::common::world::entity::PhysicsEntity;
 use crate::game::common::world::entity::Player;
+use crate::game::common::world::entity::PlayerMovementMode;
 use crate::game::server::world::ServerChunk;
 use crate::game::common::world::CollisionFlags;
 
@@ -173,11 +174,33 @@ fn main() -> Result<(), String> {
             let mut game: Game<ServerChunk> = Game::new(file_helper);
 
             if let Some(w) = &mut game.world {
+                let body_def = BodyDef {
+                    body_type: BodyType::DynamicBody,
+                    fixed_rotation: true,
+                    gravity_scale: 0.0,
+                    bullet: true,
+                    ..BodyDef::default()
+                };
+                let body = w.lqf_world.create_body(&body_def);
+                let mut dynamic_box = PolygonShape::new();
+                dynamic_box.set_as_box(12.0 / LIQUIDFUN_SCALE / 2.0, 20.0 / LIQUIDFUN_SCALE / 2.0);
+                let mut fixture_def = FixtureDef::new(&dynamic_box);
+                fixture_def.density = 1.5;
+                fixture_def.friction = 0.3;
+                fixture_def.filter.category_bits = CollisionFlags::PLAYER.bits();
+                fixture_def.filter.mask_bits = (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits();
+                body.create_fixture(&fixture_def);
+    
                 let _player = w.ecs.create_entity()
-                    .with(Player)
+                    .with(Player { movement: PlayerMovementMode::Free })
                     .with(GameEntity)
-                    .with(Position{ x: 0.0, y: 0.0 })
+                    .with(PhysicsEntity { on_ground: false, gravity: 0.2 })
+                    .with(Persistent)
+                    .with(Position{ x: 0.0, y: -20.0 })
+                    .with(Velocity{ x: 0.0, y: 0.0 })
+                    .with(Hitbox { x1: -6.0, y1: -10.0, x2: 6.0, y2: 10.0 })
                     .with(Loader)
+                    .with(B2BodyComponent::of(body))
                     .build();
             };
 
@@ -271,9 +294,9 @@ fn main() -> Result<(), String> {
             body.create_fixture(&fixture_def);
 
             let player = w.ecs.create_entity()
-                .with(Player)
+                .with(Player { movement: PlayerMovementMode::Free })
                 .with(GameEntity)
-                .with(PhysicsEntity)
+                .with(PhysicsEntity { on_ground: false, gravity: 0.5 })
                 .with(Persistent)
                 .with(Position{ x: 0.0, y: -20.0 })
                 .with(Velocity{ x: 0.0, y: 0.0 })

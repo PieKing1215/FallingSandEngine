@@ -1,14 +1,14 @@
 use std::{io::{BufReader, Read}, net::TcpStream, time::{Duration, Instant}};
 
 use clap::ArgMatches;
-use liquidfun::box2d::common::math::Vec2;
+use liquidfun::box2d::{collision::shapes::polygon_shape::PolygonShape, common::math::Vec2, dynamics::{body::{BodyDef, BodyType}, fixture::FixtureDef}};
 use log::{debug, error, info, warn};
 use sdl2::{event::{Event, WindowEvent}, keyboard::Keycode, sys::SDL_WindowFlags, video::{FullscreenType, SwapInterval}};
 use sdl_gpu::GPUSubsystem;
 use specs::{Builder, Join, ReadStorage, WorldExt, WriteStorage};
 use sysinfo::{Pid, ProcessExt, SystemExt};
 
-use crate::game::{Game, client::{world::ClientWorld}, common::{Settings, networking::{Packet, PacketType}, world::{Camera, ChunkHandlerGeneric, LIQUIDFUN_SCALE, Loader, Position, World, WorldNetworkMode, entity::{GameEntity, Hitbox, Player}, material::MaterialInstance}}};
+use crate::game::{Game, client::{world::ClientWorld}, common::{Settings, networking::{Packet, PacketType}, world::{CollisionFlags, B2BodyComponent, Camera, ChunkHandlerGeneric, LIQUIDFUN_SCALE, Loader, Position, Velocity, World, WorldNetworkMode, entity::{GameEntity, Hitbox, Persistent, PhysicsEntity, Player, PlayerMovementMode}, material::MaterialInstance}}};
 
 use super::{render::{Renderer, Sdl2Context}, world::ClientChunk};
 
@@ -308,13 +308,34 @@ impl Game<ClientChunk> {
                                 info!("Load world \"{}\"...", world_meta.name);
                                 self.world = Some(World::create(Some(path.parent().expect("World meta file has no parent directory ??").to_path_buf())));
 
+                                let body_def = BodyDef {
+                                    body_type: BodyType::DynamicBody,
+                                    fixed_rotation: true,
+                                    gravity_scale: 0.0,
+                                    bullet: true,
+                                    ..BodyDef::default()
+                                };
+                                let body = self.world.as_mut().unwrap().lqf_world.create_body(&body_def);
+                                let mut dynamic_box = PolygonShape::new();
+                                dynamic_box.set_as_box(12.0 / LIQUIDFUN_SCALE / 2.0, 20.0 / LIQUIDFUN_SCALE / 2.0);
+                                let mut fixture_def = FixtureDef::new(&dynamic_box);
+                                fixture_def.density = 1.5;
+                                fixture_def.friction = 0.3;
+                                fixture_def.filter.category_bits = CollisionFlags::PLAYER.bits();
+                                fixture_def.filter.mask_bits = (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits();
+                                body.create_fixture(&fixture_def);
+
                                 if let Some(w) = &mut self.world {
                                     let player = w.ecs.create_entity()
-                                    .with(Player)
+                                    .with(Player { movement: PlayerMovementMode::Free })
                                     .with(GameEntity)
-                                    .with(Position{ x: 0.0, y: 0.0 })
+                                    .with(PhysicsEntity { on_ground: false, gravity: 0.1 })
+                                    .with(Persistent)
+                                    .with(Position{ x: 0.0, y: -20.0 })
+                                    .with(Velocity{ x: 0.0, y: 0.0 })
                                     .with(Hitbox { x1: -6.0, y1: -10.0, x2: 6.0, y2: 10.0 })
                                     .with(Loader)
+                                    .with(B2BodyComponent::of(body))
                                     .build();
 
                                     client.world = Some(ClientWorld {

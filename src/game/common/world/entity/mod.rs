@@ -28,7 +28,10 @@ impl Component for Hitbox {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PhysicsEntity;
+pub struct PhysicsEntity {
+    pub gravity: f64,
+    pub on_ground: bool,
+}
 
 impl Component for PhysicsEntity {
     type Storage = BTreeStorage<Self>;
@@ -67,7 +70,7 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
 
         // TODO: if I can ever get ChunkHandler to be Send (+ Sync would be ideal), can use par_join and organize a bit for big performance gain
         //       iirc right now, ChunkHandler<ServerChunk> is Send + !Sync and ChunkHandler<ClientChunk> is !Send + !Sync (because of the GPUImage in ChunkGraphics)
-        (&entities, &mut pos, &mut vel, &mut game_ent, &mut phys_ent, persistent.maybe(), &mut hitbox).join().for_each(|(_ent, pos, vel, _game_ent, _phys_ent, persistent, hitbox): (specs::Entity, &mut Position, &mut Velocity, &mut GameEntity, &mut PhysicsEntity, Option<&Persistent>, &mut Hitbox)| {
+        (&entities, &mut pos, &mut vel, &mut game_ent, &mut phys_ent, persistent.maybe(), &mut hitbox).join().for_each(|(_ent, pos, vel, _game_ent, phys_ent, persistent, hitbox): (specs::Entity, &mut Position, &mut Velocity, &mut GameEntity, &mut PhysicsEntity, Option<&Persistent>, &mut Hitbox)| {
             // profiling::scope!("Particle");
 
             let (chunk_x, chunk_y) = chunk_handler.pixel_to_chunk_pos(pos.x as i64, pos.y as i64);
@@ -75,6 +78,8 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
             if persistent.is_none() && !matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active) {
                 return;
             }
+
+            phys_ent.on_ground = false;
 
             let steps_x = ((hitbox.x2 - hitbox.x1).signum() * (hitbox.x2 - hitbox.x1).abs().ceil()) as u16;
             let steps_y = ((hitbox.y2 - hitbox.y1).signum() * (hitbox.y2 - hitbox.y1).abs().ceil()) as u16;
@@ -105,7 +110,7 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                 pos.y += f64::from(if avg_in_y == 0.0 { 0.0 } else { -avg_in_y.signum() });
             }
 
-            vel.y += 0.1;
+            vel.y += phys_ent.gravity;
 
             let dx = vel.x;
             let dy = vel.y;
@@ -200,11 +205,10 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                                         pos.y += clip_y;
 
                                         // larger step means more slowdown
-                                        // 1.0 -> 0.988
-                                        // 2.0 -> 0.8
-                                        // 2.5 -> 0.515
+                                        // 1.0 -> 0.99 (clamped)
+                                        // 2.0 -> 0.625
                                         // 3.0 -> 0.5 (clamped)
-                                        vel.x *= (1.0 - (clip_y.abs() / 3.0).powi(4)).clamp(0.5, 1.0);
+                                        vel.x *= (0.75 / clip_y.abs() + 0.25).clamp(0.5, 0.99);
                                     }
                                 } else {
                                     collided_x = true;
@@ -248,9 +252,13 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                 }
 
                 if collided_y {
-                    vel.x *= 0.95;
+                    vel.x *= 0.96;
 
-                    vel.y = if vel.y.abs() > 0.25 { vel.y * 0.5 } else { 0.0 };
+                    if dy > 0.0 {
+                        phys_ent.on_ground = true;
+                    }
+
+                    vel.y = if vel.y.abs() > 0.25 { vel.y * 0.75 } else { 0.0 };
                 } else {
                     pos.y = new_pos_y;
                 }
