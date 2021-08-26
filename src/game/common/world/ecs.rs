@@ -221,7 +221,7 @@ impl<'a> System<'a> for ApplyB2Bodies {
 
         let (hitboxes, b2bodies, mut pos, mut vel) = data;
 
-        (&hitboxes, &b2bodies, &mut pos, &mut vel).join().for_each(|(_hitbox, body, pos, vel)| {
+        (&hitboxes, &b2bodies, &mut pos, &mut vel).join().for_each(|(_hitbox, body, _pos, vel)| {
             let body = body.body.lock().expect("ApplyB2Bodies: Lock body failed");
 
             // TODO: I want to take this into account since b2d will update the position when clipping

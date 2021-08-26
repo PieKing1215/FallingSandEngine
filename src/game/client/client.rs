@@ -1,7 +1,7 @@
 use sdl2::{event::Event, keyboard::Keycode};
 use specs::WriteStorage;
 
-use crate::game::common::world::{Position, Velocity, World};
+use crate::game::common::world::{Velocity, World};
 
 use super::{input::{Controls, InputEvent, KeyControl, KeyControlMode, MultiControl, MultiControlMode}, ui::MainMenu, world::{ClientChunk, ClientWorld}};
 
@@ -51,10 +51,8 @@ impl Client {
 
             if let Some(eid) = w.local_entity {
                 let (
-                    mut position_storage,
                     mut velocity_storage,
                 ) = world.ecs.system_data::<(
-                    WriteStorage<Position>,
                     WriteStorage<Velocity>,
                 )>();
 

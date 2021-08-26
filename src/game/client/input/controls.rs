@@ -39,6 +39,7 @@ impl<T: Control<bool>> Control<f32> for T{
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, PartialEq)]
 pub enum KeyControlMode {
     Momentary,
@@ -94,6 +95,7 @@ impl Control<bool> for KeyControl {
     }
 
     fn process(&mut self, event: &InputEvent) {
+        #[allow(clippy::match_wildcard_for_single_variants)]
         match event {
             InputEvent::SDL2Event(sdl2::event::Event::KeyDown { keycode: Some(k), repeat, .. }) if *k == self.key => {
                 if !repeat || self.mode == KeyControlMode::Type {
@@ -110,6 +112,7 @@ impl Control<bool> for KeyControl {
     }
 }
 
+#[allow(dead_code)]
 pub enum MultiControlMode {
     AND,
     OR,

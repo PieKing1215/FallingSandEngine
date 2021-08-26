@@ -30,7 +30,6 @@ use clap::crate_name;
 use clap::crate_version;
 use game::Game;
 use liquidfun::box2d::collision::shapes::polygon_shape::PolygonShape;
-use liquidfun::box2d::common::math::Vec2;
 use liquidfun::box2d::dynamics::body::BodyDef;
 use liquidfun::box2d::dynamics::body::BodyType;
 use liquidfun::box2d::dynamics::fixture::FixtureDef;

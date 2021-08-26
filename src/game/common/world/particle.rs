@@ -73,7 +73,7 @@ impl<'a> System<'a> for UpdateParticles<'a> {
                        WriteStorage<'a, Particle>,
                        WriteStorage<'a, Position>,
                        WriteStorage<'a, Velocity>,
-                       WriteStorage<'a, Hitbox>,
+                       ReadStorage<'a, Hitbox>,
                        ReadStorage<'a, Sleep>,
                        Read<'a, LazyUpdate>,
                        Read<'a, TickTime>,
@@ -83,7 +83,7 @@ impl<'a> System<'a> for UpdateParticles<'a> {
     fn run(&mut self, data: Self::SystemData) {
         profiling::scope!("UpdateParticles::run");
 
-        let (entities, mut marker_alloc, mut markers, mut particle, mut pos, mut vel, mut hitbox, sleep, updater, tick_time) = data;
+        let (entities, mut marker_alloc, mut markers, mut particle, mut pos, mut vel, hitbox, sleep, updater, tick_time) = data;
         // let chunk_handler = chunk_handler.unwrap().0;
         let chunk_handler = &mut *self.chunk_handler;
 
