@@ -7,7 +7,7 @@ use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2dr
 use sdl2::pixels::Color;
 use specs::{Builder, Entities, ReadStorage, RunNow, WorldExt, Write, WriteStorage, saveload::{MarkedBuilder, SimpleMarker, SimpleMarkerAllocator}};
 
-use super::{CollisionFlags, ApplyB2Bodies, AutoTarget, B2BodyComponent, CHUNK_SIZE, Camera, Chunk, ChunkHandler, ChunkHandlerGeneric, DeltaTime, FilePersistent, Loader, Position, UpdateAutoTargets, UpdateB2Bodies, Velocity, entity::{GameEntity, Hitbox, Persistent, PhysicsEntity, Player, UpdatePhysicsEntities}, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{Particle, UpdateParticles}, rigidbody::RigidBody, simulator};
+use super::{ApplyB2Bodies, AutoTarget, B2BodyComponent, CHUNK_SIZE, Camera, Chunk, ChunkHandler, ChunkHandlerGeneric, CollisionFlags, DeltaTime, FilePersistent, Loader, Position, TickTime, UpdateAutoTargets, UpdateB2Bodies, Velocity, entity::{GameEntity, Hitbox, Persistent, PhysicsEntity, Player, UpdatePhysicsEntities}, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{Particle, Sleep, UpdateParticles}, rigidbody::RigidBody, simulator};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
@@ -142,6 +142,7 @@ impl<'w, C: Chunk> World<C> {
         ecs.register::<SimpleMarker<FilePersistent>>();
         ecs.insert(SimpleMarkerAllocator::<FilePersistent>::default());
         ecs.insert(DeltaTime(Duration::from_millis(1)));
+        ecs.insert(TickTime(0));
         ecs.register::<Position>();
         ecs.register::<Velocity>();
         ecs.register::<Particle>();
@@ -154,6 +155,7 @@ impl<'w, C: Chunk> World<C> {
         ecs.register::<Camera>();
         ecs.register::<Persistent>();
         ecs.register::<B2BodyComponent>();
+        ecs.register::<Sleep>();
 
         if let Some(path) = &path {
             let particles_path = path.join("particles.dat");
@@ -344,6 +346,8 @@ impl<'w, C: Chunk> World<C> {
 
     #[profiling::function]
     pub fn tick(&mut self, tick_time: u32, settings: &Settings){
+
+        *self.ecs.write_resource::<TickTime>() = TickTime(tick_time);
 
         for rb_i in 0..self.rigidbodies.len() {
             let rb = &mut self.rigidbodies[rb_i];

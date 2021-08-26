@@ -33,6 +33,9 @@ impl Component for Velocity {
 #[derive(Default)]
 pub struct DeltaTime(pub std::time::Duration);
 
+#[derive(Default)]
+pub struct TickTime(pub u32);
+
 pub struct ChunkHandlerResource<'a>(pub &'a mut (dyn ChunkHandlerGeneric));
 
 impl Debug for ChunkHandlerResource<'_> {

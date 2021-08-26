@@ -291,9 +291,11 @@ impl WorldRenderer {
             )>();
 
             (&particle_storage, &position_storage).join().for_each(|(p, pos)| {
-                let (x1, y1) = transform.transform((pos.x - 0.5, pos.y - 0.5));
-                let (x2, y2) = transform.transform((pos.x + 0.5, pos.y + 0.5));
-                target.rectangle_filled(x1 as f32, y1 as f32, x2 as f32, y2 as f32, p.material.color);
+                if screen_zone.contains_point(sdl2::rect::Point::new(pos.x as i32, pos.y as i32)) || !settings.cull_chunks {
+                    let (x1, y1) = transform.transform((pos.x - 0.5, pos.y - 0.5));
+                    let (x2, y2) = transform.transform((pos.x + 0.5, pos.y + 0.5));
+                    target.rectangle_filled(x1 as f32, y1 as f32, x2 as f32, y2 as f32, p.material.color);
+                }
             });
         }
         
