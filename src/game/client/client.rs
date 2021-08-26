@@ -3,15 +3,7 @@ use specs::WriteStorage;
 
 use crate::game::common::world::{Position, Velocity, World};
 
-use super::{ui::MainMenu, world::{ClientChunk, ClientWorld}};
-
-// TODO: actually implement this properly with functions and stuff instead of just raw field accesses
-pub struct Controls {
-    pub up: bool,
-    pub down: bool,
-    pub left: bool,
-    pub right: bool,
-}
+use super::{input::{Controls, InputEvent, KeyControl, KeyControlMode, MultiControl, MultiControlMode}, ui::MainMenu, world::{ClientChunk, ClientWorld}};
 
 pub struct Client {
     pub world: Option<ClientWorld>,
@@ -26,10 +18,26 @@ impl Client {
         Self {
             world: None,
             controls: Controls {
-                up: false,
-                down: false,
-                left: false,
-                right: false,
+                up: Box::new(MultiControl::new(MultiControlMode::OR, vec![
+                    Box::new(KeyControl::new(Keycode::W, KeyControlMode::Momentary)),
+                    Box::new(KeyControl::new(Keycode::Up, KeyControlMode::Momentary)),
+                ])),
+                down: Box::new(MultiControl::new(MultiControlMode::OR, vec![
+                    Box::new(KeyControl::new(Keycode::S, KeyControlMode::Momentary)),
+                    Box::new(KeyControl::new(Keycode::Down, KeyControlMode::Momentary)),
+                ])),
+                left: Box::new(MultiControl::new(MultiControlMode::OR, vec![
+                    Box::new(KeyControl::new(Keycode::A, KeyControlMode::Momentary)),
+                    Box::new(KeyControl::new(Keycode::Left, KeyControlMode::Momentary)),
+                ])),
+                right: Box::new(MultiControl::new(MultiControlMode::OR, vec![
+                    Box::new(KeyControl::new(Keycode::D, KeyControlMode::Momentary)),
+                    Box::new(KeyControl::new(Keycode::Right, KeyControlMode::Momentary)),
+                ])),
+                jump: Box::new(MultiControl::new(MultiControlMode::OR, vec![
+                    Box::new(KeyControl::new(Keycode::Space, KeyControlMode::Momentary)),
+                    Box::new(KeyControl::new(Keycode::C, KeyControlMode::Momentary)),
+                ])),
             },
             camera_scale: 2.0,
             mouse_joint: None,
@@ -51,53 +59,17 @@ impl Client {
                 )>();
 
                 if let Some(vel) = velocity_storage.get_mut(eid) {
-                    if self.controls.up    { vel.y -= 0.5 }
-                    if self.controls.down  { vel.y += 0.5 }
-                    if self.controls.left  { vel.x -= 0.5 }
-                    if self.controls.right { vel.x += 0.5 }
+                    if self.controls.up.get()    { vel.y -= 0.5 }
+                    if self.controls.down.get()  { vel.y += 0.5 }
+                    if self.controls.left.get()  { vel.x -= 0.5 }
+                    if self.controls.right.get() { vel.x += 0.5 }
                 }
             }
         }
     }
 
     pub fn on_event(&mut self, event: &Event) -> bool {
-
-        match event {
-            Event::KeyDown { keycode: Some(Keycode::W), .. } => {
-                self.controls.up = true;
-                return true;
-            },
-            Event::KeyDown { keycode: Some(Keycode::A), .. } => {
-                self.controls.left = true;
-                return true;
-            },
-            Event::KeyDown { keycode: Some(Keycode::S), .. } => {
-                self.controls.down = true;
-                return true;
-            },
-            Event::KeyDown { keycode: Some(Keycode::D), .. } => {
-                self.controls.right = true;
-                return true;
-            },
-            Event::KeyUp { keycode: Some(Keycode::W), .. } => {
-                self.controls.up = false;
-                return true;
-            },
-            Event::KeyUp { keycode: Some(Keycode::A), .. } => {
-                self.controls.left = false;
-                return true;
-            },
-            Event::KeyUp { keycode: Some(Keycode::S), .. } => {
-                self.controls.down = false;
-                return true;
-            },
-            Event::KeyUp { keycode: Some(Keycode::D), .. } => {
-                self.controls.right = false;
-                return true;
-            },
-            _ => {},
-        }
-
+        self.controls.process(&InputEvent::SDL2Event(event));
         false
     }
 }
