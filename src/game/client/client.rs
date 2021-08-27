@@ -50,6 +50,7 @@ impl Client {
         }
     }
 
+    #[warn(clippy::too_many_lines)]
     pub fn tick(&mut self, world: &mut World<ClientChunk>) {
         if let Some(w) = &mut self.world {
             w.tick(world);
