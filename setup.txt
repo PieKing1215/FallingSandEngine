@@ -1,6 +1,6 @@
 # Windows
 cargo install cargo-vcpkg
-cargo vcpkg build
+cargo vcpkg build ## might need to run several times depending on your internet connection
 cargo build
 
 # Linux
@@ -8,5 +8,5 @@ cargo build
 sudo apt-get install clang
 
 cargo install cargo-vcpkg
-cargo vcpkg build
+cargo vcpkg build ## might need to run several times depending on your internet connection
 cargo build
