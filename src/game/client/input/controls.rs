@@ -12,6 +12,7 @@ pub struct Controls {
     pub right: Box<dyn Control<bool>>,
     
     pub jump: Box<dyn Control<bool>>,
+    pub launch: Box<dyn Control<bool>>,
 
     pub free_fly: Box<dyn Control<bool>>,
 }
@@ -24,6 +25,7 @@ impl Controls {
         self.right.process(event);
 
         self.jump.process(event);
+        self.launch.process(event);
 
         self.free_fly.process(event);
     }

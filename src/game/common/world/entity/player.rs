@@ -8,10 +8,23 @@ pub enum PlayerJumpState {
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+pub enum PlayerLaunchState {
+    Ready,
+    Hold,
+    Launch {
+        time: u16,
+        dir_x: f64,
+        dir_y: f64,
+    },
+    Used,
+}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum PlayerMovementMode {
     Normal {
         state: PlayerJumpState,
         boost: f32,
+        launch_state: PlayerLaunchState,
     },
     Free,
 }
