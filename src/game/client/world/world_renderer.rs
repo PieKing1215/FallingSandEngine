@@ -5,7 +5,7 @@ use sdl2::{pixels::Color, rect::Rect};
 use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, shaders::Shader, sys::{GPU_FilterEnum, GPU_FormatEnum, GPU_SetBlendMode}};
 use specs::{Join, ReadStorage, WriteStorage};
 
-use crate::game::{client::{Client, render::{Fonts, RenderCanvas, Renderable, Sdl2Context, Shaders, TransformStack}}, common::{Settings, world::{AutoTarget, CHUNK_SIZE, Camera, ChunkHandlerGeneric, ChunkState, LIQUIDFUN_SCALE, Position, Velocity, World, entity::{GameEntity, Hitbox, PhysicsEntity}, gen::WorldGenerator, particle::Particle}}};
+use crate::game::{client::{Client, render::{Fonts, RenderCanvas, Renderable, Sdl2Context, Shaders, TransformStack}}, common::{Settings, world::{AutoTarget, CHUNK_SIZE, Camera, ChunkHandlerGeneric, ChunkState, LIQUIDFUN_SCALE, Position, Velocity, World, entity::{GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState, PlayerMovementMode}, gen::WorldGenerator, particle::Particle}}};
 
 use super::{ClientChunk, ClientWorld};
 
@@ -406,6 +406,50 @@ impl WorldRenderer {
                 let lerp_y = pos.y + vel.map_or(0.0, |v| v.y) * partial_ticks;
                 draw(lerp_x, lerp_y, 255);
                 draw(pos.x, pos.y, 80);
+            });
+
+            let (
+                entities,
+                position_storage,
+                velocity_storage,
+                player_storage,
+            ) = world.ecs.system_data::<(
+                specs::Entities,
+                ReadStorage<Position>,
+                ReadStorage<Velocity>,
+                ReadStorage<Player>,
+            )>();
+
+            (&entities, &player_storage).join().for_each(|(ent, player)| {
+                match &player.movement {
+                    PlayerMovementMode::Normal { state, boost, launch_state, grapple_state } => {
+                        let mut draw_grapple = |grapple: &specs::Entity| {
+                            let player_pos = position_storage.get(ent).expect("Missing Position on Player");
+                            let grapple_pos = position_storage.get(*grapple).expect("Missing Position on grapple");
+                            let player_vel = velocity_storage.get(ent).expect("Missing Velocity on Player");
+                            let grapple_vel = velocity_storage.get(*grapple).expect("Missing Velocity on grapple");
+
+                            let (x1, y1) = transform.transform((player_pos.x + player_vel.x * partial_ticks, player_pos.y + player_vel.y * partial_ticks));
+                            let (x2, y2) = transform.transform((grapple_pos.x + grapple_vel.x * partial_ticks, grapple_pos.y + grapple_vel.y * partial_ticks));
+
+                            target.set_line_thickness(2.0);
+                            target.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(191, 191, 191, 255));
+                            target.set_line_thickness(1.0);
+                        };
+
+                        match grapple_state {
+                            PlayerGrappleState::Ready => (),
+                            PlayerGrappleState::Out { can_cancel, entity, tether_length, desired_tether_length } => {
+                                draw_grapple(entity);
+                            },
+                            PlayerGrappleState::Cancelled { entity } => {
+                                draw_grapple(entity);
+                            },
+                            PlayerGrappleState::Used => (),
+                        }
+                    },
+                    PlayerMovementMode::Free => (),
+                }
             });
         }
         // canvas.set_clip_rect(clip);

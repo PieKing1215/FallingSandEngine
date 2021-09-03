@@ -17,6 +17,11 @@ impl Game<ClientChunk> {
     pub fn run(&mut self, sdl: &Sdl2Context, mut renderer: Option<&mut Renderer>, args: &ArgMatches) {
 
         self.settings.debug = args.is_present("debug");
+        if args.is_present("no-tick") {
+            self.settings.simulate_chunks = false;
+            self.settings.simulate_particles = false;
+            self.settings.tick_lqf = false;
+        }
 
         let mut network = None;
 
@@ -329,7 +334,7 @@ impl Game<ClientChunk> {
                                     let player = w.ecs.create_entity()
                                     .with(Player { movement: PlayerMovementMode::Free })
                                     .with(GameEntity)
-                                    .with(PhysicsEntity { on_ground: false, gravity: 0.1 })
+                                    .with(PhysicsEntity { on_ground: false, gravity: 0.1, edge_clip_distance: 2.0, collision: true })
                                     .with(Persistent)
                                     .with(Position{ x: 0.0, y: -20.0 })
                                     .with(Velocity{ x: 0.0, y: 0.0 })

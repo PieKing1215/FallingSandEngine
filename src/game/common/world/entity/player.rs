@@ -1,4 +1,6 @@
-use specs::{Component, storage::BTreeStorage};
+
+use specs::{Component, Entity, saveload::{ConvertSaveload, Marker}, storage::BTreeStorage, error::NoError};
+use specs_derive::*;
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -7,7 +9,7 @@ pub enum PlayerJumpState {
     Jumping,
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum PlayerLaunchState {
     Ready,
     Hold,
@@ -19,17 +21,33 @@ pub enum PlayerLaunchState {
     Used,
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone)]
+pub enum PlayerGrappleState {
+    Ready,
+    Out {
+        can_cancel: bool,
+        entity: Entity,
+        tether_length: f64,
+        desired_tether_length: f64,
+    },
+    Cancelled {
+        entity: Entity,
+    },
+    Used,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum PlayerMovementMode {
     Normal {
         state: PlayerJumpState,
         boost: f32,
         launch_state: PlayerLaunchState,
+        grapple_state: PlayerGrappleState,
     },
     Free,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Player {
     pub movement: PlayerMovementMode,
 }

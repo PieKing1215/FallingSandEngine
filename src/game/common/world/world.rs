@@ -7,7 +7,7 @@ use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2dr
 use sdl2::pixels::Color;
 use specs::{Builder, Entities, ReadStorage, RunNow, WorldExt, Write, WriteStorage, saveload::{MarkedBuilder, SimpleMarker, SimpleMarkerAllocator}};
 
-use super::{ApplyB2Bodies, AutoTarget, B2BodyComponent, CHUNK_SIZE, Camera, Chunk, ChunkHandler, ChunkHandlerGeneric, CollisionFlags, DeltaTime, FilePersistent, Loader, Position, TickTime, UpdateAutoTargets, UpdateB2Bodies, Velocity, entity::{GameEntity, Hitbox, Persistent, PhysicsEntity, Player, UpdatePhysicsEntities}, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{Particle, Sleep, UpdateParticles}, rigidbody::RigidBody, simulator};
+use super::{ApplyB2Bodies, AutoTarget, B2BodyComponent, CHUNK_SIZE, Camera, Chunk, ChunkHandler, ChunkHandlerGeneric, CollisionFlags, DeltaTime, FilePersistent, Loader, Position, TickTime, UpdateAutoTargets, UpdateB2Bodies, Velocity, entity::{CollisionDetector, GameEntity, Hitbox, Persistent, PhysicsEntity, Player, UpdatePhysicsEntities}, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{Particle, Sleep, UpdateParticles}, rigidbody::RigidBody, simulator};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
@@ -156,6 +156,7 @@ impl<'w, C: Chunk> World<C> {
         ecs.register::<Persistent>();
         ecs.register::<B2BodyComponent>();
         ecs.register::<Sleep>();
+        ecs.register::<CollisionDetector>();
 
         if let Some(path) = &path {
             let particles_path = path.join("particles.dat");
