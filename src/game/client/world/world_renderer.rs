@@ -423,27 +423,48 @@ impl WorldRenderer {
             (&entities, &player_storage).join().for_each(|(ent, player)| {
                 match &player.movement {
                     PlayerMovementMode::Normal { state, boost, launch_state, grapple_state } => {
-                        let mut draw_grapple = |grapple: &specs::Entity| {
+                        let mut draw_grapple = |grapple: &specs::Entity, pivots: &Vec<Position>| {
                             let player_pos = position_storage.get(ent).expect("Missing Position on Player");
                             let grapple_pos = position_storage.get(*grapple).expect("Missing Position on grapple");
                             let player_vel = velocity_storage.get(ent).expect("Missing Velocity on Player");
                             let grapple_vel = velocity_storage.get(*grapple).expect("Missing Velocity on grapple");
 
-                            let (x1, y1) = transform.transform((player_pos.x + player_vel.x * partial_ticks, player_pos.y + player_vel.y * partial_ticks));
-                            let (x2, y2) = transform.transform((grapple_pos.x + grapple_vel.x * partial_ticks, grapple_pos.y + grapple_vel.y * partial_ticks));
-
                             target.set_line_thickness(2.0);
-                            target.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(191, 191, 191, 255));
+                            if pivots.is_empty() {
+                                let (x1, y1) = transform.transform((player_pos.x + player_vel.x * partial_ticks, player_pos.y + player_vel.y * partial_ticks));
+                                let (x2, y2) = transform.transform((grapple_pos.x + grapple_vel.x * partial_ticks, grapple_pos.y + grapple_vel.y * partial_ticks));
+    
+                                target.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(191, 191, 191, 255));
+                            } else {
+                                let (x1, y1) = transform.transform((grapple_pos.x + grapple_vel.x * partial_ticks, grapple_pos.y + grapple_vel.y * partial_ticks));
+                                let (x2, y2) = transform.transform((pivots[0].x, pivots[0].y));
+                                target.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(191, 191, 191, 255));
+
+                                if pivots.len() > 1 {
+                                    for i in 1..pivots.len() {
+                                        let p1 = &pivots[i-1];
+                                        let p2 = &pivots[i];
+                                        let (x1, y1) = transform.transform((p1.x, p1.y));
+                                        let (x2, y2) = transform.transform((p2.x, p2.y));
+            
+                                        target.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(191, 191, 191, 255));
+                                    }
+                                }
+
+                                let (x1, y1) = transform.transform((pivots[pivots.len() - 1].x, pivots[pivots.len() - 1].y));
+                                let (x2, y2) = transform.transform((player_pos.x + player_vel.x * partial_ticks, player_pos.y + player_vel.y * partial_ticks));
+                                target.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(191, 191, 191, 255));
+                            }
                             target.set_line_thickness(1.0);
                         };
 
                         match grapple_state {
                             PlayerGrappleState::Ready => (),
-                            PlayerGrappleState::Out { can_cancel, entity, tether_length, desired_tether_length } => {
-                                draw_grapple(entity);
+                            PlayerGrappleState::Out { can_cancel, entity, tether_length, desired_tether_length, pivots } => {
+                                draw_grapple(entity, pivots);
                             },
                             PlayerGrappleState::Cancelled { entity } => {
-                                draw_grapple(entity);
+                                draw_grapple(entity, &vec![]);
                             },
                             PlayerGrappleState::Used => (),
                         }

@@ -648,7 +648,57 @@ impl<'w, C: Chunk> World<C> {
 
         let mut update_auto_targets = UpdateAutoTargets;
         update_auto_targets.run_now(&self.ecs);
+    }
 
+    pub fn raycast(&self, mut x1: i64, mut y1: i64, x2: i64, y2: i64) -> Option<((i64, i64), &MaterialInstance)> {
+        // log::trace!("raycast");
+        let check_pixel = |x: i64, y: i64| {
+            let r = self.chunk_handler.get(x, y);
+            // log::trace!("{} {} => {:?}", x, y, r);
+            if let Ok(m) = r {
+                if m.physics != PhysicsType::Air {
+                    // log::trace!("ret Some({:?})", m);
+                    return Some(((x, y), m));
+                }
+            }
+            None
+        };
+
+        let xDist =  (x2 - x1).abs();
+        let yDist = -(y2 - y1).abs();
+        let xStep = if x1 < x2 { 1 } else { -1 };
+        let yStep = if y1 < y2 { 1 } else { -1 };
+        let mut error = xDist + yDist;
+
+        let r = check_pixel(x1, y1);
+        if r.is_some() {
+            return r;
+        }
+
+        // log::trace!("{} {} {} {}", x1, y1, x2, y2);
+        while x1 != x2 || y1 != y2 {
+            // log::trace!("{} {} {} {} {} {} {}", x1, y1, xDist, yDist, xStep, yStep, error);
+            let tmp = 2*error;
+
+            if tmp > yDist {
+                // horizontal step
+                error += yDist;
+                x1 += xStep;
+            }
+
+            if tmp < xDist {
+                // vertical step
+                error += xDist;
+                y1 += yStep;
+            }
+
+            let r = check_pixel(x1, y1);
+            if r.is_some() {
+                return r;
+            }
+        }
+
+        None
     }
 }
 

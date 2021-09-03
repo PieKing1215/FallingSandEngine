@@ -3,6 +3,8 @@ use specs::{Component, Entity, saveload::{ConvertSaveload, Marker}, storage::BTr
 use specs_derive::*;
 use serde::{Serialize, Deserialize};
 
+use crate::game::common::world::Position;
+
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum PlayerJumpState {
     None,
@@ -29,6 +31,7 @@ pub enum PlayerGrappleState {
         entity: Entity,
         tether_length: f64,
         desired_tether_length: f64,
+        pivots: Vec<Position>,
     },
     Cancelled {
         entity: Entity,

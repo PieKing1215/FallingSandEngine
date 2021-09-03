@@ -10,7 +10,7 @@ use crate::game::common::world::LIQUIDFUN_SCALE;
 
 use super::{ChunkHandlerGeneric, entity::Hitbox};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Position {
     pub x: f64,
     pub y: f64,

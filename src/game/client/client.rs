@@ -1,7 +1,10 @@
+use sdl2::pixels::Color;
+use crate::game::common::world::material::{PhysicsType, TEST_MATERIAL};
+use crate::game::common::world::ChunkHandlerGeneric;
 use sdl2::{event::Event, keyboard::Keycode};
 use specs::{Builder, Entities, WorldExt, WriteStorage};
 
-use crate::game::common::world::{Position, Velocity, World, entity::{CollisionDetector, GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState, PlayerJumpState, PlayerLaunchState, PlayerMovementMode}};
+use crate::game::common::world::{Position, Velocity, World, entity::{CollisionDetector, GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState, PlayerJumpState, PlayerLaunchState, PlayerMovementMode}, material::MaterialInstance};
 
 use super::{input::{Controls, InputEvent, KeyControl, KeyControlMode, MultiControl, MultiControlMode}, ui::MainMenu, world::{ClientChunk, ClientWorld}};
 
@@ -55,6 +58,7 @@ impl Client {
 
     #[allow(clippy::too_many_lines)]
     pub fn tick(&mut self, world: &mut World<ClientChunk>) {
+        let mut pixels_to_highlight: Vec<(i64, i64)> = Vec::new();
         if let Some(w) = &mut self.world {
             w.tick(world);
 
@@ -166,22 +170,57 @@ impl Client {
                                                 .with(CollisionDetector{ collided: false }, &mut collision_storage)
                                                 .build();
                                                 
-                                            *grapple_state = PlayerGrappleState::Out { entity, can_cancel: false, tether_length: 0.0, desired_tether_length: 0.0 };
+                                            *grapple_state = PlayerGrappleState::Out { entity, can_cancel: false, tether_length: 0.0, desired_tether_length: 0.0, pivots: Vec::new() };
                                         }
                                     }
                                 },
-                                PlayerGrappleState::Out { entity, can_cancel, tether_length, desired_tether_length } => {
+                                PlayerGrappleState::Out { entity, can_cancel, tether_length, desired_tether_length, pivots } => {
                                     // log::trace!("{:?}", collision_storage.get_mut(*entity));
                                     if let Some(col) = collision_storage.get_mut(*entity) {
-                                        let dx = position_storage.get(*entity).unwrap().x - position_storage.get(eid).unwrap().x;
-                                        let dy = position_storage.get(*entity).unwrap().y - position_storage.get(eid).unwrap().y;
+                                        let dx = pivots.last().unwrap_or_else(|| position_storage.get(*entity).unwrap()).x - position_storage.get(eid).unwrap().x;
+                                        let dy = pivots.last().unwrap_or_else(|| position_storage.get(*entity).unwrap()).y - position_storage.get(eid).unwrap().y;
                                         let mag = (dx * dx + dy * dy).sqrt();
+
+                                        if let Some(r) = world.raycast(
+                                            position_storage.get(eid).unwrap().x as i64, position_storage.get(eid).unwrap().y as i64, 
+                                            pivots.last().unwrap_or_else(|| position_storage.get(*entity).unwrap()).x as i64, pivots.last().unwrap_or_else(|| position_storage.get(*entity).unwrap()).y as i64)
+                                             {
+                                            // log::debug!("{} {} => {:?}", r.0.0, r.0.1, r.1);
+                                            pixels_to_highlight.push(r.0);
+
+                                            let side_1 = world.chunk_handler.get(r.0.0 + ((dy / mag) * 2.0) as i64, r.0.1 + ((-dx / mag) * 2.0) as i64);
+                                            // let side_2 = world.chunk_handler.get(r.0.0 + ((-dy / mag) * 1.0) as i64, r.0.1 + ((dx / mag) * 1.0) as i64);
+
+                                            if side_1.is_ok() && side_1.unwrap().physics != PhysicsType::Air {
+                                                pivots.push(Position { x: r.0.0 as f64 + (-dy / mag) * 2.0, y: r.0.1 as f64 + (dx / mag) * 2.0});
+                                            } else {
+                                                pivots.push(Position { x: r.0.0 as f64 + (dy / mag) * 2.0, y: r.0.1 as f64 + (-dx / mag) * 2.0});
+                                            }
+                                        }
+
+                                        #[allow(clippy::collapsible_if)]
+                                        if pivots.len() > 1 {
+                                            if world.raycast(
+                                                position_storage.get(eid).unwrap().x as i64, position_storage.get(eid).unwrap().y as i64, 
+                                                pivots[pivots.len() - 2].x as i64, pivots[pivots.len() - 2].y as i64).is_none() {
+                                                pivots.pop();
+                                            }
+                                        }else if !pivots.is_empty() {
+                                            if world.raycast(
+                                                position_storage.get(eid).unwrap().x as i64, position_storage.get(eid).unwrap().y as i64, 
+                                                position_storage.get(*entity).unwrap().x as i64, position_storage.get(*entity).unwrap().y as i64).is_none() {
+                                                pivots.pop();
+                                            }
+                                        }
                                         
                                         if col.collided {
 
                                             if *desired_tether_length == 0.0 {
                                                 *desired_tether_length = mag - 10.0;
                                                 *tether_length = mag;
+
+                                                // pivots.push(Position { x: position_storage.get(eid).unwrap().x + dx * 0.75, y: position_storage.get(eid).unwrap().y + dy * 0.75 });
+                                                // pivots.push(Position { x: position_storage.get(eid).unwrap().x + dx * 0.5, y: position_storage.get(eid).unwrap().y + dy * 0.5 });
                                             } else {
                                                 *tether_length += (*desired_tether_length - *tether_length) * 0.1;
                                             }
@@ -222,17 +261,35 @@ impl Client {
                                                     *desired_tether_length = (*desired_tether_length - 5.0).max(16.0);
                                                 }
                                                 
-                                                if mag > *tether_length {
+                                                let mut remaining_tether = *tether_length;
+
+                                                if pivots.len() > 1 {
+                                                    for i in 1..pivots.len() {
+                                                        let xx = pivots[i].x - pivots[i-1].x;
+                                                        let yy = pivots[i].y - pivots[i-1].y;
+                                                        remaining_tether -= (xx * xx + yy * yy).sqrt();
+                                                    }
+                                                }
+
+                                                if !pivots.is_empty() {
+                                                    let xx = position_storage.get(*entity).unwrap().x - pivots.first().unwrap().x;
+                                                    let yy = position_storage.get(*entity).unwrap().y - pivots.first().unwrap().y;
+                                                    remaining_tether -= (xx * xx + yy * yy).sqrt();
+                                                }
+
+                                                // log::debug!("{}", remaining_tether);
+
+                                                if mag > remaining_tether {
                                                     let dx = dx / mag;
                                                     let dy = dy / mag;
     
                                                     let old_pos = position_storage.get_mut(eid).unwrap().clone();
     
-                                                    position_storage.get_mut(eid).unwrap().x = position_storage.get_mut(*entity).unwrap().x - dx * *tether_length;
-                                                    position_storage.get_mut(eid).unwrap().y = position_storage.get_mut(*entity).unwrap().y - dy * *tether_length;
+                                                    position_storage.get_mut(eid).unwrap().x += ((pivots.last().unwrap_or_else(|| position_storage.get(*entity).unwrap()).x - dx * remaining_tether) - position_storage.get_mut(eid).unwrap().x) * 0.25;
+                                                    position_storage.get_mut(eid).unwrap().y += ((pivots.last().unwrap_or_else(|| position_storage.get(*entity).unwrap()).y - dy * remaining_tether) - position_storage.get_mut(eid).unwrap().y) * 0.25;
     
-                                                    velocity_storage.get_mut(eid).unwrap().x = position_storage.get_mut(eid).unwrap().x - (old_pos.x - velocity_storage.get_mut(eid).unwrap().x);
-                                                    velocity_storage.get_mut(eid).unwrap().y = position_storage.get_mut(eid).unwrap().y - (old_pos.y - velocity_storage.get_mut(eid).unwrap().y);
+                                                    velocity_storage.get_mut(eid).unwrap().x += ((position_storage.get_mut(eid).unwrap().x - (old_pos.x - velocity_storage.get_mut(eid).unwrap().x)) - velocity_storage.get_mut(eid).unwrap().x) * 0.25;
+                                                    velocity_storage.get_mut(eid).unwrap().y += ((position_storage.get_mut(eid).unwrap().y - (old_pos.y - velocity_storage.get_mut(eid).unwrap().y)) - velocity_storage.get_mut(eid).unwrap().y) * 0.25;
                                                 }
                                             }
                                         }else if mag > 256.0 {
@@ -358,6 +415,15 @@ impl Client {
                 }
             }
         }
+
+        // for (x, y) in pixels_to_highlight.iter() {
+        //     world.chunk_handler.set(*x, *y, MaterialInstance {
+        //         material_id: TEST_MATERIAL.id,
+        //         physics: crate::game::common::world::material::PhysicsType::Solid,
+        //         color: Color::RGB(255, 255, 255),
+        //     });
+        //     // world.chunk_handler.set(*x, *y, MaterialInstance::air());
+        // }
     }
 
     pub fn on_event(&mut self, event: &Event) -> bool {
