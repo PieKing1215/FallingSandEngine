@@ -165,7 +165,7 @@ impl Client {
                                                 .with(Position{ x: position_storage.get(eid).unwrap().x + target_x, y: position_storage.get(eid).unwrap().y + target_y }, &mut position_storage)
                                                 .with(Velocity{ x: velocity_storage.get_mut(eid).unwrap().x * 0.5 + target_x, y: velocity_storage.get_mut(eid).unwrap().y * 0.5 + target_y }, &mut velocity_storage)
                                                 .with(Hitbox { x1: -4.0, y1: -4.0, x2: 4.0, y2: 4.0 }, &mut hitbox_storage)
-                                                .with(PhysicsEntity { gravity: 0.0, on_ground: false, edge_clip_distance: 0.0, collision: true }, &mut phys_ent_storage)
+                                                .with(PhysicsEntity { gravity: 0.0, on_ground: false, edge_clip_distance: 0.0, collision: true, collide_with_sand: false }, &mut phys_ent_storage)
                                                 .with(GameEntity, &mut game_ent_storage)
                                                 .with(CollisionDetector{ collided: false }, &mut collision_storage)
                                                 .build();
@@ -181,9 +181,14 @@ impl Client {
                                         let dy = pivots.last().unwrap_or_else(|| position_storage.get(*entity).unwrap()).y - position_storage.get(eid).unwrap().y;
                                         let mag = (dx * dx + dy * dy).sqrt();
 
+                                        let raycast_filter = |_pos: (i64, i64), mat: &MaterialInstance| {
+                                            mat.physics == PhysicsType::Solid
+                                        };
+
                                         if let Some(r) = world.raycast(
                                             position_storage.get(eid).unwrap().x as i64, position_storage.get(eid).unwrap().y as i64, 
-                                            pivots.last().unwrap_or_else(|| position_storage.get(*entity).unwrap()).x as i64, pivots.last().unwrap_or_else(|| position_storage.get(*entity).unwrap()).y as i64)
+                                            pivots.last().unwrap_or_else(|| position_storage.get(*entity).unwrap()).x as i64, pivots.last().unwrap_or_else(|| position_storage.get(*entity).unwrap()).y as i64,
+                                            raycast_filter)
                                              {
                                             // log::debug!("{} {} => {:?}", r.0.0, r.0.1, r.1);
                                             pixels_to_highlight.push(r.0);
@@ -202,13 +207,15 @@ impl Client {
                                         if pivots.len() > 1 {
                                             if world.raycast(
                                                 position_storage.get(eid).unwrap().x as i64, position_storage.get(eid).unwrap().y as i64, 
-                                                pivots[pivots.len() - 2].x as i64, pivots[pivots.len() - 2].y as i64).is_none() {
+                                                pivots[pivots.len() - 2].x as i64, pivots[pivots.len() - 2].y as i64,
+                                                raycast_filter).is_none() {
                                                 pivots.pop();
                                             }
                                         }else if !pivots.is_empty() {
                                             if world.raycast(
                                                 position_storage.get(eid).unwrap().x as i64, position_storage.get(eid).unwrap().y as i64, 
-                                                position_storage.get(*entity).unwrap().x as i64, position_storage.get(*entity).unwrap().y as i64).is_none() {
+                                                position_storage.get(*entity).unwrap().x as i64, position_storage.get(*entity).unwrap().y as i64,
+                                                raycast_filter).is_none() {
                                                 pivots.pop();
                                             }
                                         }

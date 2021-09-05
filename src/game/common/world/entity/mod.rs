@@ -33,6 +33,7 @@ pub struct PhysicsEntity {
     pub on_ground: bool,
     pub edge_clip_distance: f32,
     pub collision: bool,
+    pub collide_with_sand: bool,
 }
 
 impl Component for PhysicsEntity {
@@ -116,7 +117,7 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                     let h_dy = (f32::from(h_dy) / f32::from(steps_y)) * (hitbox.y2 - hitbox.y1) + hitbox.y1;
 
                     if let Ok(mat) = chunk_handler.get((pos.x + f64::from(h_dx)).floor() as i64, (pos.y + f64::from(h_dy)).floor() as i64) {
-                        if mat.physics == PhysicsType::Solid || mat.physics == PhysicsType::Sand {
+                        if mat.physics == PhysicsType::Solid || (mat.physics == PhysicsType::Sand && phys_ent.collide_with_sand) {
                             n_intersect += 1;
                             avg_in_x += h_dx;
                             avg_in_y += h_dy;
@@ -154,7 +155,7 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                         let h_dy = (f32::from(h_dy) / f32::from(steps_y)) * (hitbox.y2 - hitbox.y1) + hitbox.y1;
 
                         if let Ok(mat) = chunk_handler.get((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + f64::from(h_dy)).floor() as i64).map(|m| *m) {
-                            if mat.physics == PhysicsType::Solid || mat.physics == PhysicsType::Sand {
+                            if mat.physics == PhysicsType::Solid || (mat.physics == PhysicsType::Sand && phys_ent.collide_with_sand) {
                                 if h_dy - hitbox.y1 < phys_ent.edge_clip_distance {
                                     let clip_y = ((pos.y + f64::from(h_dy)).floor() + 1.0) - (pos.y + f64::from(hitbox.y1)) + 0.05;
                                     // log::debug!("clip_y = {}", clip_y);
@@ -165,7 +166,7 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                                             let h_dy = (f32::from(h_dy) / f32::from(steps_y)) * (hitbox.y2 - hitbox.y1) + hitbox.y1;
                     
                                             if let Ok(mat) = chunk_handler.get((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + clip_y + f64::from(h_dy)).floor() as i64).map(|m| *m) {
-                                                if mat.physics == PhysicsType::Solid || mat.physics == PhysicsType::Sand {
+                                                if mat.physics == PhysicsType::Solid || (mat.physics == PhysicsType::Sand && phys_ent.collide_with_sand) {
                                                     would_clip_collide = true;
                                                     if debug_visualize {
                                                         let _ignore = chunk_handler.set((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + clip_y + f64::from(h_dy)).floor() as i64, MaterialInstance {
@@ -202,7 +203,7 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                                             let h_dy = (f32::from(h_dy) / f32::from(steps_y)) * (hitbox.y2 - hitbox.y1) + hitbox.y1;
                     
                                             if let Ok(mat) = chunk_handler.get((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + clip_y + f64::from(h_dy)).floor() as i64).map(|m| *m) {
-                                                if mat.physics == PhysicsType::Solid || mat.physics == PhysicsType::Sand {
+                                                if mat.physics == PhysicsType::Solid || (mat.physics == PhysicsType::Sand && phys_ent.collide_with_sand) {
                                                     would_clip_collide = true;
                                                     if debug_visualize {
                                                         let _ignore = chunk_handler.set((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + clip_y + f64::from(h_dy)).floor() as i64, MaterialInstance {
@@ -258,7 +259,7 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                         let h_dy = (f32::from(h_dy) / f32::from(steps_y)) * (hitbox.y2 - hitbox.y1) + hitbox.y1;
 
                         if let Ok(mat) = chunk_handler.get((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64).map(|m| *m) {
-                            if mat.physics == PhysicsType::Solid || mat.physics == PhysicsType::Sand {
+                            if mat.physics == PhysicsType::Solid || (mat.physics == PhysicsType::Sand && phys_ent.collide_with_sand) {
                                 collided_y = true;
                                 if debug_visualize {
                                     let _ignore = chunk_handler.set((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, MaterialInstance {

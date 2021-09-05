@@ -650,51 +650,46 @@ impl<'w, C: Chunk> World<C> {
         update_auto_targets.run_now(&self.ecs);
     }
 
-    pub fn raycast(&self, mut x1: i64, mut y1: i64, x2: i64, y2: i64) -> Option<((i64, i64), &MaterialInstance)> {
-        // log::trace!("raycast");
+    pub fn raycast(&self, mut x1: i64, mut y1: i64, x2: i64, y2: i64, collide_filder: fn((i64, i64), &MaterialInstance) -> bool) -> Option<((i64, i64), &MaterialInstance)> {
         let check_pixel = |x: i64, y: i64| {
             let r = self.chunk_handler.get(x, y);
-            // log::trace!("{} {} => {:?}", x, y, r);
             if let Ok(m) = r {
                 if m.physics != PhysicsType::Air {
-                    // log::trace!("ret Some({:?})", m);
                     return Some(((x, y), m));
                 }
             }
             None
         };
 
-        let xDist =  (x2 - x1).abs();
-        let yDist = -(y2 - y1).abs();
-        let xStep = if x1 < x2 { 1 } else { -1 };
-        let yStep = if y1 < y2 { 1 } else { -1 };
-        let mut error = xDist + yDist;
+        let x_dist =  (x2 - x1).abs();
+        let y_dist = -(y2 - y1).abs();
+        let x_step = if x1 < x2 { 1 } else { -1 };
+        let y_step = if y1 < y2 { 1 } else { -1 };
+        let mut error = x_dist + y_dist;
 
-        let r = check_pixel(x1, y1);
-        if r.is_some() {
-            return r;
+        if let Some(r) = check_pixel(x1, y1) {
+            if collide_filder(r.0, r.1) {
+                return Some(r);
+            }
         }
 
-        // log::trace!("{} {} {} {}", x1, y1, x2, y2);
         while x1 != x2 || y1 != y2 {
-            // log::trace!("{} {} {} {} {} {} {}", x1, y1, xDist, yDist, xStep, yStep, error);
             let tmp = 2*error;
 
-            if tmp > yDist {
-                // horizontal step
-                error += yDist;
-                x1 += xStep;
+            if tmp > y_dist {
+                error += y_dist;
+                x1 += x_step;
             }
 
-            if tmp < xDist {
-                // vertical step
-                error += xDist;
-                y1 += yStep;
+            if tmp < x_dist {
+                error += x_dist;
+                y1 += y_step;
             }
 
-            let r = check_pixel(x1, y1);
-            if r.is_some() {
-                return r;
+            if let Some(r) = check_pixel(x1, y1) {
+                if collide_filder(r.0, r.1) {
+                    return Some(r);
+                }
             }
         }
 

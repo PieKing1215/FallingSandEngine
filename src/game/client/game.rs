@@ -334,7 +334,7 @@ impl Game<ClientChunk> {
                                     let player = w.ecs.create_entity()
                                     .with(Player { movement: PlayerMovementMode::Free })
                                     .with(GameEntity)
-                                    .with(PhysicsEntity { on_ground: false, gravity: 0.1, edge_clip_distance: 2.0, collision: true })
+                                    .with(PhysicsEntity { on_ground: false, gravity: 0.1, edge_clip_distance: 2.0, collision: true, collide_with_sand: true })
                                     .with(Persistent)
                                     .with(Position{ x: 0.0, y: -20.0 })
                                     .with(Velocity{ x: 0.0, y: 0.0 })
