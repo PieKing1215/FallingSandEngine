@@ -254,7 +254,7 @@ impl Client {
                                             if self.controls.jump.get() && *can_cancel {
                                                 velocity_storage.get_mut(eid).unwrap().x *= 1.4;
                                                 velocity_storage.get_mut(eid).unwrap().y *= 1.4;
-                                                velocity_storage.get_mut(eid).unwrap().y -= 1.0;
+                                                velocity_storage.get_mut(eid).unwrap().y -= 8.0;
 
                                                 *grapple_state = PlayerGrappleState::Cancelled{ entity: *entity };
                                             }else{
@@ -265,7 +265,7 @@ impl Client {
                                                 velocity_storage.get_mut(eid).unwrap().x += target_x;
 
                                                 if self.controls.grapple.get() {
-                                                    *desired_tether_length = (*desired_tether_length - 5.0).max(16.0);
+                                                    *desired_tether_length = (*desired_tether_length - 8.0).max(14.0);
                                                 }
                                                 
                                                 let mut remaining_tether = *tether_length;
@@ -361,9 +361,9 @@ impl Client {
                                     velocity_storage.get_mut(eid).unwrap().y *= 0.99;
                                 }
 
-                                if self.controls.jump.get() && phys_ent.on_ground { 
+                                if self.controls.jump.get() && phys_ent.on_ground {
                                     velocity_storage.get_mut(eid).unwrap().y -= 10.0;
-                                    target_x *= 2.0;
+                                    target_x *= 1.5;
                                     inv_accel_x *= 0.5;
 
                                     *state = PlayerJumpState::Jumping;
@@ -385,8 +385,9 @@ impl Client {
                                     }
                                 }
 
-                                if self.controls.down.get()  { velocity_storage.get_mut(eid).unwrap().y += 0.1 }
-
+                                if self.controls.down.get() {
+                                    velocity_storage.get_mut(eid).unwrap().y += 0.1;
+                                }
 
                                 if phys_ent.on_ground && velocity_storage.get_mut(eid).unwrap().x.abs() >= 0.001 && target_x.abs() >= 0.001 && target_x.signum() != velocity_storage.get_mut(eid).unwrap().x.signum() {
                                     inv_accel_x *= 0.5;
