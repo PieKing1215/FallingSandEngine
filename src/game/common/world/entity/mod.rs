@@ -113,7 +113,7 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
             let steps_x = ((hitbox.x2 - hitbox.x1).signum() * (hitbox.x2 - hitbox.x1).abs().ceil()) as u16;
             let steps_y = ((hitbox.y2 - hitbox.y1).signum() * (hitbox.y2 - hitbox.y1).abs().ceil()) as u16;
 
-            let r: Vec<(f32, f32)> = (0..=steps_x).flat_map(move |a| (0..steps_y).map(move |b| (a, b))).map(|(xs, ys)| {
+            let r: Vec<(f32, f32)> = (0..=steps_x).flat_map(move |a| (0..=steps_y).map(move |b| (a, b))).map(|(xs, ys)| {
                 ((f32::from(xs) / f32::from(steps_x)) * (hitbox.x2 - hitbox.x1) + hitbox.x1,
                 (f32::from(ys) / f32::from(steps_y)) * (hitbox.y2 - hitbox.y1) + hitbox.y1)
             }).collect();
