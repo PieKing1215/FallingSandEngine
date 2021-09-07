@@ -1,4 +1,5 @@
-use specs::{Component, Entities, Join, System, WriteStorage, storage::BTreeStorage};
+use rand::Rng;
+use specs::{Component, Entities, Join, System, Write, WriteStorage, saveload::{SimpleMarker, SimpleMarkerAllocator}, storage::BTreeStorage};
 use serde::{Serialize, Deserialize};
 
 mod player;
@@ -6,7 +7,7 @@ pub use player::*;
 
 use crate::game::common::world::material::{MaterialInstance, PhysicsType};
 
-use super::{ChunkState, ChunkHandlerGeneric, Position, Velocity};
+use super::{ChunkHandlerGeneric, ChunkState, FilePersistent, Position, Velocity, particle::Particle};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameEntity;
@@ -77,15 +78,20 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                        WriteStorage<'a, PhysicsEntity>,
                        WriteStorage<'a, Persistent>,
                        WriteStorage<'a, Hitbox>,
-                       WriteStorage<'a, CollisionDetector>);
+                       WriteStorage<'a, CollisionDetector>,
+                       Write<'a, SimpleMarkerAllocator<FilePersistent>>,
+                       WriteStorage<'a, SimpleMarker<FilePersistent>>,
+                       WriteStorage<'a, Particle>);
 
     #[allow(clippy::too_many_lines)]
     fn run(&mut self, data: Self::SystemData) {
         profiling::scope!("UpdatePhysicsEntities::run");
 
-        let (entities, mut pos, mut vel, mut game_ent, mut phys_ent, persistent, mut hitbox, mut collision_detect) = data;
+        let (entities, mut pos, mut vel, mut game_ent, mut phys_ent, persistent, mut hitbox, mut collision_detect, mut marker_alloc, mut markers, mut particle) = data;
         
         let debug_visualize = false;
+
+        let mut create_particles: Vec<(Particle, Position, Velocity)> = vec![];
 
         // TODO: if I can ever get ChunkHandler to be Send (+ Sync would be ideal), can use par_join and organize a bit for big performance gain
         //       iirc right now, ChunkHandler<ServerChunk> is Send + !Sync and ChunkHandler<ClientChunk> is !Send + !Sync (because of the GPUImage in ChunkGraphics)
@@ -149,7 +155,7 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
             let mut new_pos_x = pos.x;
             let mut new_pos_y = pos.y;
 
-            let steps = ((dx.abs() + dy.abs()) as u32 + 1).max(2);
+            let steps = ((dx.abs() + dy.abs()) as u32 + 1).max(3);
             for _ in 0..steps {
                 
                 new_pos_x += dx / f64::from(steps);
@@ -192,7 +198,15 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                                 // 3.0 -> 0.5 (clamped)
                                 vel.x *= (1.0 - (clip_y.abs() / 3.0).powi(4)).clamp(0.5, 1.0);
                             }
-                        } else {
+                        } else if mat.physics == PhysicsType::Sand && self.chunk_handler.set((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + f64::from(h_dy)).floor() as i64, MaterialInstance::air()).is_ok() {
+                            create_particles.push((
+                                Particle::of(mat),
+                                Position { x: (new_pos_x + f64::from(h_dx)).floor(), y: (pos.y + f64::from(h_dy)).floor().floor() },
+                                Velocity { x: rand::thread_rng().gen_range(-0.5..=0.5) + 2.0 * vel.x.signum(), y: rand::thread_rng().gen_range(-0.5..=0.5)},
+                            ));
+
+                            vel.x *= 0.99;
+                        }else {
                             collided_x = true;
                             if debug_visualize {
                                 let _ignore = self.chunk_handler.set((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + f64::from(h_dy)).floor() as i64, MaterialInstance {
@@ -218,14 +232,22 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                 let mut collided_y = false;
                 for &(h_dx, h_dy) in &r {
                     if let Some(mat) = self.check_collide((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, phys_ent).copied() {
-                        collided_y = true;
-                        if debug_visualize {
-                            let _ignore = self.chunk_handler.set((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, MaterialInstance {
-                                color: sdl2::pixels::Color::RGB(255, 0, 255),
-                                ..mat
-                            });
+                        if vel.y < -0.001 && mat.physics == PhysicsType::Sand && self.chunk_handler.set((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, MaterialInstance::air()).is_ok() {
+                            create_particles.push((
+                                Particle::of(mat),
+                                Position { x: (pos.x + f64::from(h_dx)).floor(), y: (new_pos_y + f64::from(h_dy)).floor() },
+                                Velocity { x: rand::thread_rng().gen_range(-0.5..=0.5), y: rand::thread_rng().gen_range(-1.0..=0.0)},
+                            ));
+                        } else {
+                            collided_y = true;
+                            if debug_visualize {
+                                let _ignore = self.chunk_handler.set((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, MaterialInstance {
+                                    color: sdl2::pixels::Color::RGB(255, 0, 255),
+                                    ..mat
+                                });
+                            }
+                            break;
                         }
-                        break;
                     }
                 }
 
@@ -236,7 +258,7 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                         phys_ent.on_ground = true;
                     }
 
-                    vel.y = if vel.y.abs() > 0.25 { vel.y * 0.75 } else { 0.0 };
+                    vel.y = if vel.y.abs() > 0.5 { vel.y * 0.75 } else { 0.0 };
 
                     if let Some(c) = &mut collision_detect {
                         c.collided = true;
@@ -246,5 +268,13 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                 }
             }
         });
+
+        for (part, p_pos, p_vel) in create_particles {
+            entities.build_entity()
+                .with(part, &mut particle)
+                .with(p_pos, &mut pos)
+                .with(p_vel, &mut vel)
+                .build();
+        }
     }
 }

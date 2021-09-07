@@ -5,7 +5,7 @@ use crate::game::common::Settings;
 
 use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::{body::{BodyDef, BodyType}, fixture::FixtureDef}};
 use sdl2::pixels::Color;
-use specs::{Builder, Entities, ReadStorage, RunNow, WorldExt, Write, WriteStorage, saveload::{MarkedBuilder, SimpleMarker, SimpleMarkerAllocator}};
+use specs::{Builder, Entities, Join, ReadStorage, RunNow, WorldExt, Write, WriteStorage, saveload::{MarkedBuilder, SimpleMarker, SimpleMarkerAllocator}};
 
 use super::{ApplyB2Bodies, AutoTarget, B2BodyComponent, CHUNK_SIZE, Camera, Chunk, ChunkHandler, ChunkHandlerGeneric, CollisionFlags, DeltaTime, FilePersistent, Loader, Position, TickTime, UpdateAutoTargets, UpdateB2Bodies, Velocity, entity::{CollisionDetector, GameEntity, Hitbox, Persistent, PhysicsEntity, Player, UpdatePhysicsEntities}, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{Particle, Sleep, UpdateParticles}, rigidbody::RigidBody, simulator};
 
@@ -436,6 +436,68 @@ impl<'w, C: Chunk> World<C> {
             }
         }
 
+        {
+            let (
+                position_storage,
+                velocity_storage,
+                phys_ent_storage,
+                hitbox_storage,
+            ) = self.ecs.system_data::<(
+                ReadStorage<Position>,
+                ReadStorage<Velocity>,
+                ReadStorage<PhysicsEntity>,
+                ReadStorage<Hitbox>,
+            )>();
+
+            // need this since using self.chunk_handler inside the closure doesn't work
+            let ch = &mut self.chunk_handler;
+            
+            // let mut create_particles: Vec<(Particle, Position, Velocity)> = vec![];
+
+            (&position_storage, &velocity_storage, &phys_ent_storage, &hitbox_storage).join().for_each(|(pos, _vel, _phys_ent, hitbox)| {
+                let steps_x = ((hitbox.x2 - hitbox.x1).signum() * (hitbox.x2 - hitbox.x1).abs().ceil()) as u16;
+                let steps_y = ((hitbox.y2 - hitbox.y1).signum() * (hitbox.y2 - hitbox.y1).abs().ceil()) as u16;
+
+                let r: Vec<(f32, f32)> = (0..=steps_x).flat_map(move |a| (0..=steps_y).map(move |b| (a, b))).map(|(xs, ys)| {
+                    ((f32::from(xs) / f32::from(steps_x)) * (hitbox.x2 - hitbox.x1) + hitbox.x1,
+                    (f32::from(ys) / f32::from(steps_y)) * (hitbox.y2 - hitbox.y1) + hitbox.y1)
+                }).collect();
+
+                for (dx, dy) in r {
+                    let pos_x = pos.x + f64::from(dx);
+                    let pos_y = pos.y + f64::from(dy);
+
+                    let world = ch.get(pos_x.floor() as i64, pos_y.floor() as i64);
+                    if let Ok(mat) = world.map(|m| *m) {
+                        if mat.material_id == AIR.id {
+                            let _ignore = ch.set(pos_x.floor() as i64, pos_y.floor() as i64, MaterialInstance {
+                                physics: PhysicsType::Object,
+                                color: Color::RGB(0, 255, 0),
+                                ..mat
+                            });
+                        }
+                        // else if mat.physics == PhysicsType::Sand && ch.set(pos_x as i64, pos_y as i64, MaterialInstance::air()).is_ok() {
+                        //     create_particles.push((
+                        //         Particle::of(mat),
+                        //         Position { x: pos_x, y: pos_y },
+                        //         Velocity { x: 0.0, y: 0.0 },
+                        //     ));
+                        // }
+                    }
+                }
+            });
+
+            // drop(position_storage);
+            // drop(velocity_storage);
+            // drop(phys_ent_storage);
+            // drop(hitbox_storage);
+
+            // for (part, pos, vel) in create_particles {
+            //     self.ecs.create_entity().with(part).with(pos).with(vel)
+            //         .marked::<SimpleMarker<FilePersistent>>().build();
+            // }
+        }
+
         self.chunk_handler.tick(tick_time, settings, &mut self.ecs);
         
         if settings.simulate_particles {
@@ -444,7 +506,45 @@ impl<'w, C: Chunk> World<C> {
             self.ecs.maintain();
         }
 
-        
+        {
+            let (
+                position_storage,
+                velocity_storage,
+                phys_ent_storage,
+                hitbox_storage,
+            ) = self.ecs.system_data::<(
+                ReadStorage<Position>,
+                ReadStorage<Velocity>,
+                ReadStorage<PhysicsEntity>,
+                ReadStorage<Hitbox>,
+            )>();
+
+            // need this since using self.chunk_handler inside the closure doesn't work
+            let ch = &mut self.chunk_handler;
+    
+            (&position_storage, &velocity_storage, &phys_ent_storage, &hitbox_storage).join().for_each(|(pos, _vel, _phys_ent, hitbox)| {
+                let steps_x = ((hitbox.x2 - hitbox.x1).signum() * (hitbox.x2 - hitbox.x1).abs().ceil()) as u16;
+                let steps_y = ((hitbox.y2 - hitbox.y1).signum() * (hitbox.y2 - hitbox.y1).abs().ceil()) as u16;
+
+                let r: Vec<(f32, f32)> = (0..=steps_x).flat_map(move |a| (0..=steps_y).map(move |b| (a, b))).map(|(xs, ys)| {
+                    ((f32::from(xs) / f32::from(steps_x)) * (hitbox.x2 - hitbox.x1) + hitbox.x1,
+                    (f32::from(ys) / f32::from(steps_y)) * (hitbox.y2 - hitbox.y1) + hitbox.y1)
+                }).collect();
+
+                for (dx, dy) in r {
+                    let pos_x = pos.x + f64::from(dx);
+                    let pos_y = pos.y + f64::from(dy);
+
+                    let world = ch.get(pos_x.floor() as i64, pos_y.floor() as i64);
+                    if let Ok(mat) = world {
+                        if mat.physics == PhysicsType::Object {
+                            let _ignore = ch.set(pos_x.floor() as i64, pos_y.floor() as i64, MaterialInstance::air());
+                        }
+                    }
+                }
+            });
+        }
+
         let mut update_physics_entities = UpdatePhysicsEntities { chunk_handler: &mut self.chunk_handler };
         update_physics_entities.run_now(&self.ecs);
         self.ecs.maintain();
