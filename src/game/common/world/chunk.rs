@@ -122,7 +122,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
     // #[profiling::function] // breaks clippy
     #[warn(clippy::too_many_lines)]
-    fn tick(&mut self, tick_time: u32, settings: &Settings, world: &mut specs::World){ // TODO: `camera` should be replaced with like a vec of entities or something
+    fn tick(&mut self, tick_time: u32, settings: &Settings, world: &mut specs::World){
         profiling::scope!("tick");
 
         let (
@@ -267,8 +267,6 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                         if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
 
                         }else if num_loaded_this_tick < 32 {
-                            // TODO: load from file
-
                             let chunk_x = self.loaded_chunks.get_mut(&key).unwrap().get_chunk_x();
                             let chunk_y = self.loaded_chunks.get_mut(&key).unwrap().get_chunk_y();
 

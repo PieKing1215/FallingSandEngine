@@ -209,19 +209,14 @@ impl WorldRenderer {
                 let mut liquid_target2 = self.liquid_image2.get_target();
                 liquid_target2.clear();
 
-                // TODO: add this method to sdl-gpu-rust
-                unsafe {
-                    GPU_SetBlendMode(&mut self.liquid_image.raw, sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_SET);
-                }
+
+                self.liquid_image.set_blend_mode(sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_SET);
                 
                 shaders.liquid_shader.activate();
                 self.liquid_image.blit_rect(None::<GPURect>, &mut liquid_target2, None);
                 Shader::deactivate();
 
-                // TODO: add this method to sdl-gpu-rust
-                unsafe {
-                    GPU_SetBlendMode(&mut self.liquid_image.raw, sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_NORMAL);
-                }
+                self.liquid_image.set_blend_mode(sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_NORMAL);
             };
         }
 
