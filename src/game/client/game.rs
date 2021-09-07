@@ -520,7 +520,7 @@ impl Game<ClientChunk> {
             if let Some(r) = &mut renderer {
                 profiling::scope!("rendering");
 
-                let partial_ticks = now.saturating_duration_since(prev_tick_time).as_secs_f64() / (1.0 / f64::from(self.settings.tick_speed));
+                let partial_ticks = (now.saturating_duration_since(prev_tick_time).as_secs_f64() / (1.0 / f64::from(self.settings.tick_speed))).clamp(0.0, 1.0);
                 let delta_time = Instant::now().saturating_duration_since(counter_last_frame);
                 self.render(r, sdl, delta_time.as_secs_f64(), partial_ticks);
 

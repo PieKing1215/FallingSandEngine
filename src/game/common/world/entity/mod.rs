@@ -232,12 +232,18 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                 let mut collided_y = false;
                 for &(h_dx, h_dy) in &r {
                     if let Some(mat) = self.check_collide((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, phys_ent).copied() {
-                        if vel.y < -0.001 && mat.physics == PhysicsType::Sand && self.chunk_handler.set((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, MaterialInstance::air()).is_ok() {
+                        if (vel.y < -0.001 || vel.y > 1.0) && mat.physics == PhysicsType::Sand && self.chunk_handler.set((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, MaterialInstance::air()).is_ok() {
                             create_particles.push((
                                 Particle::of(mat),
                                 Position { x: (pos.x + f64::from(h_dx)).floor(), y: (new_pos_y + f64::from(h_dy)).floor() },
                                 Velocity { x: rand::thread_rng().gen_range(-0.5..=0.5), y: rand::thread_rng().gen_range(-1.0..=0.0)},
                             ));
+
+                            if vel.y > 0.0 {
+                                vel.y *= 0.9;
+                            }
+
+                            vel.y *= 0.99;
                         } else {
                             collided_y = true;
                             if debug_visualize {

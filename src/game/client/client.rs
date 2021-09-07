@@ -429,6 +429,8 @@ impl Client {
                     },
                 }
             }
+            
+            world.ecs.maintain();
         }
 
         // for (x, y) in pixels_to_highlight.iter() {
