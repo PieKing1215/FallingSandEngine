@@ -43,6 +43,7 @@ pub enum PlayerGrappleState {
 pub enum PlayerMovementMode {
     Normal {
         state: PlayerJumpState,
+        coyote_time: u8,
         boost: f32,
         launch_state: PlayerLaunchState,
         grapple_state: PlayerGrappleState,

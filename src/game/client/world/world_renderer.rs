@@ -422,7 +422,7 @@ impl WorldRenderer {
 
             (&entities, &player_storage).join().for_each(|(ent, player)| {
                 match &player.movement {
-                    PlayerMovementMode::Normal { state, boost, launch_state, grapple_state } => {
+                    PlayerMovementMode::Normal { state, coyote_time, boost, launch_state, grapple_state } => {
                         let mut draw_grapple = |grapple: &specs::Entity, pivots: &Vec<Position>| {
                             let player_pos = position_storage.get(ent).expect("Missing Position on Player");
                             let grapple_pos = position_storage.get(*grapple).expect("Missing Position on grapple");

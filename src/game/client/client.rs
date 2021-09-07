@@ -86,7 +86,7 @@ impl Client {
                 let player = player.get_mut(eid).expect("Missing Player component on local_entity");
                 
                 match player.movement {
-                    PlayerMovementMode::Normal { ref mut state, ref mut boost, ref mut launch_state, ref mut grapple_state } => {
+                    PlayerMovementMode::Normal { ref mut state, ref mut coyote_time, ref mut boost, ref mut launch_state, ref mut grapple_state } => {
                         if velocity_storage.get_mut(eid).is_some() {
                             // log::debug!("{}", *launch_state);
 
@@ -149,7 +149,6 @@ impl Client {
                                 }
                             }
 
-                            // log::trace!("{:?}", grapple_state);
                             match grapple_state {
                                 PlayerGrappleState::Ready => {
                                     if self.controls.grapple.get() {
@@ -361,10 +360,17 @@ impl Client {
                                     velocity_storage.get_mut(eid).unwrap().y *= 0.99;
                                 }
 
-                                if self.controls.jump.get() && phys_ent.on_ground {
+                                if phys_ent.on_ground {
+                                    *coyote_time = 6;
+                                } else if *coyote_time > 0 {
+                                    *coyote_time -= 1;
+                                }
+
+                                if self.controls.jump.get() && *coyote_time > 0 && *state == PlayerJumpState::None {
                                     velocity_storage.get_mut(eid).unwrap().y -= 10.0;
                                     target_x *= 1.5;
                                     inv_accel_x *= 0.5;
+                                    *coyote_time = 0; // prevent double jumping by quickly spamming
 
                                     *state = PlayerJumpState::Jumping;
                                 }
@@ -413,7 +419,8 @@ impl Client {
 
                         if self.controls.free_fly.get() {
                             player.movement = PlayerMovementMode::Normal { 
-                                state: PlayerJumpState::None, 
+                                state: PlayerJumpState::None,
+                                coyote_time: 0,
                                 boost: 1.0, 
                                 launch_state: PlayerLaunchState::Ready, 
                                 grapple_state: PlayerGrappleState::Ready,
