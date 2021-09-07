@@ -35,8 +35,6 @@ clap = "2.33"
 crossterm = "0.20"
 log = "0.4"
 simplelog = "0.10.0"
-#TODO: use crates.io version once a new version releases
-#      can't use 0.6.3 since it uses an old version of tui
 tui-logger = "0.6.4"
 backtrace = "0.3.61"
 specs = { version = "0.17.0", features = ["serde", "specs-derive"] }
