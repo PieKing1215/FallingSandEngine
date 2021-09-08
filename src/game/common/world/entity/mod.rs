@@ -280,6 +280,7 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                 .with(part, &mut particle)
                 .with(p_pos, &mut pos)
                 .with(p_vel, &mut vel)
+                .marked::<SimpleMarker<FilePersistent>>(&mut markers, &mut marker_alloc)
                 .build();
         }
     }
