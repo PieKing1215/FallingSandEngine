@@ -395,7 +395,7 @@ impl Game<ClientChunk> {
                                         bytes_to_read = None;
         
                                         // println!("[CLIENT] Read {} bytes.", buf.len());
-                                        match bincode::deserialize::<Packet>(&buf) {
+                                        match bincode::deserialize::<Packet>(buf) {
                                         // match serde_json::from_slice::<Packet>(&buf) {
                                             Ok(p) => {
                                                 // n += 1;

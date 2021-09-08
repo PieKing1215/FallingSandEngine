@@ -191,7 +191,7 @@ impl<'a> Renderer<'a> {
         }
 
         if let Some(w) = &mut game.world {
-            self.world_renderer.render(w, target, &mut TransformStack::new(), delta_time, sdl, &self.fonts.as_ref().unwrap(), &game.settings, &self.shaders, &mut game.client, partial_ticks);
+            self.world_renderer.render(w, target, &mut TransformStack::new(), delta_time, sdl, self.fonts.as_ref().unwrap(), &game.settings, &self.shaders, &mut game.client, partial_ticks);
         }
         
     }

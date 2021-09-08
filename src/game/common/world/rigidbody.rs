@@ -76,7 +76,7 @@ impl RigidBody {
     }
 
     pub fn make_bodies(pixels: &[MaterialInstance], width: u16, height: u16, lqf_world: &mut liquidfun::box2d::dynamics::world::World, position: (f32, f32)) -> Result<Vec<RigidBody>, String> {
-        let values = mesh::pixels_to_valuemap(&pixels);
+        let values = mesh::pixels_to_valuemap(pixels);
         let mesh = mesh::generate_mesh_only_simplified(&values, u32::from(width), u32::from(height))?;
 
         let loops = mesh::triangulate(&mesh);

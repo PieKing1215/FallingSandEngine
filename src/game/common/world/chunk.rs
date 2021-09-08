@@ -121,7 +121,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
     }
 
     // #[profiling::function] // breaks clippy
-    #[warn(clippy::too_many_lines)]
+    #[allow(clippy::too_many_lines)]
     fn tick(&mut self, tick_time: u32, settings: &Settings, world: &mut specs::World){
         profiling::scope!("tick");
 
@@ -260,15 +260,15 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                 }
                 let mut to_exec = vec![];
                 for (i, key) in keys.iter().enumerate() {
-                    let state = self.loaded_chunks.get(&key).unwrap().get_state(); // copy
-                    let rect = Rect::new(self.loaded_chunks.get(&key).unwrap().get_chunk_x() * i32::from(CHUNK_SIZE), self.loaded_chunks.get(&key).unwrap().get_chunk_y() * i32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
+                    let state = self.loaded_chunks.get(key).unwrap().get_state(); // copy
+                    let rect = Rect::new(self.loaded_chunks.get(key).unwrap().get_chunk_x() * i32::from(CHUNK_SIZE), self.loaded_chunks.get(key).unwrap().get_chunk_y() * i32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
 
                     if state == ChunkState::NotGenerated {
                         if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
 
                         }else if num_loaded_this_tick < 32 {
-                            let chunk_x = self.loaded_chunks.get_mut(&key).unwrap().get_chunk_x();
-                            let chunk_y = self.loaded_chunks.get_mut(&key).unwrap().get_chunk_y();
+                            let chunk_x = self.loaded_chunks.get_mut(key).unwrap().get_chunk_x();
+                            let chunk_y = self.loaded_chunks.get_mut(key).unwrap().get_chunk_y();
 
                             let mut should_generate = true;
                             
@@ -285,38 +285,38 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                                 let save: ChunkSaveFormat = res;
 
                                                 if save.pixels.len() == (CHUNK_SIZE as usize * CHUNK_SIZE as usize) as usize {
-                                                    self.loaded_chunks.get_mut(&key).unwrap().set_state(ChunkState::Cached);
-                                                    self.loaded_chunks.get_mut(&key).unwrap().set_pixels(&save.pixels.try_into().unwrap());
-                                                    self.loaded_chunks.get_mut(&key).unwrap().mark_dirty();
-                                                    let _ = self.loaded_chunks.get_mut(&key).unwrap().generate_mesh();
+                                                    self.loaded_chunks.get_mut(key).unwrap().set_state(ChunkState::Cached);
+                                                    self.loaded_chunks.get_mut(key).unwrap().set_pixels(&save.pixels.try_into().unwrap());
+                                                    self.loaded_chunks.get_mut(key).unwrap().mark_dirty();
+                                                    let _ = self.loaded_chunks.get_mut(key).unwrap().generate_mesh();
 
                                                     if save.colors.len() == (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4) as usize {
-                                                        self.loaded_chunks.get_mut(&key).unwrap().set_pixel_colors(&save.colors.try_into().unwrap());
+                                                        self.loaded_chunks.get_mut(key).unwrap().set_pixel_colors(&save.colors.try_into().unwrap());
                                                     }else {
                                                         log::error!("colors Vec is the wrong size: {} (expected {})", save.colors.len(), CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4);
-                                                        self.loaded_chunks.get_mut(&key).unwrap().refresh();
+                                                        self.loaded_chunks.get_mut(key).unwrap().refresh();
                                                     }
 
                                                     should_generate = false;
                                                 }else {
                                                     log::error!("pixels Vec is the wrong size: {} (expected {})", save.pixels.len(), CHUNK_SIZE * CHUNK_SIZE);
-                                                    self.loaded_chunks.get_mut(&key).unwrap().set_state(ChunkState::Cached);
+                                                    self.loaded_chunks.get_mut(key).unwrap().set_state(ChunkState::Cached);
                                                 }
                                             },
                                             Err(e) => {
                                                 log::error!("Chunk parse failed @ {},{} -> {:?}: {:?}", chunk_x, chunk_y, chunk_path, e);
-                                                self.loaded_chunks.get_mut(&key).unwrap().set_state(ChunkState::Cached);
+                                                self.loaded_chunks.get_mut(key).unwrap().set_state(ChunkState::Cached);
                                             },
                                         }
                                     }else{
                                         log::error!("Chunk load failed @ {},{} -> {:?}", chunk_x, chunk_y, chunk_path);
-                                        self.loaded_chunks.get_mut(&key).unwrap().set_state(ChunkState::Cached);
+                                        self.loaded_chunks.get_mut(key).unwrap().set_state(ChunkState::Cached);
                                     }
                                 }
                             }
 
                             if should_generate {
-                                self.loaded_chunks.get_mut(&key).unwrap().set_state(ChunkState::Generating(0));
+                                self.loaded_chunks.get_mut(key).unwrap().set_state(ChunkState::Generating(0));
                                 to_exec.push((i, chunk_x, chunk_y));
                             }
                             
@@ -335,7 +335,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
                     let gen = self.generator;
                     // WARNING: LEAK
-                    let futs: Vec<_> = Box::leak(Box::new(to_exec)).iter().map(Arc::from).map(|e| async move {
+                    let futs2: Vec<_> = Box::leak(Box::new(to_exec)).iter().map(Arc::from).map(|e| async move {
                         let mut pixels = Box::new([MaterialInstance::air(); (CHUNK_SIZE * CHUNK_SIZE) as usize]);
                         #[allow(clippy::cast_lossless)]
                         let mut colors = Box::new([0; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]);
@@ -343,8 +343,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                         gen.generate(e.1, e.2, 2, &mut pixels, &mut colors); // TODO: non constant seed
                         // println!("{}", e.0);
                         (e.0, pixels, colors)
-                    }).collect();
-                    let futs2: Vec<_> = futs.into_iter().map(|f| RT.spawn(f)).collect();
+                    }).map(|f| RT.spawn(f)).collect();
                     let b = RT.block_on(join_all(futs2));
                     for r in b {
                         let p = r.as_ref().unwrap();
@@ -452,21 +451,21 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
             let mut old_dirty_rects: HashMap<u32, Option<Rect>> = HashMap::with_capacity(keys.len());
 
             for key in &keys {
-                old_dirty_rects.insert(*key, self.loaded_chunks.get(&key).unwrap().get_dirty_rect());
-                self.loaded_chunks.get_mut(&key).unwrap().set_dirty_rect(None);
+                old_dirty_rects.insert(*key, self.loaded_chunks.get(key).unwrap().get_dirty_rect());
+                self.loaded_chunks.get_mut(key).unwrap().set_dirty_rect(None);
             }
 
             for tick_phase in 0..4 {
                 profiling::scope!("phase", format!("phase {}", tick_phase).as_str());
                 let mut to_exec = vec![];
                 for (i, key) in keys.iter().enumerate() {
-                    let state = self.loaded_chunks.get(&key).unwrap().get_state(); // copy
-                    let ch_pos = (self.loaded_chunks.get(&key).unwrap().get_chunk_x(), self.loaded_chunks.get(&key).unwrap().get_chunk_y());
+                    let state = self.loaded_chunks.get(key).unwrap().get_state(); // copy
+                    let ch_pos = (self.loaded_chunks.get(key).unwrap().get_chunk_x(), self.loaded_chunks.get(key).unwrap().get_chunk_y());
 
                     if self.chunk_update_order(ch_pos.0, ch_pos.1) == tick_phase && state == ChunkState::Active {
                         profiling::scope!("iter");
 
-                        if old_dirty_rects.get(&key).is_some() {
+                        if old_dirty_rects.get(key).is_some() {
                             let ch00: *mut [MaterialInstance; (CHUNK_SIZE as usize * CHUNK_SIZE as usize)] = self.loaded_chunks.get_mut(&self.chunk_index(ch_pos.0 - 1, ch_pos.1 - 1)).unwrap().get_pixels_mut().as_mut().unwrap();
                             let ch10: *mut [MaterialInstance; (CHUNK_SIZE as usize * CHUNK_SIZE as usize)] = self.loaded_chunks.get_mut(&self.chunk_index(ch_pos.0    , ch_pos.1 - 1)).unwrap().get_pixels_mut().as_mut().unwrap();
                             let ch20: *mut [MaterialInstance; (CHUNK_SIZE as usize * CHUNK_SIZE as usize)] = self.loaded_chunks.get_mut(&self.chunk_index(ch_pos.0 + 1, ch_pos.1 - 1)).unwrap().get_pixels_mut().as_mut().unwrap();
@@ -529,7 +528,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                     profiling::scope!("run simulation");
 
                     #[allow(clippy::type_complexity)]
-                    let futs: Vec<_> = Box::leak(Box::new(to_exec)).iter().map(Arc::from).map(|e: Arc<&(usize, (i32, i32), [usize; 9], [usize; 9], [Option<Rect>; 9])>| async move {
+                    let futs2: Vec<_> = Box::leak(Box::new(to_exec)).iter().map(Arc::from).map(|e: Arc<&(usize, (i32, i32), [usize; 9], [usize; 9], [Option<Rect>; 9])>| async move {
                         profiling::register_thread!("Simulation thread");
                         profiling::scope!("chunk");
                         let ch_pos = e.1;
@@ -540,9 +539,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                         Simulator::simulate_chunk(ch_pos.0, ch_pos.1, e.2, e.3, &mut dirty, &mut dirty_rects, &mut particles);
 
                         (ch_pos, dirty, dirty_rects, particles)
-                    }).collect();
-
-                    let futs2: Vec<_> = futs.into_iter().map(|f| RT.spawn(f)).collect();
+                    }).map(|f| RT.spawn(f)).collect();
 
                     #[allow(clippy::type_complexity)]
                     let b: Vec<Result<((i32, i32), [bool; 9], [Option<Rect>; 9], Vec<(Particle, Position, Velocity)>), _>>;

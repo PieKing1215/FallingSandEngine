@@ -35,7 +35,7 @@ pub fn generate_mesh_with_simplified(values: &[f64], width: u32, height: u32) ->
 
     let c = contour::ContourBuilder::new(width, height, true);
 
-    let contours = c.contours(&values, &[1.0]);
+    let contours = c.contours(values, &[1.0]);
 
     let feat = contours.map(|vf| {
         // this unwrap should never fail, since the Features returned by contours are always Some geometry with MultiPolygon value

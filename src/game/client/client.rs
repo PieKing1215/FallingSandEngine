@@ -21,32 +21,32 @@ impl Client {
         Self {
             world: None,
             controls: Controls {
-                up: Box::new(MultiControl::new(MultiControlMode::OR, vec![
+                up: Box::new(MultiControl::new(MultiControlMode::Or, vec![
                     Box::new(KeyControl::new(Keycode::W, KeyControlMode::Momentary)),
                     Box::new(KeyControl::new(Keycode::Up, KeyControlMode::Momentary)),
                 ])),
-                down: Box::new(MultiControl::new(MultiControlMode::OR, vec![
+                down: Box::new(MultiControl::new(MultiControlMode::Or, vec![
                     Box::new(KeyControl::new(Keycode::S, KeyControlMode::Momentary)),
                     Box::new(KeyControl::new(Keycode::Down, KeyControlMode::Momentary)),
                 ])),
-                left: Box::new(MultiControl::new(MultiControlMode::OR, vec![
+                left: Box::new(MultiControl::new(MultiControlMode::Or, vec![
                     Box::new(KeyControl::new(Keycode::A, KeyControlMode::Momentary)),
                     Box::new(KeyControl::new(Keycode::Left, KeyControlMode::Momentary)),
                 ])),
-                right: Box::new(MultiControl::new(MultiControlMode::OR, vec![
+                right: Box::new(MultiControl::new(MultiControlMode::Or, vec![
                     Box::new(KeyControl::new(Keycode::D, KeyControlMode::Momentary)),
                     Box::new(KeyControl::new(Keycode::Right, KeyControlMode::Momentary)),
                 ])),
-                jump: Box::new(MultiControl::new(MultiControlMode::OR, vec![
+                jump: Box::new(MultiControl::new(MultiControlMode::Or, vec![
                     Box::new(KeyControl::new(Keycode::Space, KeyControlMode::Momentary)),
                     Box::new(KeyControl::new(Keycode::C, KeyControlMode::Momentary)),
                 ])),
                 free_fly: Box::new(KeyControl::new(Keycode::Kp1, KeyControlMode::Rising)),
-                launch: Box::new(MultiControl::new(MultiControlMode::OR, vec![
+                launch: Box::new(MultiControl::new(MultiControlMode::Or, vec![
                     Box::new(KeyControl::new(Keycode::LShift, KeyControlMode::Momentary)),
                     Box::new(KeyControl::new(Keycode::X, KeyControlMode::Momentary)),
                 ])),
-                grapple: Box::new(MultiControl::new(MultiControlMode::OR, vec![
+                grapple: Box::new(MultiControl::new(MultiControlMode::Or, vec![
                     Box::new(KeyControl::new(Keycode::Z, KeyControlMode::Momentary)),
                 ])) 
             },

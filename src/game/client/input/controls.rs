@@ -124,8 +124,8 @@ impl Control<bool> for KeyControl {
 
 #[allow(dead_code)]
 pub enum MultiControlMode {
-    AND,
-    OR,
+    And,
+    Or,
 }
 
 pub struct MultiControl {
@@ -145,8 +145,8 @@ impl MultiControl {
 impl Control<bool> for MultiControl {
     fn get(&mut self) -> bool {
         match self.mode {
-            MultiControlMode::AND => self.controls.iter_mut().all(|c| c.get()),
-            MultiControlMode::OR  => self.controls.iter_mut().any(|c| c.get()),
+            MultiControlMode::And => self.controls.iter_mut().all(|c| c.get()),
+            MultiControlMode::Or  => self.controls.iter_mut().any(|c| c.get()),
         }
     }
 

@@ -56,7 +56,7 @@ impl MainMenu {
             .flags(WindowFlags::ALWAYS_AUTO_RESIZE)
             .resizable(false)
             .position([400.0, 200.0], imgui::Condition::FirstUseEver)
-            .build(&ui, || {
+            .build(ui, || {
 
             let mut new_state = None;
             match &self.state {
@@ -79,7 +79,7 @@ impl MainMenu {
                     if ui.button(im_str!("Back"), [50.0, 20.0]) {
                         new_state = Some(MainMenuState::Main);
                     }
-                    if let Some(choice) = Self::draw_worlds(&context, ui) {
+                    if let Some(choice) = Self::draw_worlds(context, ui) {
                         log::debug!("Chose world: {:?}", choice);
                         self.action_queue.push(MainMenuAction::LoadWorld(choice));
                     }

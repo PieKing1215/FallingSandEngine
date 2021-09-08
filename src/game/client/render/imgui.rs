@@ -9,7 +9,7 @@ impl Settings {
         .size([300.0, 600.0], imgui::Condition::FirstUseEver)
         .flags(WindowFlags::ALWAYS_AUTO_RESIZE)
         .resizable(false)
-        .build(&ui, || {
+        .build(ui, || {
             TreeNode::new(im_str!("rendering")).label(im_str!("rendering")).build(ui, || {
                 // TreeNode::new(im_str!("chunk_overlay")).label(im_str!("chunk overlay")).build(ui, || {
                     ui.checkbox(im_str!("draw_chunk_state_overlay"), &mut self.draw_chunk_state_overlay);
