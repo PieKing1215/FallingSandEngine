@@ -1,8 +1,8 @@
-use sdl2::pixels::Color;
-use crate::game::common::world::material::{PhysicsType, TEST_MATERIAL};
+
+use crate::game::common::world::material::PhysicsType;
 use crate::game::common::world::ChunkHandlerGeneric;
 use sdl2::{event::Event, keyboard::Keycode};
-use specs::{Builder, Entities, WorldExt, WriteStorage};
+use specs::{Entities, WorldExt, WriteStorage};
 
 use crate::game::common::world::{Position, Velocity, World, entity::{CollisionDetector, GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState, PlayerJumpState, PlayerLaunchState, PlayerMovementMode}, material::MaterialInstance};
 
@@ -64,7 +64,7 @@ impl Client {
 
             if let Some(eid) = w.local_entity {
                 let (
-                    mut entities,
+                    entities,
                     mut player,
                     mut game_ent_storage,
                     mut phys_ent_storage,
@@ -411,10 +411,10 @@ impl Client {
                     },
                     PlayerMovementMode::Free => {
                         if let Some(vel) = velocity_storage.get_mut(eid) {
-                            if self.controls.up.get()    { vel.y -= 0.7 }
-                            if self.controls.down.get()  { vel.y += 0.5 }
-                            if self.controls.left.get()  { vel.x -= 0.5 }
-                            if self.controls.right.get() { vel.x += 0.5 }
+                            if self.controls.up.get()    { vel.y -= 0.7; }
+                            if self.controls.down.get()  { vel.y += 0.5; }
+                            if self.controls.left.get()  { vel.x -= 0.5; }
+                            if self.controls.right.get() { vel.x += 0.5; }
                         }
 
                         if self.controls.free_fly.get() {

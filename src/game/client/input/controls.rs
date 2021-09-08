@@ -44,7 +44,7 @@ impl<T: Control<bool>> Control<f32> for T{
     }
 
     fn process(&mut self, event: &InputEvent) {
-        T::process(self, event)
+        T::process(self, event);
     }
 }
 
@@ -151,6 +151,6 @@ impl Control<bool> for MultiControl {
     }
 
     fn process(&mut self, event: &InputEvent) {
-        self.controls.iter_mut().for_each(|c| c.process(event))
+        self.controls.iter_mut().for_each(|c| c.process(event));
     }
 }

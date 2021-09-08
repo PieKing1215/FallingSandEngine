@@ -1,6 +1,5 @@
 
-use specs::{Component, Entity, saveload::{ConvertSaveload, Marker}, storage::BTreeStorage, error::NoError};
-use specs_derive::*;
+use specs::{Component, Entity, storage::BTreeStorage};
 use serde::{Serialize, Deserialize};
 
 use crate::game::common::world::Position;

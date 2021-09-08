@@ -2,7 +2,7 @@ use std::{iter, ptr::slice_from_raw_parts};
 
 use liquidfun::box2d::common::{b2draw::{self, B2Draw_New, b2Color, b2ParticleColor, b2Transform, b2Vec2, int32}, math::Vec2};
 use sdl2::{pixels::Color, rect::Rect};
-use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, shaders::Shader, sys::{GPU_FilterEnum, GPU_FormatEnum, GPU_SetBlendMode}};
+use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, shaders::Shader, sys::{GPU_FilterEnum, GPU_FormatEnum}};
 use specs::{Join, ReadStorage, WriteStorage};
 
 use crate::game::{client::{Client, render::{Fonts, RenderCanvas, Renderable, Sdl2Context, Shaders, TransformStack}}, common::{Settings, world::{AutoTarget, CHUNK_SIZE, Camera, ChunkHandlerGeneric, ChunkState, LIQUIDFUN_SCALE, Position, Velocity, World, entity::{GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState, PlayerMovementMode}, gen::WorldGenerator, particle::Particle}}};
@@ -417,7 +417,7 @@ impl WorldRenderer {
 
             (&entities, &player_storage).join().for_each(|(ent, player)| {
                 match &player.movement {
-                    PlayerMovementMode::Normal { state, coyote_time, boost, launch_state, grapple_state } => {
+                    PlayerMovementMode::Normal { grapple_state, .. } => {
                         let mut draw_grapple = |grapple: &specs::Entity, pivots: &Vec<Position>| {
                             let player_pos = position_storage.get(ent).expect("Missing Position on Player");
                             let grapple_pos = position_storage.get(*grapple).expect("Missing Position on grapple");
@@ -431,9 +431,11 @@ impl WorldRenderer {
     
                                 target.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(191, 191, 191, 255));
                             } else {
-                                let (x1, y1) = transform.transform((grapple_pos.x + grapple_vel.x * partial_ticks, grapple_pos.y + grapple_vel.y * partial_ticks));
-                                let (x2, y2) = transform.transform((pivots[0].x, pivots[0].y));
-                                target.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(191, 191, 191, 255));
+                                {
+                                    let (x1, y1) = transform.transform((grapple_pos.x + grapple_vel.x * partial_ticks, grapple_pos.y + grapple_vel.y * partial_ticks));
+                                    let (x2, y2) = transform.transform((pivots[0].x, pivots[0].y));
+                                    target.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(191, 191, 191, 255));
+                                }
 
                                 if pivots.len() > 1 {
                                     for i in 1..pivots.len() {
@@ -446,22 +448,23 @@ impl WorldRenderer {
                                     }
                                 }
 
-                                let (x1, y1) = transform.transform((pivots[pivots.len() - 1].x, pivots[pivots.len() - 1].y));
-                                let (x2, y2) = transform.transform((player_pos.x + player_vel.x * partial_ticks, player_pos.y + player_vel.y * partial_ticks));
-                                target.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(191, 191, 191, 255));
+                                {
+                                    let (x1, y1) = transform.transform((pivots[pivots.len() - 1].x, pivots[pivots.len() - 1].y));
+                                    let (x2, y2) = transform.transform((player_pos.x + player_vel.x * partial_ticks, player_pos.y + player_vel.y * partial_ticks));
+                                    target.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(191, 191, 191, 255));
+                                }
                             }
                             target.set_line_thickness(1.0);
                         };
 
                         match grapple_state {
-                            PlayerGrappleState::Ready => (),
-                            PlayerGrappleState::Out { can_cancel, entity, tether_length, desired_tether_length, pivots } => {
+                            PlayerGrappleState::Out { entity, pivots, .. } => {
                                 draw_grapple(entity, pivots);
                             },
                             PlayerGrappleState::Cancelled { entity } => {
                                 draw_grapple(entity, &vec![]);
                             },
-                            PlayerGrappleState::Used => (),
+                            PlayerGrappleState::Ready | PlayerGrappleState::Used => (),
                         }
                     },
                     PlayerMovementMode::Free => (),
@@ -476,7 +479,7 @@ impl WorldRenderer {
                     let rc_x = x + (camera_pos.x / f64::from(CHUNK_SIZE)) as i32;
                     let rc_y = y + (camera_pos.y / f64::from(CHUNK_SIZE)) as i32;
                     let rc = Rect::new(rc_x * i32::from(CHUNK_SIZE), rc_y * i32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
-                    target.rectangle2(transform.transform_rect(rc), Color::RGBA(64, 64, 64, 127))
+                    target.rectangle2(transform.transform_rect(rc), Color::RGBA(64, 64, 64, 127));
                 }
             }
         }
