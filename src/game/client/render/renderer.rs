@@ -3,7 +3,7 @@ use std::{cell::RefCell, fs};
 
 use imgui::{WindowFlags, im_str};
 use sdl2::{VideoSubsystem, pixels::Color, ttf::{Font, Sdl2TtfContext}, video::Window};
-use sdl_gpu::{GPURect, GPUSubsystem, GPUTarget, shaders::Shader};
+use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, shaders::Shader};
 
 use super::TransformStack;
 use crate::game::{Game, client::world::{ClientChunk, WorldRenderer}, common::FileHelper};
@@ -95,6 +95,18 @@ impl<'a> Renderer<'a> {
         self.render_internal(sdl, game, delta_time, partial_ticks);
 
         let target = &mut self.target.borrow_mut();
+
+        if let Ok(surf) = self.fonts.as_ref().unwrap().pixel_operator.render("Development Build")
+                    .solid(Color::RGB(0xff, 0xff, 0xff)) {
+            let img = GPUImage::from_surface(&surf);
+            img.blit_rect(None, target, Some(GPURect::new(4.0, self.window.size().1 as f32 - 4.0 - 14.0 * 2.0, surf.width() as f32, surf.height() as f32)));
+        }
+
+        if let Ok(surf) = self.fonts.as_ref().unwrap().pixel_operator.render(format!("{} ({})", env!("BUILD_DATETIME"), env!("GIT_HASH")).as_str())
+                    .solid(Color::RGB(0xff, 0xff, 0xff)) {
+            let img = GPUImage::from_surface(&surf);
+            img.blit_rect(None, target, Some(GPURect::new(4.0, self.window.size().1 as f32 - 4.0 - 14.0, surf.width() as f32, surf.height() as f32)));
+        }
 
         {
             profiling::scope!("imgui");

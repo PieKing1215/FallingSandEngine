@@ -9,6 +9,7 @@ license = "ARR"
 keywords = ["game", "falling-sand", "2d"]
 categories = ["game-engines", "games"]
 edition = "2018"
+build = "src/build.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -75,6 +76,9 @@ opt-level = 1
 
 [dev-dependencies]
 criterion = "0.3"
+
+[build-dependencies]
+chrono = "0.4"
 
 # [[bench]]
 # name = "benchmark"
