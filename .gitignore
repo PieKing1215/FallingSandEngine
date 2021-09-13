@@ -2,6 +2,9 @@
 gamedir/logs/*
 gamedir/saves/*
 !gamedir/saves/template
+package/*
+push_steam_nightly.sh
+steamworks_sdk_151/*
 
 # vscode
 .vscode/*
