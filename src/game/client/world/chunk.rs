@@ -95,8 +95,7 @@ impl<'ch> Chunk for ClientChunk {
         self.graphics.was_dirty = self.graphics.dirty;
 
         self.graphics
-            .update_texture()
-            .map_err(|e| format!("ChunkGraphics::update_texture failed: {:?}", e))?;
+            .update_texture();
 
         Ok(())
     }
