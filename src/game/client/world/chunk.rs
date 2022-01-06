@@ -279,7 +279,7 @@ impl<'cg> ChunkGraphics {
     }
 
     // #[profiling::function]
-    pub fn update_texture(&mut self) -> Result<(), ()> {
+    pub fn update_texture(&mut self) {
         if self.dirty {
             if self.texture.is_none() {
                 self.texture = Some(GPUSubsystem::create_image(
@@ -299,8 +299,6 @@ impl<'cg> ChunkGraphics {
             );
             self.dirty = false;
         }
-
-        Ok(())
     }
 
     #[profiling::function]

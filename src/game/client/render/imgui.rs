@@ -4,6 +4,7 @@ use imgui::{im_str, ComboBox, Slider, SliderFlags, TreeNode, WindowFlags};
 impl Settings {
     #[profiling::function]
     pub fn imgui(&mut self, ui: &imgui::Ui) {
+        #[allow(clippy::semicolon_if_nothing_returned)] // this lint is completely broken by im_str
         imgui::Window::new(im_str!("Debug Menu"))
             .size([300.0, 600.0], imgui::Condition::FirstUseEver)
             .flags(WindowFlags::ALWAYS_AUTO_RESIZE)

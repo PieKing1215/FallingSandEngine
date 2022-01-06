@@ -169,6 +169,7 @@ impl<'a> Renderer<'a> {
                 .main_menu
                 .render(&ui, &game.file_helper);
 
+            #[allow(clippy::semicolon_if_nothing_returned)] // this lint is completely broken by im_str
             imgui::Window::new(im_str!("Stats"))
                 .size([300.0, 300.0], imgui::Condition::FirstUseEver)
                 .position_pivot([1.0, 1.0])
