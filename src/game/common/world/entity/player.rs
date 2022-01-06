@@ -1,6 +1,5 @@
-
-use specs::{Component, Entity, storage::BTreeStorage};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use specs::{storage::BTreeStorage, Component, Entity};
 
 use crate::game::common::world::Position;
 
@@ -14,11 +13,7 @@ pub enum PlayerJumpState {
 pub enum PlayerLaunchState {
     Ready,
     Hold,
-    Launch {
-        time: u16,
-        dir_x: f64,
-        dir_y: f64,
-    },
+    Launch { time: u16, dir_x: f64, dir_y: f64 },
     Used,
 }
 

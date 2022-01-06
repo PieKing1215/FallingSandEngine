@@ -1,13 +1,34 @@
-
 use std::{borrow::BorrowMut, convert::Infallible, path::PathBuf, time::Duration};
 
 use crate::game::common::Settings;
 
-use liquidfun::box2d::{collision::shapes::chain_shape::ChainShape, common::{b2draw, math::Vec2}, dynamics::{body::{BodyDef, BodyType}, fixture::FixtureDef}};
+use liquidfun::box2d::{
+    collision::shapes::chain_shape::ChainShape,
+    common::{b2draw, math::Vec2},
+    dynamics::{
+        body::{BodyDef, BodyType},
+        fixture::FixtureDef,
+    },
+};
 use sdl2::pixels::Color;
-use specs::{Builder, Entities, Join, ReadStorage, RunNow, WorldExt, Write, WriteStorage, saveload::{MarkedBuilder, SimpleMarker, SimpleMarkerAllocator}};
+use specs::{
+    saveload::{MarkedBuilder, SimpleMarker, SimpleMarkerAllocator},
+    Builder, Entities, Join, ReadStorage, RunNow, WorldExt, Write, WriteStorage,
+};
 
-use super::{ApplyB2Bodies, AutoTarget, B2BodyComponent, CHUNK_SIZE, Camera, Chunk, ChunkHandler, ChunkHandlerGeneric, CollisionFlags, DeltaTime, FilePersistent, Loader, Position, TickTime, UpdateAutoTargets, UpdateB2Bodies, Velocity, entity::{CollisionDetector, GameEntity, Hitbox, Persistent, PhysicsEntity, Player, UpdatePhysicsEntities}, gen::{TEST_GENERATOR, TestGenerator}, material::{AIR, MaterialInstance, PhysicsType, TEST_MATERIAL}, particle::{Particle, Sleep, UpdateParticles}, rigidbody::RigidBody, simulator};
+use super::{
+    entity::{
+        CollisionDetector, GameEntity, Hitbox, Persistent, PhysicsEntity, Player,
+        UpdatePhysicsEntities,
+    },
+    gen::{TestGenerator, TEST_GENERATOR},
+    material::{MaterialInstance, PhysicsType, AIR, TEST_MATERIAL},
+    particle::{Particle, Sleep, UpdateParticles},
+    rigidbody::RigidBody,
+    simulator, ApplyB2Bodies, AutoTarget, B2BodyComponent, Camera, Chunk, ChunkHandler,
+    ChunkHandlerGeneric, CollisionFlags, DeltaTime, FilePersistent, Loader, Position, TickTime,
+    UpdateAutoTargets, UpdateB2Bodies, Velocity, CHUNK_SIZE,
+};
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
 
@@ -33,35 +54,35 @@ impl<'w, C: Chunk> World<C> {
         let lqf_world = liquidfun::box2d::dynamics::world::World::new(&gravity);
 
         // let mut ground_body_def = BodyDef::default();
-	    // ground_body_def.position.set(0.0, -26.0);
+        // ground_body_def.position.set(0.0, -26.0);
         // let ground_body = lqf_world.create_body(&ground_body_def);
         // let mut ground_box = PolygonShape::new();
         // ground_box.set_as_box(46.0, 0.4);
         // ground_body.create_fixture_from_shape(&ground_box, 0.0);
 
         // let mut ground_body_def = BodyDef::default();
-	    // ground_body_def.position.set(0.0, 0.4);
+        // ground_body_def.position.set(0.0, 0.4);
         // let ground_body = lqf_world.create_body(&ground_body_def);
         // let mut ground_box = PolygonShape::new();
         // ground_box.set_as_box(12.0, 0.4);
         // ground_body.create_fixture_from_shape(&ground_box, 0.0);
 
         // let mut ground_body_def = BodyDef::default();
-	    // ground_body_def.position.set(12.0, -6.0);
+        // ground_body_def.position.set(12.0, -6.0);
         // let ground_body = lqf_world.create_body(&ground_body_def);
         // let mut ground_box = PolygonShape::new();
         // ground_box.set_as_box(0.4, 6.0);
         // ground_body.create_fixture_from_shape(&ground_box, 0.0);
 
         // let mut ground_body_def = BodyDef::default();
-	    // ground_body_def.position.set(-12.0, -6.0);
+        // ground_body_def.position.set(-12.0, -6.0);
         // let ground_body = lqf_world.create_body(&ground_body_def);
         // let mut ground_box = PolygonShape::new();
         // ground_box.set_as_box(0.4, 6.0);
         // ground_body.create_fixture_from_shape(&ground_box, 0.0);
 
         // let mut ground_body_def = BodyDef::default();
-	    // ground_body_def.position.set(7.0, -8.3);
+        // ground_body_def.position.set(7.0, -8.3);
         // let ground_body = lqf_world.create_body(&ground_body_def);
         // let mut ground_box = PolygonShape::new();
         // ground_box.set_as_box(0.2, 8.0);
@@ -96,34 +117,34 @@ impl<'w, C: Chunk> World<C> {
         // bottom section
 
         // let mut ground_body_def = BodyDef::default();
-	    // ground_body_def.position.set(0.0, 15.0);
+        // ground_body_def.position.set(0.0, 15.0);
         // let ground_body = lqf_world.create_body(&ground_body_def);
         // let mut ground_box = PolygonShape::new();
         // ground_box.set_as_box(24.0, 0.4);
         // ground_body.create_fixture_from_shape(&ground_box, 0.0);
 
         // let mut ground_body_def = BodyDef::default();
-	    // ground_body_def.position.set(35.0, -5.0);
+        // ground_body_def.position.set(35.0, -5.0);
         // let ground_body = lqf_world.create_body(&ground_body_def);
         // let mut ground_box = PolygonShape::new();
         // ground_box.set_as_box_oriented(0.4, 24.0, &Vec2{x: 0.0, y: 0.0}, 0.5);
         // ground_body.create_fixture_from_shape(&ground_box, 0.0);
 
         // let mut ground_body_def = BodyDef::default();
-	    // ground_body_def.position.set(-35.0, -5.0);
+        // ground_body_def.position.set(-35.0, -5.0);
         // let ground_body = lqf_world.create_body(&ground_body_def);
         // let mut ground_box = PolygonShape::new();
         // ground_box.set_as_box_oriented(0.4, 24.0, &Vec2{x: 0.0, y: 0.0}, -0.5);
         // ground_body.create_fixture_from_shape(&ground_box, 0.0);
 
         // let particle_system_def = ParticleSystemDef {
-        //     radius: 0.19, 
-        //     surface_tension_pressure_strength: 0.1, 
-        //     surface_tension_normal_strength: 0.1, 
-        //     damping_strength: 0.001, 
-        //     ..ParticleSystemDef::default() 
+        //     radius: 0.19,
+        //     surface_tension_pressure_strength: 0.1,
+        //     surface_tension_normal_strength: 0.1,
+        //     damping_strength: 0.001,
+        //     ..ParticleSystemDef::default()
         // };
-	    // let particle_system = lqf_world.create_particle_system(&particle_system_def);
+        // let particle_system = lqf_world.create_particle_system(&particle_system_def);
         // let mut pd = ParticleDef::default();
         // pd.flags.insert(TENSILE_PARTICLE);
         // pd.color.set(255, 90, 255, 255);
@@ -178,36 +199,41 @@ impl<'w, C: Chunk> World<C> {
                             WriteStorage<Position>,
                             WriteStorage<Velocity>,
                         )>();
-    
-                        let mut deserializer = bincode::Deserializer::with_reader(f, bincode::options());
+
+                        let mut deserializer =
+                            bincode::Deserializer::with_reader(f, bincode::options());
                         // let mut deserializer = serde_json::Deserializer::from_reader(f);
-                        if let Err(e) = specs::saveload::DeserializeComponents
-                                        ::<Infallible, SimpleMarker<FilePersistent>>
-                                        ::deserialize(
-                                            &mut (particle_storage, position_storage, velocity_storage),  // tuple of WriteStorage<'a, _>
-                                            &entities,                              // Entities<'a>
-                                            &mut marker_storage,                    // WriteStorage<'a SimpleMarker<A>>
-                                            &mut marker_allocator,                  // Write<'a, SimpleMarkerAllocator<A>>
-                                            &mut deserializer,                      // serde::Deserializer
-                                        ) {
-                            log::error!("Failed to read particles from file @ {:?}: {:?}", particles_path, e);
+                        if let Err(e) = specs::saveload::DeserializeComponents::<
+                            Infallible,
+                            SimpleMarker<FilePersistent>,
+                        >::deserialize(
+                            &mut (particle_storage, position_storage, velocity_storage), // tuple of WriteStorage<'a, _>
+                            &entities,             // Entities<'a>
+                            &mut marker_storage,   // WriteStorage<'a SimpleMarker<A>>
+                            &mut marker_allocator, // Write<'a, SimpleMarkerAllocator<A>>
+                            &mut deserializer,     // serde::Deserializer
+                        ) {
+                            log::error!(
+                                "Failed to read particles from file @ {:?}: {:?}",
+                                particles_path,
+                                e
+                            );
                         };
 
-                        let (
-                            particle_storage,
-                        ) = ecs.system_data::<(
-                            ReadStorage<Particle>,
-                        )>();
+                        let (particle_storage,) = ecs.system_data::<(ReadStorage<Particle>,)>();
                         log::debug!("Loaded {} particles.", particle_storage.count());
-                    },
+                    }
                     Err(e) => {
-                        log::error!("Failed to open particles file for reading @ {:?}: {:?}", particles_path, e);
-                    },
+                        log::error!(
+                            "Failed to open particles file for reading @ {:?}: {:?}",
+                            particles_path,
+                            e
+                        );
+                    }
                 };
 
                 ecs.maintain();
-                
-            }else{
+            } else {
                 log::error!("Particles file missing @ {:?}", particles_path);
             }
         }
@@ -223,47 +249,59 @@ impl<'w, C: Chunk> World<C> {
 
         // add a rigidbody
 
-        let pixels: Vec<_> = (0..40 * 40).map(|i| {
-            let x: i32 = i % 40;
-            let y: i32 = i / 40;
-            if (x - 20).abs() < 5 || (y - 20).abs() < 5 {
-                MaterialInstance {
-                    material_id: TEST_MATERIAL.id,
-                    physics: PhysicsType::Solid,
-                    color: Color::RGB(64, if (x + y) % 4 >= 2 { 191 } else { 64 }, if (x + y) % 4 > 2 { 64 } else { 191 }),
+        let pixels: Vec<_> = (0..40 * 40)
+            .map(|i| {
+                let x: i32 = i % 40;
+                let y: i32 = i / 40;
+                if (x - 20).abs() < 5 || (y - 20).abs() < 5 {
+                    MaterialInstance {
+                        material_id: TEST_MATERIAL.id,
+                        physics: PhysicsType::Solid,
+                        color: Color::RGB(
+                            64,
+                            if (x + y) % 4 >= 2 { 191 } else { 64 },
+                            if (x + y) % 4 > 2 { 64 } else { 191 },
+                        ),
+                    }
+                } else {
+                    MaterialInstance::air()
                 }
-            }else {
-                MaterialInstance::air()
-            }
-        }).collect();
-        
+            })
+            .collect();
+
         if let Ok(mut r) = RigidBody::make_bodies(&pixels, 40, 40, &mut w.lqf_world, (-1.0, -7.0)) {
             w.rigidbodies.append(&mut r);
         }
 
         // add another rigidbody
 
-        let pixels: Vec<_> = (0..40 * 40).map(|i| {
-            let x: i32 = i % 40;
-            let y: i32 = i / 40;
-            let dst = (x - 20) * (x - 20) + (y - 20) * (y - 20);
-            if dst <= 10 * 10 {
-                MaterialInstance {
-                    material_id: TEST_MATERIAL.id,
-                    physics: PhysicsType::Sand,
-                    color: Color::RGB(255, 64, 255),
+        let pixels: Vec<_> = (0..40 * 40)
+            .map(|i| {
+                let x: i32 = i % 40;
+                let y: i32 = i / 40;
+                let dst = (x - 20) * (x - 20) + (y - 20) * (y - 20);
+                if dst <= 10 * 10 {
+                    MaterialInstance {
+                        material_id: TEST_MATERIAL.id,
+                        physics: PhysicsType::Sand,
+                        color: Color::RGB(255, 64, 255),
+                    }
+                } else if dst <= 20 * 20 && ((x - 20).abs() >= 5 || y > 20) {
+                    MaterialInstance {
+                        material_id: TEST_MATERIAL.id,
+                        physics: PhysicsType::Solid,
+                        color: Color::RGB(
+                            if (x + y) % 4 >= 2 { 191 } else { 64 },
+                            if (x + y) % 4 > 2 { 64 } else { 191 },
+                            64,
+                        ),
+                    }
+                } else {
+                    MaterialInstance::air()
                 }
-            }else if dst <= 20 * 20 && ((x - 20).abs() >= 5 || y > 20) {
-                MaterialInstance {
-                    material_id: TEST_MATERIAL.id,
-                    physics: PhysicsType::Solid,
-                    color: Color::RGB(if (x + y) % 4 >= 2 { 191 } else { 64 }, if (x + y) % 4 > 2 { 64 } else { 191 }, 64),
-                }
-            }else {
-                MaterialInstance::air()
-            }
-        }).collect();
-        
+            })
+            .collect();
+
         if let Ok(mut r) = RigidBody::make_bodies(&pixels, 40, 40, &mut w.lqf_world, (2.0, -6.5)) {
             w.rigidbodies.append(&mut r);
         }
@@ -271,22 +309,34 @@ impl<'w, C: Chunk> World<C> {
         for n in 0..4 {
             // add more rigidbodies
 
-            let pixels: Vec<_> = (0..30 * 30).map(|i| {
-                let x: i32 = i % 30 + (((i + n * 22) as f32 / 60.0).sin() * 2.0) as i32;
-                let y: i32 = i / 30;
-                let dst = (x - 15) * (x - 15) + (y - 15) * (y - 15);
-                if dst > 5 * 5 && dst <= 10 * 10  {
-                    MaterialInstance {
-                        material_id: TEST_MATERIAL.id,
-                        physics: PhysicsType::Solid,
-                        color: Color::RGB(if (x + y) % 4 >= 2 { 191 } else { 64 }, if (x + y) % 4 > 2 { 64 } else { 191 }, if (x + y) % 4 >= 2 { 191 } else { 64 }),
+            let pixels: Vec<_> = (0..30 * 30)
+                .map(|i| {
+                    let x: i32 = i % 30 + (((i + n * 22) as f32 / 60.0).sin() * 2.0) as i32;
+                    let y: i32 = i / 30;
+                    let dst = (x - 15) * (x - 15) + (y - 15) * (y - 15);
+                    if dst > 5 * 5 && dst <= 10 * 10 {
+                        MaterialInstance {
+                            material_id: TEST_MATERIAL.id,
+                            physics: PhysicsType::Solid,
+                            color: Color::RGB(
+                                if (x + y) % 4 >= 2 { 191 } else { 64 },
+                                if (x + y) % 4 > 2 { 64 } else { 191 },
+                                if (x + y) % 4 >= 2 { 191 } else { 64 },
+                            ),
+                        }
+                    } else {
+                        MaterialInstance::air()
                     }
-                }else {
-                    MaterialInstance::air()
-                }
-            }).collect();
-            
-            if let Ok(mut r) = RigidBody::make_bodies(&pixels, 30, 30, &mut w.lqf_world, (5.0 + n as f32 * 2.0, -7.0 + n as f32 * -0.75)) {
+                })
+                .collect();
+
+            if let Ok(mut r) = RigidBody::make_bodies(
+                &pixels,
+                30,
+                30,
+                &mut w.lqf_world,
+                (5.0 + n as f32 * 2.0, -7.0 + n as f32 * -0.75),
+            ) {
                 w.rigidbodies.append(&mut r);
             }
         }
@@ -301,10 +351,9 @@ impl<'w, C: Chunk> World<C> {
     }
 
     pub fn save(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-
         if let Some(path) = &self.path {
             let particles_path = path.join("particles.dat");
-            
+
             match std::fs::File::create(particles_path.clone()) {
                 Ok(f) => {
                     let (
@@ -323,20 +372,29 @@ impl<'w, C: Chunk> World<C> {
 
                     let mut serializer = bincode::Serializer::new(f, bincode::options());
                     // let mut serializer = serde_json::Serializer::new(f);
-                    if let Err(e) = specs::saveload::SerializeComponents
-                                            ::<Infallible, SimpleMarker<FilePersistent>>
-                                            ::serialize(
-                                                &(particle_storage, position_storage, velocity_storage),      // tuple of ReadStorage<'a, _>
-                                                &entities,                              // Entities<'a>
-                                                &marker_storage,                        // ReadStorage<'a, SimpleMarker<A>>
-                                                &mut serializer,                        // serde::Serializer
-                                            ) {
-                        log::error!("Failed to write particles to file @ {:?}: {:?}", particles_path, e);
+                    if let Err(e) = specs::saveload::SerializeComponents::<
+                        Infallible,
+                        SimpleMarker<FilePersistent>,
+                    >::serialize(
+                        &(particle_storage, position_storage, velocity_storage), // tuple of ReadStorage<'a, _>
+                        &entities,                                               // Entities<'a>
+                        &marker_storage, // ReadStorage<'a, SimpleMarker<A>>
+                        &mut serializer, // serde::Serializer
+                    ) {
+                        log::error!(
+                            "Failed to write particles to file @ {:?}: {:?}",
+                            particles_path,
+                            e
+                        );
                     };
-                },
+                }
                 Err(e) => {
-                    log::error!("Failed to open particles file for writing @ {:?}: {:?}", particles_path, e);
-                },
+                    log::error!(
+                        "Failed to open particles file for writing @ {:?}: {:?}",
+                        particles_path,
+                        e
+                    );
+                }
             };
         }
 
@@ -346,8 +404,7 @@ impl<'w, C: Chunk> World<C> {
     }
 
     #[profiling::function]
-    pub fn tick(&mut self, tick_time: u32, settings: &Settings){
-
+    pub fn tick(&mut self, tick_time: u32, settings: &Settings) {
         *self.ecs.write_resource::<TickTime>() = TickTime(tick_time);
 
         for rb_i in 0..self.rigidbodies.len() {
@@ -371,62 +428,135 @@ impl<'w, C: Chunk> World<C> {
                             let world = self.chunk_handler.get(tx as i64, ty as i64);
                             if let Ok(mat) = world {
                                 if mat.material_id == AIR.id {
-                                    let _ignore = self.chunk_handler.set(tx as i64, ty as i64, MaterialInstance {
-                                        physics: PhysicsType::Object,
-                                        ..cur
-                                    });
-                                }else if mat.physics == PhysicsType::Sand {
+                                    let _ignore = self.chunk_handler.set(
+                                        tx as i64,
+                                        ty as i64,
+                                        MaterialInstance { physics: PhysicsType::Object, ..cur },
+                                    );
+                                } else if mat.physics == PhysicsType::Sand {
                                     // let local_point = Vec2::new(f32::from(rb_x) / f32::from(rb_w), f32::from(rb_y) / f32::from(rb_h));
-                                    let world_point = Vec2::new(tx / LIQUIDFUN_SCALE, ty / LIQUIDFUN_SCALE);
+                                    let world_point =
+                                        Vec2::new(tx / LIQUIDFUN_SCALE, ty / LIQUIDFUN_SCALE);
 
-                                    let point_velocity: Vec2 = body.get_linear_velocity_from_world_point(&Vec2::new(tx / LIQUIDFUN_SCALE, ty / LIQUIDFUN_SCALE));
+                                    let point_velocity: Vec2 = body
+                                        .get_linear_velocity_from_world_point(&Vec2::new(
+                                            tx / LIQUIDFUN_SCALE,
+                                            ty / LIQUIDFUN_SCALE,
+                                        ));
                                     // TODO: extract constant into material property (like weight or something)
                                     // TODO: consider making it so the body actually comes to a stop
-                                    body.apply_force(&Vec2::new(-point_velocity.x * 0.1, -point_velocity.y * 0.1), &world_point, true);
+                                    body.apply_force(
+                                        &Vec2::new(
+                                            -point_velocity.x * 0.1,
+                                            -point_velocity.y * 0.1,
+                                        ),
+                                        &world_point,
+                                        true,
+                                    );
 
-                                    if point_velocity.x.abs() > 1.0 || point_velocity.y.abs() > 1.0 {
+                                    if point_velocity.x.abs() > 1.0 || point_velocity.y.abs() > 1.0
+                                    {
                                         let m = *mat;
                                         let part = Particle::of(*mat);
-                                        let part_pos = Position { x: f64::from(tx), y: f64::from(ty) };
-                                        let mut part_vel = Velocity { x: f64::from(point_velocity.x * 0.1), y: f64::from(point_velocity.y * 0.1 - 0.5) };
+                                        let part_pos =
+                                            Position { x: f64::from(tx), y: f64::from(ty) };
+                                        let mut part_vel = Velocity {
+                                            x: f64::from(point_velocity.x * 0.1),
+                                            y: f64::from(point_velocity.y * 0.1 - 0.5),
+                                        };
 
-                                        let res = self.chunk_handler.set(tx as i64, ty as i64, MaterialInstance {
-                                            physics: PhysicsType::Object,
-                                            ..cur
-                                        });
+                                        let res = self.chunk_handler.set(
+                                            tx as i64,
+                                            ty as i64,
+                                            MaterialInstance {
+                                                physics: PhysicsType::Object,
+                                                ..cur
+                                            },
+                                        );
 
                                         if res.is_ok() {
-                                            match self.chunk_handler.get((part_pos.x + part_vel.x) as i64, (part_pos.y + part_vel.y) as i64) {
-                                                Ok(m_test) if m_test.physics != PhysicsType::Air => {
+                                            match self.chunk_handler.get(
+                                                (part_pos.x + part_vel.x) as i64,
+                                                (part_pos.y + part_vel.y) as i64,
+                                            ) {
+                                                Ok(m_test)
+                                                    if m_test.physics != PhysicsType::Air =>
+                                                {
                                                     part_vel.x *= -1.0;
                                                     part_vel.y *= -1.0;
 
-                                                    self.ecs.create_entity().with(part).with(part_pos).with(part_vel)
-                                                        .marked::<SimpleMarker<FilePersistent>>().build();
+                                                    self.ecs
+                                                        .create_entity()
+                                                        .with(part)
+                                                        .with(part_pos)
+                                                        .with(part_vel)
+                                                        .marked::<SimpleMarker<FilePersistent>>()
+                                                        .build();
 
-                                                    body.apply_force(&Vec2::new(-point_velocity.x * 0.5, -point_velocity.y * 0.5), &world_point, true);
+                                                    body.apply_force(
+                                                        &Vec2::new(
+                                                            -point_velocity.x * 0.5,
+                                                            -point_velocity.y * 0.5,
+                                                        ),
+                                                        &world_point,
+                                                        true,
+                                                    );
 
-                                                    let linear_velocity = *body.get_linear_velocity();
-                                                    body.set_linear_velocity(&Vec2::new(linear_velocity.x * 0.999, linear_velocity.y * 0.999));
+                                                    let linear_velocity =
+                                                        *body.get_linear_velocity();
+                                                    body.set_linear_velocity(&Vec2::new(
+                                                        linear_velocity.x * 0.999,
+                                                        linear_velocity.y * 0.999,
+                                                    ));
 
-                                                    let angular_velocity = body.get_angular_velocity();
-                                                    body.set_angular_velocity(angular_velocity * 0.999);
-                                                },
+                                                    let angular_velocity =
+                                                        body.get_angular_velocity();
+                                                    body.set_angular_velocity(
+                                                        angular_velocity * 0.999,
+                                                    );
+                                                }
                                                 _ => {
-                                                    if !self.chunk_handler.displace(tx as i64, ty as i64, m) {
-                                                        self.ecs.create_entity().with(part).with(part_pos).with(part_vel)
-                                                            .marked::<SimpleMarker<FilePersistent>>().build();
+                                                    if !self
+                                                        .chunk_handler
+                                                        .displace(tx as i64, ty as i64, m)
+                                                    {
+                                                        self.ecs
+                                                            .create_entity()
+                                                            .with(part)
+                                                            .with(part_pos)
+                                                            .with(part_vel)
+                                                            .marked::<SimpleMarker<FilePersistent>>(
+                                                            )
+                                                            .build();
 
-                                                        body.apply_force(&Vec2::new(-point_velocity.x * 0.75, -point_velocity.y * 0.75), &world_point, true);
-                                                        
-                                                        let linear_velocity = *body.get_linear_velocity();
-                                                        body.set_linear_velocity(&Vec2::new(linear_velocity.x * 0.9, linear_velocity.y * 0.9));
+                                                        body.apply_force(
+                                                            &Vec2::new(
+                                                                -point_velocity.x * 0.75,
+                                                                -point_velocity.y * 0.75,
+                                                            ),
+                                                            &world_point,
+                                                            true,
+                                                        );
+
+                                                        let linear_velocity =
+                                                            *body.get_linear_velocity();
+                                                        body.set_linear_velocity(&Vec2::new(
+                                                            linear_velocity.x * 0.9,
+                                                            linear_velocity.y * 0.9,
+                                                        ));
                                                     }
-                                                },
+                                                }
                                             }
                                         }
-                                    }else {
-                                        body.apply_force(&Vec2::new(-point_velocity.x * 0.1, -point_velocity.y * 0.1), &world_point, true);
+                                    } else {
+                                        body.apply_force(
+                                            &Vec2::new(
+                                                -point_velocity.x * 0.1,
+                                                -point_velocity.y * 0.1,
+                                            ),
+                                            &world_point,
+                                            true,
+                                        );
                                     }
                                 }
                             }
@@ -437,55 +567,73 @@ impl<'w, C: Chunk> World<C> {
         }
 
         {
-            let (
-                position_storage,
-                velocity_storage,
-                phys_ent_storage,
-                hitbox_storage,
-            ) = self.ecs.system_data::<(
-                ReadStorage<Position>,
-                ReadStorage<Velocity>,
-                ReadStorage<PhysicsEntity>,
-                ReadStorage<Hitbox>,
-            )>();
+            let (position_storage, velocity_storage, phys_ent_storage, hitbox_storage) =
+                self.ecs.system_data::<(
+                    ReadStorage<Position>,
+                    ReadStorage<Velocity>,
+                    ReadStorage<PhysicsEntity>,
+                    ReadStorage<Hitbox>,
+                )>();
 
             // need this since using self.chunk_handler inside the closure doesn't work
             let ch = &mut self.chunk_handler;
-            
+
             // let mut create_particles: Vec<(Particle, Position, Velocity)> = vec![];
 
-            (&position_storage, &velocity_storage, &phys_ent_storage, &hitbox_storage).join().for_each(|(pos, _vel, _phys_ent, hitbox)| {
-                let steps_x = ((hitbox.x2 - hitbox.x1).signum() * (hitbox.x2 - hitbox.x1).abs().ceil()) as u16;
-                let steps_y = ((hitbox.y2 - hitbox.y1).signum() * (hitbox.y2 - hitbox.y1).abs().ceil()) as u16;
+            (
+                &position_storage,
+                &velocity_storage,
+                &phys_ent_storage,
+                &hitbox_storage,
+            )
+                .join()
+                .for_each(|(pos, _vel, _phys_ent, hitbox)| {
+                    let steps_x = ((hitbox.x2 - hitbox.x1).signum()
+                        * (hitbox.x2 - hitbox.x1).abs().ceil())
+                        as u16;
+                    let steps_y = ((hitbox.y2 - hitbox.y1).signum()
+                        * (hitbox.y2 - hitbox.y1).abs().ceil())
+                        as u16;
 
-                let r: Vec<(f32, f32)> = (0..=steps_x).flat_map(move |a| (0..=steps_y).map(move |b| (a, b))).map(|(xs, ys)| {
-                    ((f32::from(xs) / f32::from(steps_x)) * (hitbox.x2 - hitbox.x1) + hitbox.x1,
-                    (f32::from(ys) / f32::from(steps_y)) * (hitbox.y2 - hitbox.y1) + hitbox.y1)
-                }).collect();
+                    let r: Vec<(f32, f32)> = (0..=steps_x)
+                        .flat_map(move |a| (0..=steps_y).map(move |b| (a, b)))
+                        .map(|(xs, ys)| {
+                            (
+                                (f32::from(xs) / f32::from(steps_x)) * (hitbox.x2 - hitbox.x1)
+                                    + hitbox.x1,
+                                (f32::from(ys) / f32::from(steps_y)) * (hitbox.y2 - hitbox.y1)
+                                    + hitbox.y1,
+                            )
+                        })
+                        .collect();
 
-                for (dx, dy) in r {
-                    let pos_x = pos.x + f64::from(dx);
-                    let pos_y = pos.y + f64::from(dy);
+                    for (dx, dy) in r {
+                        let pos_x = pos.x + f64::from(dx);
+                        let pos_y = pos.y + f64::from(dy);
 
-                    let world = ch.get(pos_x.floor() as i64, pos_y.floor() as i64);
-                    if let Ok(mat) = world.map(|m| *m) {
-                        if mat.material_id == AIR.id {
-                            let _ignore = ch.set(pos_x.floor() as i64, pos_y.floor() as i64, MaterialInstance {
-                                physics: PhysicsType::Object,
-                                color: Color::RGB(0, 255, 0),
-                                ..mat
-                            });
+                        let world = ch.get(pos_x.floor() as i64, pos_y.floor() as i64);
+                        if let Ok(mat) = world.map(|m| *m) {
+                            if mat.material_id == AIR.id {
+                                let _ignore = ch.set(
+                                    pos_x.floor() as i64,
+                                    pos_y.floor() as i64,
+                                    MaterialInstance {
+                                        physics: PhysicsType::Object,
+                                        color: Color::RGB(0, 255, 0),
+                                        ..mat
+                                    },
+                                );
+                            }
+                            // else if mat.physics == PhysicsType::Sand && ch.set(pos_x as i64, pos_y as i64, MaterialInstance::air()).is_ok() {
+                            //     create_particles.push((
+                            //         Particle::of(mat),
+                            //         Position { x: pos_x, y: pos_y },
+                            //         Velocity { x: 0.0, y: 0.0 },
+                            //     ));
+                            // }
                         }
-                        // else if mat.physics == PhysicsType::Sand && ch.set(pos_x as i64, pos_y as i64, MaterialInstance::air()).is_ok() {
-                        //     create_particles.push((
-                        //         Particle::of(mat),
-                        //         Position { x: pos_x, y: pos_y },
-                        //         Velocity { x: 0.0, y: 0.0 },
-                        //     ));
-                        // }
                     }
-                }
-            });
+                });
 
             // drop(position_storage);
             // drop(velocity_storage);
@@ -499,7 +647,7 @@ impl<'w, C: Chunk> World<C> {
         }
 
         self.chunk_handler.tick(tick_time, settings, &mut self.ecs);
-        
+
         if settings.simulate_particles {
             let mut update_particles = UpdateParticles { chunk_handler: &mut self.chunk_handler };
             update_particles.run_now(&self.ecs);
@@ -507,45 +655,64 @@ impl<'w, C: Chunk> World<C> {
         }
 
         {
-            let (
-                position_storage,
-                velocity_storage,
-                phys_ent_storage,
-                hitbox_storage,
-            ) = self.ecs.system_data::<(
-                ReadStorage<Position>,
-                ReadStorage<Velocity>,
-                ReadStorage<PhysicsEntity>,
-                ReadStorage<Hitbox>,
-            )>();
+            let (position_storage, velocity_storage, phys_ent_storage, hitbox_storage) =
+                self.ecs.system_data::<(
+                    ReadStorage<Position>,
+                    ReadStorage<Velocity>,
+                    ReadStorage<PhysicsEntity>,
+                    ReadStorage<Hitbox>,
+                )>();
 
             // need this since using self.chunk_handler inside the closure doesn't work
             let ch = &mut self.chunk_handler;
-    
-            (&position_storage, &velocity_storage, &phys_ent_storage, &hitbox_storage).join().for_each(|(pos, _vel, _phys_ent, hitbox)| {
-                let steps_x = ((hitbox.x2 - hitbox.x1).signum() * (hitbox.x2 - hitbox.x1).abs().ceil()) as u16;
-                let steps_y = ((hitbox.y2 - hitbox.y1).signum() * (hitbox.y2 - hitbox.y1).abs().ceil()) as u16;
 
-                let r: Vec<(f32, f32)> = (0..=steps_x).flat_map(move |a| (0..=steps_y).map(move |b| (a, b))).map(|(xs, ys)| {
-                    ((f32::from(xs) / f32::from(steps_x)) * (hitbox.x2 - hitbox.x1) + hitbox.x1,
-                    (f32::from(ys) / f32::from(steps_y)) * (hitbox.y2 - hitbox.y1) + hitbox.y1)
-                }).collect();
+            (
+                &position_storage,
+                &velocity_storage,
+                &phys_ent_storage,
+                &hitbox_storage,
+            )
+                .join()
+                .for_each(|(pos, _vel, _phys_ent, hitbox)| {
+                    let steps_x = ((hitbox.x2 - hitbox.x1).signum()
+                        * (hitbox.x2 - hitbox.x1).abs().ceil())
+                        as u16;
+                    let steps_y = ((hitbox.y2 - hitbox.y1).signum()
+                        * (hitbox.y2 - hitbox.y1).abs().ceil())
+                        as u16;
 
-                for (dx, dy) in r {
-                    let pos_x = pos.x + f64::from(dx);
-                    let pos_y = pos.y + f64::from(dy);
+                    let r: Vec<(f32, f32)> = (0..=steps_x)
+                        .flat_map(move |a| (0..=steps_y).map(move |b| (a, b)))
+                        .map(|(xs, ys)| {
+                            (
+                                (f32::from(xs) / f32::from(steps_x)) * (hitbox.x2 - hitbox.x1)
+                                    + hitbox.x1,
+                                (f32::from(ys) / f32::from(steps_y)) * (hitbox.y2 - hitbox.y1)
+                                    + hitbox.y1,
+                            )
+                        })
+                        .collect();
 
-                    let world = ch.get(pos_x.floor() as i64, pos_y.floor() as i64);
-                    if let Ok(mat) = world {
-                        if mat.physics == PhysicsType::Object {
-                            let _ignore = ch.set(pos_x.floor() as i64, pos_y.floor() as i64, MaterialInstance::air());
+                    for (dx, dy) in r {
+                        let pos_x = pos.x + f64::from(dx);
+                        let pos_y = pos.y + f64::from(dy);
+
+                        let world = ch.get(pos_x.floor() as i64, pos_y.floor() as i64);
+                        if let Ok(mat) = world {
+                            if mat.physics == PhysicsType::Object {
+                                let _ignore = ch.set(
+                                    pos_x.floor() as i64,
+                                    pos_y.floor() as i64,
+                                    MaterialInstance::air(),
+                                );
+                            }
                         }
                     }
-                }
-            });
+                });
         }
 
-        let mut update_physics_entities = UpdatePhysicsEntities { chunk_handler: &mut self.chunk_handler };
+        let mut update_physics_entities =
+            UpdatePhysicsEntities { chunk_handler: &mut self.chunk_handler };
         update_physics_entities.run_now(&self.ecs);
         self.ecs.maintain();
 
@@ -568,7 +735,11 @@ impl<'w, C: Chunk> World<C> {
                         let world = self.chunk_handler.get(tx as i64, ty as i64);
                         if let Ok(mat) = world {
                             if mat.physics == PhysicsType::Object {
-                                let _ignore = self.chunk_handler.set(tx as i64, ty as i64, MaterialInstance::air());
+                                let _ignore = self.chunk_handler.set(
+                                    tx as i64,
+                                    ty as i64,
+                                    MaterialInstance::air(),
+                                );
                             }
                         }
                     }
@@ -577,18 +748,28 @@ impl<'w, C: Chunk> World<C> {
         }
 
         let mut new_parts = Vec::new();
-        simulator::Simulator::simulate_rigidbodies(&mut self.chunk_handler, &mut self.rigidbodies, &mut self.lqf_world, &mut new_parts);
+        simulator::Simulator::simulate_rigidbodies(
+            &mut self.chunk_handler,
+            &mut self.rigidbodies,
+            &mut self.lqf_world,
+            &mut new_parts,
+        );
         for p in new_parts {
-            self.ecs.create_entity().with(p.0).with(p.1).with(p.2).build();
+            self.ecs
+                .create_entity()
+                .with(p.0)
+                .with(p.1)
+                .with(p.2)
+                .build();
         }
-        
+
         for c in self.chunk_handler.loaded_chunks.borrow_mut().values_mut() {
             if c.get_b2_body().is_none() {
                 // if let Some(tr) = c.get_tris() {
                 //     let mut body_def = BodyDef::default();
                 //     body_def.position.set((c.get_chunk_x() * CHUNK_SIZE as i32) as f32 / LIQUIDFUN_SCALE, (c.get_chunk_y() * CHUNK_SIZE as i32) as f32 / LIQUIDFUN_SCALE);
                 //     let body = self.lqf_world.create_body(&body_def);
-                        
+
                 //     tr.iter().for_each(|tris| {
                 //         tris.iter().for_each(|tri| {
                 //             let mut poly = PolygonShape::new();
@@ -609,7 +790,10 @@ impl<'w, C: Chunk> World<C> {
 
                 if let Some(loops) = c.get_mesh_loops() {
                     let mut body_def = BodyDef::default();
-                    body_def.position.set((c.get_chunk_x() * i32::from(CHUNK_SIZE)) as f32 / LIQUIDFUN_SCALE, (c.get_chunk_y() * i32::from(CHUNK_SIZE)) as f32 / LIQUIDFUN_SCALE);
+                    body_def.position.set(
+                        (c.get_chunk_x() * i32::from(CHUNK_SIZE)) as f32 / LIQUIDFUN_SCALE,
+                        (c.get_chunk_y() * i32::from(CHUNK_SIZE)) as f32 / LIQUIDFUN_SCALE,
+                    );
                     let mut body = self.lqf_world.create_body(&body_def);
                     body.set_active(false);
 
@@ -618,7 +802,10 @@ impl<'w, C: Chunk> World<C> {
                             let mut verts: Vec<Vec2> = Vec::new();
 
                             for p in pts.iter() {
-                                verts.push(Vec2::new(p[0] as f32 / LIQUIDFUN_SCALE, p[1] as f32 / LIQUIDFUN_SCALE));
+                                verts.push(Vec2::new(
+                                    p[0] as f32 / LIQUIDFUN_SCALE,
+                                    p[1] as f32 / LIQUIDFUN_SCALE,
+                                ));
                             }
 
                             let mut chain = ChainShape::new();
@@ -630,16 +817,17 @@ impl<'w, C: Chunk> World<C> {
                             fixture_def.filter.mask_bits = CollisionFlags::RIGIDBODY.bits();
                             body.create_fixture(&fixture_def);
                         }
-
                     }
 
                     c.set_b2_body(Some(body));
                 }
-            }else {
+            } else {
                 // TODO: profile this and if it's too slow, could stagger it based on tick_time
 
-                let chunk_center_x = c.get_chunk_x() * i32::from(CHUNK_SIZE) + i32::from(CHUNK_SIZE) / 2;
-                let chunk_center_y = c.get_chunk_y() * i32::from(CHUNK_SIZE) + i32::from(CHUNK_SIZE) / 2;
+                let chunk_center_x =
+                    c.get_chunk_x() * i32::from(CHUNK_SIZE) + i32::from(CHUNK_SIZE) / 2;
+                let chunk_center_y =
+                    c.get_chunk_y() * i32::from(CHUNK_SIZE) + i32::from(CHUNK_SIZE) / 2;
 
                 let dist_particle = f32::from(CHUNK_SIZE) * 0.6;
                 let dist_body = f32::from(CHUNK_SIZE) * 1.0;
@@ -649,7 +837,12 @@ impl<'w, C: Chunk> World<C> {
                 let mut psl = self.lqf_world.get_particle_system_list();
                 while psl.is_some() && !should_be_active {
                     let system = psl.unwrap();
-                    if system.get_position_buffer().iter().any(|pos| (pos.x * LIQUIDFUN_SCALE as f32 - chunk_center_x as f32).abs() < dist_particle && (pos.y * LIQUIDFUN_SCALE as f32 - chunk_center_y as f32).abs() < dist_particle) {
+                    if system.get_position_buffer().iter().any(|pos| {
+                        (pos.x * LIQUIDFUN_SCALE as f32 - chunk_center_x as f32).abs()
+                            < dist_particle
+                            && (pos.y * LIQUIDFUN_SCALE as f32 - chunk_center_y as f32).abs()
+                                < dist_particle
+                    }) {
                         should_be_active = true;
                     }
                     psl = system.get_next();
@@ -664,14 +857,16 @@ impl<'w, C: Chunk> World<C> {
                         BodyType::DynamicBody => {
                             // if body.is_awake() { // this just causes flickering
                             let pos = body.get_position();
-                            let dist_x = (pos.x * LIQUIDFUN_SCALE as f32 - chunk_center_x as f32).abs();
-                            let dist_y = (pos.y * LIQUIDFUN_SCALE as f32 - chunk_center_y as f32).abs();
+                            let dist_x =
+                                (pos.x * LIQUIDFUN_SCALE as f32 - chunk_center_x as f32).abs();
+                            let dist_y =
+                                (pos.y * LIQUIDFUN_SCALE as f32 - chunk_center_y as f32).abs();
                             if dist_x < dist_body && dist_y < dist_body {
                                 should_be_active = true;
                             }
                             // }
-                        },
-                        BodyType::KinematicBody | BodyType::StaticBody => {},
+                        }
+                        BodyType::KinematicBody | BodyType::StaticBody => {}
                     }
 
                     bl = body.get_next();
@@ -694,7 +889,6 @@ impl<'w, C: Chunk> World<C> {
     }
 
     pub fn tick_lqf(&mut self, settings: &Settings) {
-
         // need to do this here since 'self' isn't mut in render
         if settings.lqf_dbg_draw {
             if let Some(cast) = self.lqf_world.get_debug_draw() {
@@ -728,7 +922,8 @@ impl<'w, C: Chunk> World<C> {
         let time_step = settings.tick_lqf_timestep;
         let velocity_iterations = 8;
         let position_iterations = 4;
-        self.lqf_world.step(time_step, velocity_iterations, position_iterations);
+        self.lqf_world
+            .step(time_step, velocity_iterations, position_iterations);
         // match self.net_mode {
         //     WorldNetworkMode::Local => {
         //         let time_step = settings.tick_lqf_timestep;
@@ -750,7 +945,14 @@ impl<'w, C: Chunk> World<C> {
         update_auto_targets.run_now(&self.ecs);
     }
 
-    pub fn raycast(&self, mut x1: i64, mut y1: i64, x2: i64, y2: i64, collide_filder: fn((i64, i64), &MaterialInstance) -> bool) -> Option<((i64, i64), &MaterialInstance)> {
+    pub fn raycast(
+        &self,
+        mut x1: i64,
+        mut y1: i64,
+        x2: i64,
+        y2: i64,
+        collide_filder: fn((i64, i64), &MaterialInstance) -> bool,
+    ) -> Option<((i64, i64), &MaterialInstance)> {
         let check_pixel = |x: i64, y: i64| {
             let r = self.chunk_handler.get(x, y);
             if let Ok(m) = r {
@@ -761,7 +963,7 @@ impl<'w, C: Chunk> World<C> {
             None
         };
 
-        let x_dist =  (x2 - x1).abs();
+        let x_dist = (x2 - x1).abs();
         let y_dist = -(y2 - y1).abs();
         let x_step = if x1 < x2 { 1 } else { -1 };
         let y_step = if y1 < y2 { 1 } else { -1 };
@@ -774,7 +976,7 @@ impl<'w, C: Chunk> World<C> {
         }
 
         while x1 != x2 || y1 != y2 {
-            let tmp = 2*error;
+            let tmp = 2 * error;
 
             if tmp > y_dist {
                 error += y_dist;
@@ -796,4 +998,3 @@ impl<'w, C: Chunk> World<C> {
         None
     }
 }
-

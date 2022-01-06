@@ -7,10 +7,7 @@ pub struct FileHelper {
 
 impl FileHelper {
     pub fn new(game_dir: PathBuf, asset_dir: PathBuf) -> Self {
-        Self {
-            game_dir,
-            asset_dir,
-        }
+        Self { game_dir, asset_dir }
     }
 
     pub fn game_path<P: AsRef<Path>>(&self, path: P) -> PathBuf {

@@ -1,5 +1,8 @@
-use std::{fs, path::{Path, PathBuf}};
 use serde::Deserialize;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use super::{Chunk, World};
 
@@ -18,7 +21,6 @@ pub struct WorldMeta {
 }
 
 impl<'w, C: Chunk> World<C> {
-    
     pub fn find_files(root: PathBuf) -> Result<WorldTreeNode<PathBuf, PathBuf>, std::io::Error> {
         let mut res = Vec::new();
         for entry in fs::read_dir(&root)? {
@@ -34,20 +36,27 @@ impl<'w, C: Chunk> World<C> {
         Ok(WorldTreeNode::Folder(root, res))
     }
 
-    pub fn parse_file_tree_metas(tree: WorldTreeNode<PathBuf, PathBuf>) -> Result<WorldTreeNode<PathBuf, (PathBuf, WorldMeta)>, Box<dyn std::error::Error>> {
+    pub fn parse_file_tree_metas(
+        tree: WorldTreeNode<PathBuf, PathBuf>,
+    ) -> Result<WorldTreeNode<PathBuf, (PathBuf, WorldMeta)>, Box<dyn std::error::Error>> {
         Ok(match tree {
             WorldTreeNode::Folder(p, children) => {
-                let r = children.into_iter().map(Self::parse_file_tree_metas).collect::<Result<_, _>>();
+                let r = children
+                    .into_iter()
+                    .map(Self::parse_file_tree_metas)
+                    .collect::<Result<_, _>>();
                 WorldTreeNode::Folder(p, r?)
-            },
+            }
             WorldTreeNode::World(p) => {
                 let m = Self::parse_file_meta(&p)?;
                 WorldTreeNode::World((p, m))
-            },
+            }
         })
     }
 
-    pub fn parse_file_meta<P: AsRef<Path>>(path: P) -> Result<WorldMeta, Box<dyn std::error::Error>> {
+    pub fn parse_file_meta<P: AsRef<Path>>(
+        path: P,
+    ) -> Result<WorldMeta, Box<dyn std::error::Error>> {
         Ok(toml::from_str::<WorldMeta>(&fs::read_to_string(path)?)?)
     }
 

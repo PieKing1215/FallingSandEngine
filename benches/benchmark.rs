@@ -1,4 +1,3 @@
-
 // use std::time::Duration;
 
 // use criterion::{black_box, criterion_group, criterion_main, Criterion};
@@ -61,7 +60,7 @@
 //         settings.simulate_particles = true;
 
 //         // println!("{} chunks loaded", w.chunk_handler.loaded_chunks.len());
-        
+
 //         b.iter(|| {
 //             w.tick(0, &settings);
 //         })

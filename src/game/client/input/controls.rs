@@ -2,7 +2,7 @@ use sdl2::keyboard::Keycode;
 
 #[derive(Debug)]
 pub enum InputEvent<'a> {
-    SDL2Event(&'a sdl2::event::Event)
+    SDL2Event(&'a sdl2::event::Event),
 }
 
 pub struct Controls {
@@ -10,7 +10,7 @@ pub struct Controls {
     pub down: Box<dyn Control<bool>>,
     pub left: Box<dyn Control<bool>>,
     pub right: Box<dyn Control<bool>>,
-    
+
     pub jump: Box<dyn Control<bool>>,
     pub launch: Box<dyn Control<bool>>,
     pub grapple: Box<dyn Control<bool>>,
@@ -19,7 +19,7 @@ pub struct Controls {
 }
 
 impl Controls {
-    pub fn process(&mut self, event: &InputEvent){
+    pub fn process(&mut self, event: &InputEvent) {
         self.up.process(event);
         self.down.process(event);
         self.left.process(event);
@@ -38,9 +38,13 @@ pub trait Control<T> {
     fn process(&mut self, event: &InputEvent);
 }
 
-impl<T: Control<bool>> Control<f32> for T{
+impl<T: Control<bool>> Control<f32> for T {
     fn get(&mut self) -> f32 {
-        if T::get(self) { 1.0 } else { 0.0 }
+        if T::get(self) {
+            1.0
+        } else {
+            0.0
+        }
     }
 
     fn process(&mut self, event: &InputEvent) {
@@ -90,12 +94,12 @@ impl Control<bool> for KeyControl {
                     self.last_state = !self.last_state;
                 }
                 self.last_state
-            },
+            }
             KeyControlMode::Type => {
                 let r = self.raw;
                 self.raw = false;
                 r
-            },
+            }
         };
 
         self.last_raw = self.raw;
@@ -107,17 +111,21 @@ impl Control<bool> for KeyControl {
         // log::debug!("{:?}", event);
         #[allow(clippy::match_wildcard_for_single_variants)]
         match event {
-            InputEvent::SDL2Event(sdl2::event::Event::KeyDown { keycode: Some(k), repeat, .. }) if *k == self.key => {
+            InputEvent::SDL2Event(sdl2::event::Event::KeyDown {
+                keycode: Some(k), repeat, ..
+            }) if *k == self.key => {
                 if !repeat || self.mode == KeyControlMode::Type {
                     self.raw = true;
                 }
-            },
-            InputEvent::SDL2Event(sdl2::event::Event::KeyUp { keycode: Some(k), repeat, .. }) if *k == self.key => {
+            }
+            InputEvent::SDL2Event(sdl2::event::Event::KeyUp {
+                keycode: Some(k), repeat, ..
+            }) if *k == self.key => {
                 if !repeat || self.mode == KeyControlMode::Type {
                     self.raw = false;
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
     }
 }
@@ -135,10 +143,7 @@ pub struct MultiControl {
 
 impl MultiControl {
     pub fn new(mode: MultiControlMode, controls: Vec<Box<dyn Control<bool>>>) -> Self {
-        Self {
-            mode,
-            controls,
-        }
+        Self { mode, controls }
     }
 }
 
@@ -146,7 +151,7 @@ impl Control<bool> for MultiControl {
     fn get(&mut self) -> bool {
         match self.mode {
             MultiControlMode::And => self.controls.iter_mut().all(|c| c.get()),
-            MultiControlMode::Or  => self.controls.iter_mut().any(|c| c.get()),
+            MultiControlMode::Or => self.controls.iter_mut().any(|c| c.get()),
         }
     }
 

@@ -1,6 +1,4 @@
-
 pub struct Settings {
-
     pub debug: bool,
 
     // rendering
@@ -19,7 +17,7 @@ pub struct Settings {
     pub lqf_dbg_draw_pair: bool,
     pub lqf_dbg_draw_center_of_mass: bool,
     pub lqf_dbg_draw_particle: bool,
-    
+
     // display
     pub fullscreen: bool,
     pub fullscreen_type: usize,

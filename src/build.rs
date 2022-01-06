@@ -1,4 +1,3 @@
-
 use std::process::Command;
 
 use chrono::Utc;
@@ -12,5 +11,4 @@ fn main() {
 
     let now = Utc::now();
     println!("cargo:rustc-env=BUILD_DATETIME={}", now.format("%D %R"));
-    
 }

@@ -1,12 +1,12 @@
 use super::world::material::MaterialInstance;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_big_array::big_array;
 
 big_array! { BigArray; }
 
 #[derive(Serialize, Deserialize)]
 pub struct Packet {
-    pub packet_type: PacketType
+    pub packet_type: PacketType,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -28,5 +28,5 @@ pub enum PacketType {
         //      should probably send the entire state of lqf (or only nearby?)
         positions: Vec<PVec2>,
         velocities: Vec<PVec2>,
-    }
+    },
 }

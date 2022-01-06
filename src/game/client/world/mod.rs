@@ -1,7 +1,7 @@
 mod chunk;
-mod world_renderer;
 mod client_world;
+mod world_renderer;
 
 pub use chunk::*;
-pub use world_renderer::*;
 pub use client_world::*;
+pub use world_renderer::*;

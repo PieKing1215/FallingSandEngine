@@ -1,15 +1,9 @@
 use sdl2::pixels::Color;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
-pub static AIR: Material = Material {
-    id: 0,
-    name: "Air",
-};
+pub static AIR: Material = Material { id: 0, name: "Air" };
 
-pub static TEST_MATERIAL: Material = Material {
-    id: 1,
-    name: "Test Material",
-};
+pub static TEST_MATERIAL: Material = Material { id: 1, name: "Test Material" };
 
 #[derive(Clone, Copy, PartialEq, Serialize, Deserialize, Debug)]
 pub enum PhysicsType {
@@ -40,7 +34,7 @@ pub struct MaterialInstance {
     pub material_id: u16,
     pub physics: PhysicsType,
     #[serde(with = "ColorDef")]
-    pub color: Color
+    pub color: Color,
 }
 
 impl MaterialInstance {

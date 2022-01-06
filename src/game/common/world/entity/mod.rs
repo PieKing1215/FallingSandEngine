@@ -1,13 +1,19 @@
 use rand::Rng;
-use specs::{Component, Entities, Join, System, Write, WriteStorage, saveload::{SimpleMarker, SimpleMarkerAllocator}, storage::BTreeStorage};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use specs::{
+    saveload::{SimpleMarker, SimpleMarkerAllocator},
+    storage::BTreeStorage,
+    Component, Entities, Join, System, Write, WriteStorage,
+};
 
 mod player;
 pub use player::*;
 
 use crate::game::common::world::material::{MaterialInstance, PhysicsType};
 
-use super::{ChunkHandlerGeneric, ChunkState, FilePersistent, Position, Velocity, particle::Particle};
+use super::{
+    particle::Particle, ChunkHandlerGeneric, ChunkState, FilePersistent, Position, Velocity,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameEntity;
@@ -58,37 +64,53 @@ impl Component for Persistent {
     type Storage = BTreeStorage<Self>;
 }
 
-pub struct UpdatePhysicsEntities<'a>{
-    pub chunk_handler: &'a mut (dyn ChunkHandlerGeneric)
+pub struct UpdatePhysicsEntities<'a> {
+    pub chunk_handler: &'a mut (dyn ChunkHandlerGeneric),
 }
 
 impl<'a> UpdatePhysicsEntities<'a> {
     fn check_collide(&self, x: i64, y: i64, phys_ent: &PhysicsEntity) -> Option<&MaterialInstance> {
-        self.chunk_handler.get(x, y).ok()
-            .filter(|mat| mat.physics == PhysicsType::Solid || (mat.physics == PhysicsType::Sand && phys_ent.collide_with_sand))
+        self.chunk_handler.get(x, y).ok().filter(|mat| {
+            mat.physics == PhysicsType::Solid
+                || (mat.physics == PhysicsType::Sand && phys_ent.collide_with_sand)
+        })
     }
 }
 
 impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
     #[allow(clippy::type_complexity)]
-    type SystemData = (Entities<'a>,
-                       WriteStorage<'a, Position>,
-                       WriteStorage<'a, Velocity>,
-                       WriteStorage<'a, GameEntity>,
-                       WriteStorage<'a, PhysicsEntity>,
-                       WriteStorage<'a, Persistent>,
-                       WriteStorage<'a, Hitbox>,
-                       WriteStorage<'a, CollisionDetector>,
-                       Write<'a, SimpleMarkerAllocator<FilePersistent>>,
-                       WriteStorage<'a, SimpleMarker<FilePersistent>>,
-                       WriteStorage<'a, Particle>);
+    type SystemData = (
+        Entities<'a>,
+        WriteStorage<'a, Position>,
+        WriteStorage<'a, Velocity>,
+        WriteStorage<'a, GameEntity>,
+        WriteStorage<'a, PhysicsEntity>,
+        WriteStorage<'a, Persistent>,
+        WriteStorage<'a, Hitbox>,
+        WriteStorage<'a, CollisionDetector>,
+        Write<'a, SimpleMarkerAllocator<FilePersistent>>,
+        WriteStorage<'a, SimpleMarker<FilePersistent>>,
+        WriteStorage<'a, Particle>,
+    );
 
     #[allow(clippy::too_many_lines)]
     fn run(&mut self, data: Self::SystemData) {
         profiling::scope!("UpdatePhysicsEntities::run");
 
-        let (entities, mut pos, mut vel, mut game_ent, mut phys_ent, persistent, mut hitbox, mut collision_detect, mut marker_alloc, mut markers, mut particle) = data;
-        
+        let (
+            entities,
+            mut pos,
+            mut vel,
+            mut game_ent,
+            mut phys_ent,
+            persistent,
+            mut hitbox,
+            mut collision_detect,
+            mut marker_alloc,
+            mut markers,
+            mut particle,
+        ) = data;
+
         let debug_visualize = false;
 
         let mut create_particles: Vec<(Particle, Position, Velocity)> = vec![];
@@ -142,7 +164,7 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                 pos.x += f64::from(if avg_in_x == 0.0 { 0.0 } else { -avg_in_x.signum() });
                 pos.y += f64::from(if avg_in_y == 0.0 { 0.0 } else { -avg_in_y.signum() });
             }
-            
+
             // do collision detection
             //   split into a number of steps
             //     each step moves x and y separately so we know which velocities to cancel
@@ -157,7 +179,7 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
 
             let steps = ((dx.abs() + dy.abs()) as u32 + 1).max(3);
             for _ in 0..steps {
-                
+
                 new_pos_x += dx / f64::from(steps);
                 new_pos_y += dy / f64::from(steps);
 
@@ -276,7 +298,8 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
         });
 
         for (part, p_pos, p_vel) in create_particles {
-            entities.build_entity()
+            entities
+                .build_entity()
                 .with(part, &mut particle)
                 .with(p_pos, &mut pos)
                 .with(p_vel, &mut vel)

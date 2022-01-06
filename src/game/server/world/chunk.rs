@@ -1,7 +1,7 @@
 use liquidfun::box2d::dynamics::body::Body;
 use sdl2::{pixels::Color, rect::Rect};
 
-use crate::game::common::world::{CHUNK_SIZE, Chunk, ChunkState, material::MaterialInstance, mesh};
+use crate::game::common::world::{material::MaterialInstance, mesh, Chunk, ChunkState, CHUNK_SIZE};
 
 pub struct ServerChunk {
     pub chunk_x: i32,
@@ -54,8 +54,7 @@ impl<'ch> Chunk for ServerChunk {
         self.dirty_rect = rect;
     }
 
-    fn refresh(&mut self){
-    }
+    fn refresh(&mut self) {}
 
     // #[profiling::function]
     fn update_graphics(&mut self) -> Result<(), String> {
@@ -65,12 +64,16 @@ impl<'ch> Chunk for ServerChunk {
     // #[profiling::function] // huge performance impact
     fn set(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String> {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
-
             if let Some(px) = &mut self.pixels {
                 let i = (x + y * CHUNK_SIZE) as usize;
                 px[i] = mat;
 
-                self.dirty_rect = Some(Rect::new(0, 0, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE)));
+                self.dirty_rect = Some(Rect::new(
+                    0,
+                    0,
+                    u32::from(CHUNK_SIZE),
+                    u32::from(CHUNK_SIZE),
+                ));
 
                 return Ok(());
             }
@@ -84,7 +87,6 @@ impl<'ch> Chunk for ServerChunk {
     // #[profiling::function] // huge performance impact
     fn get(&self, x: u16, y: u16) -> Result<&MaterialInstance, String> {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
-
             if let Some(px) = &self.pixels {
                 let i = (x + y * CHUNK_SIZE) as usize;
                 return Ok(&px[i]);
@@ -100,14 +102,13 @@ impl<'ch> Chunk for ServerChunk {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             let i = (x + y * CHUNK_SIZE) as usize;
 
-            self.pixel_data[i * 4]     = color.r;
+            self.pixel_data[i * 4] = color.r;
             self.pixel_data[i * 4 + 1] = color.g;
             self.pixel_data[i * 4 + 2] = color.b;
             self.pixel_data[i * 4 + 3] = color.a;
             self.dirty = true;
 
             return Ok(());
-    
         }
 
         Err("Invalid pixel coordinate.".to_string())
@@ -118,10 +119,11 @@ impl<'ch> Chunk for ServerChunk {
             let i = (x + y * CHUNK_SIZE) as usize;
 
             return Ok(Color::RGBA(
-                self.pixel_data[i * 4], 
-                self.pixel_data[i * 4 + 1], 
-                self.pixel_data[i * 4 + 2], 
-                self.pixel_data[i * 4 + 3]));
+                self.pixel_data[i * 4],
+                self.pixel_data[i * 4 + 1],
+                self.pixel_data[i * 4 + 2],
+                self.pixel_data[i * 4 + 3],
+            ));
         }
 
         Err("Invalid pixel coordinate.".to_string())
@@ -138,7 +140,9 @@ impl<'ch> Chunk for ServerChunk {
         self.pixels = Some(*pixels);
     }
 
-    fn get_pixels_mut(&mut self) -> &mut Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]> {
+    fn get_pixels_mut(
+        &mut self,
+    ) -> &mut Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]> {
         &mut self.pixels
     }
 
@@ -166,16 +170,16 @@ impl<'ch> Chunk for ServerChunk {
         if self.pixels.is_none() {
             return Err("generate_mesh failed: self.pixels is None".to_owned());
         }
-        
+
         let vs: Vec<f64> = mesh::pixels_to_valuemap(&self.pixels.unwrap());
 
-        let generated = mesh::generate_mesh_only_simplified(&vs, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
+        let generated =
+            mesh::generate_mesh_only_simplified(&vs, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
 
         self.mesh_simplified = generated.ok();
 
         Ok(())
     }
-
 
     fn get_mesh_loops(&self) -> &Option<Vec<Vec<Vec<Vec<f64>>>>> {
         &self.mesh_simplified

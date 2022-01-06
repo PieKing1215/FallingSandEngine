@@ -1,13 +1,11 @@
-
-use crate::game::common::Settings;
 use crate::game::common::world::World;
+use crate::game::common::Settings;
 
 use std::time::Instant;
 
 use super::client::Client;
-use super::common::FileHelper;
 use super::common::world::Chunk;
-
+use super::common::FileHelper;
 
 pub struct Game<C: Chunk> {
     pub world: Option<World<C>>,
@@ -44,8 +42,8 @@ impl<'a, 'b, C: Chunk> Game<C> {
             tick_time: 0,
             frame_count: 0,
             fps_counter: FPSCounter {
-                frames: 0, 
-                last_update: Instant::now(), 
+                frames: 0,
+                last_update: Instant::now(),
                 display_value: 0,
                 ticks: 0,
                 tick_display_value: 0,
@@ -53,10 +51,7 @@ impl<'a, 'b, C: Chunk> Game<C> {
                 tick_times: [0.0; 200],
                 tick_lqf_times: [0.0; 200],
             },
-            process_stats: ProcessStats {
-                cpu_usage: None,
-                memory: None,
-            },
+            process_stats: ProcessStats { cpu_usage: None, memory: None },
             settings: Settings::default(),
             file_helper,
             client: None,
@@ -65,7 +60,7 @@ impl<'a, 'b, C: Chunk> Game<C> {
 
     // #[profiling::function]
     // pub fn init(&'b mut self, sdl: &'a Sdl2Context) -> Result<(), String>  {
-        
+
     //     let r = Box::new(Renderer::create(&sdl)?);
     //     self.renderer = Some(r);
 
@@ -79,5 +74,4 @@ impl<'a, 'b, C: Chunk> Game<C> {
 
     //     return Ok(());
     // }
-
 }

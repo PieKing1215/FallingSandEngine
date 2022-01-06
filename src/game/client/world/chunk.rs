@@ -1,11 +1,22 @@
-
 use std::convert::TryInto;
 
 use liquidfun::box2d::dynamics::body::Body;
 use sdl2::{pixels::Color, rect::Rect};
-use sdl_gpu::{GPUImage, GPURect, GPUSubsystem, GPUTarget, sys::{GPU_FilterEnum, GPU_FormatEnum}};
+use sdl_gpu::{
+    sys::{GPU_FilterEnum, GPU_FormatEnum},
+    GPUImage, GPURect, GPUSubsystem, GPUTarget,
+};
 
-use crate::game::{client::render::{Fonts, Renderable, Sdl2Context, TransformStack}, common::{Settings, world::{CHUNK_SIZE, Chunk, ChunkHandler, ChunkHandlerGeneric, ChunkState, gen::WorldGenerator, material::MaterialInstance, mesh}}};
+use crate::game::{
+    client::render::{Fonts, Renderable, Sdl2Context, TransformStack},
+    common::{
+        world::{
+            gen::WorldGenerator, material::MaterialInstance, mesh, Chunk, ChunkHandler,
+            ChunkHandlerGeneric, ChunkState, CHUNK_SIZE,
+        },
+        Settings,
+    },
+};
 
 pub struct ClientChunk {
     pub chunk_x: i32,
@@ -65,20 +76,27 @@ impl<'ch> Chunk for ClientChunk {
         self.dirty_rect = rect;
     }
 
-    fn refresh(&mut self){
+    fn refresh(&mut self) {
         for x in 0..CHUNK_SIZE {
             for y in 0..CHUNK_SIZE {
-                self.graphics.set(x, y, self.pixels.unwrap()[(x + y * CHUNK_SIZE) as usize].color).unwrap();
+                self.graphics
+                    .set(
+                        x,
+                        y,
+                        self.pixels.unwrap()[(x + y * CHUNK_SIZE) as usize].color,
+                    )
+                    .unwrap();
             }
         }
     }
 
     // #[profiling::function]
     fn update_graphics(&mut self) -> Result<(), String> {
-        
         self.graphics.was_dirty = self.graphics.dirty;
 
-        self.graphics.update_texture().map_err(|e| format!("ChunkGraphics::update_texture failed: {:?}", e))?;
+        self.graphics
+            .update_texture()
+            .map_err(|e| format!("ChunkGraphics::update_texture failed: {:?}", e))?;
 
         Ok(())
     }
@@ -86,13 +104,17 @@ impl<'ch> Chunk for ClientChunk {
     // #[profiling::function] // huge performance impact
     fn set(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String> {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
-
             if let Some(px) = &mut self.pixels {
                 let i = (x + y * CHUNK_SIZE) as usize;
                 px[i] = mat;
                 self.graphics.set(x, y, px[i].color)?;
 
-                self.dirty_rect = Some(Rect::new(0, 0, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE)));
+                self.dirty_rect = Some(Rect::new(
+                    0,
+                    0,
+                    u32::from(CHUNK_SIZE),
+                    u32::from(CHUNK_SIZE),
+                ));
 
                 return Ok(());
             }
@@ -106,7 +128,6 @@ impl<'ch> Chunk for ClientChunk {
     // #[profiling::function] // huge performance impact
     fn get(&self, x: u16, y: u16) -> Result<&MaterialInstance, String> {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
-
             if let Some(px) = &self.pixels {
                 let i = (x + y * CHUNK_SIZE) as usize;
                 return Ok(&px[i]);
@@ -145,7 +166,9 @@ impl<'ch> Chunk for ClientChunk {
         self.pixels = Some(*pixels);
     }
 
-    fn get_pixels_mut(&mut self) -> &mut Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]> {
+    fn get_pixels_mut(
+        &mut self,
+    ) -> &mut Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]> {
         &mut self.pixels
     }
 
@@ -176,7 +199,8 @@ impl<'ch> Chunk for ClientChunk {
 
         let vs: Vec<f64> = mesh::pixels_to_valuemap(&self.pixels.unwrap());
 
-        let generated = mesh::generate_mesh_with_simplified(&vs, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
+        let generated =
+            mesh::generate_mesh_with_simplified(&vs, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
 
         if let Ok(r) = generated {
             self.mesh = Some(r.0);
@@ -225,7 +249,7 @@ impl<'cg> ChunkGraphics {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             // self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
             let i = (x + y * CHUNK_SIZE) as usize;
-            self.pixel_data[i * 4]     = color.r;
+            self.pixel_data[i * 4] = color.r;
             self.pixel_data[i * 4 + 1] = color.g;
             self.pixel_data[i * 4 + 2] = color.b;
             self.pixel_data[i * 4 + 3] = color.a;
@@ -244,10 +268,11 @@ impl<'cg> ChunkGraphics {
             let i = (x + y * CHUNK_SIZE) as usize;
 
             return Ok(Color::RGBA(
-                self.pixel_data[i * 4], 
-                self.pixel_data[i * 4 + 1], 
-                self.pixel_data[i * 4 + 2], 
-                self.pixel_data[i * 4 + 3]));
+                self.pixel_data[i * 4],
+                self.pixel_data[i * 4 + 1],
+                self.pixel_data[i * 4 + 2],
+                self.pixel_data[i * 4 + 3],
+            ));
         }
 
         Err("Invalid pixel coordinate.".to_string())
@@ -257,10 +282,21 @@ impl<'cg> ChunkGraphics {
     pub fn update_texture(&mut self) -> Result<(), ()> {
         if self.dirty {
             if self.texture.is_none() {
-                self.texture = Some(GPUSubsystem::create_image(CHUNK_SIZE, CHUNK_SIZE, GPU_FormatEnum::GPU_FORMAT_RGBA));
-                self.texture.as_mut().unwrap().set_image_filter(GPU_FilterEnum::GPU_FILTER_NEAREST);
+                self.texture = Some(GPUSubsystem::create_image(
+                    CHUNK_SIZE,
+                    CHUNK_SIZE,
+                    GPU_FormatEnum::GPU_FORMAT_RGBA,
+                ));
+                self.texture
+                    .as_mut()
+                    .unwrap()
+                    .set_image_filter(GPU_FilterEnum::GPU_FILTER_NEAREST);
             }
-            self.texture.as_mut().unwrap().update_image_bytes(None as Option<GPURect>, &self.pixel_data, (CHUNK_SIZE * 4).into());
+            self.texture.as_mut().unwrap().update_image_bytes(
+                None as Option<GPURect>,
+                &self.pixel_data,
+                (CHUNK_SIZE * 4).into(),
+            );
             self.dirty = false;
         }
 
@@ -269,7 +305,7 @@ impl<'cg> ChunkGraphics {
 
     #[profiling::function]
     #[allow(clippy::cast_lossless)]
-    pub fn replace(&mut self, colors: [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]){
+    pub fn replace(&mut self, colors: [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]) {
         // let sf = Surface::from_data(&mut colors, CHUNK_SIZE as u32, CHUNK_SIZE as u32, self.surface.pitch(), self.surface.pixel_format_enum()).unwrap();
         // sf.blit(None, &mut self.surface, None).unwrap();
         self.pixel_data = colors;
@@ -278,12 +314,19 @@ impl<'cg> ChunkGraphics {
 }
 
 impl Renderable for ClientChunk {
-    fn render(&self, canvas : &mut GPUTarget, transform: &mut TransformStack, sdl: &Sdl2Context, fonts: &Fonts, settings: &Settings) {
-        self.graphics.render(canvas, transform, sdl, fonts, settings);
+    fn render(
+        &self,
+        canvas: &mut GPUTarget,
+        transform: &mut TransformStack,
+        sdl: &Sdl2Context,
+        fonts: &Fonts,
+        settings: &Settings,
+    ) {
+        self.graphics
+            .render(canvas, transform, sdl, fonts, settings);
 
         if settings.debug && settings.draw_chunk_collision == 1 {
             if let Some(f) = &self.mesh {
-                
                 let colors = vec![
                     Color::RGB(32, 255, 32),
                     Color::RGB(255, 32, 32),
@@ -296,9 +339,15 @@ impl Renderable for ClientChunk {
                 f.iter().enumerate().for_each(|(j, f)| {
                     f.iter().enumerate().for_each(|(_k, pts)| {
                         for i in 1..pts.len() {
-                            let (x1, y1) = transform.transform((pts[i-1][0], pts[i-1][1]));
+                            let (x1, y1) = transform.transform((pts[i - 1][0], pts[i - 1][1]));
                             let (x2, y2) = transform.transform((pts[i][0], pts[i][1]));
-                            canvas.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, colors[j % colors.len()]);
+                            canvas.line(
+                                x1 as f32,
+                                y1 as f32,
+                                x2 as f32,
+                                y2 as f32,
+                                colors[j % colors.len()],
+                            );
                         }
 
                         // draw individual points
@@ -309,9 +358,8 @@ impl Renderable for ClientChunk {
                     });
                 });
             }
-        }else if settings.debug && settings.draw_chunk_collision == 2 {
+        } else if settings.debug && settings.draw_chunk_collision == 2 {
             if let Some(f) = &self.mesh_simplified {
-                
                 let colors = vec![
                     Color::RGB(32, 255, 32),
                     Color::RGB(255, 32, 32),
@@ -324,14 +372,20 @@ impl Renderable for ClientChunk {
                 f.iter().enumerate().for_each(|(j, f)| {
                     f.iter().enumerate().for_each(|(_k, pts)| {
                         for i in 1..pts.len() {
-                            let (x1, y1) = transform.transform((pts[i-1][0], pts[i-1][1]));
+                            let (x1, y1) = transform.transform((pts[i - 1][0], pts[i - 1][1]));
                             let (x2, y2) = transform.transform((pts[i][0], pts[i][1]));
-                            canvas.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, colors[j % colors.len()]);
+                            canvas.line(
+                                x1 as f32,
+                                y1 as f32,
+                                x2 as f32,
+                                y2 as f32,
+                                colors[j % colors.len()],
+                            );
                         }
                     });
                 });
             }
-        }else if settings.debug && settings.draw_chunk_collision == 3 {
+        } else if settings.debug && settings.draw_chunk_collision == 3 {
             if let Some(t) = &self.tris {
                 for part in t {
                     for tri in part {
@@ -352,39 +406,69 @@ impl Renderable for ClientChunk {
 }
 
 impl Renderable for ChunkGraphics {
-    fn render(&self, target : &mut GPUTarget, transform: &mut TransformStack, _sdl: &Sdl2Context, _fonts: &Fonts, _settings: &Settings) {
-        let chunk_rect = transform.transform_rect(Rect::new(0, 0, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE)));
+    fn render(
+        &self,
+        target: &mut GPUTarget,
+        transform: &mut TransformStack,
+        _sdl: &Sdl2Context,
+        _fonts: &Fonts,
+        _settings: &Settings,
+    ) {
+        let chunk_rect = transform.transform_rect(Rect::new(
+            0,
+            0,
+            u32::from(CHUNK_SIZE),
+            u32::from(CHUNK_SIZE),
+        ));
 
         if let Some(tex) = &self.texture {
             tex.blit_rect(None, target, Some(chunk_rect));
-        }else{
+        } else {
             target.rectangle_filled2(chunk_rect, Color::RGB(127, 0, 0));
         }
     }
 }
 
 impl<T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<T, ClientChunk> {
-    pub fn sync_chunk(&mut self, chunk_x: i32, chunk_y: i32, pixels: Vec<MaterialInstance>, colors: Vec<u8>) -> Result<(), String>{
+    pub fn sync_chunk(
+        &mut self,
+        chunk_x: i32,
+        chunk_y: i32,
+        pixels: Vec<MaterialInstance>,
+        colors: Vec<u8>,
+    ) -> Result<(), String> {
         if pixels.len() != (CHUNK_SIZE * CHUNK_SIZE) as usize {
-            return Err(format!("pixels Vec is the wrong size: {} (expected {})", pixels.len(), CHUNK_SIZE * CHUNK_SIZE));
+            return Err(format!(
+                "pixels Vec is the wrong size: {} (expected {})",
+                pixels.len(),
+                CHUNK_SIZE * CHUNK_SIZE
+            ));
         }
 
         if colors.len() != CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4 {
-            return Err(format!("colors Vec is the wrong size: {} (expected {})", colors.len(), CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4));
+            return Err(format!(
+                "colors Vec is the wrong size: {} (expected {})",
+                colors.len(),
+                CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4
+            ));
         }
 
-        if let Some(chunk) = self.loaded_chunks.get_mut(&self.chunk_index(chunk_x, chunk_y)) {
+        if let Some(chunk) = self
+            .loaded_chunks
+            .get_mut(&self.chunk_index(chunk_x, chunk_y))
+        {
             chunk.pixels = Some(pixels.try_into().unwrap());
             chunk.graphics.pixel_data = colors.try_into().unwrap();
             chunk.mark_dirty();
             chunk.set_state(ChunkState::Cached);
-        }else{
+        } else {
             let mut chunk: ClientChunk = Chunk::new_empty(chunk_x, chunk_y);
             chunk.pixels = Some(pixels.try_into().unwrap());
             chunk.graphics.pixel_data = colors.try_into().unwrap();
             chunk.mark_dirty();
             chunk.set_state(ChunkState::Cached);
-            self.loaded_chunks.insert(self.chunk_index(chunk_x, chunk_y), Box::new(chunk));
+            self.loaded_chunks
+                .insert(self.chunk_index(chunk_x, chunk_y), Box::new(chunk));
         }
 
         Ok(())

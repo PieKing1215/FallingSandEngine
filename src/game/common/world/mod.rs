@@ -1,17 +1,17 @@
-mod world;
 mod chunk;
-pub mod material;
-mod simulator;
+mod ecs;
 pub mod entity;
+pub mod material;
 pub mod mesh;
 pub mod particle;
 pub mod rigidbody;
+mod simulator;
+mod world;
 mod world_loading;
-mod ecs;
 
 pub mod gen;
 
+pub use chunk::*;
+pub use ecs::*;
 pub use world::*;
 pub use world_loading::*;
-pub use ecs::*;
-pub use chunk::*;
