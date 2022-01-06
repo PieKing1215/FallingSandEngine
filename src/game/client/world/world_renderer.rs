@@ -360,19 +360,21 @@ impl WorldRenderer {
 
         {
             profiling::scope!("particles");
-            let (particle_storage, position_storage) = world
+            let (particle_storage, position_storage, velocity_storage) = world
                 .ecs
-                .system_data::<(WriteStorage<Particle>, WriteStorage<Position>)>();
+                .system_data::<(WriteStorage<Particle>, WriteStorage<Position>, ReadStorage<Velocity>)>();
 
-            (&particle_storage, &position_storage)
+            (&particle_storage, &position_storage, velocity_storage.maybe())
                 .join()
-                .for_each(|(p, pos)| {
+                .for_each(|(p, pos, vel)| {
                     if screen_zone
                         .contains_point(sdl2::rect::Point::new(pos.x as i32, pos.y as i32))
                         || !settings.cull_chunks
                     {
-                        let (x1, y1) = transform.transform((pos.x - 0.5, pos.y - 0.5));
-                        let (x2, y2) = transform.transform((pos.x + 0.5, pos.y + 0.5));
+                        let lerp_x = pos.x + vel.map_or(0.0, |v| v.x) * partial_ticks;
+                        let lerp_y = pos.y + vel.map_or(0.0, |v| v.y) * partial_ticks;
+                        let (x1, y1) = transform.transform((lerp_x - 0.5, lerp_y - 0.5));
+                        let (x2, y2) = transform.transform((lerp_x + 0.5, lerp_y + 0.5));
                         target.rectangle_filled(
                             x1 as f32,
                             y1 as f32,
