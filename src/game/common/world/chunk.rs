@@ -9,6 +9,7 @@ use std::{collections::HashMap, sync::Arc};
 use futures::future::join_all;
 use lazy_static::lazy_static;
 use liquidfun::box2d::dynamics::body::Body;
+use rustc_hash::{FxHasher, FxHashMap};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use specs::saveload::{MarkedBuilder, SimpleMarker};
@@ -70,7 +71,7 @@ pub enum ChunkState {
 
 #[derive(Debug)]
 pub struct ChunkHandler<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> {
-    pub loaded_chunks: HashMap<u32, Box<C>>,
+    pub loaded_chunks: FxHashMap<u32, Box<C>>,
     pub load_queue: Vec<(i32, i32)>,
     /** The size of the "presentable" area (not necessarily the current window size) */
     pub screen_size: (u16, u16),
@@ -875,7 +876,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
     #[profiling::function]
     pub fn new(generator: T, path: Option<PathBuf>) -> Self {
         ChunkHandler {
-            loaded_chunks: HashMap::new(),
+            loaded_chunks: FxHashMap::default(),
             load_queue: vec![],
             screen_size: (1920 / 2, 1080 / 2),
             generator,
