@@ -268,7 +268,7 @@ impl Simulator {
             };
 
             {
-                profiling::scope!("");
+                profiling::scope!("loop");
                 for y in (my_dirty_rect.y..(my_dirty_rect.y + my_dirty_rect.h) as i32).rev() {
                     for x in my_dirty_rect.x..(my_dirty_rect.x + my_dirty_rect.w) as i32 {
                         
@@ -383,7 +383,7 @@ impl Simulator {
 
     }
 
-    fn simulate_pixel(x: i32, y: i32, cur: MaterialInstance, helper: &mut dyn SimulationHelper) -> Option<MaterialInstance> {
+    fn simulate_pixel(x: i32, y: i32, cur: MaterialInstance, helper: &mut impl SimulationHelper) -> Option<MaterialInstance> {
         unsafe {
             let mut new_mat = None;
 

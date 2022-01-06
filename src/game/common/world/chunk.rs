@@ -543,18 +543,25 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
                     #[allow(clippy::type_complexity)]
                     let b: Vec<Result<((i32, i32), [bool; 9], [Option<Rect>; 9], Vec<(Particle, Position, Velocity)>), _>>;
+                    let f = {
+                        profiling::scope!("join_all", format!("#futs = {}", futs2.len()).as_str());
+                        join_all(futs2)
+                    };
                     {
-                        profiling::scope!("wait for threads", format!("#futs = {}", futs2.len()).as_str());
-                        b = RT.block_on(join_all(futs2));
+                        profiling::scope!("wait for threads");
+                        b = RT.block_on(f);
                     }
                     
                     for r in b {
                         profiling::scope!("apply");
                         let (ch_pos, dirty, dirty_rects, parts) = r.unwrap();
                         
-                        for p in parts {
-                            world.create_entity().with(p.0).with(p.1).with(p.2)
-                                .marked::<SimpleMarker<FilePersistent>>().build();
+                        {
+                            profiling::scope!("particles");
+                            for p in parts {
+                                world.create_entity().with(p.0).with(p.1).with(p.2)
+                                    .marked::<SimpleMarker<FilePersistent>>().build();
+                            }
                         }
 
                         for i in 0..9 {
@@ -566,13 +573,13 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                             }
 
                             if i != 4 && dirty_rects[4].is_some() {
-                                // let neighbor_rect = Rect::new(
-                                //     if rel_ch_x == -1 { (CHUNK_SIZE / 2).into() } else { 0 },
-                                //     if rel_ch_y == -1 { (CHUNK_SIZE / 2).into() } else { 0 },
-                                //     if rel_ch_x == 0 { (CHUNK_SIZE).into() } else { (CHUNK_SIZE / 2).into() },
-                                //     if rel_ch_y == 0 { (CHUNK_SIZE).into() } else { (CHUNK_SIZE / 2).into() }
-                                // );
-                                let neighbor_rect = Rect::new(0, 0, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
+                                let neighbor_rect = Rect::new(
+                                    if rel_ch_x == -1 { (CHUNK_SIZE / 2).into() } else { 0 },
+                                    if rel_ch_y == -1 { (CHUNK_SIZE / 2).into() } else { 0 },
+                                    if rel_ch_x == 0 { (CHUNK_SIZE).into() } else { (CHUNK_SIZE / 2).into() },
+                                    if rel_ch_y == 0 { (CHUNK_SIZE).into() } else { (CHUNK_SIZE / 2).into() }
+                                );
+                                // let neighbor_rect = Rect::new(0, 0, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
                                 let mut r = self.loaded_chunks.get_mut(&self.chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y)).unwrap().get_dirty_rect();
                                 match r {
                                     Some(current) => {
