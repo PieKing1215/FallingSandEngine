@@ -1,4 +1,5 @@
 
+use specs::{ParJoin, prelude::ParallelIterator};
 use crate::game::common::world::{ChunkState, material::{PhysicsType, TEST_MATERIAL}};
 use super::{ChunkHandlerGeneric, FilePersistent, Position, TickTime, Velocity, entity::Hitbox, material::MaterialInstance, ChunkHandler, gen::WorldGenerator, Chunk};
 
@@ -100,15 +101,21 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdateParticles<'a, H> {
         vel.insert(new_p, Velocity{x: (rand::random::<f64>() - 0.5) * 4.0, y: (rand::random::<f64>() - 0.75) * 2.0}).expect("Failed to insert Velocity");
         marker_alloc.mark(new_p, &mut markers);
         
-        if tick_time.0 % 29 == 10 {
+        if tick_time.0 % 29 == 0 {
+            (&entities, &mut particle, &mut pos, !&sleep).join().for_each(|(ent, _part, pos, _)| {
+                let (chunk_x, chunk_y) = chunk_handler.pixel_to_chunk_pos(pos.x as i64, pos.y as i64);
+                if !matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active) {
+                    updater.insert(ent, Sleep);
+                }
+            });
+        } else if tick_time.0 % 29 == 10 {
             (&entities, &mut particle, &mut pos, &sleep).join().for_each(|(ent, _part, pos, _)| {
                 let (chunk_x, chunk_y) = chunk_handler.pixel_to_chunk_pos(pos.x as i64, pos.y as i64);
-                // skip if chunk not active
                 if matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active) {
                     updater.remove::<Sleep>(ent);
                 }
             });
-        }
+        } 
 
         // TODO: if I can ever get ChunkHandler to be Send (+ Sync would be ideal), can use par_join and organize a bit for big performance gain
         //       iirc right now, ChunkHandler<ServerChunk> is Send + !Sync and ChunkHandler<ClientChunk> is !Send + !Sync (because of the GPUImage in ChunkGraphics)
@@ -117,16 +124,6 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdateParticles<'a, H> {
 
             let lx = pos.x;
             let ly = pos.y;
-
-            if tick_time.0 % 29 == 0 {
-                // profiling::scope!("early exit check");
-                let (chunk_x, chunk_y) = chunk_handler.pixel_to_chunk_pos(lx as i64, ly as i64);
-                // skip if chunk not active
-                if !matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active) {
-                    updater.insert(ent, Sleep);
-                    return;
-                }
-            }
 
             vel.y += 0.1;
 
