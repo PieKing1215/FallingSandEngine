@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use imgui::{im_str, WindowFlags};
+use imgui::WindowFlags;
 
 use crate::game::{
     self,
@@ -37,11 +37,8 @@ impl MainMenu {
             WorldTreeNode::Folder(p, ch) => {
                 // TODO: actually implement collapsing
                 if !ui.button_with_size(
-                    &*im_str!(
-                        "{}",
-                        p.file_name()
-                            .map_or_else(|| "..", |o| o.to_str().unwrap_or("!! NON UTF-8 !!"))
-                    ),
+                    p.file_name()
+                            .map_or_else(|| "..", |o| o.to_str().unwrap_or("!! NON UTF-8 !!")).to_string(),
                     [200.0, 20.0],
                 ) {
                     ui.indent();
@@ -56,7 +53,7 @@ impl MainMenu {
             }
             WorldTreeNode::World((p, m)) => {
                 if ui.button_with_size(
-                    &*im_str!(
+                    format!(
                         "{}\n{} - {}",
                         m.name,
                         p.parent()
@@ -75,7 +72,7 @@ impl MainMenu {
     }
 
     pub fn render(&mut self, ui: &imgui::Ui, file_helper: &FileHelper) {
-        ui.window(im_str!("Main Menu"))
+        ui.window("Main Menu")
             .size([300.0, 600.0], imgui::Condition::FirstUseEver)
             .flags(WindowFlags::ALWAYS_AUTO_RESIZE)
             .resizable(false)
@@ -84,7 +81,7 @@ impl MainMenu {
                 let mut new_state = None;
                 match &self.state {
                     MainMenuState::Main => {
-                        if ui.button_with_size(im_str!("Singleplayer"), [100.0, 50.0]) {
+                        if ui.button_with_size("Singleplayer", [100.0, 50.0]) {
                             let worlds = game::common::world::World::<ClientChunk>::find_files(
                                 file_helper.game_path("saves/"),
                             )
@@ -99,12 +96,12 @@ impl MainMenu {
 
                             new_state = Some(MainMenuState::WorldSelect { context: metas });
                         }
-                        if ui.button_with_size(im_str!("Quit"), [100.0, 50.0]) {
+                        if ui.button_with_size("Quit", [100.0, 50.0]) {
                             self.action_queue.push(MainMenuAction::Quit);
                         }
                     }
                     MainMenuState::WorldSelect { context } => {
-                        if ui.button_with_size(im_str!("Back"), [50.0, 20.0]) {
+                        if ui.button_with_size("Back", [50.0, 20.0]) {
                             new_state = Some(MainMenuState::Main);
                         }
                         if let Some(choice) = Self::draw_worlds(context, ui) {

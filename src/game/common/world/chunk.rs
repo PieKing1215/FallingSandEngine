@@ -8,7 +8,7 @@ use std::{collections::HashMap, sync::Arc};
 use futures::future::join_all;
 use lazy_static::lazy_static;
 use liquidfun::box2d::dynamics::body::Body;
-use rustc_hash::{FxHashMap, FxHasher};
+use rustc_hash::FxHashMap;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use serde::{Deserialize, Serialize};

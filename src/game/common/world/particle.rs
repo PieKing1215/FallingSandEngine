@@ -1,12 +1,11 @@
 use super::{
-    entity::Hitbox, gen::WorldGenerator, material::MaterialInstance, Chunk, ChunkHandler,
+    entity::Hitbox, material::MaterialInstance,
     ChunkHandlerGeneric, FilePersistent, Position, TickTime, Velocity,
 };
 use crate::game::common::world::{
     material::{PhysicsType, TEST_MATERIAL},
     ChunkState,
 };
-use specs::{prelude::ParallelIterator, ParJoin};
 
 use rand::prelude::Distribution;
 use sdl2::pixels::Color;

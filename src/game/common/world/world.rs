@@ -809,6 +809,7 @@ impl<'w, C: Chunk> World<C> {
                             }
 
                             let mut chain = ChainShape::new();
+                            #[allow(clippy::cast_possible_wrap)]
                             chain.create_chain(&verts, verts.len() as i32);
 
                             let mut fixture_def = FixtureDef::new(&chain);

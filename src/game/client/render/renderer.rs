@@ -1,7 +1,6 @@
 use std::{cell::RefCell, fs};
 
-use glow::HasContext;
-use imgui::{im_str, WindowFlags};
+use imgui::{WindowFlags};
 use imgui_glow_renderer::{AutoRenderer, versions::GlVersion};
 use imgui_sdl2_support::SdlPlatform;
 use sdl2::{
@@ -183,7 +182,6 @@ impl<'a> Renderer<'a> {
                 .main_menu
                 .render(ui, &game.file_helper);
 
-            #[allow(clippy::semicolon_if_nothing_returned)] // this lint is completely broken by im_str
             ui.window("Stats")
                 .size([300.0, 300.0], imgui::Condition::FirstUseEver)
                 .position_pivot([1.0, 1.0])
@@ -220,12 +218,12 @@ impl<'a> Renderer<'a> {
                     let avg_mspf: f32 =
                         nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-                    ui.plot_lines(im_str!(""), &game.fps_counter.frame_times)
+                    ui.plot_lines("", &game.fps_counter.frame_times)
                         .graph_size([200.0, 50.0])
                         .scale_min(0.0)
                         .scale_max(50_000_000.0)
                         .overlay_text(
-                            im_str!("mspf: {:.2} fps: {:.0}", avg_mspf, ui.io().framerate),
+                            format!("mspf: {:.2} fps: {:.0}", avg_mspf, ui.io().framerate),
                         )
                         .build();
 
@@ -238,11 +236,11 @@ impl<'a> Renderer<'a> {
                     let avg_mspt: f32 =
                         nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-                    ui.plot_histogram(im_str!(""), &game.fps_counter.tick_times)
+                    ui.plot_histogram("", &game.fps_counter.tick_times)
                         .graph_size([200.0, 50.0])
                         .scale_min(0.0)
                         .scale_max(100_000_000.0)
-                        .overlay_text(im_str!("tick mspt: {:.2}", avg_mspt))
+                        .overlay_text(format!("tick mspt: {:.2}", avg_mspt))
                         .build();
 
                     let nums: Vec<&f32> = game
@@ -254,11 +252,11 @@ impl<'a> Renderer<'a> {
                     let avg_msptlqf: f32 =
                         nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-                    ui.plot_histogram(im_str!(""), &game.fps_counter.tick_lqf_times)
+                    ui.plot_histogram("", &game.fps_counter.tick_lqf_times)
                         .graph_size([200.0, 50.0])
                         .scale_min(0.0)
                         .scale_max(100_000_000.0)
-                        .overlay_text(im_str!("phys mspt: {:.2}", avg_msptlqf))
+                        .overlay_text(format!("phys mspt: {:.2}", avg_msptlqf))
                         .build();
                 });
 
