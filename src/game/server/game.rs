@@ -263,17 +263,13 @@ impl Game<ServerChunk> {
                                         }
                                         Err(clap::Error {
                                             kind: clap::ErrorKind::UnknownArgument,
-                                            message: _,
-                                            info: Some(i),
+                                            info,
+                                            ..
                                         }) => {
-                                            error!(target: "", "Found argument '{}' which wasn't expected, or isn't valid in this context.", i[0]);
+                                            error!(target: "", "Found argument '{}' which wasn't expected, or isn't valid in this context.", info[0]);
                                         }
-                                        Err(clap::Error {
-                                            kind: clap::ErrorKind::HelpDisplayed,
-                                            message,
-                                            info: _,
-                                        }) => {
-                                            info!(target: "", "{}", message);
+                                        Err(e) if e.kind == clap::ErrorKind::DisplayHelp => {
+                                            info!(target: "", "{:?}", e.to_string());
                                         }
                                         Err(e) => {
                                             error!(target: "", "{}", e.to_string());

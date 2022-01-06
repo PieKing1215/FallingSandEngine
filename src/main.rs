@@ -70,7 +70,7 @@ use crate::game::common::FileHelper;
 use crate::game::server::world::ServerChunk;
 
 #[allow(clippy::needless_pass_by_value)]
-fn is_type<T: FromStr>(val: String) -> Result<(), String>
+fn is_type<T: FromStr>(val: &str) -> Result<(), String>
 where
     <T as std::str::FromStr>::Err: std::string::ToString,
 {
@@ -86,26 +86,26 @@ fn main() -> Result<(), String> {
         .version(crate_version!())
         .author(crate_authors!())
         .arg(
-            Arg::with_name("debug")
-                .short("d")
+            Arg::new("debug")
+                .short('d')
                 .long("debug")
                 .help("Enable debugging features"),
         )
         .arg(
-            Arg::with_name("no-tick")
+            Arg::new("no-tick")
                 .long("no-tick")
                 .help("Turn off simulation by default"),
         )
         .arg(
-            Arg::with_name("connect")
-                .short("c")
+            Arg::new("connect")
+                .short('c')
                 .long("connect")
                 .takes_value(true)
                 .value_name("IP:PORT")
                 .help("Connect to a server automatically"),
         )
         .arg(
-            Arg::with_name("game-dir")
+            Arg::new("game-dir")
                 .long("game-dir")
                 .takes_value(true)
                 .value_name("PATH")
@@ -113,7 +113,7 @@ fn main() -> Result<(), String> {
                 .help("Set the game directory"),
         )
         .arg(
-            Arg::with_name("assets-dir")
+            Arg::new("assets-dir")
                 .long("assets-dir")
                 .takes_value(true)
                 .value_name("PATH")
@@ -122,8 +122,8 @@ fn main() -> Result<(), String> {
         )
         .subcommand(
             App::new("server").about("Run dedicated server").arg(
-                Arg::with_name("port")
-                    .short("p")
+                Arg::new("port")
+                    .short('p')
                     .long("port")
                     .takes_value(true)
                     .value_name("PORT")

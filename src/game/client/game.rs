@@ -101,9 +101,10 @@ impl Game<ClientChunk> {
             for event in event_pump.poll_iter() {
                 if let Some(r) = &mut renderer {
                     r.imgui_sdl2.handle_event(&mut r.imgui, &event);
-                    if r.imgui_sdl2.ignore_event(&event) {
-                        continue;
-                    }
+                    // missing from official support
+                    // if r.imgui_sdl2.ignore_event(&event) {
+                    //     continue;
+                    // }
                 }
 
                 let client_consumed_event = match &mut self.client {
@@ -323,7 +324,7 @@ impl Game<ClientChunk> {
             last_frame = now;
             if let Some(r) = &mut renderer {
                 r.imgui_sdl2
-                    .prepare_frame(r.imgui.io_mut(), &r.window, &event_pump.mouse_state());
+                    .prepare_frame(&mut r.imgui, &r.window, &event_pump);
 
                 let delta_s =
                     delta.as_secs() as f32 + delta.subsec_nanos() as f32 / 1_000_000_000.0;

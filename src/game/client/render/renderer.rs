@@ -1,10 +1,13 @@
 use std::{cell::RefCell, fs};
 
+use glow::HasContext;
 use imgui::{im_str, WindowFlags};
+use imgui_glow_renderer::{AutoRenderer, versions::GlVersion};
+use imgui_sdl2_support::SdlPlatform;
 use sdl2::{
     pixels::Color,
     ttf::{Font, Sdl2TtfContext},
-    video::Window,
+    video::{Window, GLProfile},
     VideoSubsystem,
 };
 use sdl_gpu::{shaders::Shader, GPUImage, GPURect, GPUSubsystem, GPUTarget};
@@ -22,8 +25,8 @@ pub struct Renderer<'ttf> {
     pub target: RefCell<GPUTarget>,
     pub window: Window,
     pub imgui: imgui::Context,
-    pub imgui_sdl2: imgui_sdl2::ImguiSdl2,
-    pub imgui_renderer: imgui_opengl_renderer::Renderer,
+    pub imgui_sdl2: SdlPlatform,
+    pub imgui_renderer: AutoRenderer,
     pub world_renderer: WorldRenderer,
 }
 
@@ -51,6 +54,10 @@ impl<'a> Renderer<'a> {
     }
 
     pub fn create(sdl: &Sdl2Context, file_helper: &FileHelper) -> Result<Self, String> {
+        let gl_attr = sdl.sdl_video.gl_attr();
+        gl_attr.set_context_version(4, 1);
+        gl_attr.set_context_profile(GLProfile::Core);
+
         let window = sdl
             .sdl_video
             .window("FallingSandRust", 1200, 800)
@@ -59,20 +66,27 @@ impl<'a> Renderer<'a> {
             .build()
             .unwrap();
 
+        let gl_context = window.gl_create_context().unwrap();
+        window.gl_make_current(&gl_context).unwrap();
+
         sdl_gpu::GPUSubsystem::set_init_window(window.id());
         let target = sdl_gpu::GPUSubsystem::init(window.size().0 as u16, window.size().1 as u16, 0);
         unsafe {
             let ctx: sdl2::sys::SDL_GLContext = (*target.raw.context).context;
             sdl2::sys::SDL_GL_MakeCurrent(window.raw(), ctx);
         }
+        // sdl2::sys::SDL_GL_SetAttribute(attr, value)
 
         let mut imgui = imgui::Context::create();
         imgui.set_ini_filename(None);
 
-        let imgui_sdl2 = imgui_sdl2::ImguiSdl2::new(&mut imgui, &window);
-        let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| {
-            sdl.sdl_video.gl_get_proc_address(s).cast()
-        });
+        let gl = unsafe {
+            glow::Context::from_loader_function(|s| sdl.sdl_video.gl_get_proc_address(s).cast())
+        };
+        let v = GlVersion::read(&gl);
+        log::info!("glversion = {} {} {}", v.major, v.minor, v.is_gles);
+        let imgui_renderer = AutoRenderer::initialize(gl, &mut imgui).unwrap();
+        let imgui_sdl2 = SdlPlatform::init(&mut imgui);
 
         let shaders = Shaders {
             liquid_shader: Shader::load_shader_program(
@@ -92,7 +106,7 @@ impl<'a> Renderer<'a> {
             window,
             imgui,
             imgui_sdl2,
-            imgui_renderer: renderer,
+            imgui_renderer,
             world_renderer: WorldRenderer::new(),
         })
     }
@@ -155,22 +169,22 @@ impl<'a> Renderer<'a> {
 
         {
             profiling::scope!("imgui");
-            let ui = self.imgui.frame();
+            let ui = self.imgui.new_frame();
 
             // ui.show_demo_window(&mut true);
 
             if game.settings.debug {
-                game.settings.imgui(&ui);
+                game.settings.imgui(ui);
             }
 
             game.client
                 .as_mut()
                 .expect("Missing client in Renderer::render ??")
                 .main_menu
-                .render(&ui, &game.file_helper);
+                .render(ui, &game.file_helper);
 
             #[allow(clippy::semicolon_if_nothing_returned)] // this lint is completely broken by im_str
-            imgui::Window::new(im_str!("Stats"))
+            ui.window("Stats")
                 .size([300.0, 300.0], imgui::Condition::FirstUseEver)
                 .position_pivot([1.0, 1.0])
                 .position(
@@ -186,12 +200,12 @@ impl<'a> Renderer<'a> {
                 )
                 .bg_alpha(0.25)
                 .resizable(false)
-                .build(&ui, || {
+                .build(|| {
                     ui.text(match game.process_stats.cpu_usage {
                         Some(c) => format!("CPU: {:.0}%", c),
                         None => "CPU: n/a".to_string(),
                     });
-                    ui.same_line(0.0);
+                    ui.same_line();
                     ui.text(match game.process_stats.memory {
                         Some(m) => format!(" mem: {:.1} MB", m as f32 / 1000.0),
                         None => " mem: n/a".to_string(),
@@ -211,7 +225,7 @@ impl<'a> Renderer<'a> {
                         .scale_min(0.0)
                         .scale_max(50_000_000.0)
                         .overlay_text(
-                            im_str!("mspf: {:.2} fps: {:.0}", avg_mspf, ui.io().framerate).as_ref(),
+                            im_str!("mspf: {:.2} fps: {:.0}", avg_mspf, ui.io().framerate),
                         )
                         .build();
 
@@ -228,7 +242,7 @@ impl<'a> Renderer<'a> {
                         .graph_size([200.0, 50.0])
                         .scale_min(0.0)
                         .scale_max(100_000_000.0)
-                        .overlay_text(im_str!("tick mspt: {:.2}", avg_mspt).as_ref())
+                        .overlay_text(im_str!("tick mspt: {:.2}", avg_mspt))
                         .build();
 
                     let nums: Vec<&f32> = game
@@ -244,17 +258,17 @@ impl<'a> Renderer<'a> {
                         .graph_size([200.0, 50.0])
                         .scale_min(0.0)
                         .scale_max(100_000_000.0)
-                        .overlay_text(im_str!("phys mspt: {:.2}", avg_msptlqf).as_ref())
+                        .overlay_text(im_str!("phys mspt: {:.2}", avg_msptlqf))
                         .build();
                 });
 
-            {
+            let draw_data = {
                 profiling::scope!("prepare_render");
-                self.imgui_sdl2.prepare_render(&ui, &self.window);
-            }
+                self.imgui.render()
+            };
             {
                 profiling::scope!("render");
-                self.imgui_renderer.render(ui);
+                self.imgui_renderer.render(draw_data).unwrap();
             }
         }
 

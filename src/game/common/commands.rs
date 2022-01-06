@@ -1,7 +1,7 @@
 use clap::{App, ArgMatches, SubCommand};
 
 pub struct CommandHandler<'a> {
-    commands: App<'a, 'a>,
+    commands: App<'a>,
 }
 
 impl CommandHandler<'_> {
@@ -10,9 +10,8 @@ impl CommandHandler<'_> {
             commands: App::new("commands")
                 .setting(clap::AppSettings::NoBinaryName)
                 .setting(clap::AppSettings::SubcommandRequired)
-                .setting(clap::AppSettings::DisableHelpFlags)
-                .setting(clap::AppSettings::DisableVersion)
-                .setting(clap::AppSettings::VersionlessSubcommands)
+                .setting(clap::AppSettings::DisableHelpFlag)
+                .setting(clap::AppSettings::DisableVersionFlag)
                 .template("Command Help:\n{subcommands}")
                 .subcommand(
                     SubCommand::with_name("shutdown")
