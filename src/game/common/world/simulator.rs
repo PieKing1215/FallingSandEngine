@@ -318,14 +318,15 @@ impl Simulator {
                 chunk_y,
             };
 
+            let rng = fastrand::Rng::new();
             {
                 profiling::scope!("loop");
-                if rand::random::<bool>() {
+                if rng.bool() {
                     for y in (my_dirty_rect.y..(my_dirty_rect.y + my_dirty_rect.h) as i32).rev() {
                             for x in my_dirty_rect.x..(my_dirty_rect.x + my_dirty_rect.w) as i32 {
                                 let cur = helper.get_pixel_local(x, y);
         
-                                if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper) {
+                                if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper, &rng) {
                                     helper.set_color_local(x, y, mat.color);
                                     helper.set_pixel_local(x, y, mat);
                                 }
@@ -337,7 +338,7 @@ impl Simulator {
                         for x in (my_dirty_rect.x..(my_dirty_rect.x + my_dirty_rect.w) as i32).rev() {
                             let cur = helper.get_pixel_local(x, y);
     
-                            if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper) {
+                            if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper, &rng) {
                                 helper.set_color_local(x, y, mat.color);
                                 helper.set_pixel_local(x, y, mat);
                             }
@@ -374,6 +375,7 @@ impl Simulator {
                 let mut helper =
                     SimulationHelperRigidBody { chunk_handler, rigidbodies, particles };
 
+                let rng = fastrand::Rng::new();
                 for rb_y in 0..rb_w {
                     for rb_x in 0..rb_h {
                         let tx = f32::from(rb_x) * c - f32::from(rb_y) * s + pos_x;
@@ -382,7 +384,7 @@ impl Simulator {
                         // let cur = helper.get_pixel_local(tx as i32, ty as i32);
                         let cur = helper.rigidbodies[i].pixels[(rb_x + rb_y * rb_w) as usize];
 
-                        let res = Self::simulate_pixel(tx as i32, ty as i32, cur, &mut helper);
+                        let res = Self::simulate_pixel(tx as i32, ty as i32, cur, &mut helper, &rng);
 
                         // if cur.material_id != AIR.id {
                         //     // helper.set_pixel_local(tx as i32, ty as i32, MaterialInstance {
@@ -471,6 +473,7 @@ impl Simulator {
         y: i32,
         cur: MaterialInstance,
         helper: &mut impl SimulationHelper,
+        rng: &fastrand::Rng,
     ) -> Option<MaterialInstance> {
         unsafe {
             let mut new_mat = None;
@@ -487,7 +490,7 @@ impl Simulator {
                     let br = helper.get_pixel_local(x + 1, y + 1);
                     let br_can = br.physics == PhysicsType::Air;
 
-                    if below_can && (!(br_can || bl_can) || rand::random::<f32>() > 0.1) {
+                    if below_can && (!(br_can || bl_can) || rng.f32() > 0.1) {
                         // let below2_i = index_helper(x, y + 2);
                         // let below2 = (*pixels[below_i.0])[below_i.1];
                         // if below2.physics == PhysicsType::Air {
@@ -506,11 +509,11 @@ impl Simulator {
                                 cur,
                                 Position { x: f64::from(x), y: f64::from(y) },
                                 Velocity {
-                                    x: (rand::random::<f64>() - 0.5) * 0.5,
-                                    y: 1.0 + rand::random::<f64>(),
+                                    x: (rng.f64() - 0.5) * 0.5,
+                                    y: 1.0 + rng.f64(),
                                 },
                             );
-                        } else if rand::random::<bool>() && helper.get_pixel_local(x, y + 2).physics == PhysicsType::Air {
+                        } else if rng.bool() && helper.get_pixel_local(x, y + 2).physics == PhysicsType::Air {
                             helper.set_color_local(x, y + 2, cur.color);
                             helper.set_pixel_local(x, y + 2, cur);
                         } else {
@@ -524,9 +527,9 @@ impl Simulator {
                     } else {
                         let above = helper.get_pixel_local(x, y - 1);
                         let above_air = above.physics == PhysicsType::Air;
-                        if above_air || rand::random::<f32>() > 0.5 {
+                        if above_air || rng.f32() > 0.5 {
                             if bl_can && br_can {
-                                if rand::random::<bool>() {
+                                if rng.bool() {
                                     helper.set_color_local(x + 1, y + 1, cur.color);
                                     helper.set_pixel_local(x + 1, y + 1, cur);
                                 } else {
@@ -535,7 +538,7 @@ impl Simulator {
                                 }
                                 new_mat = Some(MaterialInstance::air());
                             } else if bl_can {
-                                if rand::random::<bool>() && helper.get_pixel_local(x - 2, y + 1).physics == PhysicsType::Air && helper.get_pixel_local(x - 2, y + 2).physics != PhysicsType::Air {
+                                if rng.bool() && helper.get_pixel_local(x - 2, y + 1).physics == PhysicsType::Air && helper.get_pixel_local(x - 2, y + 2).physics != PhysicsType::Air {
                                     helper.set_color_local(x - 2, y + 1, cur.color);
                                     helper.set_pixel_local(x - 2, y + 1, cur);
                                     new_mat = Some(MaterialInstance::air());
@@ -545,7 +548,7 @@ impl Simulator {
                                     new_mat = Some(MaterialInstance::air());
                                 }
                             } else if br_can {
-                                if rand::random::<bool>() && helper.get_pixel_local(x + 2, y + 1).physics == PhysicsType::Air && helper.get_pixel_local(x + 2, y + 2).physics != PhysicsType::Air {
+                                if rng.bool() && helper.get_pixel_local(x + 2, y + 1).physics == PhysicsType::Air && helper.get_pixel_local(x + 2, y + 2).physics != PhysicsType::Air {
                                     helper.set_color_local(x + 2, y + 1, cur.color);
                                     helper.set_pixel_local(x + 2, y + 1, cur);
                                     new_mat = Some(MaterialInstance::air());
