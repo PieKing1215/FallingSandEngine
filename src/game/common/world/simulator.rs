@@ -320,13 +320,27 @@ impl Simulator {
 
             {
                 profiling::scope!("loop");
-                for y in (my_dirty_rect.y..(my_dirty_rect.y + my_dirty_rect.h) as i32).rev() {
-                    for x in my_dirty_rect.x..(my_dirty_rect.x + my_dirty_rect.w) as i32 {
-                        let cur = helper.get_pixel_local(x, y);
-
-                        if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper) {
-                            helper.set_color_local(x, y, mat.color);
-                            helper.set_pixel_local(x, y, mat);
+                if rand::random::<bool>() {
+                    for y in (my_dirty_rect.y..(my_dirty_rect.y + my_dirty_rect.h) as i32).rev() {
+                            for x in my_dirty_rect.x..(my_dirty_rect.x + my_dirty_rect.w) as i32 {
+                                let cur = helper.get_pixel_local(x, y);
+        
+                                if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper) {
+                                    helper.set_color_local(x, y, mat.color);
+                                    helper.set_pixel_local(x, y, mat);
+                                }
+                            }
+                    }
+                
+                } else {
+                    for y in (my_dirty_rect.y..(my_dirty_rect.y + my_dirty_rect.h) as i32).rev() {
+                        for x in (my_dirty_rect.x..(my_dirty_rect.x + my_dirty_rect.w) as i32).rev() {
+                            let cur = helper.get_pixel_local(x, y);
+    
+                            if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper) {
+                                helper.set_color_local(x, y, mat.color);
+                                helper.set_pixel_local(x, y, mat);
+                            }
                         }
                     }
                 }
@@ -496,6 +510,9 @@ impl Simulator {
                                     y: 1.0 + rand::random::<f64>(),
                                 },
                             );
+                        } else if rand::random::<bool>() && helper.get_pixel_local(x, y + 2).physics == PhysicsType::Air {
+                            helper.set_color_local(x, y + 2, cur.color);
+                            helper.set_pixel_local(x, y + 2, cur);
                         } else {
                             helper.set_color_local(x, y + 1, cur.color);
                             helper.set_pixel_local(x, y + 1, cur);
@@ -504,23 +521,41 @@ impl Simulator {
                         new_mat = Some(MaterialInstance::air());
 
                         // }
-                    } else if bl_can && br_can {
-                        if rand::random::<bool>() {
-                            helper.set_color_local(x + 1, y + 1, cur.color);
-                            helper.set_pixel_local(x + 1, y + 1, cur);
-                        } else {
-                            helper.set_color_local(x - 1, y + 1, cur.color);
-                            helper.set_pixel_local(x - 1, y + 1, cur);
+                    } else {
+                        let above = helper.get_pixel_local(x, y - 1);
+                        let above_air = above.physics == PhysicsType::Air;
+                        if above_air || rand::random::<f32>() > 0.5 {
+                            if bl_can && br_can {
+                                if rand::random::<bool>() {
+                                    helper.set_color_local(x + 1, y + 1, cur.color);
+                                    helper.set_pixel_local(x + 1, y + 1, cur);
+                                } else {
+                                    helper.set_color_local(x - 1, y + 1, cur.color);
+                                    helper.set_pixel_local(x - 1, y + 1, cur);
+                                }
+                                new_mat = Some(MaterialInstance::air());
+                            } else if bl_can {
+                                if rand::random::<bool>() && helper.get_pixel_local(x - 2, y + 1).physics == PhysicsType::Air && helper.get_pixel_local(x - 2, y + 2).physics != PhysicsType::Air {
+                                    helper.set_color_local(x - 2, y + 1, cur.color);
+                                    helper.set_pixel_local(x - 2, y + 1, cur);
+                                    new_mat = Some(MaterialInstance::air());
+                                } else {
+                                    helper.set_color_local(x - 1, y + 1, cur.color);
+                                    helper.set_pixel_local(x - 1, y + 1, cur);
+                                    new_mat = Some(MaterialInstance::air());
+                                }
+                            } else if br_can {
+                                if rand::random::<bool>() && helper.get_pixel_local(x + 2, y + 1).physics == PhysicsType::Air && helper.get_pixel_local(x + 2, y + 2).physics != PhysicsType::Air {
+                                    helper.set_color_local(x + 2, y + 1, cur.color);
+                                    helper.set_pixel_local(x + 2, y + 1, cur);
+                                    new_mat = Some(MaterialInstance::air());
+                                } else {
+                                    helper.set_color_local(x + 1, y + 1, cur.color);
+                                    helper.set_pixel_local(x + 1, y + 1, cur);
+                                    new_mat = Some(MaterialInstance::air());
+                                }
+                            }
                         }
-                        new_mat = Some(MaterialInstance::air());
-                    } else if bl_can {
-                        helper.set_color_local(x - 1, y + 1, cur.color);
-                        helper.set_pixel_local(x - 1, y + 1, cur);
-                        new_mat = Some(MaterialInstance::air());
-                    } else if br_can {
-                        helper.set_color_local(x + 1, y + 1, cur.color);
-                        helper.set_pixel_local(x + 1, y + 1, cur);
-                        new_mat = Some(MaterialInstance::air());
                     }
                 }
                 _ => {}
