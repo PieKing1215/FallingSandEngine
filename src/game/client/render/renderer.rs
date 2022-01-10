@@ -65,16 +65,12 @@ impl<'a> Renderer<'a> {
             .build()
             .unwrap();
 
-        let gl_context = window.gl_create_context().unwrap();
-        window.gl_make_current(&gl_context).unwrap();
-
         sdl_gpu::GPUSubsystem::set_init_window(window.id());
         let target = sdl_gpu::GPUSubsystem::init(window.size().0 as u16, window.size().1 as u16, 0);
         unsafe {
             let ctx: sdl2::sys::SDL_GLContext = (*target.raw.context).context;
             sdl2::sys::SDL_GL_MakeCurrent(window.raw(), ctx);
         }
-        // sdl2::sys::SDL_GL_SetAttribute(attr, value)
 
         let mut imgui = imgui::Context::create();
         imgui.set_ini_filename(None);
