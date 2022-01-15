@@ -91,7 +91,6 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdateParticles<'a, H> {
 
     #[allow(clippy::too_many_lines)]
     fn run(&mut self, data: Self::SystemData) {
-        profiling::scope!("UpdateParticles::run");
 
         let (
             entities,
@@ -105,6 +104,7 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdateParticles<'a, H> {
             updater,
             tick_time,
         ) = data;
+        profiling::scope!("UpdateParticles::run", format!("n = {}", (&entities, &mut particle, &mut pos, &mut vel, !&sleep).join().count()).as_str());
         // let chunk_handler = chunk_handler.unwrap().0;
         let chunk_handler = &mut *self.chunk_handler;
 

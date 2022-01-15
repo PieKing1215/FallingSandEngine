@@ -1228,6 +1228,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
             )
     }
 
+    // #[profiling::function]
     fn displace(&mut self, x: i64, y: i64, material: MaterialInstance) -> bool {
         let mut succeeded = false;
 
