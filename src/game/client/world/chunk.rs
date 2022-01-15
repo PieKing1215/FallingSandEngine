@@ -465,7 +465,7 @@ impl<T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<T, ClientChu
             chunk.mark_dirty();
             chunk.set_state(ChunkState::Cached);
             self.loaded_chunks
-                .insert(self.chunk_index(chunk_x, chunk_y), Box::new(chunk));
+                .insert(self.chunk_index(chunk_x, chunk_y), chunk);
         }
 
         Ok(())

@@ -2,13 +2,13 @@ use crate::game::common::world::simulator::Simulator;
 use crate::game::common::world::{FilePersistent, Loader, Position, Velocity};
 use crate::game::common::Settings;
 use std::convert::TryInto;
+use std::hash::BuildHasherDefault;
 use std::path::PathBuf;
 use std::{collections::HashMap, sync::Arc};
 
 use futures::future::join_all;
 use lazy_static::lazy_static;
 use liquidfun::box2d::dynamics::body::Body;
-use rustc_hash::FxHashMap;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use serde::{Deserialize, Serialize};
@@ -74,7 +74,7 @@ pub enum ChunkState {
 
 #[derive(Debug)]
 pub struct ChunkHandler<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> {
-    pub loaded_chunks: FxHashMap<u32, Box<C>>,
+    pub loaded_chunks: HashMap<u32, C, BuildHasherDefault<PassThroughHasherU32>>,
     pub load_queue: Vec<(i32, i32)>,
     /** The size of the "presentable" area (not necessarily the current window size) */
     pub screen_size: (u16, u16),
@@ -1300,7 +1300,6 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
     fn get_chunk(&self, chunk_x: i32, chunk_y: i32) -> Option<&dyn Chunk> {
         self.loaded_chunks
             .get(&self.chunk_index(chunk_x, chunk_y))
-            .map(std::convert::AsRef::as_ref)
             .map(|c| {
                 // TODO: I can't figure out how to make this less stupid
                 let dc: &dyn Chunk = c;
@@ -1312,7 +1311,6 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
     fn get_chunk_mut(&mut self, chunk_x: i32, chunk_y: i32) -> Option<&mut dyn Chunk> {
         self.loaded_chunks
             .get_mut(&self.chunk_index(chunk_x, chunk_y))
-            .map(std::convert::AsMut::as_mut)
             .map(|c| {
                 // TODO: I can't figure out how to make this less stupid
                 let dc: &mut dyn Chunk = c;
@@ -1353,11 +1351,29 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
     }
 }
 
+#[derive(Default)]
+pub struct PassThroughHasherU32(u32);
+
+impl std::hash::Hasher for PassThroughHasherU32 {
+    fn finish(&self) -> u64 {
+        u64::from(self.0)
+    }
+
+    fn write_u32(&mut self, k: u32) {
+        self.0 = k;
+    }
+
+    fn write(&mut self, _bytes: &[u8]) {
+        unimplemented!("NopHasherU32 only supports u32")
+    }
+}
+
+
 impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandler<T, C> {
     #[profiling::function]
     pub fn new(generator: T, path: Option<PathBuf>) -> Self {
         ChunkHandler {
-            loaded_chunks: FxHashMap::default(),
+            loaded_chunks: HashMap::<u32, C, BuildHasherDefault<PassThroughHasherU32>>::default(),
             load_queue: vec![],
             screen_size: (1920 / 2, 1080 / 2),
             generator,
@@ -1383,7 +1399,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
     fn load_chunk(&mut self, chunk_x: i32, chunk_y: i32) {
         let chunk = Chunk::new_empty(chunk_x, chunk_y);
         self.loaded_chunks
-            .insert(self.chunk_index(chunk_x, chunk_y), Box::new(chunk));
+            .insert(self.chunk_index(chunk_x, chunk_y), chunk);
     }
 }
 
