@@ -7,8 +7,7 @@ use liquidfun::box2d::common::{
 use sdl2::{pixels::Color, rect::Rect};
 use sdl_gpu::{
     shaders::Shader,
-    sys::{GPU_FilterEnum, GPU_FormatEnum},
-    GPUImage, GPURect, GPUSubsystem, GPUTarget,
+    GPUImage, GPURect, GPUSubsystem, GPUTarget, GPUFormat, GPUFilter,
 };
 use specs::{Join, ReadStorage, WriteStorage};
 
@@ -53,12 +52,12 @@ impl WorldRenderer {
         };
 
         let mut liquid_image =
-            GPUSubsystem::create_image(1920 / 2, 1080 / 2, GPU_FormatEnum::GPU_FORMAT_RGBA);
-        liquid_image.set_image_filter(GPU_FilterEnum::GPU_FILTER_NEAREST);
+            GPUSubsystem::create_image(1920 / 2, 1080 / 2, GPUFormat::GPU_FORMAT_RGBA);
+        liquid_image.set_image_filter(GPUFilter::GPU_FILTER_NEAREST);
 
         let mut liquid_image2 =
-            GPUSubsystem::create_image(1920 / 2, 1080 / 2, GPU_FormatEnum::GPU_FORMAT_RGBA);
-        liquid_image2.set_image_filter(GPU_FilterEnum::GPU_FILTER_NEAREST);
+            GPUSubsystem::create_image(1920 / 2, 1080 / 2, GPUFormat::GPU_FORMAT_RGBA);
+        liquid_image2.set_image_filter(GPUFilter::GPU_FILTER_NEAREST);
 
         Self {
             lqf_debug_draw_callbacks,

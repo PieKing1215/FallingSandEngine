@@ -3,8 +3,7 @@ use std::convert::TryInto;
 use liquidfun::box2d::dynamics::body::Body;
 use sdl2::{pixels::Color, rect::Rect};
 use sdl_gpu::{
-    sys::{GPU_FilterEnum, GPU_FormatEnum},
-    GPUImage, GPURect, GPUSubsystem, GPUTarget,
+    GPUImage, GPURect, GPUSubsystem, GPUTarget, GPUFormat, GPUFilter,
 };
 
 use crate::game::{
@@ -284,12 +283,12 @@ impl<'cg> ChunkGraphics {
                 self.texture = Some(GPUSubsystem::create_image(
                     CHUNK_SIZE,
                     CHUNK_SIZE,
-                    GPU_FormatEnum::GPU_FORMAT_RGBA,
+                    GPUFormat::GPU_FORMAT_RGBA,
                 ));
                 self.texture
                     .as_mut()
                     .unwrap()
-                    .set_image_filter(GPU_FilterEnum::GPU_FILTER_NEAREST);
+                    .set_image_filter(GPUFilter::GPU_FILTER_NEAREST);
             }
             self.texture.as_mut().unwrap().update_image_bytes(
                 None as Option<GPURect>,
