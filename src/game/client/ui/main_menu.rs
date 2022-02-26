@@ -60,7 +60,7 @@ impl MainMenu {
                             .expect("World file missing parent folder ??")
                             .file_name()
                             .map_or_else(|| "..", |o| o.to_str().unwrap_or("!! NON UTF-8 !!")),
-                        m.last_played_time.to_string()
+                        m.last_played_time
                     ),
                     [300.0, 40.0],
                 ) {

@@ -182,13 +182,9 @@ impl Game<ServerChunk> {
                                     let pixels_vec = ci.1.get_pixels().unwrap().to_vec();
                                     let colors_vec = ci.1.get_colors().to_vec();
 
-                                    if pixels_vec.len() != (CHUNK_SIZE * CHUNK_SIZE) as usize {
-                                        panic!(
-                                            "Almost sent wrong size pixels Vec: {} (expected {})",
+                                    assert!(pixels_vec.len() == (CHUNK_SIZE * CHUNK_SIZE) as usize, "Almost sent wrong size pixels Vec: {} (expected {})",
                                             pixels_vec.len(),
-                                            CHUNK_SIZE * CHUNK_SIZE
-                                        );
-                                    }
+                                            CHUNK_SIZE * CHUNK_SIZE);
 
                                     if colors_vec.len()
                                         != CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4
