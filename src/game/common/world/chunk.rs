@@ -1,3 +1,4 @@
+use crate::game::common::world::particle::ParticleSystem;
 use crate::game::common::world::simulator::Simulator;
 use crate::game::common::world::{FilePersistent, Loader, Position, Velocity};
 use crate::game::common::Settings;
@@ -899,7 +900,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                 (i32, i32),
                                 [bool; 9],
                                 [Option<Rect>; 9],
-                                Vec<(Particle, Position, Velocity)>,
+                                Vec<Particle>,
                             ),
                             _,
                         >,
@@ -920,13 +921,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                         {
                             profiling::scope!("particles");
                             for p in parts {
-                                world
-                                    .create_entity()
-                                    .with(p.0)
-                                    .with(p.1)
-                                    .with(p.2)
-                                    .marked::<SimpleMarker<FilePersistent>>()
-                                    .build();
+                                world.write_resource::<ParticleSystem>().active.push(p);
                             }
                         }
 
@@ -1558,7 +1553,6 @@ mod tests {
         let mut ecs = specs::World::new();
         ecs.register::<SimpleMarker<FilePersistent>>();
         ecs.insert(SimpleMarkerAllocator::<FilePersistent>::default());
-        ecs.register::<Particle>();
         ecs.register::<Position>();
         ecs.register::<Velocity>();
 

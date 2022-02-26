@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use specs::{
     saveload::{SimpleMarker, SimpleMarkerAllocator},
     storage::BTreeStorage,
-    Component, Entities, Join, System, Write, WriteStorage,
+    Component, Entities, Join, System, Write, WriteStorage, Read,
 };
 
 mod player;
@@ -12,7 +12,7 @@ pub use player::*;
 use crate::game::common::world::material::{MaterialInstance, PhysicsType};
 
 use super::{
-    particle::Particle, ChunkHandlerGeneric, ChunkState, FilePersistent, Position, Velocity,
+    particle::{Particle, ParticleSystem}, ChunkHandlerGeneric, ChunkState, FilePersistent, Position, Velocity,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -90,7 +90,7 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
         WriteStorage<'a, CollisionDetector>,
         Write<'a, SimpleMarkerAllocator<FilePersistent>>,
         WriteStorage<'a, SimpleMarker<FilePersistent>>,
-        WriteStorage<'a, Particle>,
+        Write<'a, ParticleSystem>,
     );
 
     #[allow(clippy::too_many_lines)]
@@ -108,12 +108,12 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
             mut collision_detect,
             mut marker_alloc,
             mut markers,
-            mut particle,
+            mut particle_system,
         ) = data;
 
         let debug_visualize = false;
 
-        let mut create_particles: Vec<(Particle, Position, Velocity)> = vec![];
+        let mut create_particles: Vec<Particle> = vec![];
 
         // TODO: if I can ever get ChunkHandler to be Send (+ Sync would be ideal), can use par_join and organize a bit for big performance gain
         //       iirc right now, ChunkHandler<ServerChunk> is Send + !Sync and ChunkHandler<ClientChunk> is !Send + !Sync (because of the GPUImage in ChunkGraphics)
@@ -221,11 +221,13 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                                 vel.x *= (1.0 - (clip_y.abs() / 3.0).powi(4)).clamp(0.5, 1.0);
                             }
                         } else if mat.physics == PhysicsType::Sand && self.chunk_handler.set((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + f64::from(h_dy)).floor() as i64, MaterialInstance::air()).is_ok() {
-                            create_particles.push((
-                                Particle::of(mat),
-                                Position { x: (new_pos_x + f64::from(h_dx)).floor(), y: (pos.y + f64::from(h_dy)).floor().floor() },
-                                Velocity { x: rand::thread_rng().gen_range(-0.5..=0.5) + 2.0 * vel.x.signum(), y: rand::thread_rng().gen_range(-0.5..=0.5)},
-                            ));
+                            create_particles.push(
+                                Particle::new(
+                                    mat,
+                                    Position { x: (new_pos_x + f64::from(h_dx)).floor(), y: (pos.y + f64::from(h_dy)).floor().floor() },
+                                    Velocity { x: rand::thread_rng().gen_range(-0.5..=0.5) + 2.0 * vel.x.signum(), y: rand::thread_rng().gen_range(-0.5..=0.5)},
+                                )
+                            );
 
                             vel.x *= 0.99;
                         }else {
@@ -255,11 +257,13 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
                 for &(h_dx, h_dy) in &r {
                     if let Some(mat) = self.check_collide((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, phys_ent).copied() {
                         if (vel.y < -0.001 || vel.y > 1.0) && mat.physics == PhysicsType::Sand && self.chunk_handler.set((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, MaterialInstance::air()).is_ok() {
-                            create_particles.push((
-                                Particle::of(mat),
-                                Position { x: (pos.x + f64::from(h_dx)).floor(), y: (new_pos_y + f64::from(h_dy)).floor() },
-                                Velocity { x: rand::thread_rng().gen_range(-0.5..=0.5), y: rand::thread_rng().gen_range(-1.0..=0.0)},
-                            ));
+                            create_particles.push(
+                                Particle::new(
+                                    mat,
+                                    Position { x: (pos.x + f64::from(h_dx)).floor(), y: (new_pos_y + f64::from(h_dy)).floor() },
+                                    Velocity { x: rand::thread_rng().gen_range(-0.5..=0.5), y: rand::thread_rng().gen_range(-1.0..=0.0)},
+                                )
+                            );
 
                             if vel.y > 0.0 {
                                 vel.y *= 0.9;
@@ -297,14 +301,8 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
             }
         });
 
-        for (part, p_pos, p_vel) in create_particles {
-            entities
-                .build_entity()
-                .with(part, &mut particle)
-                .with(p_pos, &mut pos)
-                .with(p_vel, &mut vel)
-                .marked::<SimpleMarker<FilePersistent>>(&mut markers, &mut marker_alloc)
-                .build();
+        for part in create_particles {
+            particle_system.active.push(part);
         }
     }
 }

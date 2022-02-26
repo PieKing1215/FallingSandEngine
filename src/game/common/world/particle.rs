@@ -1,6 +1,6 @@
 use super::{
     entity::Hitbox, material::MaterialInstance,
-    ChunkHandlerGeneric, FilePersistent, Position, TickTime, Velocity,
+    ChunkHandlerGeneric, Position, TickTime, Velocity,
 };
 use crate::game::common::world::{
     material::{PhysicsType, TEST_MATERIAL},
@@ -11,50 +11,47 @@ use rand::prelude::Distribution;
 use sdl2::pixels::Color;
 use serde::{Deserialize, Serialize};
 use specs::{
-    saveload::{MarkerAllocator, SimpleMarker, SimpleMarkerAllocator},
-    Component, Entities, Join, LazyUpdate, NullStorage, Read, ReadStorage, System, VecStorage,
-    Write, WriteStorage,
+    Entities, Join, Read, ReadStorage, System,
+    Write,
 };
-
-// #[derive(Serialize, Deserialize)]
-// pub struct Particle {
-//     pub material: MaterialInstance,
-//     pub x: f32,
-//     pub y: f32,
-//     pub vx: f32,
-//     pub vy: f32,
-//     pub in_object_state: InObjectState,
-// }
-
-// impl Particle {
-//     pub fn new(material: MaterialInstance, x: f32, y: f32, vx: f32, vy: f32) -> Self {
-//         Self {
-//             material,
-//             x, y,
-//             vx, vy,
-//             in_object_state: InObjectState::FirstFrame,
-//         }
-//     }
-// }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Particle {
     pub material: MaterialInstance,
-    in_object_state: InObjectState,
+    pub pos: Position,
+    pub vel: Velocity,
+    pub in_object_state: InObjectState,
 }
 
 impl Particle {
-    pub fn of(material: MaterialInstance) -> Self {
+    pub fn new(material: MaterialInstance, pos: Position, vel: Velocity) -> Self {
         Self {
             material,
+            pos,
+            vel,
             in_object_state: InObjectState::FirstFrame,
         }
     }
 }
 
-impl Component for Particle {
-    type Storage = VecStorage<Self>;
-}
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+// pub struct Particle {
+//     pub material: MaterialInstance,
+//     in_object_state: InObjectState,
+// }
+
+// impl Particle {
+//     pub fn of(material: MaterialInstance) -> Self {
+//         Self {
+//             material,
+//             in_object_state: InObjectState::FirstFrame,
+//         }
+//     }
+// }
+
+// impl Component for Particle {
+//     type Storage = VecStorage<Self>;
+// }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub enum InObjectState {
@@ -63,11 +60,17 @@ pub enum InObjectState {
     Outside,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
-pub struct Sleep;
+// #[derive(Debug, Default, Clone, Serialize, Deserialize)]
+// pub struct Sleep;
 
-impl Component for Sleep {
-    type Storage = NullStorage<Self>;
+// impl Component for Sleep {
+//     type Storage = NullStorage<Self>;
+// }
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct ParticleSystem {
+    pub active: Vec<Particle>,
+    pub sleeping: Vec<Particle>,
 }
 
 pub struct UpdateParticles<'a, H: ChunkHandlerGeneric> {
@@ -78,14 +81,10 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdateParticles<'a, H> {
     #[allow(clippy::type_complexity)]
     type SystemData = (
         Entities<'a>,
-        Write<'a, SimpleMarkerAllocator<FilePersistent>>,
-        WriteStorage<'a, SimpleMarker<FilePersistent>>,
-        WriteStorage<'a, Particle>,
-        WriteStorage<'a, Position>,
-        WriteStorage<'a, Velocity>,
+        Write<'a, ParticleSystem>,
+        ReadStorage<'a, Position>,
+        ReadStorage<'a, Velocity>,
         ReadStorage<'a, Hitbox>,
-        ReadStorage<'a, Sleep>,
-        Read<'a, LazyUpdate>,
         Read<'a, TickTime>,
     );
 
@@ -94,79 +93,68 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdateParticles<'a, H> {
 
         let (
             entities,
-            mut marker_alloc,
-            mut markers,
-            mut particle,
-            mut pos,
-            mut vel,
+            mut system,
+            pos,
+            vel,
             hitbox,
-            sleep,
-            updater,
             tick_time,
         ) = data;
-        profiling::scope!("UpdateParticles::run", format!("n = {}", (&entities, &mut particle, &mut pos, &mut vel, !&sleep).join().count()).as_str());
+        profiling::scope!("UpdateParticles::run", format!("n = {}/{}", system.active.len(), system.sleeping.len()).as_str());
         // let chunk_handler = chunk_handler.unwrap().0;
         let chunk_handler = &mut *self.chunk_handler;
 
-        let new_p = entities.create();
-        particle
-            .insert(
-                new_p,
-                Particle {
-                    material: MaterialInstance {
-                        material_id: TEST_MATERIAL.id,
-                        physics: PhysicsType::Sand,
-                        color: Color::RGB(64, 255, 255),
-                    },
-                    in_object_state: InObjectState::FirstFrame,
-                },
-            )
-            .expect("Failed to insert Particle");
-        pos.insert(
-            new_p,
-            Position { x: (rand::random::<f64>() - 0.5) * 10.0, y: -100.0 },
-        )
-        .expect("Failed to insert Position");
-        vel.insert(
-            new_p,
+        system.active.push(Particle::new(MaterialInstance {
+                material_id: TEST_MATERIAL.id,
+                physics: PhysicsType::Sand,
+                color: Color::RGB(64, 255, 255),
+            }, 
+            Position { x: (rand::random::<f64>() - 0.5) * 10.0, y: -100.0 }, 
             Velocity {
                 x: (rand::random::<f64>() - 0.5) * 4.0,
                 y: (rand::random::<f64>() - 0.75) * 2.0,
-            },
-        )
-        .expect("Failed to insert Velocity");
-        marker_alloc.mark(new_p, &mut markers);
+            }
+        ));
 
         if tick_time.0 % 29 == 0 {
-            (&entities, &mut particle, &mut pos, !&sleep).join().for_each(|(ent, _part, pos, _)| {
-                let (chunk_x, chunk_y) = chunk_handler.pixel_to_chunk_pos(pos.x as i64, pos.y as i64);
-                if !matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active) {
-                    updater.insert(ent, Sleep);
-                }
-            });
+            profiling::scope!("active->sleep");
+            // TODO: we want to use the std version once it is stable
+            use drain_filter_polyfill::VecExt;
+            #[allow(unstable_name_collisions)]
+            let mut removed = system.active.drain_filter(|p| {
+                let (chunk_x, chunk_y) = chunk_handler.pixel_to_chunk_pos(p.pos.x as i64, p.pos.y as i64);
+                !matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active) 
+            }).collect::<Vec<_>>();
+            system.sleeping.append(&mut removed);
         } else if tick_time.0 % 29 == 10 {
-            (&entities, &mut particle, &mut pos, &sleep).join().for_each(|(ent, _part, pos, _)| {
-                let (chunk_x, chunk_y) = chunk_handler.pixel_to_chunk_pos(pos.x as i64, pos.y as i64);
-                if matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active) {
-                    updater.remove::<Sleep>(ent);
-                }
-            });
+            profiling::scope!("sleep->active");
+            // TODO: we want to use the std version once it is stable
+            use drain_filter_polyfill::VecExt;
+            #[allow(unstable_name_collisions)]
+            let mut removed = system.sleeping.drain_filter(|p| {
+                let (chunk_x, chunk_y) = chunk_handler.pixel_to_chunk_pos(p.pos.x as i64, p.pos.y as i64);
+                matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active)
+            }).collect::<Vec<_>>();
+            system.active.append(&mut removed);
         }
 
         // TODO: if I can ever get ChunkHandler to be Send (+ Sync would be ideal), can use par_join and organize a bit for big performance gain
         //       iirc right now, ChunkHandler<ServerChunk> is Send + !Sync and ChunkHandler<ClientChunk> is !Send + !Sync (because of the GPUImage in ChunkGraphics)
-        (&entities, &mut particle, &mut pos, &mut vel, !&sleep)
-            .join()
-            .for_each(|(ent, part, pos, vel, _)| {
+
+        {
+            profiling::scope!("main");
+            // TODO: we want to use the std version once it is stable
+            use retain_mut::RetainMut;
+            #[allow(unstable_name_collisions)]
+            system.active.retain_mut(|part| {
                 // profiling::scope!("particle");
 
-                let lx = pos.x;
-                let ly = pos.y;
+                let lx = part.pos.x;
+                let ly = part.pos.y;
 
-                vel.y += 0.1;
+                part.vel.y += 0.1;
 
-                let dx = vel.x;
-                let dy = vel.y;
+                let dx = part.vel.x;
+                let dy = part.vel.y;
 
                 let steps = (dx.abs() + dy.abs()).sqrt() as u32 + 1;
                 {
@@ -178,12 +166,12 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdateParticles<'a, H> {
                         // profiling::scope!("step");
                         let thru = f64::from(s + 1) / f64::from(steps);
 
-                        pos.x = lx + dx * thru;
-                        pos.y = ly + dy * thru;
+                        part.pos.x = lx + dx * thru;
+                        part.pos.y = ly + dy * thru;
 
                         // this check does catch repeated steps, but actually makes performance slightly worse
                         // if pos.x as i64 != last_step_x || pos.y as i64 != last_step_y {
-                        if let Ok(mat) = chunk_handler.get(pos.x as i64, pos.y as i64) {
+                        if let Ok(mat) = chunk_handler.get(part.pos.x as i64, part.pos.y as i64) {
                             if mat.physics == PhysicsType::Air {
                                 part.in_object_state = InObjectState::Outside;
                             } else {
@@ -209,21 +197,19 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdateParticles<'a, H> {
                                     match chunk_handler.get(lx as i64, ly as i64) {
                                         Ok(m) if m.physics != PhysicsType::Air => {
                                             let succeeded = chunk_handler.displace(
-                                                pos.x as i64,
-                                                pos.y as i64,
+                                                part.pos.x as i64,
+                                                part.pos.y as i64,
                                                 part.material,
                                             );
 
                                             if succeeded {
-                                                entities
-                                                    .delete(ent)
-                                                    .expect("Failed to delete particle");
-                                            } else {
-                                                // upwarp if completely blocked
-                                                vel.y = -1.0;
-                                                pos.y -= 16.0;
+                                                return false;
                                             }
-
+                                            
+                                            // upwarp if completely blocked
+                                            part.vel.y = -1.0;
+                                            part.pos.y -= 16.0;
+                                            
                                             break;
                                         }
                                         _ => {
@@ -231,10 +217,7 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdateParticles<'a, H> {
                                                 .set(lx as i64, ly as i64, part.material)
                                                 .is_ok()
                                             {
-                                                entities
-                                                    .delete(ent)
-                                                    .expect("Failed to delete particle");
-                                                break;
+                                                return false;
                                             }
                                         }
                                     }
@@ -247,11 +230,14 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdateParticles<'a, H> {
                         // last_step_y = pos.y as i64;
                     }
                 }
-            });
 
-        (&entities, &mut particle, &pos)
-            .join()
-            .for_each(|(ent, _part, my_pos)| {
+                true
+            });
+        }
+
+        {
+            profiling::scope!("ent");
+            for part in &mut system.active {
                 // profiling::scope!("Particle");
 
                 // let (chunk_x, chunk_y) = chunk_handler.pixel_to_chunk_pos(my_pos.x as i64, my_pos.y as i64);
@@ -260,16 +246,16 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdateParticles<'a, H> {
                 //     return;
                 // }
 
-                (&entities, &hitbox, &pos, !&sleep)
+                (&entities, &hitbox, &pos)
                     .join()
-                    .for_each(|(p_ent, hb, pos, _)| {
-                        if my_pos.x >= f64::from(hb.x1) + pos.x
-                            && my_pos.y >= f64::from(hb.y1) + pos.y
-                            && my_pos.x < f64::from(hb.x2) + pos.x
-                            && my_pos.y < f64::from(hb.y2) + pos.y
+                    .for_each(|(p_ent, hb, pos)| {
+                        if part.pos.x >= f64::from(hb.x1) + pos.x
+                            && part.pos.y >= f64::from(hb.y1) + pos.y
+                            && part.pos.x < f64::from(hb.x2) + pos.x
+                            && part.pos.y < f64::from(hb.y2) + pos.y
                         {
                             let p = vel.get(p_ent).cloned();
-                            let mp = vel.get_mut(ent);
+                            let mp = Some(&mut part.vel);
                             if let (Some(mp), Some(p)) = (mp, p) {
                                 mp.x += (-p.x - mp.x) * 0.5
                                     + rand::distributions::Uniform::from(-1.0..=1.0)
@@ -280,6 +266,7 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdateParticles<'a, H> {
                             }
                         }
                     });
-            });
+            };
+        }
     }
 }

@@ -9,7 +9,7 @@ use sdl_gpu::{
     shaders::Shader,
     GPUImage, GPURect, GPUSubsystem, GPUTarget, GPUFormat, GPUFilter,
 };
-use specs::{Join, ReadStorage, WriteStorage};
+use specs::{Join, ReadStorage, WriteStorage, WorldExt};
 
 use crate::game::{
     client::{
@@ -22,7 +22,7 @@ use crate::game::{
                 GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState, PlayerMovementMode,
             },
             gen::WorldGenerator,
-            particle::Particle,
+            particle::{Particle, ParticleSystem},
             AutoTarget, Camera, ChunkHandlerGeneric, ChunkState, Position, Velocity, World,
             CHUNK_SIZE, LIQUIDFUN_SCALE,
         },
@@ -359,30 +359,26 @@ impl WorldRenderer {
 
         {
             profiling::scope!("particles");
-            let (particle_storage, position_storage, velocity_storage) = world
-                .ecs
-                .system_data::<(WriteStorage<Particle>, WriteStorage<Position>, ReadStorage<Velocity>)>();
+            let particle_system = world.ecs.read_resource::<ParticleSystem>();
 
-            (&particle_storage, &position_storage, velocity_storage.maybe())
-                .join()
-                .for_each(|(p, pos, vel)| {
-                    if screen_zone
-                        .contains_point(sdl2::rect::Point::new(pos.x as i32, pos.y as i32))
-                        || !settings.cull_chunks
-                    {
-                        let lerp_x = pos.x + vel.map_or(0.0, |v| v.x) * partial_ticks;
-                        let lerp_y = pos.y + vel.map_or(0.0, |v| v.y) * partial_ticks;
-                        let (x1, y1) = transform.transform((lerp_x - 0.5, lerp_y - 0.5));
-                        let (x2, y2) = transform.transform((lerp_x + 0.5, lerp_y + 0.5));
-                        target.rectangle_filled(
-                            x1 as f32,
-                            y1 as f32,
-                            x2 as f32,
-                            y2 as f32,
-                            p.material.color,
-                        );
-                    }
-                });
+            for part in particle_system.active.iter().chain(particle_system.sleeping.iter()) {
+                if screen_zone
+                    .contains_point(sdl2::rect::Point::new(part.pos.x as i32, part.pos.y as i32))
+                    || !settings.cull_chunks
+                {
+                    let lerp_x = part.pos.x + part.vel.x * partial_ticks;
+                    let lerp_y = part.pos.y + part.vel.y * partial_ticks;
+                    let (x1, y1) = transform.transform((lerp_x - 0.5, lerp_y - 0.5));
+                    let (x2, y2) = transform.transform((lerp_x + 0.5, lerp_y + 0.5));
+                    target.rectangle_filled(
+                        x1 as f32,
+                        y1 as f32,
+                        x2 as f32,
+                        y2 as f32,
+                        part.material.color,
+                    );
+                }
+            };
         }
 
         {

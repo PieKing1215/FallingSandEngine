@@ -13,7 +13,7 @@ use liquidfun::box2d::{
 use sdl2::pixels::Color;
 use specs::{
     saveload::{MarkedBuilder, SimpleMarker, SimpleMarkerAllocator},
-    Builder, Entities, Join, ReadStorage, RunNow, WorldExt, Write, WriteStorage,
+    Builder, Entities, Join, ReadStorage, RunNow, WorldExt, Write, WriteStorage, Read,
 };
 
 use super::{
@@ -23,7 +23,7 @@ use super::{
     },
     gen::{TestGenerator, TEST_GENERATOR},
     material::{MaterialInstance, PhysicsType, AIR, TEST_MATERIAL},
-    particle::{Particle, Sleep, UpdateParticles},
+    particle::{Particle, UpdateParticles, ParticleSystem},
     rigidbody::RigidBody,
     simulator, ApplyB2Bodies, AutoTarget, B2BodyComponent, Camera, Chunk, ChunkHandler,
     ChunkHandlerGeneric, CollisionFlags, DeltaTime, FilePersistent, Loader, Position, TickTime,
@@ -164,9 +164,9 @@ impl<'w, C: Chunk> World<C> {
         ecs.insert(SimpleMarkerAllocator::<FilePersistent>::default());
         ecs.insert(DeltaTime(Duration::from_millis(1)));
         ecs.insert(TickTime(0));
+        ecs.insert(ParticleSystem::default());
         ecs.register::<Position>();
         ecs.register::<Velocity>();
-        ecs.register::<Particle>();
         ecs.register::<GameEntity>();
         ecs.register::<Loader>();
         ecs.register::<Player>();
@@ -176,7 +176,6 @@ impl<'w, C: Chunk> World<C> {
         ecs.register::<Camera>();
         ecs.register::<Persistent>();
         ecs.register::<B2BodyComponent>();
-        ecs.register::<Sleep>();
         ecs.register::<CollisionDetector>();
 
         if let Some(path) = &path {
@@ -184,44 +183,22 @@ impl<'w, C: Chunk> World<C> {
             if particles_path.exists() {
                 match std::fs::File::open(particles_path.clone()) {
                     Ok(f) => {
-                        let (
-                            entities,
-                            mut marker_storage,
-                            mut marker_allocator,
-                            particle_storage,
-                            position_storage,
-                            velocity_storage,
-                        ) = ecs.system_data::<(
-                            Entities,
-                            WriteStorage<SimpleMarker<FilePersistent>>,
-                            Write<SimpleMarkerAllocator<FilePersistent>>,
-                            WriteStorage<Particle>,
-                            WriteStorage<Position>,
-                            WriteStorage<Velocity>,
-                        )>();
+                        match bincode::deserialize_from(f) {
+                            Ok(ps) => {
+                                let ps: ParticleSystem = ps;
+                                *ecs.write_resource::<ParticleSystem>() = ps;
+                            },
+                            Err(e) => {
+                                log::error!(
+                                    "Failed to read particles from file @ {:?}: {:?}",
+                                    particles_path,
+                                    e
+                                );
+                            },
+                        }
 
-                        let mut deserializer =
-                            bincode::Deserializer::with_reader(f, bincode::options());
-                        // let mut deserializer = serde_json::Deserializer::from_reader(f);
-                        if let Err(e) = specs::saveload::DeserializeComponents::<
-                            Infallible,
-                            SimpleMarker<FilePersistent>,
-                        >::deserialize(
-                            &mut (particle_storage, position_storage, velocity_storage), // tuple of WriteStorage<'a, _>
-                            &entities,             // Entities<'a>
-                            &mut marker_storage,   // WriteStorage<'a SimpleMarker<A>>
-                            &mut marker_allocator, // Write<'a, SimpleMarkerAllocator<A>>
-                            &mut deserializer,     // serde::Deserializer
-                        ) {
-                            log::error!(
-                                "Failed to read particles from file @ {:?}: {:?}",
-                                particles_path,
-                                e
-                            );
-                        };
-
-                        let (particle_storage,) = ecs.system_data::<(ReadStorage<Particle>,)>();
-                        log::debug!("Loaded {} particles.", particle_storage.count());
+                        let (particle_system,) = ecs.system_data::<(Read<ParticleSystem>,)>();
+                        log::debug!("Loaded {}/{} particles.", particle_system.active.len(), particle_system.sleeping.len());
                     }
                     Err(e) => {
                         log::error!(
@@ -356,37 +333,13 @@ impl<'w, C: Chunk> World<C> {
 
             match std::fs::File::create(particles_path.clone()) {
                 Ok(f) => {
-                    let (
-                        entities,
-                        marker_storage,
-                        particle_storage,
-                        position_storage,
-                        velocity_storage,
-                    ) = self.ecs.system_data::<(
-                        Entities,
-                        ReadStorage<SimpleMarker<FilePersistent>>,
-                        ReadStorage<Particle>,
-                        ReadStorage<Position>,
-                        ReadStorage<Velocity>,
-                    )>();
-
-                    let mut serializer = bincode::Serializer::new(f, bincode::options());
-                    // let mut serializer = serde_json::Serializer::new(f);
-                    if let Err(e) = specs::saveload::SerializeComponents::<
-                        Infallible,
-                        SimpleMarker<FilePersistent>,
-                    >::serialize(
-                        &(particle_storage, position_storage, velocity_storage), // tuple of ReadStorage<'a, _>
-                        &entities,                                               // Entities<'a>
-                        &marker_storage, // ReadStorage<'a, SimpleMarker<A>>
-                        &mut serializer, // serde::Serializer
-                    ) {
+                    if let Err(e) = bincode::serialize_into(f, &*self.ecs.read_resource::<ParticleSystem>()) {
                         log::error!(
                             "Failed to write particles to file @ {:?}: {:?}",
                             particles_path,
                             e
                         );
-                    };
+                    }
                 }
                 Err(e) => {
                     log::error!(
@@ -457,7 +410,6 @@ impl<'w, C: Chunk> World<C> {
                                     if point_velocity.x.abs() > 1.0 || point_velocity.y.abs() > 1.0
                                     {
                                         let m = *mat;
-                                        let part = Particle::of(*mat);
                                         let part_pos =
                                             Position { x: f64::from(tx), y: f64::from(ty) };
                                         let mut part_vel = Velocity {
@@ -485,13 +437,12 @@ impl<'w, C: Chunk> World<C> {
                                                     part_vel.x *= -1.0;
                                                     part_vel.y *= -1.0;
 
-                                                    self.ecs
-                                                        .create_entity()
-                                                        .with(part)
-                                                        .with(part_pos)
-                                                        .with(part_vel)
-                                                        .marked::<SimpleMarker<FilePersistent>>()
-                                                        .build();
+                                                    let part = Particle::new(
+                                                        m,
+                                                        part_pos,
+                                                        part_vel,
+                                                    );
+                                                    self.ecs.write_resource::<ParticleSystem>().active.push(part);
 
                                                     body.apply_force(
                                                         &Vec2::new(
@@ -520,14 +471,12 @@ impl<'w, C: Chunk> World<C> {
                                                         .chunk_handler
                                                         .displace(tx as i64, ty as i64, m)
                                                     {
-                                                        self.ecs
-                                                            .create_entity()
-                                                            .with(part)
-                                                            .with(part_pos)
-                                                            .with(part_vel)
-                                                            .marked::<SimpleMarker<FilePersistent>>(
-                                                            )
-                                                            .build();
+                                                        let part = Particle::new(
+                                                            m,
+                                                            part_pos,
+                                                            part_vel,
+                                                        );
+                                                        self.ecs.write_resource::<ParticleSystem>().active.push(part);
 
                                                         body.apply_force(
                                                             &Vec2::new(
@@ -755,12 +704,7 @@ impl<'w, C: Chunk> World<C> {
             &mut new_parts,
         );
         for p in new_parts {
-            self.ecs
-                .create_entity()
-                .with(p.0)
-                .with(p.1)
-                .with(p.2)
-                .build();
+            self.ecs.write_resource::<ParticleSystem>().active.push(p);
         }
 
         for c in self.chunk_handler.loaded_chunks.borrow_mut().values_mut() {

@@ -29,7 +29,7 @@ struct SimulationHelperChunk<'a> {
     min_y: [u16; 9],
     max_x: [u16; 9],
     max_y: [u16; 9],
-    particles: &'a mut Vec<(Particle, Position, Velocity)>,
+    particles: &'a mut Vec<Particle>,
     chunk_x: i32,
     chunk_y: i32,
 }
@@ -128,21 +128,23 @@ impl SimulationHelper for SimulationHelperChunk<'_> {
     }
 
     fn add_particle(&mut self, material: MaterialInstance, pos: Position, vel: Velocity) {
-        self.particles.push((
-            Particle::of(material),
-            Position {
-                x: pos.x + f64::from(self.chunk_x) * f64::from(CHUNK_SIZE),
-                y: pos.y + f64::from(self.chunk_y) * f64::from(CHUNK_SIZE),
-            },
-            vel,
-        ));
+        self.particles.push(
+            Particle::new(
+                material,
+                Position {
+                    x: pos.x + f64::from(self.chunk_x) * f64::from(CHUNK_SIZE),
+                    y: pos.y + f64::from(self.chunk_y) * f64::from(CHUNK_SIZE),
+                },
+                vel
+            )
+        );
     }
 }
 
 struct SimulationHelperRigidBody<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> {
     chunk_handler: &'a mut ChunkHandler<T, C>,
     rigidbodies: &'a mut Vec<RigidBody>,
-    particles: &'a mut Vec<(Particle, Position, Velocity)>,
+    particles: &'a mut Vec<Particle>,
 }
 
 impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelper
@@ -250,7 +252,7 @@ impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelpe
     }
 
     fn add_particle(&mut self, material: MaterialInstance, pos: Position, vel: Velocity) {
-        self.particles.push((Particle::of(material), pos, vel));
+        self.particles.push(Particle::new(material, pos, vel));
     }
 }
 
@@ -263,7 +265,7 @@ impl Simulator {
         colors_raw: [usize; 9],
         dirty: &mut [bool; 9],
         dirty_rects: &mut [Option<Rect>; 9],
-        particles: &mut Vec<(Particle, Position, Velocity)>,
+        particles: &mut Vec<Particle>,
     ) {
         const CENTER_CHUNK: usize = 4;
 
@@ -357,7 +359,7 @@ impl Simulator {
         chunk_handler: &mut ChunkHandler<T, C>,
         rigidbodies: &mut Vec<RigidBody>,
         lqf_world: &mut World,
-        particles: &mut Vec<(Particle, Position, Velocity)>,
+        particles: &mut Vec<Particle>,
     ) {
         let mut dirty = vec![false; rigidbodies.len()];
         let mut needs_remesh = vec![false; rigidbodies.len()];
