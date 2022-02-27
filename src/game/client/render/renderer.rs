@@ -120,46 +120,49 @@ impl<'a> Renderer<'a> {
 
         let target = &mut self.target.borrow_mut();
 
-        if let Ok(surf) = self
-            .fonts
-            .as_ref()
-            .unwrap()
-            .pixel_operator
-            .render("Development Build")
-            .solid(Color::RGB(0xff, 0xff, 0xff))
         {
-            let img = GPUImage::from_surface(&surf);
-            img.blit_rect(
-                None,
-                target,
-                Some(GPURect::new(
-                    4.0,
-                    self.window.size().1 as f32 - 4.0 - 14.0 * 2.0,
-                    surf.width() as f32,
-                    surf.height() as f32,
-                )),
-            );
-        }
+            profiling::scope!("version info");
+            if let Ok(surf) = self
+                .fonts
+                .as_ref()
+                .unwrap()
+                .pixel_operator
+                .render("Development Build")
+                .solid(Color::RGB(0xff, 0xff, 0xff))
+            {
+                let img = GPUImage::from_surface(&surf);
+                img.blit_rect(
+                    None,
+                    target,
+                    Some(GPURect::new(
+                        4.0,
+                        self.window.size().1 as f32 - 4.0 - 14.0 * 2.0,
+                        surf.width() as f32,
+                        surf.height() as f32,
+                    )),
+                );
+            }
 
-        if let Ok(surf) = self
-            .fonts
-            .as_ref()
-            .unwrap()
-            .pixel_operator
-            .render(format!("{} ({})", env!("BUILD_DATETIME"), env!("GIT_HASH")).as_str())
-            .solid(Color::RGB(0xff, 0xff, 0xff))
-        {
-            let img = GPUImage::from_surface(&surf);
-            img.blit_rect(
-                None,
-                target,
-                Some(GPURect::new(
-                    4.0,
-                    self.window.size().1 as f32 - 4.0 - 14.0,
-                    surf.width() as f32,
-                    surf.height() as f32,
-                )),
-            );
+            if let Ok(surf) = self
+                .fonts
+                .as_ref()
+                .unwrap()
+                .pixel_operator
+                .render(format!("{} ({})", env!("BUILD_DATETIME"), env!("GIT_HASH")).as_str())
+                .solid(Color::RGB(0xff, 0xff, 0xff))
+            {
+                let img = GPUImage::from_surface(&surf);
+                img.blit_rect(
+                    None,
+                    target,
+                    Some(GPURect::new(
+                        4.0,
+                        self.window.size().1 as f32 - 4.0 - 14.0,
+                        surf.width() as f32,
+                        surf.height() as f32,
+                    )),
+                );
+            }
         }
 
         {

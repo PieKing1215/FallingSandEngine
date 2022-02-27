@@ -1139,13 +1139,13 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
     }
 
     fn chunk_index(&self, chunk_x: i32, chunk_y: i32) -> u32 {
-        let int_to_nat = |i: i32| {
+        fn int_to_nat(i: i32) -> u32 {
             if i >= 0 {
                 (2 * i) as u32
             } else {
                 (-2 * i - 1) as u32
             }
-        };
+        }
         let xx: u32 = int_to_nat(chunk_x);
         let yy: u32 = int_to_nat(chunk_y);
 
@@ -1159,13 +1159,13 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
         let t = (w * w + w) / 2;
         let yy = u64::from(index) - t;
         let xx = w - yy;
-        let nat_to_int = |i: u64| {
+        fn nat_to_int(i: u64) -> i32 {
             if i % 2 == 0 {
                 (i / 2) as i32
             } else {
                 -((i / 2 + 1) as i32)
             }
-        };
+        }
         let x = nat_to_int(xx);
         let y = nat_to_int(yy);
 
