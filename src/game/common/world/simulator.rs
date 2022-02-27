@@ -431,6 +431,7 @@ impl Simulator {
 
     #[allow(clippy::unnecessary_unwrap)]
     #[allow(clippy::needless_range_loop)]
+    #[profiling::function]
     pub fn simulate_rigidbodies<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk>(
         chunk_handler: &mut ChunkHandler<T, C>,
         rigidbodies: &mut Vec<RigidBody>,

@@ -360,117 +360,85 @@ impl<'w, C: Chunk> World<C> {
     pub fn tick(&mut self, tick_time: u32, settings: &Settings) {
         *self.ecs.write_resource::<TickTime>() = TickTime(tick_time);
 
-        for rb_i in 0..self.rigidbodies.len() {
-            let rb = &mut self.rigidbodies[rb_i];
-            let rb_w = rb.width;
-            let rb_h = rb.height;
+        {
+            profiling::scope!("fill rigidbodies");
+            for rb_i in 0..self.rigidbodies.len() {
+                let rb = &mut self.rigidbodies[rb_i];
+                let rb_w = rb.width;
+                let rb_h = rb.height;
 
-            if let Some(body) = &mut rb.body {
-                let s = body.get_angle().sin();
-                let c = body.get_angle().cos();
-                let pos_x = body.get_position().x * LIQUIDFUN_SCALE;
-                let pos_y = body.get_position().y * LIQUIDFUN_SCALE;
+                if let Some(body) = &mut rb.body {
+                    let s = body.get_angle().sin();
+                    let c = body.get_angle().cos();
+                    let pos_x = body.get_position().x * LIQUIDFUN_SCALE;
+                    let pos_y = body.get_position().y * LIQUIDFUN_SCALE;
 
-                for rb_y in 0..rb_w {
-                    for rb_x in 0..rb_h {
-                        let tx = f32::from(rb_x) * c - f32::from(rb_y) * s + pos_x;
-                        let ty = f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y;
+                    for rb_y in 0..rb_w {
+                        for rb_x in 0..rb_h {
+                            let tx = f32::from(rb_x) * c - f32::from(rb_y) * s + pos_x;
+                            let ty = f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y;
 
-                        let cur = rb.pixels[(rb_x + rb_y * rb_w) as usize];
-                        if cur.material_id != AIR.id {
-                            let world = self.chunk_handler.get(tx as i64, ty as i64);
-                            if let Ok(mat) = world {
-                                if mat.material_id == AIR.id {
-                                    let _ignore = self.chunk_handler.set(
-                                        tx as i64,
-                                        ty as i64,
-                                        MaterialInstance { physics: PhysicsType::Object, ..cur },
-                                    );
-                                } else if mat.physics == PhysicsType::Sand {
-                                    // let local_point = Vec2::new(f32::from(rb_x) / f32::from(rb_w), f32::from(rb_y) / f32::from(rb_h));
-                                    let world_point =
-                                        Vec2::new(tx / LIQUIDFUN_SCALE, ty / LIQUIDFUN_SCALE);
-
-                                    let point_velocity: Vec2 = body
-                                        .get_linear_velocity_from_world_point(&Vec2::new(
-                                            tx / LIQUIDFUN_SCALE,
-                                            ty / LIQUIDFUN_SCALE,
-                                        ));
-                                    // TODO: extract constant into material property (like weight or something)
-                                    // TODO: consider making it so the body actually comes to a stop
-                                    body.apply_force(
-                                        &Vec2::new(
-                                            -point_velocity.x * 0.1,
-                                            -point_velocity.y * 0.1,
-                                        ),
-                                        &world_point,
-                                        true,
-                                    );
-
-                                    if point_velocity.x.abs() > 1.0 || point_velocity.y.abs() > 1.0
-                                    {
-                                        let m = *mat;
-                                        let part_pos =
-                                            Position { x: f64::from(tx), y: f64::from(ty) };
-                                        let mut part_vel = Velocity {
-                                            x: f64::from(point_velocity.x * 0.1),
-                                            y: f64::from(point_velocity.y * 0.1 - 0.5),
-                                        };
-
-                                        let res = self.chunk_handler.set(
+                            let cur = rb.pixels[(rb_x + rb_y * rb_w) as usize];
+                            if cur.material_id != AIR.id {
+                                let world = self.chunk_handler.get(tx as i64, ty as i64);
+                                if let Ok(mat) = world {
+                                    if mat.material_id == AIR.id {
+                                        let _ignore = self.chunk_handler.set(
                                             tx as i64,
                                             ty as i64,
-                                            MaterialInstance {
-                                                physics: PhysicsType::Object,
-                                                ..cur
-                                            },
+                                            MaterialInstance { physics: PhysicsType::Object, ..cur },
+                                        );
+                                    } else if mat.physics == PhysicsType::Sand {
+                                        // let local_point = Vec2::new(f32::from(rb_x) / f32::from(rb_w), f32::from(rb_y) / f32::from(rb_h));
+                                        let world_point =
+                                            Vec2::new(tx / LIQUIDFUN_SCALE, ty / LIQUIDFUN_SCALE);
+
+                                        let point_velocity: Vec2 = body
+                                            .get_linear_velocity_from_world_point(&Vec2::new(
+                                                tx / LIQUIDFUN_SCALE,
+                                                ty / LIQUIDFUN_SCALE,
+                                            ));
+                                        // TODO: extract constant into material property (like weight or something)
+                                        // TODO: consider making it so the body actually comes to a stop
+                                        body.apply_force(
+                                            &Vec2::new(
+                                                -point_velocity.x * 0.1,
+                                                -point_velocity.y * 0.1,
+                                            ),
+                                            &world_point,
+                                            true,
                                         );
 
-                                        if res.is_ok() {
-                                            match self.chunk_handler.get(
-                                                (part_pos.x + part_vel.x) as i64,
-                                                (part_pos.y + part_vel.y) as i64,
-                                            ) {
-                                                Ok(m_test)
-                                                    if m_test.physics != PhysicsType::Air =>
-                                                {
-                                                    part_vel.x *= -1.0;
-                                                    part_vel.y *= -1.0;
+                                        if point_velocity.x.abs() > 1.0 || point_velocity.y.abs() > 1.0
+                                        {
+                                            let m = *mat;
+                                            let part_pos =
+                                                Position { x: f64::from(tx), y: f64::from(ty) };
+                                            let mut part_vel = Velocity {
+                                                x: f64::from(point_velocity.x * 0.1),
+                                                y: f64::from(point_velocity.y * 0.1 - 0.5),
+                                            };
 
-                                                    let part = Particle::new(
-                                                        m,
-                                                        part_pos,
-                                                        part_vel,
-                                                    );
-                                                    self.ecs.write_resource::<ParticleSystem>().active.push(part);
+                                            let res = self.chunk_handler.set(
+                                                tx as i64,
+                                                ty as i64,
+                                                MaterialInstance {
+                                                    physics: PhysicsType::Object,
+                                                    ..cur
+                                                },
+                                            );
 
-                                                    body.apply_force(
-                                                        &Vec2::new(
-                                                            -point_velocity.x * 0.5,
-                                                            -point_velocity.y * 0.5,
-                                                        ),
-                                                        &world_point,
-                                                        true,
-                                                    );
-
-                                                    let linear_velocity =
-                                                        *body.get_linear_velocity();
-                                                    body.set_linear_velocity(&Vec2::new(
-                                                        linear_velocity.x * 0.999,
-                                                        linear_velocity.y * 0.999,
-                                                    ));
-
-                                                    let angular_velocity =
-                                                        body.get_angular_velocity();
-                                                    body.set_angular_velocity(
-                                                        angular_velocity * 0.999,
-                                                    );
-                                                }
-                                                _ => {
-                                                    if !self
-                                                        .chunk_handler
-                                                        .displace(tx as i64, ty as i64, m)
+                                            if res.is_ok() {
+                                                match self.chunk_handler.get(
+                                                    (part_pos.x + part_vel.x) as i64,
+                                                    (part_pos.y + part_vel.y) as i64,
+                                                ) {
+                                                    Ok(m_test)
+                                                        if m_test.physics != PhysicsType::Air =>
                                                     {
+                                                        part_vel.x *= -1.0;
+                                                        part_vel.y *= -1.0;
+
                                                         let part = Particle::new(
                                                             m,
                                                             part_pos,
@@ -480,8 +448,8 @@ impl<'w, C: Chunk> World<C> {
 
                                                         body.apply_force(
                                                             &Vec2::new(
-                                                                -point_velocity.x * 0.75,
-                                                                -point_velocity.y * 0.75,
+                                                                -point_velocity.x * 0.5,
+                                                                -point_velocity.y * 0.5,
                                                             ),
                                                             &world_point,
                                                             true,
@@ -490,22 +458,57 @@ impl<'w, C: Chunk> World<C> {
                                                         let linear_velocity =
                                                             *body.get_linear_velocity();
                                                         body.set_linear_velocity(&Vec2::new(
-                                                            linear_velocity.x * 0.9,
-                                                            linear_velocity.y * 0.9,
+                                                            linear_velocity.x * 0.999,
+                                                            linear_velocity.y * 0.999,
                                                         ));
+
+                                                        let angular_velocity =
+                                                            body.get_angular_velocity();
+                                                        body.set_angular_velocity(
+                                                            angular_velocity * 0.999,
+                                                        );
+                                                    }
+                                                    _ => {
+                                                        if !self
+                                                            .chunk_handler
+                                                            .displace(tx as i64, ty as i64, m)
+                                                        {
+                                                            let part = Particle::new(
+                                                                m,
+                                                                part_pos,
+                                                                part_vel,
+                                                            );
+                                                            self.ecs.write_resource::<ParticleSystem>().active.push(part);
+
+                                                            body.apply_force(
+                                                                &Vec2::new(
+                                                                    -point_velocity.x * 0.75,
+                                                                    -point_velocity.y * 0.75,
+                                                                ),
+                                                                &world_point,
+                                                                true,
+                                                            );
+
+                                                            let linear_velocity =
+                                                                *body.get_linear_velocity();
+                                                            body.set_linear_velocity(&Vec2::new(
+                                                                linear_velocity.x * 0.9,
+                                                                linear_velocity.y * 0.9,
+                                                            ));
+                                                        }
                                                     }
                                                 }
                                             }
+                                        } else {
+                                            body.apply_force(
+                                                &Vec2::new(
+                                                    -point_velocity.x * 0.1,
+                                                    -point_velocity.y * 0.1,
+                                                ),
+                                                &world_point,
+                                                true,
+                                            );
                                         }
-                                    } else {
-                                        body.apply_force(
-                                            &Vec2::new(
-                                                -point_velocity.x * 0.1,
-                                                -point_velocity.y * 0.1,
-                                            ),
-                                            &world_point,
-                                            true,
-                                        );
                                     }
                                 }
                             }
@@ -516,6 +519,8 @@ impl<'w, C: Chunk> World<C> {
         }
 
         {
+            profiling::scope!("fill Objects");
+
             let (position_storage, velocity_storage, phys_ent_storage, hitbox_storage) =
                 self.ecs.system_data::<(
                     ReadStorage<Position>,
@@ -604,6 +609,7 @@ impl<'w, C: Chunk> World<C> {
         }
 
         {
+            profiling::scope!("unfill Objects");
             let (position_storage, velocity_storage, phys_ent_storage, hitbox_storage) =
                 self.ecs.system_data::<(
                     ReadStorage<Position>,
@@ -665,30 +671,33 @@ impl<'w, C: Chunk> World<C> {
         update_physics_entities.run_now(&self.ecs);
         self.ecs.maintain();
 
-        for rb in &self.rigidbodies {
-            let rb_w = rb.width;
-            let rb_h = rb.height;
-            let body_opt = rb.body.as_ref();
+        {
+            profiling::scope!("unfill rigidbodies");
+            for rb in &self.rigidbodies {
+                let rb_w = rb.width;
+                let rb_h = rb.height;
+                let body_opt = rb.body.as_ref();
 
-            if body_opt.is_some() {
-                let s = body_opt.unwrap().get_angle().sin();
-                let c = body_opt.unwrap().get_angle().cos();
-                let pos_x = body_opt.unwrap().get_position().x * LIQUIDFUN_SCALE;
-                let pos_y = body_opt.unwrap().get_position().y * LIQUIDFUN_SCALE;
+                if body_opt.is_some() {
+                    let s = body_opt.unwrap().get_angle().sin();
+                    let c = body_opt.unwrap().get_angle().cos();
+                    let pos_x = body_opt.unwrap().get_position().x * LIQUIDFUN_SCALE;
+                    let pos_y = body_opt.unwrap().get_position().y * LIQUIDFUN_SCALE;
 
-                for rb_y in 0..rb_w {
-                    for rb_x in 0..rb_h {
-                        let tx = f32::from(rb_x) * c - f32::from(rb_y) * s + pos_x;
-                        let ty = f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y;
+                    for rb_y in 0..rb_w {
+                        for rb_x in 0..rb_h {
+                            let tx = f32::from(rb_x) * c - f32::from(rb_y) * s + pos_x;
+                            let ty = f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y;
 
-                        let world = self.chunk_handler.get(tx as i64, ty as i64);
-                        if let Ok(mat) = world {
-                            if mat.physics == PhysicsType::Object {
-                                let _ignore = self.chunk_handler.set(
-                                    tx as i64,
-                                    ty as i64,
-                                    MaterialInstance::air(),
-                                );
+                            let world = self.chunk_handler.get(tx as i64, ty as i64);
+                            if let Ok(mat) = world {
+                                if mat.physics == PhysicsType::Object {
+                                    let _ignore = self.chunk_handler.set(
+                                        tx as i64,
+                                        ty as i64,
+                                        MaterialInstance::air(),
+                                    );
+                                }
                             }
                         }
                     }
@@ -696,129 +705,133 @@ impl<'w, C: Chunk> World<C> {
             }
         }
 
-        let mut new_parts = Vec::new();
-        simulator::Simulator::simulate_rigidbodies(
-            &mut self.chunk_handler,
-            &mut self.rigidbodies,
-            &mut self.lqf_world,
-            &mut new_parts,
-        );
-        for p in new_parts {
-            self.ecs.write_resource::<ParticleSystem>().active.push(p);
+        {
+            profiling::scope!("sim rigidbodies");
+            let mut new_parts = Vec::new();
+            simulator::Simulator::simulate_rigidbodies(
+                &mut self.chunk_handler,
+                &mut self.rigidbodies,
+                &mut self.lqf_world,
+                &mut new_parts,
+            );
+            self.ecs.write_resource::<ParticleSystem>().active.append(&mut new_parts);
         }
 
-        for c in self.chunk_handler.loaded_chunks.borrow_mut().values_mut() {
-            if c.get_b2_body().is_none() {
-                // if let Some(tr) = c.get_tris() {
-                //     let mut body_def = BodyDef::default();
-                //     body_def.position.set((c.get_chunk_x() * CHUNK_SIZE as i32) as f32 / LIQUIDFUN_SCALE, (c.get_chunk_y() * CHUNK_SIZE as i32) as f32 / LIQUIDFUN_SCALE);
-                //     let body = self.lqf_world.create_body(&body_def);
+        {
+            profiling::scope!("update chunk collision");
+            for c in self.chunk_handler.loaded_chunks.borrow_mut().values_mut() {
+                if c.get_b2_body().is_none() {
+                    // if let Some(tr) = c.get_tris() {
+                    //     let mut body_def = BodyDef::default();
+                    //     body_def.position.set((c.get_chunk_x() * CHUNK_SIZE as i32) as f32 / LIQUIDFUN_SCALE, (c.get_chunk_y() * CHUNK_SIZE as i32) as f32 / LIQUIDFUN_SCALE);
+                    //     let body = self.lqf_world.create_body(&body_def);
 
-                //     tr.iter().for_each(|tris| {
-                //         tris.iter().for_each(|tri| {
-                //             let mut poly = PolygonShape::new();
+                    //     tr.iter().for_each(|tris| {
+                    //         tris.iter().for_each(|tri| {
+                    //             let mut poly = PolygonShape::new();
 
-                //             let points = vec![
-                //                 (tri.0.0 as f32 / LIQUIDFUN_SCALE, tri.0.1 as f32 / LIQUIDFUN_SCALE),
-                //                 (tri.1.0 as f32 / LIQUIDFUN_SCALE, tri.1.1 as f32 / LIQUIDFUN_SCALE),
-                //                 (tri.2.0 as f32 / LIQUIDFUN_SCALE, tri.2.1 as f32 / LIQUIDFUN_SCALE),
-                //             ];
+                    //             let points = vec![
+                    //                 (tri.0.0 as f32 / LIQUIDFUN_SCALE, tri.0.1 as f32 / LIQUIDFUN_SCALE),
+                    //                 (tri.1.0 as f32 / LIQUIDFUN_SCALE, tri.1.1 as f32 / LIQUIDFUN_SCALE),
+                    //                 (tri.2.0 as f32 / LIQUIDFUN_SCALE, tri.2.1 as f32 / LIQUIDFUN_SCALE),
+                    //             ];
 
-                //             poly.set(points);
-                //             body.create_fixture_from_shape(&poly, 0.0);
-                //         });
-                //     });
+                    //             poly.set(points);
+                    //             body.create_fixture_from_shape(&poly, 0.0);
+                    //         });
+                    //     });
 
-                //     c.set_b2_body(Some(body));
-                // }
+                    //     c.set_b2_body(Some(body));
+                    // }
 
-                if let Some(loops) = c.get_mesh_loops() {
-                    let mut body_def = BodyDef::default();
-                    body_def.position.set(
-                        (c.get_chunk_x() * i32::from(CHUNK_SIZE)) as f32 / LIQUIDFUN_SCALE,
-                        (c.get_chunk_y() * i32::from(CHUNK_SIZE)) as f32 / LIQUIDFUN_SCALE,
-                    );
-                    let mut body = self.lqf_world.create_body(&body_def);
-                    body.set_active(false);
+                    if let Some(loops) = c.get_mesh_loops() {
+                        let mut body_def = BodyDef::default();
+                        body_def.position.set(
+                            (c.get_chunk_x() * i32::from(CHUNK_SIZE)) as f32 / LIQUIDFUN_SCALE,
+                            (c.get_chunk_y() * i32::from(CHUNK_SIZE)) as f32 / LIQUIDFUN_SCALE,
+                        );
+                        let mut body = self.lqf_world.create_body(&body_def);
+                        body.set_active(false);
 
-                    for a_loop in loops.iter() {
-                        for pts in a_loop.iter() {
-                            let mut verts: Vec<Vec2> = Vec::new();
+                        for a_loop in loops.iter() {
+                            for pts in a_loop.iter() {
+                                let mut verts: Vec<Vec2> = Vec::new();
 
-                            for p in pts.iter() {
-                                verts.push(Vec2::new(
-                                    p[0] as f32 / LIQUIDFUN_SCALE,
-                                    p[1] as f32 / LIQUIDFUN_SCALE,
-                                ));
+                                for p in pts.iter() {
+                                    verts.push(Vec2::new(
+                                        p[0] as f32 / LIQUIDFUN_SCALE,
+                                        p[1] as f32 / LIQUIDFUN_SCALE,
+                                    ));
+                                }
+
+                                let mut chain = ChainShape::new();
+                                #[allow(clippy::cast_possible_wrap)]
+                                chain.create_chain(&verts, verts.len() as i32);
+
+                                let mut fixture_def = FixtureDef::new(&chain);
+                                fixture_def.density = 0.0;
+                                fixture_def.filter.category_bits = CollisionFlags::WORLD.bits();
+                                fixture_def.filter.mask_bits = CollisionFlags::RIGIDBODY.bits();
+                                body.create_fixture(&fixture_def);
                             }
-
-                            let mut chain = ChainShape::new();
-                            #[allow(clippy::cast_possible_wrap)]
-                            chain.create_chain(&verts, verts.len() as i32);
-
-                            let mut fixture_def = FixtureDef::new(&chain);
-                            fixture_def.density = 0.0;
-                            fixture_def.filter.category_bits = CollisionFlags::WORLD.bits();
-                            fixture_def.filter.mask_bits = CollisionFlags::RIGIDBODY.bits();
-                            body.create_fixture(&fixture_def);
                         }
+
+                        c.set_b2_body(Some(body));
                     }
+                } else {
+                    // TODO: profile this and if it's too slow, could stagger it based on tick_time
 
-                    c.set_b2_body(Some(body));
-                }
-            } else {
-                // TODO: profile this and if it's too slow, could stagger it based on tick_time
+                    let chunk_center_x =
+                        c.get_chunk_x() * i32::from(CHUNK_SIZE) + i32::from(CHUNK_SIZE) / 2;
+                    let chunk_center_y =
+                        c.get_chunk_y() * i32::from(CHUNK_SIZE) + i32::from(CHUNK_SIZE) / 2;
 
-                let chunk_center_x =
-                    c.get_chunk_x() * i32::from(CHUNK_SIZE) + i32::from(CHUNK_SIZE) / 2;
-                let chunk_center_y =
-                    c.get_chunk_y() * i32::from(CHUNK_SIZE) + i32::from(CHUNK_SIZE) / 2;
+                    let dist_particle = f32::from(CHUNK_SIZE) * 0.6;
+                    let dist_body = f32::from(CHUNK_SIZE) * 1.0;
 
-                let dist_particle = f32::from(CHUNK_SIZE) * 0.6;
-                let dist_body = f32::from(CHUNK_SIZE) * 1.0;
+                    let mut should_be_active = false;
 
-                let mut should_be_active = false;
-
-                let mut psl = self.lqf_world.get_particle_system_list();
-                while psl.is_some() && !should_be_active {
-                    let system = psl.unwrap();
-                    if system.get_position_buffer().iter().any(|pos| {
-                        (pos.x * LIQUIDFUN_SCALE as f32 - chunk_center_x as f32).abs()
-                            < dist_particle
-                            && (pos.y * LIQUIDFUN_SCALE as f32 - chunk_center_y as f32).abs()
+                    let mut psl = self.lqf_world.get_particle_system_list();
+                    while psl.is_some() && !should_be_active {
+                        let system = psl.unwrap();
+                        if system.get_position_buffer().iter().any(|pos| {
+                            (pos.x * LIQUIDFUN_SCALE as f32 - chunk_center_x as f32).abs()
                                 < dist_particle
-                    }) {
-                        should_be_active = true;
-                    }
-                    psl = system.get_next();
-                }
-
-                // TODO: see if using box2d's query methods instead of direct iteration is faster
-                let mut bl = self.lqf_world.get_body_list();
-                while bl.is_some() && !should_be_active {
-                    let body = bl.unwrap();
-
-                    match body.get_type() {
-                        BodyType::DynamicBody => {
-                            // if body.is_awake() { // this just causes flickering
-                            let pos = body.get_position();
-                            let dist_x =
-                                (pos.x * LIQUIDFUN_SCALE as f32 - chunk_center_x as f32).abs();
-                            let dist_y =
-                                (pos.y * LIQUIDFUN_SCALE as f32 - chunk_center_y as f32).abs();
-                            if dist_x < dist_body && dist_y < dist_body {
-                                should_be_active = true;
-                            }
-                            // }
+                                && (pos.y * LIQUIDFUN_SCALE as f32 - chunk_center_y as f32).abs()
+                                    < dist_particle
+                        }) {
+                            should_be_active = true;
                         }
-                        BodyType::KinematicBody | BodyType::StaticBody => {}
+                        psl = system.get_next();
                     }
 
-                    bl = body.get_next();
-                }
+                    // TODO: see if using box2d's query methods instead of direct iteration is faster
+                    let mut bl = self.lqf_world.get_body_list();
+                    while bl.is_some() && !should_be_active {
+                        let body = bl.unwrap();
 
-                if let Some(b) = c.get_b2_body_mut() {
-                    b.set_active(should_be_active);
+                        match body.get_type() {
+                            BodyType::DynamicBody => {
+                                // if body.is_awake() { // this just causes flickering
+                                let pos = body.get_position();
+                                let dist_x =
+                                    (pos.x * LIQUIDFUN_SCALE as f32 - chunk_center_x as f32).abs();
+                                let dist_y =
+                                    (pos.y * LIQUIDFUN_SCALE as f32 - chunk_center_y as f32).abs();
+                                if dist_x < dist_body && dist_y < dist_body {
+                                    should_be_active = true;
+                                }
+                                // }
+                            }
+                            BodyType::KinematicBody | BodyType::StaticBody => {}
+                        }
+
+                        bl = body.get_next();
+                    }
+
+                    if let Some(b) = c.get_b2_body_mut() {
+                        b.set_active(should_be_active);
+                    }
                 }
             }
         }
