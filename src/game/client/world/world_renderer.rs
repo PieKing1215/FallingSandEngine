@@ -364,6 +364,7 @@ impl WorldRenderer {
             profiling::scope!("particles");
             let particle_system = world.ecs.read_resource::<ParticleSystem>();
 
+            // TODO: magic number, works well on my machine but probably different on others
             let mut batches: Vec<Vec<f32>> = particle_system.active.par_chunks(2000).map(|chunk| {
                 
                 let mut batch = Vec::new();
