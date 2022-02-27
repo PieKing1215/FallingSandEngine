@@ -35,6 +35,7 @@ struct SimulationHelperChunk<'a> {
 }
 
 impl SimulationHelperChunk<'_> {
+    #[inline]
     unsafe fn get_pixel_from_index(
         &self,
         (ch, px, ..): (usize, usize, u16, u16),
@@ -42,6 +43,20 @@ impl SimulationHelperChunk<'_> {
         (*self.pixels[ch])[px]
     }
 
+    #[inline]
+    unsafe fn get_pixel_from_index_unchecked(
+        &self,
+        (ch, px, ..): (usize, usize, u16, u16),
+    ) -> MaterialInstance {
+        *(**self.pixels.get_unchecked(ch)).get_unchecked(px)
+    }
+
+    #[inline]
+    unsafe fn get_pixel_local_unchecked(&self, x: i32, y: i32) -> MaterialInstance {
+        self.get_pixel_from_index_unchecked(Self::local_to_indices(x, y))
+    }
+
+    #[inline]
     unsafe fn set_pixel_from_index(
         &mut self,
         (ch, px, ch_x, ch_y): (usize, usize, u16, u16),
@@ -55,6 +70,26 @@ impl SimulationHelperChunk<'_> {
         self.max_y[ch] = self.max_y[ch].max(ch_y);
     }
 
+    #[inline]
+    unsafe fn set_pixel_from_index_unchecked(
+        &mut self,
+        (ch, px, ch_x, ch_y): (usize, usize, u16, u16),
+        mat: MaterialInstance,
+    ) {
+        *(**self.pixels.get_unchecked_mut(ch)).get_unchecked_mut(px) = mat;
+
+        *self.min_x.get_unchecked_mut(ch) = (*self.min_x.get_unchecked_mut(ch)).min(ch_x);
+        *self.min_y.get_unchecked_mut(ch) = (*self.min_y.get_unchecked_mut(ch)).min(ch_y);
+        *self.max_x.get_unchecked_mut(ch) = (*self.max_x.get_unchecked_mut(ch)).max(ch_x);
+        *self.max_y.get_unchecked_mut(ch) = (*self.max_y.get_unchecked_mut(ch)).max(ch_y);
+    }
+    
+    #[inline]
+    unsafe fn set_pixel_local_unchecked(&mut self, x: i32, y: i32, mat: MaterialInstance) {
+        self.set_pixel_from_index_unchecked(Self::local_to_indices(x, y), mat);
+    }
+
+    #[inline]
     unsafe fn get_color_from_index(&self, (ch, px, ..): (usize, usize, u16, u16)) -> Color {
         Color::RGBA(
             (*self.colors[ch])[px * 4],
@@ -64,6 +99,22 @@ impl SimulationHelperChunk<'_> {
         )
     }
 
+    #[inline]
+    unsafe fn get_color_from_index_unchecked(&self, (ch, px, ..): (usize, usize, u16, u16)) -> Color {
+        Color::RGBA(
+            *(**self.colors.get_unchecked(ch)).get_unchecked(px * 4),
+            *(**self.colors.get_unchecked(ch)).get_unchecked(px * 4 + 1),
+            *(**self.colors.get_unchecked(ch)).get_unchecked(px * 4 + 2),
+            *(**self.colors.get_unchecked(ch)).get_unchecked(px * 4 + 3),
+        )
+    }
+
+    #[inline]
+    unsafe fn get_color_local_unchecked(&self, x: i32, y: i32) -> Color {
+        self.get_color_from_index_unchecked(Self::local_to_indices(x, y))
+    }
+
+    #[inline]
     unsafe fn set_color_from_index(
         &mut self,
         (ch, px, ..): (usize, usize, u16, u16),
@@ -77,7 +128,27 @@ impl SimulationHelperChunk<'_> {
         self.dirty[ch] = true;
     }
 
+    #[inline]
+    unsafe fn set_color_from_index_unchecked(
+        &mut self,
+        (ch, px, ..): (usize, usize, u16, u16),
+        color: Color,
+    ) {
+        *(**self.colors.get_unchecked_mut(ch)).get_unchecked_mut(px * 4) = color.r;
+        *(**self.colors.get_unchecked_mut(ch)).get_unchecked_mut(px * 4 + 1) = color.g;
+        *(**self.colors.get_unchecked_mut(ch)).get_unchecked_mut(px * 4 + 2) = color.b;
+        *(**self.colors.get_unchecked_mut(ch)).get_unchecked_mut(px * 4 + 3) = color.a;
+
+        self.dirty[ch] = true;
+    }
+
+    #[inline]
+    unsafe fn set_color_local_unchecked(&mut self, x: i32, y: i32, col: Color) {
+        self.set_color_from_index_unchecked(Self::local_to_indices(x, y), col);
+    }
+
     // (chunk index, pixel index, pixel x in chunk, pixel y in chunk)
+    #[inline]
     fn local_to_indices(x: i32, y: i32) -> (usize, usize, u16, u16) {
         let size = i32::from(CHUNK_SIZE);
         let rel_chunk_x = (x as f32 / f32::from(CHUNK_SIZE)).floor() as i8;
@@ -111,22 +182,27 @@ impl SimulationHelperChunk<'_> {
 }
 
 impl SimulationHelper for SimulationHelperChunk<'_> {
+    #[inline]
     unsafe fn get_pixel_local(&self, x: i32, y: i32) -> MaterialInstance {
         self.get_pixel_from_index(Self::local_to_indices(x, y))
     }
 
+    #[inline]
     unsafe fn set_pixel_local(&mut self, x: i32, y: i32, mat: MaterialInstance) {
         self.set_pixel_from_index(Self::local_to_indices(x, y), mat);
     }
 
+    #[inline]
     unsafe fn get_color_local(&self, x: i32, y: i32) -> Color {
         self.get_color_from_index(Self::local_to_indices(x, y))
     }
 
+    #[inline]
     unsafe fn set_color_local(&mut self, x: i32, y: i32, col: Color) {
         self.set_color_from_index(Self::local_to_indices(x, y), col);
     }
 
+    #[inline]
     fn add_particle(&mut self, material: MaterialInstance, pos: Position, vel: Velocity) {
         self.particles.push(
             Particle::new(
@@ -251,6 +327,7 @@ impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelpe
         }
     }
 
+    #[inline]
     fn add_particle(&mut self, material: MaterialInstance, pos: Position, vel: Velocity) {
         self.particles.push(Particle::new(material, pos, vel));
     }
@@ -326,23 +403,22 @@ impl Simulator {
                 if rng.bool() {
                     for y in (my_dirty_rect.y..(my_dirty_rect.y + my_dirty_rect.h) as i32).rev() {
                             for x in my_dirty_rect.x..(my_dirty_rect.x + my_dirty_rect.w) as i32 {
-                                let cur = helper.get_pixel_local(x, y);
+                                let cur = helper.get_pixel_local_unchecked(x, y);
         
                                 if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper, &rng) {
-                                    helper.set_color_local(x, y, mat.color);
-                                    helper.set_pixel_local(x, y, mat);
+                                    helper.set_color_local_unchecked(x, y, mat.color);
+                                    helper.set_pixel_local_unchecked(x, y, mat);
                                 }
                             }
                     }
-                
                 } else {
                     for y in (my_dirty_rect.y..(my_dirty_rect.y + my_dirty_rect.h) as i32).rev() {
                         for x in (my_dirty_rect.x..(my_dirty_rect.x + my_dirty_rect.w) as i32).rev() {
-                            let cur = helper.get_pixel_local(x, y);
+                            let cur = helper.get_pixel_local_unchecked(x, y);
     
                             if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper, &rng) {
-                                helper.set_color_local(x, y, mat.color);
-                                helper.set_pixel_local(x, y, mat);
+                                helper.set_color_local_unchecked(x, y, mat.color);
+                                helper.set_pixel_local_unchecked(x, y, mat);
                             }
                         }
                     }
@@ -470,6 +546,8 @@ impl Simulator {
         rigidbodies.append(&mut new_rb);
     }
 
+    #[allow(clippy::inline_always)]
+    #[inline(always)] // speeds up simulate_chunk by ~35%
     fn simulate_pixel(
         x: i32,
         y: i32,
