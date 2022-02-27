@@ -1138,6 +1138,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
         true
     }
 
+    #[inline]
     fn chunk_index(&self, chunk_x: i32, chunk_y: i32) -> u32 {
         fn int_to_nat(i: i32) -> u32 {
             if i >= 0 {
@@ -1154,6 +1155,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
         ((u64::from(xx + yy) * u64::from(xx + yy + 1)) / 2 + u64::from(yy)) as u32
     }
 
+    #[inline]
     fn chunk_index_inv(&self, index: u32) -> (i32, i32) {
         let w = (((8 * u64::from(index) + 1) as f64).sqrt() - 1.0).floor() as u64 / 2;
         let t = (w * w + w) / 2;
@@ -1185,6 +1187,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
     }
 
     // #[profiling::function]
+    #[inline]
     fn pixel_to_chunk_pos(&self, x: i64, y: i64) -> (i32, i32) {
         (
             (x as f64 / f64::from(CHUNK_SIZE)).floor() as i32,
