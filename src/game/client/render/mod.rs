@@ -52,6 +52,7 @@ impl TransformStack {
             self.stack.last_mut().unwrap().scale_y / prev_y;
     }
 
+    #[inline(always)]
     pub fn transform<T: Into<f64>>(&self, point: (T, T)) -> (f64, f64) {
         let t = self.stack.last().unwrap();
         (
@@ -60,6 +61,7 @@ impl TransformStack {
         )
     }
 
+    #[inline(always)]
     pub fn transform_int<T: Into<f64>>(&self, point: (T, T)) -> (i32, i32) {
         let t = self.stack.last().unwrap();
         (

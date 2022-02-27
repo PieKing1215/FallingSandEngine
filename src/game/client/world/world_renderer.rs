@@ -9,7 +9,7 @@ use sdl_gpu::{
     shaders::Shader,
     GPUImage, GPURect, GPUSubsystem, GPUTarget, GPUFormat, GPUFilter,
 };
-use specs::{Join, ReadStorage, WriteStorage, WorldExt};
+use specs::{Join, ReadStorage, WriteStorage, WorldExt, rayon::{iter::{IntoParallelRefIterator, IndexedParallelIterator}, slice::ParallelSlice}, prelude::ParallelIterator};
 
 use crate::game::{
     client::{
@@ -147,98 +147,101 @@ impl WorldRenderer {
         //     canvas.set_clip_rect(transform.transform_rect(screen_zone));
         // }
 
-        world
-            .chunk_handler
-            .loaded_chunks
-            .iter()
-            .for_each(|(_i, ch)| {
-                let rc = Rect::new(
-                    ch.chunk_x * i32::from(CHUNK_SIZE),
-                    ch.chunk_y * i32::from(CHUNK_SIZE),
-                    u32::from(CHUNK_SIZE),
-                    u32::from(CHUNK_SIZE),
-                );
-                if (settings.debug && !settings.cull_chunks) || rc.has_intersection(screen_zone) {
-                    transform.push();
-                    transform.translate(
+        {
+            profiling::scope!("chunks");
+            world
+                .chunk_handler
+                .loaded_chunks
+                .iter()
+                .for_each(|(_i, ch)| {
+                    let rc = Rect::new(
                         ch.chunk_x * i32::from(CHUNK_SIZE),
                         ch.chunk_y * i32::from(CHUNK_SIZE),
+                        u32::from(CHUNK_SIZE),
+                        u32::from(CHUNK_SIZE),
                     );
-                    ch.render(target, transform, sdl, fonts, settings);
+                    if (settings.debug && !settings.cull_chunks) || rc.has_intersection(screen_zone) {
+                        transform.push();
+                        transform.translate(
+                            ch.chunk_x * i32::from(CHUNK_SIZE),
+                            ch.chunk_y * i32::from(CHUNK_SIZE),
+                        );
+                        ch.render(target, transform, sdl, fonts, settings);
 
-                    if settings.debug && settings.draw_chunk_dirty_rects {
-                        if let Some(dr) = ch.dirty_rect {
-                            let rect = transform.transform_rect(dr);
-                            target.rectangle_filled2(rect, Color::RGBA(255, 64, 64, 127));
-                            target.rectangle2(rect, Color::RGBA(255, 64, 64, 127));
+                        if settings.debug && settings.draw_chunk_dirty_rects {
+                            if let Some(dr) = ch.dirty_rect {
+                                let rect = transform.transform_rect(dr);
+                                target.rectangle_filled2(rect, Color::RGBA(255, 64, 64, 127));
+                                target.rectangle2(rect, Color::RGBA(255, 64, 64, 127));
+                            }
+                            if ch.graphics.was_dirty {
+                                let rect = transform.transform_rect(Rect::new(
+                                    0,
+                                    0,
+                                    u32::from(CHUNK_SIZE),
+                                    u32::from(CHUNK_SIZE),
+                                ));
+                                target.rectangle_filled2(rect, Color::RGBA(255, 255, 64, 127));
+                                target.rectangle2(rect, Color::RGBA(255, 255, 64, 127));
+                            }
                         }
-                        if ch.graphics.was_dirty {
-                            let rect = transform.transform_rect(Rect::new(
-                                0,
-                                0,
-                                u32::from(CHUNK_SIZE),
-                                u32::from(CHUNK_SIZE),
-                            ));
-                            target.rectangle_filled2(rect, Color::RGBA(255, 255, 64, 127));
-                            target.rectangle2(rect, Color::RGBA(255, 255, 64, 127));
-                        }
+
+                        transform.pop();
                     }
 
-                    transform.pop();
-                }
+                    if settings.debug && settings.draw_chunk_state_overlay {
+                        let rect = transform.transform_rect(rc);
 
-                if settings.debug && settings.draw_chunk_state_overlay {
-                    let rect = transform.transform_rect(rc);
+                        let alpha: u8 = (settings.draw_chunk_state_overlay_alpha * 255.0) as u8;
+                        let color;
+                        match ch.state {
+                            ChunkState::NotGenerated => {
+                                color = Color::RGBA(127, 127, 127, alpha);
+                            }
+                            ChunkState::Generating(stage) => {
+                                color = Color::RGBA(
+                                    64,
+                                    (f32::from(stage)
+                                        / f32::from(world.chunk_handler.generator.max_gen_stage())
+                                        * 255.0) as u8,
+                                    255,
+                                    alpha,
+                                );
+                            }
+                            ChunkState::Cached => {
+                                color = Color::RGBA(255, 127, 64, alpha);
+                            }
+                            ChunkState::Active => {
+                                color = Color::RGBA(64, 255, 64, alpha);
+                            }
+                        }
+                        target.rectangle_filled2(rect, color);
+                        target.rectangle2(rect, color);
 
-                    let alpha: u8 = (settings.draw_chunk_state_overlay_alpha * 255.0) as u8;
-                    let color;
-                    match ch.state {
-                        ChunkState::NotGenerated => {
-                            color = Color::RGBA(127, 127, 127, alpha);
-                        }
-                        ChunkState::Generating(stage) => {
-                            color = Color::RGBA(
-                                64,
-                                (f32::from(stage)
-                                    / f32::from(world.chunk_handler.generator.max_gen_stage())
-                                    * 255.0) as u8,
-                                255,
-                                alpha,
-                            );
-                        }
-                        ChunkState::Cached => {
-                            color = Color::RGBA(255, 127, 64, alpha);
-                        }
-                        ChunkState::Active => {
-                            color = Color::RGBA(64, 255, 64, alpha);
-                        }
+                        // let ind = world.chunk_handler.chunk_index(ch.chunk_x, ch.chunk_y);
+                        // let ind = world.chunk_handler.chunk_update_order(ch.chunk_x, ch.chunk_y);
+                        // let tex = canvas.texture_creator();
+                        // let txt_sf = fonts.pixel_operator
+                        //     .render(format!("{}", ind).as_str())
+                        //     .solid(Color::RGB(255, 255, 255)).unwrap();
+                        // let txt_tex = tex.create_texture_from_surface(&txt_sf).unwrap();
+
+                        // let aspect = txt_sf.width() as f32 / txt_sf.height() as f32;
+                        // let mut txt_height = rect.height() as f32 * 0.75;
+                        // let mut txt_width = (aspect * txt_height as f32) as u32;
+
+                        // let max_width = (rect.w as f32 * 0.9) as u32;
+
+                        // if txt_width > max_width as u32 {
+                        //     txt_width = max_width as u32;
+                        //     txt_height = 1.0 / aspect * txt_width as f32;
+                        // }
+
+                        // let txt_rec = Rect::new(rect.x + rect.w/2 - (txt_width as i32)/2, rect.y, txt_width, txt_height as u32);
+                        // canvas.copy(&txt_tex, None, Some(txt_rec)).unwrap();
                     }
-                    target.rectangle_filled2(rect, color);
-                    target.rectangle2(rect, color);
-
-                    // let ind = world.chunk_handler.chunk_index(ch.chunk_x, ch.chunk_y);
-                    // let ind = world.chunk_handler.chunk_update_order(ch.chunk_x, ch.chunk_y);
-                    // let tex = canvas.texture_creator();
-                    // let txt_sf = fonts.pixel_operator
-                    //     .render(format!("{}", ind).as_str())
-                    //     .solid(Color::RGB(255, 255, 255)).unwrap();
-                    // let txt_tex = tex.create_texture_from_surface(&txt_sf).unwrap();
-
-                    // let aspect = txt_sf.width() as f32 / txt_sf.height() as f32;
-                    // let mut txt_height = rect.height() as f32 * 0.75;
-                    // let mut txt_width = (aspect * txt_height as f32) as u32;
-
-                    // let max_width = (rect.w as f32 * 0.9) as u32;
-
-                    // if txt_width > max_width as u32 {
-                    //     txt_width = max_width as u32;
-                    //     txt_height = 1.0 / aspect * txt_width as f32;
-                    // }
-
-                    // let txt_rec = Rect::new(rect.x + rect.w/2 - (txt_width as i32)/2, rect.y, txt_width, txt_height as u32);
-                    // canvas.copy(&txt_tex, None, Some(txt_rec)).unwrap();
-                }
-            });
+                });
+        }
 
         // draw liquids
 
@@ -361,24 +364,57 @@ impl WorldRenderer {
             profiling::scope!("particles");
             let particle_system = world.ecs.read_resource::<ParticleSystem>();
 
-            for part in particle_system.active.iter().chain(particle_system.sleeping.iter()) {
-                if screen_zone
-                    .contains_point(sdl2::rect::Point::new(part.pos.x as i32, part.pos.y as i32))
-                    || !settings.cull_chunks
-                {
-                    let lerp_x = part.pos.x + part.vel.x * partial_ticks;
-                    let lerp_y = part.pos.y + part.vel.y * partial_ticks;
-                    let (x1, y1) = transform.transform((lerp_x - 0.5, lerp_y - 0.5));
-                    let (x2, y2) = transform.transform((lerp_x + 0.5, lerp_y + 0.5));
-                    target.rectangle_filled(
-                        x1 as f32,
-                        y1 as f32,
-                        x2 as f32,
-                        y2 as f32,
-                        part.material.color,
-                    );
+            let mut batches: Vec<Vec<f32>> = particle_system.active.par_chunks(2000).map(|chunk| {
+                
+                let mut batch = Vec::new();
+                for part in chunk {
+                    #[allow(clippy::cast_lossless)]
+                    if screen_zone
+                        .contains_point(sdl2::rect::Point::new(part.pos.x as i32, part.pos.y as i32))
+                        || !settings.cull_chunks
+                    {
+                        let lerp_x = part.pos.x + part.vel.x * partial_ticks;
+                        let lerp_y = part.pos.y + part.vel.y * partial_ticks;
+                        let (x1, y1) = transform.transform((lerp_x - 0.5, lerp_y - 0.5));
+                        let (x2, y2) = transform.transform((lerp_x + 0.5, lerp_y + 0.5));
+                        let col = f32::from_le_bytes([part.material.color.r, part.material.color.g, part.material.color.b, part.material.color.a]);
+                        
+                        batch.extend([
+                            x1 as f32,
+                            y1 as f32,
+                            col,
+                            x2 as f32,
+                            y1 as f32,
+                            col,
+                            x2 as f32,
+                            y2 as f32,
+                            col,
+
+                            x1 as f32,
+                            y1 as f32,
+                            col,
+                            x2 as f32,
+                            y2 as f32,
+                            col,
+                            x1 as f32,
+                            y2 as f32,
+                            col,
+                        ]);
+                        // target.rectangle_filled(
+                        //     x1 as f32,
+                        //     y1 as f32,
+                        //     x2 as f32,
+                        //     y2 as f32,
+                        //     part.material.color,
+                        // );
+                    }
                 }
-            };
+                batch
+            }).collect();
+            for mut batch in &mut batches {
+                // profiling::scope!("triangle_batch_raw_u8", format!("#verts = {}", batch.len() / 3).as_str());
+                target.triangle_batch_raw_u8(&mut batch);
+            }
         }
 
         {

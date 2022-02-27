@@ -282,39 +282,42 @@ impl<'a> Renderer<'a> {
     ) {
         let target = &mut self.target.borrow_mut();
 
-        target.rectangle2(
-            GPURect::new(
-                40.0 + ((game.tick_time as f32 / 5.0).sin() * 20.0),
-                30.0 + ((game.tick_time as f32 / 5.0).cos().abs() * -10.0),
-                15.0,
-                15.0,
-            ),
-            Color::RGBA(255, 0, 0, 255),
-        );
-
-        GPUSubsystem::set_shape_blend_mode(sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_NORMAL);
-        for i in (0..10000).step_by(15) {
-            let thru = (i as f32 / 10000.0 * 255.0) as u8;
-            let thru2 = (((i % 1000) as f32 / 1000.0) * 255.0) as u8;
-            let timeshift = ((1.0 - ((i % 1000) as f32 / 1000.0)).powi(8) * 200.0) as i32;
-
-            let rect = GPURect::new(
-                75.0 + (i as f32 % 1000.0)
-                    + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32
-                        - timeshift as f32)
-                        / 100.0)
-                        .sin()
-                        * 50.0),
-                (i as f32 / 1000.0) * 100.0
-                    + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32
-                        - timeshift as f32)
-                        / 100.0)
-                        .cos()
-                        * 50.0),
-                20.0,
-                20.0,
+        {
+            profiling::scope!("test stuff");
+            target.rectangle2(
+                GPURect::new(
+                    40.0 + ((game.tick_time as f32 / 5.0).sin() * 20.0),
+                    30.0 + ((game.tick_time as f32 / 5.0).cos().abs() * -10.0),
+                    15.0,
+                    15.0,
+                ),
+                Color::RGBA(255, 0, 0, 255),
             );
-            target.rectangle_filled2(rect, Color::RGBA(0, thru, 255 - thru, thru2));
+
+            GPUSubsystem::set_shape_blend_mode(sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_NORMAL);
+            for i in (0..10000).step_by(15) {
+                let thru = (i as f32 / 10000.0 * 255.0) as u8;
+                let thru2 = (((i % 1000) as f32 / 1000.0) * 255.0) as u8;
+                let timeshift = ((1.0 - ((i % 1000) as f32 / 1000.0)).powi(8) * 200.0) as i32;
+
+                let rect = GPURect::new(
+                    75.0 + (i as f32 % 1000.0)
+                        + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32
+                            - timeshift as f32)
+                            / 100.0)
+                            .sin()
+                            * 50.0),
+                    (i as f32 / 1000.0) * 100.0
+                        + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32
+                            - timeshift as f32)
+                            / 100.0)
+                            .cos()
+                            * 50.0),
+                    20.0,
+                    20.0,
+                );
+                target.rectangle_filled2(rect, Color::RGBA(0, thru, 255 - thru, thru2));
+            }
         }
 
         if let Some(w) = &mut game.world {
