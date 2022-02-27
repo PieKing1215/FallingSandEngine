@@ -137,11 +137,13 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdateParticles<'a, H> {
             system.active.append(&mut removed);
         }
 
-        // TODO: if I can ever get ChunkHandler to be Send (+ Sync would be ideal), can use par_join and organize a bit for big performance gain
-        //       iirc right now, ChunkHandler<ServerChunk> is Send + !Sync and ChunkHandler<ClientChunk> is !Send + !Sync (because of the GPUImage in ChunkGraphics)
-
         {
             profiling::scope!("main");
+
+            // I tried for like 8 hours to try to get this multithreaded
+            // while you *can* do it "soundly", it is much slower than just looping (see parallel-particles-2 branch)
+            // (spawning futures for particles takes longer than processing them)
+
             // TODO: we want to use the std version once it is stable
             use retain_mut::RetainMut;
             #[allow(unstable_name_collisions)]
