@@ -7,7 +7,7 @@ use sdl2::{
     pixels::Color,
     ttf::{Font, Sdl2TtfContext},
     video::{Window, GLProfile},
-    VideoSubsystem,
+    VideoSubsystem, surface::Surface,
 };
 use sdl_gpu::{shaders::Shader, GPUImage, GPURect, GPUSubsystem, GPUTarget};
 
@@ -27,6 +27,8 @@ pub struct Renderer<'ttf> {
     pub imgui_sdl2: SdlPlatform,
     pub imgui_renderer: AutoRenderer,
     pub world_renderer: WorldRenderer,
+    pub version_info_cache_1: Option<(u32, u32, GPUImage)>,
+    pub version_info_cache_2: Option<(u32, u32, GPUImage)>,
 }
 
 pub struct Fonts<'ttf> {
@@ -103,6 +105,8 @@ impl<'a> Renderer<'a> {
             imgui_sdl2,
             imgui_renderer,
             world_renderer: WorldRenderer::new(),
+            version_info_cache_1: None,
+            version_info_cache_2: None,
         })
     }
 
@@ -122,47 +126,50 @@ impl<'a> Renderer<'a> {
 
         {
             profiling::scope!("version info");
-            if let Ok(surf) = self
-                .fonts
-                .as_ref()
-                .unwrap()
-                .pixel_operator
-                .render("Development Build")
-                .solid(Color::RGB(0xff, 0xff, 0xff))
-            {
-                let img = GPUImage::from_surface(&surf);
-                img.blit_rect(
-                    None,
-                    target,
-                    Some(GPURect::new(
-                        4.0,
-                        self.window.size().1 as f32 - 4.0 - 14.0 * 2.0,
-                        surf.width() as f32,
-                        surf.height() as f32,
-                    )),
-                );
-            }
 
-            if let Ok(surf) = self
-                .fonts
-                .as_ref()
-                .unwrap()
-                .pixel_operator
-                .render(format!("{} ({})", env!("BUILD_DATETIME"), env!("GIT_HASH")).as_str())
-                .solid(Color::RGB(0xff, 0xff, 0xff))
-            {
-                let img = GPUImage::from_surface(&surf);
-                img.blit_rect(
-                    None,
-                    target,
-                    Some(GPURect::new(
-                        4.0,
-                        self.window.size().1 as f32 - 4.0 - 14.0,
-                        surf.width() as f32,
-                        surf.height() as f32,
-                    )),
-                );
-            }
+            let (w, h, img) = self.version_info_cache_1.get_or_insert_with(|| {
+                let surf = self
+                    .fonts
+                    .as_ref()
+                    .unwrap()
+                    .pixel_operator
+                    .render("Development Build")
+                    .solid(Color::RGB(0xff, 0xff, 0xff)).unwrap();
+                (surf.width(), surf.height(), GPUImage::from_surface(&surf))
+            });
+
+            img.blit_rect(
+                None,
+                target,
+                Some(GPURect::new(
+                    4.0,
+                    self.window.size().1 as f32 - 4.0 - 14.0 * 2.0,
+                    *w as f32,
+                    *h as f32,
+                )),
+            );
+
+            let (w, h, img) = self.version_info_cache_2.get_or_insert_with(|| {
+                let surf = self
+                    .fonts
+                    .as_ref()
+                    .unwrap()
+                    .pixel_operator
+                    .render(format!("{} ({})", env!("BUILD_DATETIME"), env!("GIT_HASH")).as_str())
+                    .solid(Color::RGB(0xff, 0xff, 0xff)).unwrap();
+                    (surf.width(), surf.height(), GPUImage::from_surface(&surf))
+            });
+
+            img.blit_rect(
+                None,
+                target,
+                Some(GPURect::new(
+                    4.0,
+                    self.window.size().1 as f32 - 4.0 - 14.0,
+                    *w as f32,
+                    *h as f32,
+                )),
+            );
         }
 
         {
