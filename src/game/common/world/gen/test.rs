@@ -14,6 +14,7 @@ pub struct TestGenerator {}
 
 impl WorldGenerator for TestGenerator {
     #[allow(clippy::cast_lossless)]
+    #[profiling::function]
     fn generate(
         &self,
         chunk_x: i32,

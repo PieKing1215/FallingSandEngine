@@ -464,9 +464,15 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                         .iter()
                         .map(Arc::from)
                         .map(|e| async move {
+                            profiling::register_thread!("Generation thread");
+                            profiling::scope!("chunk");
+
+                            // these arrays are too large for the stack
+
                             let mut pixels = Box::new(
                                 [MaterialInstance::air(); (CHUNK_SIZE * CHUNK_SIZE) as usize],
                             );
+
                             #[allow(clippy::cast_lossless)]
                             let mut colors =
                                 Box::new([0; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]);
@@ -479,6 +485,10 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                         .collect();
                     let b = RT.block_on(join_all(futs2));
                     for r in b {
+                        profiling::scope!("finish chunk");
+
+                        // TODO: this is very slow
+
                         let p = r.as_ref().unwrap();
                         // println!("{} {}", i, p.0);
                         self.loaded_chunks

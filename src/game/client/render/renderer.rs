@@ -46,6 +46,7 @@ pub struct Sdl2Context {
 }
 
 impl<'a> Renderer<'a> {
+    #[profiling::function]
     pub fn init_sdl() -> Result<Sdl2Context, String> {
         let sdl = sdl2::init()?;
         let sdl_video = sdl.video()?;
@@ -54,21 +55,29 @@ impl<'a> Renderer<'a> {
         Ok(Sdl2Context { sdl, sdl_video, sdl_ttf })
     }
 
+    #[profiling::function]
     pub fn create(sdl: &Sdl2Context, file_helper: &FileHelper) -> Result<Self, String> {
         let gl_attr = sdl.sdl_video.gl_attr();
         gl_attr.set_context_version(4, 1);
         gl_attr.set_context_profile(GLProfile::Core);
 
-        let window = sdl
-            .sdl_video
-            .window("FallingSandRust", 1200, 800)
-            .opengl() // allow getting opengl context
-            .resizable()
-            .build()
-            .unwrap();
+        let window = {
+            profiling::scope!("window");
+
+            sdl
+                .sdl_video
+                .window("FallingSandRust", 1200, 800)
+                .opengl() // allow getting opengl context
+                .resizable()
+                .build()
+                .unwrap()
+        };
 
         sdl_gpu::GPUSubsystem::set_init_window(window.id());
-        let target = sdl_gpu::GPUSubsystem::init(window.size().0 as u16, window.size().1 as u16, 0);
+        let target = {
+            profiling::scope!("GPUSubsystem::init");
+            sdl_gpu::GPUSubsystem::init(window.size().0 as u16, window.size().1 as u16, 0)
+        };
         unsafe {
             let ctx: sdl2::sys::SDL_GLContext = (*target.raw.context).context;
             sdl2::sys::SDL_GL_MakeCurrent(window.raw(), ctx);

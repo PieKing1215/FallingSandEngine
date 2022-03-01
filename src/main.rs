@@ -304,7 +304,6 @@ fn main() -> Result<(), String> {
 
         // TODO: come up with a better way to handle this sdl's lifetime
         let sdl = Renderer::init_sdl().unwrap();
-
         info!("Starting init...");
 
         let mut r = Renderer::create(&sdl, &file_helper).expect("Renderer::create failed"); // want to panic

@@ -98,7 +98,9 @@ impl Game<ClientChunk> {
         let mut read_buffer: Option<Vec<u8>> = None;
 
         'mainLoop: loop {
+            profiling::scope!("loop");
             for event in event_pump.poll_iter() {
+                profiling::scope!("event");
                 if let Some(r) = &mut renderer {
                     r.imgui_sdl2.handle_event(&mut r.imgui, &event);
                     // missing from official support
@@ -323,6 +325,7 @@ impl Game<ClientChunk> {
             let delta = now.saturating_duration_since(last_frame);
             last_frame = now;
             if let Some(r) = &mut renderer {
+                profiling::scope!("prep frame");
                 r.imgui_sdl2
                     .prepare_frame(&mut r.imgui, &r.window, &event_pump);
 
@@ -332,6 +335,8 @@ impl Game<ClientChunk> {
             }
 
             if let Some(r) = &mut renderer {
+                profiling::scope!("update window mode");
+
                 let fs = r.window.fullscreen_state();
 
                 let des_fs = match self.settings {
@@ -349,6 +354,7 @@ impl Game<ClientChunk> {
                 };
 
                 if fs != des_fs {
+                    profiling::scope!("fullscreen");
                     debug!("{:?}", des_fs);
 
                     if des_fs == FullscreenType::True {
@@ -369,21 +375,30 @@ impl Game<ClientChunk> {
                     }
                 }
 
-                if sdl2::hint::get_video_minimize_on_focus_loss()
-                    != self.settings.minimize_on_lost_focus
                 {
-                    sdl2::hint::set_video_minimize_on_focus_loss(
-                        self.settings.minimize_on_lost_focus,
-                    );
+                    profiling::scope!("minimize_on_focus_loss");
+                    if sdl2::hint::get_video_minimize_on_focus_loss()
+                        != self.settings.minimize_on_lost_focus
+                    {
+                        sdl2::hint::set_video_minimize_on_focus_loss(
+                            self.settings.minimize_on_lost_focus,
+                        );
+                    }
                 }
 
-                let si_des = if self.settings.vsync {
-                    SwapInterval::VSync
-                } else {
-                    SwapInterval::Immediate
-                };
-                if sdl.sdl_video.gl_get_swap_interval() != si_des {
-                    sdl.sdl_video.gl_set_swap_interval(si_des).unwrap();
+                {
+                    // this block looks like it causes lag spikes during loading but really any gl calls do
+                    // if gl_get_swap_interval is bypassed, the first couple imgui renders take a while instead
+                    profiling::scope!("vsync");
+
+                    let si_des = if self.settings.vsync {
+                        SwapInterval::VSync
+                    } else {
+                        SwapInterval::Immediate
+                    };
+                    if sdl.sdl_video.gl_get_swap_interval() != si_des {
+                        sdl.sdl_video.gl_set_swap_interval(si_des).unwrap();
+                    }
                 }
             }
 
@@ -738,8 +753,9 @@ impl Game<ClientChunk> {
             self.fps_counter.frame_times[self.fps_counter.frame_times.len() - 1] = time_nano as f32;
 
             profiling::finish_frame!();
-            // sleep
+            // sleep a bit if we aren't going to tick next frame
             if !do_tick_next {
+                profiling::scope!("sleep");
                 ::std::thread::sleep(Duration::new(0, 1_000_000)); // 1ms sleep so the computer doesn't explode
             }
             counter_last_frame = Instant::now();
