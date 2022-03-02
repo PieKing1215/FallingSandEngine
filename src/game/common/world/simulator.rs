@@ -1,4 +1,5 @@
 use liquidfun::box2d::dynamics::world::World;
+use rapier2d::na::{Vector2, Isometry2};
 use sdl2::{pixels::Color, rect::Rect};
 
 use crate::game::common::world::material::{MaterialInstance, PhysicsType};
@@ -7,8 +8,8 @@ use crate::game::common::world::{rigidbody, CHUNK_SIZE};
 use super::gen::WorldGenerator;
 use super::material::AIR;
 use super::particle::Particle;
-use super::rigidbody::RigidBody;
-use super::{Chunk, ChunkHandler, ChunkHandlerGeneric, Position, Velocity, LIQUIDFUN_SCALE};
+use super::rigidbody::FSRigidBody;
+use super::{Chunk, ChunkHandler, ChunkHandlerGeneric, Position, Velocity, LIQUIDFUN_SCALE, Physics};
 
 pub struct Simulator {}
 
@@ -219,8 +220,9 @@ impl SimulationHelper for SimulationHelperChunk<'_> {
 
 struct SimulationHelperRigidBody<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> {
     chunk_handler: &'a mut ChunkHandler<T, C>,
-    rigidbodies: &'a mut Vec<RigidBody>,
+    rigidbodies: &'a mut Vec<FSRigidBody>,
     particles: &'a mut Vec<Particle>,
+    physics: &'a mut Physics,
 }
 
 impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelper
@@ -236,24 +238,22 @@ impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelpe
 
         for i in 0..self.rigidbodies.len() {
             let cur = &self.rigidbodies[i];
-            if let Some(body) = &cur.body {
-                if body.is_active() {
-                    let s = (-body.get_angle()).sin();
-                    let c = (-body.get_angle()).cos();
+            if let Some(body) = cur.get_body(self.physics) {
+                let s = (-body.rotation().angle()).sin();
+                let c = (-body.rotation().angle()).cos();
 
-                    let tx = x as f32 - body.get_position().x * LIQUIDFUN_SCALE;
-                    let ty = y as f32 - body.get_position().y * LIQUIDFUN_SCALE;
+                let tx = x as f32 - body.translation().x * LIQUIDFUN_SCALE;
+                let ty = y as f32 - body.translation().y * LIQUIDFUN_SCALE;
 
-                    let nt_x = (tx * c - ty * s) as i32;
-                    let nt_y = (tx * s + ty * c) as i32;
+                let nt_x = (tx * c - ty * s) as i32;
+                let nt_y = (tx * s + ty * c) as i32;
 
-                    if nt_x >= 0 && nt_y >= 0 && nt_x < cur.width.into() && nt_y < cur.width.into()
-                    {
-                        let px = cur.pixels[(nt_x + nt_y * i32::from(cur.width)) as usize];
+                if nt_x >= 0 && nt_y >= 0 && nt_x < cur.width.into() && nt_y < cur.width.into()
+                {
+                    let px = cur.pixels[(nt_x + nt_y * i32::from(cur.width)) as usize];
 
-                        if px.material_id != AIR.id {
-                            return px;
-                        }
+                    if px.material_id != AIR.id {
+                        return px;
                     }
                 }
             }
@@ -286,24 +286,22 @@ impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelpe
 
         for i in 0..self.rigidbodies.len() {
             let cur = &self.rigidbodies[i];
-            if let Some(body) = &cur.body {
-                if body.is_active() {
-                    let s = (-body.get_angle()).sin();
-                    let c = (-body.get_angle()).cos();
+            if let Some(body) = cur.get_body(self.physics) {
+                let s = (-body.rotation().angle()).sin();
+                let c = (-body.rotation().angle()).cos();
 
-                    let tx = x as f32 - body.get_position().x * LIQUIDFUN_SCALE;
-                    let ty = y as f32 - body.get_position().y * LIQUIDFUN_SCALE;
+                let tx = x as f32 - body.translation().x * LIQUIDFUN_SCALE;
+                let ty = y as f32 - body.translation().y * LIQUIDFUN_SCALE;
 
-                    let nt_x = (tx * c - ty * s) as i32;
-                    let nt_y = (tx * s + ty * c) as i32;
+                let nt_x = (tx * c - ty * s) as i32;
+                let nt_y = (tx * s + ty * c) as i32;
 
-                    if nt_x >= 0 && nt_y >= 0 && nt_x < cur.width.into() && nt_y < cur.width.into()
-                    {
-                        let px = cur.pixels[(nt_x + nt_y * i32::from(cur.width)) as usize];
+                if nt_x >= 0 && nt_y >= 0 && nt_x < cur.width.into() && nt_y < cur.width.into()
+                {
+                    let px = cur.pixels[(nt_x + nt_y * i32::from(cur.width)) as usize];
 
-                        if px.material_id != AIR.id {
-                            return px.color;
-                        }
+                    if px.material_id != AIR.id {
+                        return px.color;
                     }
                 }
             }
@@ -434,8 +432,8 @@ impl Simulator {
     #[profiling::function]
     pub fn simulate_rigidbodies<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk>(
         chunk_handler: &mut ChunkHandler<T, C>,
-        rigidbodies: &mut Vec<RigidBody>,
-        lqf_world: &mut World,
+        rigidbodies: &mut Vec<FSRigidBody>,
+        physics: &mut Physics,
         particles: &mut Vec<Particle>,
     ) {
         let mut dirty = vec![false; rigidbodies.len()];
@@ -443,16 +441,16 @@ impl Simulator {
         for i in 0..rigidbodies.len() {
             let rb_w = rigidbodies[i].width;
             let rb_h = rigidbodies[i].height;
-            let body_opt = rigidbodies[i].body.as_ref();
+            let body_opt = rigidbodies[i].get_body(physics);
 
             if body_opt.is_some() {
-                let s = body_opt.unwrap().get_angle().sin();
-                let c = body_opt.unwrap().get_angle().cos();
-                let pos_x = body_opt.unwrap().get_position().x * LIQUIDFUN_SCALE;
-                let pos_y = body_opt.unwrap().get_position().y * LIQUIDFUN_SCALE;
+                let s = body_opt.unwrap().rotation().angle().sin();
+                let c = body_opt.unwrap().rotation().angle().cos();
+                let pos_x = body_opt.unwrap().translation().x * LIQUIDFUN_SCALE;
+                let pos_y = body_opt.unwrap().translation().y * LIQUIDFUN_SCALE;
 
                 let mut helper =
-                    SimulationHelperRigidBody { chunk_handler, rigidbodies, particles };
+                    SimulationHelperRigidBody { chunk_handler, rigidbodies, particles, physics };
 
                 let rng = fastrand::Rng::new();
                 for rb_y in 0..rb_w {
@@ -501,40 +499,38 @@ impl Simulator {
             }
         }
 
-        let mut new_rb: Vec<RigidBody> = rigidbodies
+        let mut new_rb: Vec<FSRigidBody> = rigidbodies
             .drain(..)
             .enumerate()
-            .flat_map(|(i, rb): (usize, RigidBody)| {
+            .flat_map(|(i, mut rb): (usize, FSRigidBody)| {
                 if needs_remesh[i] {
                     let pos = (
-                        rb.body.as_ref().unwrap().get_position().x,
-                        rb.body.as_ref().unwrap().get_position().y,
+                        rb.get_body(physics).unwrap().translation().x,
+                        rb.get_body(physics).unwrap().translation().y,
                     );
 
-                    let b2_pos = rb.body.as_ref().unwrap().get_position();
-                    let b2_angle = rb.body.as_ref().unwrap().get_angle();
-                    let b2_linear_velocity = rb.body.as_ref().unwrap().get_linear_velocity();
-                    let b2_angular_velocity = rb.body.as_ref().unwrap().get_angular_velocity();
+                    let b2_pos = rb.get_body(physics).unwrap().translation().clone();
+                    let b2_angle = rb.get_body(physics).unwrap().rotation().angle();
+                    let b2_linear_velocity = rb.get_body(physics).unwrap().linvel().clone();
+                    let b2_angular_velocity = rb.get_body(physics).unwrap().angvel();
 
                     // debug!("#bodies before = {}", lqf_world.get_body_count());
-                    lqf_world.destroy_body(rb.body.as_ref().unwrap());
+                    physics.bodies.remove(rb.body.take().unwrap(), &mut physics.islands, &mut physics.colliders, &mut physics.joints);
                     // debug!("#bodies after  = {}", lqf_world.get_body_count());
-                    let mut r = rigidbody::RigidBody::make_bodies(
-                        &rb.pixels, rb.width, rb.height, lqf_world, pos,
+                    let mut r = rigidbody::FSRigidBody::make_bodies(
+                        &rb.pixels, rb.width, rb.height, physics, pos,
                     )
                     .unwrap_or_default();
                     // debug!("#bodies after2 = {} new pos = {:?}", lqf_world.get_body_count(), r[0].body.as_ref().unwrap().get_position());
 
                     for rb in &mut r {
-                        rb.body.as_mut().unwrap().set_transform(b2_pos, b2_angle);
-                        rb.body
-                            .as_mut()
+                        rb.get_body_mut(physics).unwrap().set_position(Isometry2::new(b2_pos, b2_angle), true);
+                        rb.get_body_mut(physics)
                             .unwrap()
-                            .set_linear_velocity(b2_linear_velocity);
-                        rb.body
-                            .as_mut()
+                            .set_linvel(b2_linear_velocity, true);
+                        rb.get_body_mut(physics)
                             .unwrap()
-                            .set_angular_velocity(b2_angular_velocity);
+                            .set_angvel(b2_angular_velocity, true);
                     }
 
                     r

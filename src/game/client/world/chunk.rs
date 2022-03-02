@@ -1,6 +1,7 @@
 use std::convert::TryInto;
 
 use liquidfun::box2d::dynamics::body::Body;
+use rapier2d::prelude::RigidBodyHandle;
 use sdl2::{pixels::Color, rect::Rect};
 use sdl_gpu::{
     GPUImage, GPURect, GPUSubsystem, GPUTarget, GPUFormat, GPUFilter,
@@ -11,7 +12,7 @@ use crate::game::{
     common::{
         world::{
             gen::WorldGenerator, material::MaterialInstance, mesh, Chunk, ChunkHandler,
-            ChunkHandlerGeneric, ChunkState, CHUNK_SIZE,
+            ChunkHandlerGeneric, ChunkState, CHUNK_SIZE, RigidBodyState,
         },
         Settings,
     },
@@ -25,6 +26,7 @@ pub struct ClientChunk {
     pub graphics: Box<ChunkGraphics>,
     pub dirty_rect: Option<Rect>,
     pub b2_body: Option<Body>,
+    pub rigidbody: Option<RigidBodyState>,
     pub mesh: Option<Vec<Vec<Vec<Vec<f64>>>>>,
     pub mesh_simplified: Option<Vec<Vec<Vec<Vec<f64>>>>>,
     pub tris: Option<Vec<Vec<mesh::Tri>>>,
@@ -45,6 +47,7 @@ impl<'ch> Chunk for ClientChunk {
             }),
             dirty_rect: None,
             b2_body: None,
+            rigidbody: None,
             mesh: None,
             mesh_simplified: None,
             tris: None,
@@ -231,6 +234,18 @@ impl<'ch> Chunk for ClientChunk {
 
     fn set_b2_body(&mut self, body: Option<Body>) {
         self.b2_body = body;
+    }
+
+    fn get_rigidbody(&self) -> &Option<RigidBodyState> {
+        &self.rigidbody
+    }
+
+    fn get_rigidbody_mut(&mut self) -> &mut Option<RigidBodyState> {
+        &mut self.rigidbody
+    }
+
+    fn set_rigidbody(&mut self, body: Option<RigidBodyState>) {
+        self.rigidbody = body;
     }
 }
 

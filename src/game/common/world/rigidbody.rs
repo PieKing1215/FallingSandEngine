@@ -5,19 +5,21 @@ use liquidfun::box2d::{
         fixture::FixtureDef,
     },
 };
+use rapier2d::{prelude::{RigidBodyHandle, RigidBodyBuilder, ColliderBuilder, SharedShape, RigidBody}, na::{Isometry2, Vector2, Point2}};
+use salva2d::{object::Boundary, integrations::rapier::ColliderSampling};
 use sdl_gpu::{GPUImage, GPURect, GPUSubsystem};
 
-use super::{material::MaterialInstance, mesh, CollisionFlags, LIQUIDFUN_SCALE};
+use super::{material::MaterialInstance, mesh, CollisionFlags, LIQUIDFUN_SCALE, Physics};
 
-pub struct RigidBody {
+pub struct FSRigidBody {
     pub width: u16,
     pub height: u16,
     pub pixels: Vec<MaterialInstance>,
-    pub body: Option<Body>,
+    pub body: Option<RigidBodyHandle>,
     pub image: Option<GPUImage>,
 }
 
-impl RigidBody {
+impl FSRigidBody {
     pub fn from_pixels(
         pixels: Vec<MaterialInstance>,
         width: u16,
@@ -35,20 +37,23 @@ impl RigidBody {
         pixels: Vec<MaterialInstance>,
         width: u16,
         height: u16,
-        lqf_world: &mut liquidfun::box2d::dynamics::world::World,
+        physics: &mut Physics,
         position: (f32, f32),
     ) -> Result<Self, String> {
         if pixels.len() != width as usize * height as usize {
             return Err(format!("RigidBody::from_pixels incorrect Vec size: pixels.len() = {}, width = {}, height = {}", pixels.len(), width, height));
         }
 
-        let mut body_def = BodyDef {
-            body_type: BodyType::DynamicBody,
-            ..BodyDef::default()
-        };
-        body_def.position.set(position.0, position.1);
-        let bod = lqf_world.create_body(&body_def);
+        // let mut body_def = BodyDef {
+        //     body_type: BodyType::DynamicBody,
+        //     ..BodyDef::default()
+        // };
+        // body_def.position.set(position.0, position.1);
 
+        let rigid_body = RigidBodyBuilder::new_dynamic().translation(Vector2::new(position.0, position.1)).build();
+        let rb_handle = physics.bodies.insert(rigid_body);
+
+        let mut shapes = Vec::new();
         for tri in tris {
             let verts = vec![
                 (
@@ -65,23 +70,44 @@ impl RigidBody {
                 ),
             ];
 
-            let mut sh = PolygonShape::new();
-            sh.set(verts);
+            // let mut sh = PolygonShape::new();
+            // sh.set(verts);
 
-            let mut fixture_def = FixtureDef::new(&sh);
-            fixture_def.density = 1.0;
-            fixture_def.filter.category_bits = CollisionFlags::RIGIDBODY.bits();
-            fixture_def.filter.mask_bits = CollisionFlags::all().bits();
-            bod.create_fixture(&fixture_def);
+            // let mut fixture_def = FixtureDef::new(&sh);
+            // fixture_def.density = 1.0;
+            // fixture_def.filter.category_bits = CollisionFlags::RIGIDBODY.bits();
+            // fixture_def.filter.mask_bits = CollisionFlags::all().bits();
+            // bod.create_fixture(&fixture_def);
+
+            shapes.push((Isometry2::new(Vector2::new(0.0, 0.0), 0.0), SharedShape::triangle(Point2::new(verts[0].0, verts[0].1), Point2::new(verts[1].0, verts[1].1), Point2::new(verts[2].0, verts[2].1))));
         }
+
+        let collider = ColliderBuilder::compound(shapes).build();
+        let co_handle = physics.colliders.insert_with_parent(collider, rb_handle, &mut physics.bodies);
+        let bo_handle = physics.fluid_pipeline
+            .liquid_world
+            .add_boundary(Boundary::new(Vec::new()));
+        physics.fluid_pipeline.coupling.register_coupling(
+            bo_handle,
+            co_handle,
+            ColliderSampling::DynamicContactSampling,
+        );
 
         Ok(Self {
             width,
             height,
             pixels,
-            body: Some(bod),
+            body: Some(rb_handle),
             image: None,
         })
+    }
+
+    pub fn get_body<'a>(&self, physics: &'a Physics) -> Option<&'a RigidBody> {
+        self.body.and_then(|b| physics.bodies.get(b))
+    }
+
+    pub fn get_body_mut<'a>(&self, physics: &'a mut Physics) -> Option<&'a mut RigidBody> {
+        self.body.and_then(|b| physics.bodies.get_mut(b))
     }
 
     pub fn update_image(&mut self) {
@@ -111,9 +137,9 @@ impl RigidBody {
         pixels: &[MaterialInstance],
         width: u16,
         height: u16,
-        lqf_world: &mut liquidfun::box2d::dynamics::world::World,
+        physics: &mut Physics,
         position: (f32, f32),
-    ) -> Result<Vec<RigidBody>, String> {
+    ) -> Result<Vec<FSRigidBody>, String> {
         let values = mesh::pixels_to_valuemap(pixels);
         let mesh =
             mesh::generate_mesh_only_simplified(&values, u32::from(width), u32::from(height))?;
@@ -169,9 +195,9 @@ impl RigidBody {
 
             if n_pix > 0 && !a_loop.is_empty() {
                 let rb =
-                    RigidBody::from_tris(a_loop, my_pixels, width, height, lqf_world, position)?;
+                    FSRigidBody::from_tris(a_loop, my_pixels, width, height, physics, position)?;
                 // debug!("mass = {}", rb.body.as_ref().unwrap().get_mass());
-                if rb.body.as_ref().unwrap().get_mass() > 0.0 {
+                if physics.bodies.get(rb.body.unwrap()).unwrap().mass() > 0.0 {
                     rbs.push(rb);
                 }
             }
@@ -182,12 +208,12 @@ impl RigidBody {
 
     pub fn make_body(
         &mut self,
-        lqf_world: &mut liquidfun::box2d::dynamics::world::World,
+        physics: &mut Physics,
         position: (f32, f32),
     ) -> Result<(), String> {
         if self.body.is_some() {
             let b = self.body.take().unwrap();
-            lqf_world.destroy_body(&b);
+            physics.bodies.remove(b, &mut physics.islands, &mut physics.colliders, &mut physics.joints);
         }
 
         let values = mesh::pixels_to_valuemap(&self.pixels);
@@ -199,13 +225,17 @@ impl RigidBody {
 
         let loops = mesh::triangulate(&mesh);
 
-        let mut body_def = BodyDef {
-            body_type: BodyType::DynamicBody,
-            ..BodyDef::default()
-        };
-        body_def.position.set(position.0, position.1);
-        let bod = lqf_world.create_body(&body_def);
+        // let mut body_def = BodyDef {
+        //     body_type: BodyType::DynamicBody,
+        //     ..BodyDef::default()
+        // };
+        // body_def.position.set(position.0, position.1);
+        // let bod = lqf_world.create_body(&body_def);
 
+        let rigid_body = RigidBodyBuilder::new_dynamic().translation(Vector2::new(position.0, position.1)).build();
+        let rb_handle = physics.bodies.insert(rigid_body);
+
+        let mut shapes = Vec::new();
         for a_loop in loops {
             for tri in a_loop {
                 let verts = vec![
@@ -223,18 +253,31 @@ impl RigidBody {
                     ),
                 ];
 
-                let mut sh = PolygonShape::new();
-                sh.set(verts);
+                // let mut sh = PolygonShape::new();
+                // sh.set(verts);
 
-                let mut fixture_def = FixtureDef::new(&sh);
-                fixture_def.density = 1.0;
-                fixture_def.filter.category_bits = CollisionFlags::RIGIDBODY.bits();
-                fixture_def.filter.mask_bits = CollisionFlags::all().bits();
-                bod.create_fixture(&fixture_def);
+                // let mut fixture_def = FixtureDef::new(&sh);
+                // fixture_def.density = 1.0;
+                // fixture_def.filter.category_bits = CollisionFlags::RIGIDBODY.bits();
+                // fixture_def.filter.mask_bits = CollisionFlags::all().bits();
+                // bod.create_fixture(&fixture_def);
+
+                shapes.push((Isometry2::new(Vector2::new(0.0, 0.0), 0.0), SharedShape::triangle(Point2::new(verts[0].0, verts[0].1), Point2::new(verts[1].0, verts[1].1), Point2::new(verts[2].0, verts[2].1))));
             }
         }
 
-        self.body = Some(bod);
+        let collider = ColliderBuilder::compound(shapes).build();
+        let co_handle = physics.colliders.insert_with_parent(collider, rb_handle, &mut physics.bodies);
+        let bo_handle = physics.fluid_pipeline
+            .liquid_world
+            .add_boundary(Boundary::new(Vec::new()));
+        physics.fluid_pipeline.coupling.register_coupling(
+            bo_handle,
+            co_handle,
+            ColliderSampling::DynamicContactSampling,
+        );
+
+        self.body = Some(rb_handle);
 
         Ok(())
     }

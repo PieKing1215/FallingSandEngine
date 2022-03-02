@@ -10,6 +10,7 @@ use std::{collections::HashMap, sync::Arc};
 use futures::future::join_all;
 use lazy_static::lazy_static;
 use liquidfun::box2d::dynamics::body::Body;
+use rapier2d::prelude::{RigidBodyHandle, RigidBody, Collider};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use serde::{Deserialize, Serialize};
@@ -23,6 +24,11 @@ use super::particle::Particle;
 use crate::game::common::world::material::MaterialInstance;
 
 pub const CHUNK_SIZE: u16 = 128;
+
+pub enum RigidBodyState {
+    Active(RigidBodyHandle),
+    Inactive(RigidBody, Vec<Collider>),
+}
 
 pub trait Chunk {
     fn new_empty(chunk_x: i32, chunk_y: i32) -> Self
@@ -53,6 +59,9 @@ pub trait Chunk {
     fn get_b2_body(&self) -> &Option<Body>;
     fn get_b2_body_mut(&mut self) -> &mut Option<Body>;
     fn set_b2_body(&mut self, body: Option<Body>);
+    fn get_rigidbody(&self) -> &Option<RigidBodyState>;
+    fn get_rigidbody_mut(&mut self) -> &mut Option<RigidBodyState>;
+    fn set_rigidbody(&mut self, body: Option<RigidBodyState>);
 
     fn mark_dirty(&mut self);
 

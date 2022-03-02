@@ -1,7 +1,8 @@
 use liquidfun::box2d::dynamics::body::Body;
+use rapier2d::prelude::RigidBodyHandle;
 use sdl2::{pixels::Color, rect::Rect};
 
-use crate::game::common::world::{material::MaterialInstance, mesh, Chunk, ChunkState, CHUNK_SIZE};
+use crate::game::common::world::{material::MaterialInstance, mesh, Chunk, ChunkState, CHUNK_SIZE, RigidBodyState};
 
 pub struct ServerChunk {
     pub chunk_x: i32,
@@ -12,6 +13,7 @@ pub struct ServerChunk {
     pub pixel_data: [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4],
     pub dirty: bool,
     pub b2_body: Option<Body>,
+    pub rigidbody: Option<RigidBodyState>,
     pub mesh_simplified: Option<Vec<Vec<Vec<Vec<f64>>>>>,
 }
 
@@ -26,6 +28,7 @@ impl<'ch> Chunk for ServerChunk {
             pixel_data: [0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)],
             dirty: true,
             b2_body: None,
+            rigidbody: None,
             mesh_simplified: None,
         }
     }
@@ -195,5 +198,17 @@ impl<'ch> Chunk for ServerChunk {
 
     fn set_b2_body(&mut self, body: Option<Body>) {
         self.b2_body = body;
+    }
+
+    fn get_rigidbody(&self) -> &Option<RigidBodyState> {
+        &self.rigidbody
+    }
+
+    fn get_rigidbody_mut(&mut self) -> &mut Option<RigidBodyState> {
+        &mut self.rigidbody
+    }
+
+    fn set_rigidbody(&mut self, body: Option<RigidBodyState>) {
+        self.rigidbody = body;
     }
 }

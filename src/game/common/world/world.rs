@@ -1,6 +1,6 @@
 use std::{borrow::BorrowMut, convert::Infallible, path::PathBuf, time::Duration};
 
-use crate::game::common::Settings;
+use crate::game::common::{Settings, world::RigidBodyState};
 
 use liquidfun::box2d::{
     collision::shapes::chain_shape::ChainShape,
@@ -10,6 +10,8 @@ use liquidfun::box2d::{
         fixture::FixtureDef,
     },
 };
+use rapier2d::{na::{Vector2, Point3, Point2, Isometry2, vector}, prelude::{RigidBodySet, ColliderSet, JointSet, RigidBodyBuilder, ColliderBuilder, SharedShape, IntegrationParameters, PhysicsPipeline, IslandManager, BroadPhase, NarrowPhase, CCDSolver, PhysicsHooks, EventHandler}};
+use salva2d::{integrations::rapier::{FluidsPipeline, ColliderSampling}, solver::{Becker2009Elasticity, XSPHViscosity}, object::{Fluid, Boundary}};
 use sdl2::pixels::Color;
 use specs::{
     saveload::{MarkedBuilder, SimpleMarker, SimpleMarkerAllocator},
@@ -24,7 +26,7 @@ use super::{
     gen::{TestGenerator, TEST_GENERATOR},
     material::{MaterialInstance, PhysicsType, AIR, TEST_MATERIAL},
     particle::{Particle, UpdateParticles, ParticleSystem},
-    rigidbody::RigidBody,
+    rigidbody::FSRigidBody,
     simulator, ApplyB2Bodies, AutoTarget, B2BodyComponent, Camera, Chunk, ChunkHandler,
     ChunkHandlerGeneric, CollisionFlags, DeltaTime, FilePersistent, Loader, Position, TickTime,
     UpdateAutoTargets, UpdateB2Bodies, Velocity, CHUNK_SIZE,
@@ -44,14 +46,135 @@ pub struct World<C: Chunk> {
     pub chunk_handler: ChunkHandler<TestGenerator, C>,
     pub lqf_world: liquidfun::box2d::dynamics::world::World,
     pub net_mode: WorldNetworkMode,
-    pub rigidbodies: Vec<RigidBody>,
+    pub rigidbodies: Vec<FSRigidBody>,
+    pub physics: Physics,
 }
+
+pub struct Physics {
+    pub fluid_pipeline: FluidsPipeline,
+    pub bodies: RigidBodySet,
+    pub colliders: ColliderSet,
+    pub gravity: Vector2<f32>,
+    pub integration_parameters: IntegrationParameters,
+    pub physics_pipeline: PhysicsPipeline,
+    pub islands: IslandManager,
+    pub broad_phase: BroadPhase,
+    pub narrow_phase: NarrowPhase,
+    pub ccd_solver: CCDSolver,
+    pub joints: JointSet,
+    pub hooks: Box<dyn PhysicsHooks<RigidBodySet, ColliderSet>>,
+    pub event_handler: Box<dyn EventHandler>,
+}
+
+impl Physics {
+    pub fn step(&mut self, time_step: f32) {
+        self.fluid_pipeline.step(
+            &self.gravity,
+            time_step,
+            &self.colliders,
+            &mut self.bodies,
+        );
+
+        self.physics_pipeline.step(
+            &self.gravity,
+            &self.integration_parameters,
+            &mut self.islands,
+            &mut self.broad_phase,
+            &mut self.narrow_phase,
+            &mut self.bodies,
+            &mut self.colliders,
+            &mut self.joints,
+            &mut self.ccd_solver,
+            &*self.hooks,
+            &*self.event_handler,
+        );
+
+    }
+}
+
+const PARTICLE_RADIUS: f32 = 0.19;
+const SMOOTHING_FACTOR: f32 = 2.0;
 
 impl<'w, C: Chunk> World<C> {
     #[profiling::function]
     pub fn create(path: Option<PathBuf>) -> Self {
         let gravity = liquidfun::box2d::common::math::Vec2::new(0.0, 3.0);
         let lqf_world = liquidfun::box2d::dynamics::world::World::new(&gravity);
+
+        let mut bodies = RigidBodySet::new();
+        let mut colliders = ColliderSet::new();
+        let joints = JointSet::new();
+        let mut fluid_pipeline = FluidsPipeline::new(PARTICLE_RADIUS, SMOOTHING_FACTOR);
+
+        // let mut points1: Vec<Point2<f32>> = Vec::new();
+        // let mut points2 = Vec::new();
+        // let ni = 25;
+        // let nj = 15;
+        // for i in 0..ni / 2 {
+        //     for j in 0..nj {
+        //         let x = (i as f32) * PARTICLE_RADIUS * 2.0 - ni as f32 * PARTICLE_RADIUS;
+        //         let y = (j as f32 + 1.0) * PARTICLE_RADIUS * 2.0 - 10.0;
+        //         points1.push(Point2::new(x, y));
+        //         points2.push(Point2::new(x + ni as f32 * PARTICLE_RADIUS, y));
+        //     }
+        // }
+
+        // for i in 0..100 {
+        //     for j in -10..nj {
+        //         let x = (i as f32) * PARTICLE_RADIUS * 4.0 - 25.0 - ni as f32 * PARTICLE_RADIUS;
+        //         let y = (j as f32 + 1.0) * PARTICLE_RADIUS * 2.0 - 20.0;
+        //         points2.push(Point2::new(x + ni as f32 * PARTICLE_RADIUS, y));
+        //     }
+        // }
+
+        // let elasticity: Becker2009Elasticity = Becker2009Elasticity::new(1_000.0, 0.3, true);
+        // let viscosity = XSPHViscosity::new(0.5, 1.0);
+        // let mut fluid = Fluid::new(points1, PARTICLE_RADIUS, 1.0);
+        // fluid.nonpressure_forces.push(Box::new(elasticity));
+        // fluid.nonpressure_forces.push(Box::new(viscosity.clone()));
+        // let fluid_handle = fluid_pipeline.liquid_world.add_fluid(fluid);
+
+        // // let viscosity = XSPHViscosity::new(0.5, 1.0);
+        // let mut fluid = Fluid::new(points2, PARTICLE_RADIUS, 1.0);
+        // // fluid.nonpressure_forces.push(Box::new(viscosity.clone()));
+        // let fluid_handle = fluid_pipeline.liquid_world.add_fluid(fluid);
+
+        let rigid_body = RigidBodyBuilder::new_static().position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0)).build();
+        let handle = bodies.insert(rigid_body);
+        let collider = ColliderBuilder::cuboid(10.0, 1.0).build();
+        let co_handle = colliders.insert_with_parent(collider, handle, &mut bodies);
+        let bo_handle = fluid_pipeline
+            .liquid_world
+            .add_boundary(Boundary::new(Vec::new()));
+        fluid_pipeline.coupling.register_coupling(
+            bo_handle,
+            co_handle,
+            ColliderSampling::DynamicContactSampling,
+        );
+
+        let integration_parameters = IntegrationParameters::default();
+        let mut physics_pipeline = PhysicsPipeline::new();
+        let mut islands = IslandManager::new();
+        let mut broad_phase = BroadPhase::new();
+        let mut narrow_phase = NarrowPhase::new();
+        let mut ccd_solver = CCDSolver::new();
+        let mut joints = JointSet::new();
+
+        let phys = Physics {
+            fluid_pipeline,
+            bodies,
+            colliders,
+            gravity: Vector2::y() * 3.0,
+            integration_parameters,
+            physics_pipeline,
+            islands,
+            broad_phase,
+            narrow_phase,
+            ccd_solver,
+            joints,
+            hooks: Box::new(()),
+            event_handler: Box::new(()),
+        };
 
         // let mut ground_body_def = BodyDef::default();
         // ground_body_def.position.set(0.0, -26.0);
@@ -222,6 +345,7 @@ impl<'w, C: Chunk> World<C> {
             lqf_world,
             net_mode: WorldNetworkMode::Local,
             rigidbodies: Vec::new(),
+            physics: phys,
         };
 
         // add a rigidbody
@@ -246,7 +370,7 @@ impl<'w, C: Chunk> World<C> {
             })
             .collect();
 
-        if let Ok(mut r) = RigidBody::make_bodies(&pixels, 40, 40, &mut w.lqf_world, (-1.0, -7.0)) {
+        if let Ok(mut r) = FSRigidBody::make_bodies(&pixels, 40, 40, &mut w.physics, (-1.0, -7.0)) {
             w.rigidbodies.append(&mut r);
         }
 
@@ -279,7 +403,7 @@ impl<'w, C: Chunk> World<C> {
             })
             .collect();
 
-        if let Ok(mut r) = RigidBody::make_bodies(&pixels, 40, 40, &mut w.lqf_world, (2.0, -6.5)) {
+        if let Ok(mut r) = FSRigidBody::make_bodies(&pixels, 40, 40, &mut w.physics, (2.0, -6.5)) {
             w.rigidbodies.append(&mut r);
         }
 
@@ -307,11 +431,11 @@ impl<'w, C: Chunk> World<C> {
                 })
                 .collect();
 
-            if let Ok(mut r) = RigidBody::make_bodies(
+            if let Ok(mut r) = FSRigidBody::make_bodies(
                 &pixels,
                 30,
                 30,
-                &mut w.lqf_world,
+                &mut w.physics,
                 (5.0 + n as f32 * 2.0, -7.0 + n as f32 * -0.75),
             ) {
                 w.rigidbodies.append(&mut r);
@@ -367,11 +491,11 @@ impl<'w, C: Chunk> World<C> {
                 let rb_w = rb.width;
                 let rb_h = rb.height;
 
-                if let Some(body) = &mut rb.body {
-                    let s = body.get_angle().sin();
-                    let c = body.get_angle().cos();
-                    let pos_x = body.get_position().x * LIQUIDFUN_SCALE;
-                    let pos_y = body.get_position().y * LIQUIDFUN_SCALE;
+                if let Some(body) = rb.get_body_mut(&mut self.physics) {
+                    let s = body.rotation().angle().sin();
+                    let c = body.rotation().angle().cos();
+                    let pos_x = body.translation().x * LIQUIDFUN_SCALE;
+                    let pos_y = body.translation().y * LIQUIDFUN_SCALE;
 
                     for rb_y in 0..rb_w {
                         for rb_x in 0..rb_h {
@@ -391,21 +515,21 @@ impl<'w, C: Chunk> World<C> {
                                     } else if mat.physics == PhysicsType::Sand {
                                         // let local_point = Vec2::new(f32::from(rb_x) / f32::from(rb_w), f32::from(rb_y) / f32::from(rb_h));
                                         let world_point =
-                                            Vec2::new(tx / LIQUIDFUN_SCALE, ty / LIQUIDFUN_SCALE);
+                                            Point2::new(tx / LIQUIDFUN_SCALE, ty / LIQUIDFUN_SCALE);
 
-                                        let point_velocity: Vec2 = body
-                                            .get_linear_velocity_from_world_point(&Vec2::new(
+                                        let point_velocity = body
+                                            .velocity_at_point(&Point2::new(
                                                 tx / LIQUIDFUN_SCALE,
                                                 ty / LIQUIDFUN_SCALE,
                                             ));
                                         // TODO: extract constant into material property (like weight or something)
                                         // TODO: consider making it so the body actually comes to a stop
-                                        body.apply_force(
-                                            &Vec2::new(
+                                        body.apply_force_at_point(
+                                            Vector2::new(
                                                 -point_velocity.x * 0.1,
                                                 -point_velocity.y * 0.1,
                                             ),
-                                            &world_point,
+                                            world_point,
                                             true,
                                         );
 
@@ -446,26 +570,26 @@ impl<'w, C: Chunk> World<C> {
                                                         );
                                                         self.ecs.write_resource::<ParticleSystem>().active.push(part);
 
-                                                        body.apply_force(
-                                                            &Vec2::new(
+                                                        body.apply_force_at_point(
+                                                            Vector2::new(
                                                                 -point_velocity.x * 0.5,
                                                                 -point_velocity.y * 0.5,
                                                             ),
-                                                            &world_point,
+                                                            world_point,
                                                             true,
                                                         );
 
                                                         let linear_velocity =
-                                                            *body.get_linear_velocity();
-                                                        body.set_linear_velocity(&Vec2::new(
+                                                            *body.linvel();
+                                                        body.set_linvel(Vector2::new(
                                                             linear_velocity.x * 0.999,
                                                             linear_velocity.y * 0.999,
-                                                        ));
+                                                        ), true);
 
                                                         let angular_velocity =
-                                                            body.get_angular_velocity();
-                                                        body.set_angular_velocity(
-                                                            angular_velocity * 0.999,
+                                                            body.angvel();
+                                                        body.set_angvel(
+                                                            angular_velocity * 0.999, true
                                                         );
                                                     }
                                                     _ => {
@@ -480,32 +604,32 @@ impl<'w, C: Chunk> World<C> {
                                                             );
                                                             self.ecs.write_resource::<ParticleSystem>().active.push(part);
 
-                                                            body.apply_force(
-                                                                &Vec2::new(
+                                                            body.apply_force_at_point(
+                                                                Vector2::new(
                                                                     -point_velocity.x * 0.75,
                                                                     -point_velocity.y * 0.75,
                                                                 ),
-                                                                &world_point,
+                                                                world_point,
                                                                 true,
                                                             );
 
                                                             let linear_velocity =
-                                                                *body.get_linear_velocity();
-                                                            body.set_linear_velocity(&Vec2::new(
+                                                                *body.linvel();
+                                                            body.set_linvel(Vector2::new(
                                                                 linear_velocity.x * 0.9,
                                                                 linear_velocity.y * 0.9,
-                                                            ));
+                                                            ), true);
                                                         }
                                                     }
                                                 }
                                             }
                                         } else {
-                                            body.apply_force(
-                                                &Vec2::new(
+                                            body.apply_force_at_point(
+                                                Vector2::new(
                                                     -point_velocity.x * 0.1,
                                                     -point_velocity.y * 0.1,
                                                 ),
-                                                &world_point,
+                                                world_point,
                                                 true,
                                             );
                                         }
@@ -676,13 +800,13 @@ impl<'w, C: Chunk> World<C> {
             for rb in &self.rigidbodies {
                 let rb_w = rb.width;
                 let rb_h = rb.height;
-                let body_opt = rb.body.as_ref();
+                let body_opt = rb.get_body(&self.physics);
 
                 if body_opt.is_some() {
-                    let s = body_opt.unwrap().get_angle().sin();
-                    let c = body_opt.unwrap().get_angle().cos();
-                    let pos_x = body_opt.unwrap().get_position().x * LIQUIDFUN_SCALE;
-                    let pos_y = body_opt.unwrap().get_position().y * LIQUIDFUN_SCALE;
+                    let s = body_opt.unwrap().rotation().angle().sin();
+                    let c = body_opt.unwrap().rotation().angle().cos();
+                    let pos_x = body_opt.unwrap().translation().x * LIQUIDFUN_SCALE;
+                    let pos_y = body_opt.unwrap().translation().y * LIQUIDFUN_SCALE;
 
                     for rb_y in 0..rb_w {
                         for rb_x in 0..rb_h {
@@ -711,7 +835,7 @@ impl<'w, C: Chunk> World<C> {
             simulator::Simulator::simulate_rigidbodies(
                 &mut self.chunk_handler,
                 &mut self.rigidbodies,
-                &mut self.lqf_world,
+                &mut self.physics,
                 &mut new_parts,
             );
             self.ecs.write_resource::<ParticleSystem>().active.append(&mut new_parts);
@@ -753,6 +877,12 @@ impl<'w, C: Chunk> World<C> {
                         let mut body = self.lqf_world.create_body(&body_def);
                         body.set_active(false);
 
+                        let mut rigid_body = RigidBodyBuilder::new_static().translation(Vector2::new(
+                            (c.get_chunk_x() * i32::from(CHUNK_SIZE)) as f32 / LIQUIDFUN_SCALE,
+                            (c.get_chunk_y() * i32::from(CHUNK_SIZE)) as f32 / LIQUIDFUN_SCALE
+                        )).build();
+                        let mut colliders = Vec::new();
+
                         for a_loop in loops.iter() {
                             for pts in a_loop.iter() {
                                 let mut verts: Vec<Vec2> = Vec::new();
@@ -773,10 +903,14 @@ impl<'w, C: Chunk> World<C> {
                                 fixture_def.filter.category_bits = CollisionFlags::WORLD.bits();
                                 fixture_def.filter.mask_bits = CollisionFlags::RIGIDBODY.bits();
                                 body.create_fixture(&fixture_def);
+
+                                let collider = ColliderBuilder::polyline(verts.iter().map(|v| Point2::new(v.x, v.y)).collect(), None).build();
+                                colliders.push(collider);
                             }
                         }
 
                         c.set_b2_body(Some(body));
+                        c.set_rigidbody(Some(RigidBodyState::Inactive(rigid_body, colliders)));
                     }
                 } else {
                     // TODO: profile this and if it's too slow, could stagger it based on tick_time
@@ -831,6 +965,39 @@ impl<'w, C: Chunk> World<C> {
 
                     if let Some(b) = c.get_b2_body_mut() {
                         b.set_active(should_be_active);
+                    }
+
+                    if let Some(state) = c.get_rigidbody_mut() {
+                        match state {
+                            RigidBodyState::Active(h) if !should_be_active => {
+                                let cls = self.physics.bodies.get(*h).unwrap().colliders().iter().map(|h| *h).collect::<Vec<_>>();
+                                let colls = cls.iter().map(|ch| self.physics.colliders.remove(*ch, &mut self.physics.islands, &mut self.physics.bodies, false).unwrap()).collect::<Vec<_>>();
+                                let rb = self.physics.bodies.remove(*h, &mut self.physics.islands, &mut self.physics.colliders, &mut self.physics.joints).unwrap();
+                                *state = RigidBodyState::Inactive(rb, colls);
+                            },
+                            _ => {},
+                        }
+
+                        if should_be_active && matches!(state, RigidBodyState::Inactive(_, _)) {
+                            match c.get_rigidbody_mut().take().unwrap() {
+                                RigidBodyState::Inactive(rb, colls) if should_be_active => {
+                                    let rb_handle = self.physics.bodies.insert(rb);
+                                    for collider in colls {
+                                        let bo_handle = self.physics.fluid_pipeline
+                                            .liquid_world
+                                            .add_boundary(Boundary::new(Vec::new()));
+                                        let co_handle = self.physics.colliders.insert_with_parent(collider, rb_handle, &mut self.physics.bodies);
+                                        self.physics.fluid_pipeline.coupling.register_coupling(
+                                            bo_handle,
+                                            co_handle,
+                                            ColliderSampling::DynamicContactSampling,
+                                        );
+                                    }
+                                    c.set_rigidbody(Some(RigidBodyState::Active(rb_handle)));
+                                },
+                                _ => {},
+                            }
+                        }
                     }
                 }
             }
@@ -891,6 +1058,10 @@ impl<'w, C: Chunk> World<C> {
         //     },
         //     WorldNetworkMode::Remote => {},
         // }
+
+        self.physics.step(time_step / 3.0);
+        self.physics.step(time_step / 3.0);
+        self.physics.step(time_step / 3.0);
 
         let mut apply_bodies = ApplyB2Bodies;
         apply_bodies.run_now(&self.ecs);
