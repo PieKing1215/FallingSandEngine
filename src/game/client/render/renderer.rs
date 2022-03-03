@@ -238,7 +238,7 @@ impl<'a> Renderer<'a> {
                         .scale_min(0.0)
                         .scale_max(50_000_000.0)
                         .overlay_text(
-                            format!("mspf: {:.2} fps: {:.0}", avg_mspf, ui.io().framerate),
+                            format!("mspf: {:.2} fps: {:.0}/{:.0}", avg_mspf, ui.io().framerate, 1_000_000_000.0 / game.fps_counter.frame_times.iter().copied().reduce(f32::max).unwrap()),
                         )
                         .build();
 
