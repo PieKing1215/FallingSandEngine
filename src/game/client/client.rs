@@ -1,5 +1,6 @@
 use crate::game::common::world::material::PhysicsType;
 use crate::game::common::world::ChunkHandlerGeneric;
+use rapier2d::{prelude::RigidBodyHandle, na::Vector2};
 use sdl2::{event::Event, keyboard::Keycode};
 use specs::{Entities, WorldExt, WriteStorage};
 
@@ -22,7 +23,7 @@ pub struct Client {
     pub world: Option<ClientWorld>,
     pub controls: Controls,
     pub camera_scale: f64,
-    pub mouse_joint: Option<liquidfun::box2d::dynamics::joints::mouse_joint::MouseJoint>,
+    pub mouse_joint: Option<(RigidBodyHandle, Vector2<f32>)>,
     pub main_menu: MainMenu,
 }
 

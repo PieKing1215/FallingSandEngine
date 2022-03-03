@@ -14,6 +14,7 @@ use liquidfun::box2d::{
     },
 };
 use log::{debug, error, info, warn};
+use rapier2d::{prelude::{RigidBodyBuilder, FixedJoint, QueryPipeline, InteractionGroups, RigidBodyType, BallJoint}, na::{Vector2, Isometry2, Point2}};
 use sdl2::{
     event::{Event, WindowEvent},
     keyboard::Keycode,
@@ -182,19 +183,43 @@ impl Game<ClientChunk> {
                                             // let (chunk_x, chunk_y) = w.chunk_handler.pixel_to_chunk_pos(world_x as i64, world_y as i64);
                                             // w.chunk_handler.force_update_chunk(chunk_x, chunk_y);
 
-                                            if let Some(mj) =
-                                                w.lqf_world.mouse_joint_begin(Vec2::new(
-                                                    world_x as f32 / LIQUIDFUN_SCALE,
-                                                    world_y as f32 / LIQUIDFUN_SCALE,
-                                                ))
-                                            {
-                                                let mj: liquidfun::box2d::dynamics::joints::mouse_joint::MouseJoint = mj;
-                                                c.mouse_joint = Some(mj);
-                                                debug!("made mouse joint");
-                                            } else {
-                                                c.mouse_joint = None;
-                                                debug!("failed to make mouse joint");
-                                            }
+                                            let point = Point2::new(
+                                                world_x as f32 / LIQUIDFUN_SCALE,
+                                                world_y as f32 / LIQUIDFUN_SCALE,
+                                            );
+
+                                            let groups = InteractionGroups::all();
+                                            let filter = None;
+                                            let mut query_pipeline = QueryPipeline::new();
+                                            query_pipeline.update(&w.physics.islands, &w.physics.bodies, &w.physics.colliders);
+                                            query_pipeline.intersections_with_point(
+                                                &w.physics.colliders, &point, groups, filter, |handle| {
+                                                    let col = w.physics.colliders.get(handle).unwrap();
+                                                    if let Some(rb_handle) = col.parent() {
+                                                        let rb = w.physics.bodies.get(rb_handle).unwrap();
+                                                        if rb.body_type() == RigidBodyType::Dynamic {
+                                                            let point = Vector2::new(
+                                                                world_x as f32 / LIQUIDFUN_SCALE,
+                                                                world_y as f32 / LIQUIDFUN_SCALE,
+                                                            );
+                                                            let new_rb = RigidBodyBuilder::new_kinematic_position_based()
+                                                                .translation(point).build();
+
+                                                            let local_point = rb.position().inverse_transform_point(&Point2::new(point.x, point.y));
+                                                            println!("{point:?} {local_point:?}");
+
+                                                            let mouse_h = w.physics.bodies.insert(new_rb);
+
+                                                            let joint = BallJoint::new(Point2::new(0.0, 0.0), local_point);
+                                                            let joint_handle = w.physics.joints.insert(mouse_h, rb_handle, joint);
+
+                                                            c.mouse_joint.insert((mouse_h, Vector2::new(0.0, 0.0)));
+                                                        }
+                                                    }
+
+                                                    false
+                                                }
+                                            );
                                         }
                                     }
                                 }
@@ -205,10 +230,12 @@ impl Game<ClientChunk> {
                         } => {
                             if let Some(w) = &mut self.world {
                                 if let Some(ref mut c) = &mut self.client {
-                                    if let Some(mj) = &c.mouse_joint {
-                                        w.lqf_world.destroy_mouse_joint(mj);
+                                    if let Some((rb_h, linvel)) = c.mouse_joint.take() {
+                                        for j in w.physics.joints.joints_with(rb_h) {
+                                            w.physics.bodies.get_mut(j.1).unwrap().set_linvel(linvel, true);
+                                        }
+                                        w.physics.bodies.remove(rb_h, &mut w.physics.islands, &mut w.physics.colliders, &mut w.physics.joints);
                                     }
-                                    c.mouse_joint = None;
                                 }
                             }
                         }
@@ -300,11 +327,15 @@ impl Game<ClientChunk> {
                                                     + (f64::from(y)
                                                         - f64::from(r.window.size().1) / 2.0)
                                                         / c.camera_scale;
-                                                if let Some(mj) = &mut c.mouse_joint {
-                                                    mj.set_target(Vec2::new(
+
+                                                if let Some((rb_h, vel)) = &mut c.mouse_joint {
+                                                    let rb = w.physics.bodies.get_mut(*rb_h).unwrap();
+                                                    let prev_pos = *rb.translation();
+                                                    rb.set_next_kinematic_translation(Vector2::new(
                                                         world_x as f32 / LIQUIDFUN_SCALE,
                                                         world_y as f32 / LIQUIDFUN_SCALE,
                                                     ));
+                                                    *vel = Vector2::new(world_x as f32 / LIQUIDFUN_SCALE - prev_pos.x, world_y as f32 / LIQUIDFUN_SCALE - prev_pos.y);
                                                 }
                                             }
                                         }

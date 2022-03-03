@@ -10,7 +10,7 @@ use liquidfun::box2d::{
         fixture::FixtureDef,
     },
 };
-use rapier2d::{na::{Vector2, Point3, Point2, Isometry2, vector}, prelude::{RigidBodySet, ColliderSet, JointSet, RigidBodyBuilder, ColliderBuilder, SharedShape, IntegrationParameters, PhysicsPipeline, IslandManager, BroadPhase, NarrowPhase, CCDSolver, PhysicsHooks, EventHandler}};
+use rapier2d::{na::{Vector2, Point3, Point2, Isometry2, vector}, prelude::{RigidBodySet, ColliderSet, JointSet, RigidBodyBuilder, ColliderBuilder, SharedShape, IntegrationParameters, PhysicsPipeline, IslandManager, BroadPhase, NarrowPhase, CCDSolver, PhysicsHooks, EventHandler, RigidBodyHandle}};
 use salva2d::{integrations::rapier::{FluidsPipeline, ColliderSampling}, solver::{Becker2009Elasticity, XSPHViscosity}, object::{Fluid, Boundary}};
 use sdl2::pixels::Color;
 use specs::{
