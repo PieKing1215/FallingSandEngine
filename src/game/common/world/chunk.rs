@@ -1572,6 +1572,7 @@ mod tests {
         ecs.insert(SimpleMarkerAllocator::<FilePersistent>::default());
         ecs.register::<Position>();
         ecs.register::<Velocity>();
+        ecs.register::<Loader>();
 
         let loader = ecs
             .create_entity()
@@ -1579,9 +1580,11 @@ mod tests {
             .with(Loader)
             .build();
 
-        ch.tick(0, &Settings::default(), &mut ecs);
+        let mut phys = Physics::new();
+
+        ch.tick(0, &Settings::default(), &mut ecs, &mut phys);
         while !ch.load_queue.is_empty() {
-            ch.tick(0, &Settings::default(), &mut ecs);
+            ch.tick(0, &Settings::default(), &mut ecs, &mut phys);
         }
 
         assert!(ch.is_chunk_loaded(11, -12));
@@ -1613,7 +1616,7 @@ mod tests {
 
         // should unload since no loaders are nearby
         assert_eq!(ecs.delete_entity(loader), Ok(()));
-        ch.tick(0, &Settings::default(), &mut ecs);
+        ch.tick(0, &Settings::default(), &mut ecs, &mut phys);
 
         assert!(!ch.is_chunk_loaded(11, -12));
         assert!(!ch.is_chunk_loaded(-3, 2));
