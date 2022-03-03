@@ -26,7 +26,6 @@ imgui-sdl2-support = { git = "https://github.com/PieKing1215/imgui-rs.git", bran
 imgui-glow-renderer = { git = "https://github.com/PieKing1215/imgui-rs.git", branch = "custom-edit" }
 glow = "0.10" # imgui-glow-renderer uses old version
 sysinfo = "0.22" # TODO: should be optional in the future
-liquidfun = { git = "https://github.com/PieKing1215/custom-liquidfun-rust" }
 sdl_gpu = { git = "https://github.com/PieKing1215/sdl-gpu-rust" }
 serde = { version = "1.0", features = ["derive"] }
 serde-big-array = "0.3"

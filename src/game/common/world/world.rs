@@ -1,21 +1,13 @@
-use std::{borrow::BorrowMut, convert::Infallible, path::PathBuf, time::Duration};
+use std::{borrow::BorrowMut, path::PathBuf, time::Duration};
 
 use crate::game::common::{Settings, world::RigidBodyState};
 
-use liquidfun::box2d::{
-    collision::shapes::chain_shape::ChainShape,
-    common::{b2draw, math::Vec2},
-    dynamics::{
-        body::{BodyDef, BodyType},
-        fixture::FixtureDef,
-    },
-};
-use rapier2d::{na::{Vector2, Point3, Point2, Isometry2, vector}, prelude::{RigidBodySet, ColliderSet, JointSet, RigidBodyBuilder, ColliderBuilder, SharedShape, IntegrationParameters, PhysicsPipeline, IslandManager, BroadPhase, NarrowPhase, CCDSolver, PhysicsHooks, EventHandler, RigidBodyHandle}};
-use salva2d::{integrations::rapier::{FluidsPipeline, ColliderSampling}, solver::{Becker2009Elasticity, XSPHViscosity}, object::{Fluid, Boundary}};
+use rapier2d::{na::{Vector2, Point2, Isometry2}, prelude::{RigidBodySet, ColliderSet, JointSet, RigidBodyBuilder, ColliderBuilder, IntegrationParameters, PhysicsPipeline, IslandManager, BroadPhase, NarrowPhase, CCDSolver, PhysicsHooks, EventHandler, InteractionGroups, RigidBodyType, RigidBodyHandle, RigidBody}};
+use salva2d::{integrations::rapier::{FluidsPipeline, ColliderSampling}, object::Boundary};
 use sdl2::pixels::Color;
 use specs::{
-    saveload::{MarkedBuilder, SimpleMarker, SimpleMarkerAllocator},
-    Builder, Entities, Join, ReadStorage, RunNow, WorldExt, Write, WriteStorage, Read,
+    saveload::{SimpleMarker, SimpleMarkerAllocator},
+    Join, ReadStorage, RunNow, WorldExt, Read,
 };
 
 use super::{
@@ -27,9 +19,9 @@ use super::{
     material::{MaterialInstance, PhysicsType, AIR, TEST_MATERIAL},
     particle::{Particle, UpdateParticles, ParticleSystem},
     rigidbody::FSRigidBody,
-    simulator, ApplyB2Bodies, AutoTarget, B2BodyComponent, Camera, Chunk, ChunkHandler,
+    simulator, ApplyRigidBodies, AutoTarget, RigidBodyComponent, Camera, Chunk, ChunkHandler,
     ChunkHandlerGeneric, CollisionFlags, DeltaTime, FilePersistent, Loader, Position, TickTime,
-    UpdateAutoTargets, UpdateB2Bodies, Velocity, CHUNK_SIZE,
+    UpdateAutoTargets, UpdateRigidBodies, Velocity, CHUNK_SIZE,
 };
 
 pub const LIQUIDFUN_SCALE: f32 = 10.0;
@@ -44,7 +36,6 @@ pub struct World<C: Chunk> {
     pub ecs: specs::World,
     pub path: Option<PathBuf>,
     pub chunk_handler: ChunkHandler<TestGenerator, C>,
-    pub lqf_world: liquidfun::box2d::dynamics::world::World,
     pub net_mode: WorldNetworkMode,
     pub rigidbodies: Vec<FSRigidBody>,
     pub physics: Physics,
@@ -90,6 +81,10 @@ impl Physics {
         );
 
     }
+
+    pub fn remove_rigidbody(&mut self, handle: RigidBodyHandle) -> Option<RigidBody> {
+        self.bodies.remove(handle, &mut self.islands, &mut self.colliders, &mut self.joints)
+    }
 }
 
 const PARTICLE_RADIUS: f32 = 0.19;
@@ -98,9 +93,6 @@ const SMOOTHING_FACTOR: f32 = 2.0;
 impl<'w, C: Chunk> World<C> {
     #[profiling::function]
     pub fn create(path: Option<PathBuf>) -> Self {
-        let gravity = liquidfun::box2d::common::math::Vec2::new(0.0, 3.0);
-        let lqf_world = liquidfun::box2d::dynamics::world::World::new(&gravity);
-
         let mut bodies = RigidBodySet::new();
         let mut colliders = ColliderSet::new();
         let joints = JointSet::new();
@@ -176,112 +168,6 @@ impl<'w, C: Chunk> World<C> {
             event_handler: Box::new(()),
         };
 
-        // let mut ground_body_def = BodyDef::default();
-        // ground_body_def.position.set(0.0, -26.0);
-        // let ground_body = lqf_world.create_body(&ground_body_def);
-        // let mut ground_box = PolygonShape::new();
-        // ground_box.set_as_box(46.0, 0.4);
-        // ground_body.create_fixture_from_shape(&ground_box, 0.0);
-
-        // let mut ground_body_def = BodyDef::default();
-        // ground_body_def.position.set(0.0, 0.4);
-        // let ground_body = lqf_world.create_body(&ground_body_def);
-        // let mut ground_box = PolygonShape::new();
-        // ground_box.set_as_box(12.0, 0.4);
-        // ground_body.create_fixture_from_shape(&ground_box, 0.0);
-
-        // let mut ground_body_def = BodyDef::default();
-        // ground_body_def.position.set(12.0, -6.0);
-        // let ground_body = lqf_world.create_body(&ground_body_def);
-        // let mut ground_box = PolygonShape::new();
-        // ground_box.set_as_box(0.4, 6.0);
-        // ground_body.create_fixture_from_shape(&ground_box, 0.0);
-
-        // let mut ground_body_def = BodyDef::default();
-        // ground_body_def.position.set(-12.0, -6.0);
-        // let ground_body = lqf_world.create_body(&ground_body_def);
-        // let mut ground_box = PolygonShape::new();
-        // ground_box.set_as_box(0.4, 6.0);
-        // ground_body.create_fixture_from_shape(&ground_box, 0.0);
-
-        // let mut ground_body_def = BodyDef::default();
-        // ground_body_def.position.set(7.0, -8.3);
-        // let ground_body = lqf_world.create_body(&ground_body_def);
-        // let mut ground_box = PolygonShape::new();
-        // ground_box.set_as_box(0.2, 8.0);
-        // ground_body.create_fixture_from_shape(&ground_box, 0.0);
-
-        // let mut body_def = BodyDef::default();
-        // body_def.body_type = BodyType::DynamicBody;
-        // body_def.position.set(-1.0, -2.0);
-        // body_def.angular_velocity = 2.0;
-        // body_def.linear_velocity = Vec2::new(0.0, -4.0);
-        // let body = lqf_world.create_body(&body_def);
-        // let mut dynamic_box = PolygonShape::new();
-        // dynamic_box.set_as_box(1.0, 1.0);
-        // let mut fixture_def = FixtureDef::new(&dynamic_box);
-        // fixture_def.density = 1.5;
-        // fixture_def.friction = 0.3;
-        // body.create_fixture(&fixture_def);
-
-        // let mut body_def = BodyDef::default();
-        // body_def.body_type = BodyType::DynamicBody;
-        // body_def.position.set(-10.0, -2.0);
-        // body_def.angular_velocity = 2.0;
-        // body_def.linear_velocity = Vec2::new(0.0, -4.0);
-        // let body = lqf_world.create_body(&body_def);
-        // let mut dynamic_box = PolygonShape::new();
-        // dynamic_box.set_as_box(1.0, 1.0);
-        // let mut fixture_def = FixtureDef::new(&dynamic_box);
-        // fixture_def.density = 0.75;
-        // fixture_def.friction = 0.3;
-        // body.create_fixture(&fixture_def);
-
-        // bottom section
-
-        // let mut ground_body_def = BodyDef::default();
-        // ground_body_def.position.set(0.0, 15.0);
-        // let ground_body = lqf_world.create_body(&ground_body_def);
-        // let mut ground_box = PolygonShape::new();
-        // ground_box.set_as_box(24.0, 0.4);
-        // ground_body.create_fixture_from_shape(&ground_box, 0.0);
-
-        // let mut ground_body_def = BodyDef::default();
-        // ground_body_def.position.set(35.0, -5.0);
-        // let ground_body = lqf_world.create_body(&ground_body_def);
-        // let mut ground_box = PolygonShape::new();
-        // ground_box.set_as_box_oriented(0.4, 24.0, &Vec2{x: 0.0, y: 0.0}, 0.5);
-        // ground_body.create_fixture_from_shape(&ground_box, 0.0);
-
-        // let mut ground_body_def = BodyDef::default();
-        // ground_body_def.position.set(-35.0, -5.0);
-        // let ground_body = lqf_world.create_body(&ground_body_def);
-        // let mut ground_box = PolygonShape::new();
-        // ground_box.set_as_box_oriented(0.4, 24.0, &Vec2{x: 0.0, y: 0.0}, -0.5);
-        // ground_body.create_fixture_from_shape(&ground_box, 0.0);
-
-        // let particle_system_def = ParticleSystemDef {
-        //     radius: 0.19,
-        //     surface_tension_pressure_strength: 0.1,
-        //     surface_tension_normal_strength: 0.1,
-        //     damping_strength: 0.001,
-        //     ..ParticleSystemDef::default()
-        // };
-        // let particle_system = lqf_world.create_particle_system(&particle_system_def);
-        // let mut pd = ParticleDef::default();
-        // pd.flags.insert(TENSILE_PARTICLE);
-        // pd.color.set(255, 90, 255, 255);
-
-        // for i in 0..15000 {
-        //     if i < 15000/2 {
-        //         pd.color.set(255, 200, 64, 191);
-        //     }else {
-        //         pd.color.set(64, 200, 255, 191);
-        //     }
-        //     pd.position.set(-7.0 + (i as f32 / 200.0) * 0.17, -6.0 - ((i % 200) as f32) * 0.17);
-        //     particle_system.create_particle(&pd);
-        // }
-
         let mut ecs = specs::World::new();
         ecs.register::<SimpleMarker<FilePersistent>>();
         ecs.insert(SimpleMarkerAllocator::<FilePersistent>::default());
@@ -298,7 +184,7 @@ impl<'w, C: Chunk> World<C> {
         ecs.register::<AutoTarget>();
         ecs.register::<Camera>();
         ecs.register::<Persistent>();
-        ecs.register::<B2BodyComponent>();
+        ecs.register::<RigidBodyComponent>();
         ecs.register::<CollisionDetector>();
 
         if let Some(path) = &path {
@@ -342,7 +228,6 @@ impl<'w, C: Chunk> World<C> {
             ecs,
             chunk_handler: ChunkHandler::new(TEST_GENERATOR, path.clone()),
             path,
-            lqf_world,
             net_mode: WorldNetworkMode::Local,
             rigidbodies: Vec::new(),
             physics: phys,
@@ -446,7 +331,7 @@ impl<'w, C: Chunk> World<C> {
     }
 
     pub fn close(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        self.chunk_handler.unload_all_chunks()?;
+        self.chunk_handler.unload_all_chunks(&mut self.physics)?;
 
         Ok(())
     }
@@ -724,7 +609,7 @@ impl<'w, C: Chunk> World<C> {
             // }
         }
 
-        self.chunk_handler.tick(tick_time, settings, &mut self.ecs);
+        self.chunk_handler.tick(tick_time, settings, &mut self.ecs, &mut self.physics);
 
         if settings.simulate_particles {
             let mut update_particles = UpdateParticles { chunk_handler: &mut self.chunk_handler };
@@ -844,7 +729,7 @@ impl<'w, C: Chunk> World<C> {
         {
             profiling::scope!("update chunk collision");
             for c in self.chunk_handler.loaded_chunks.borrow_mut().values_mut() {
-                if c.get_b2_body().is_none() {
+                if c.get_rigidbody().is_none() {
                     // if let Some(tr) = c.get_tris() {
                     //     let mut body_def = BodyDef::default();
                     //     body_def.position.set((c.get_chunk_x() * CHUNK_SIZE as i32) as f32 / LIQUIDFUN_SCALE, (c.get_chunk_y() * CHUNK_SIZE as i32) as f32 / LIQUIDFUN_SCALE);
@@ -869,13 +754,6 @@ impl<'w, C: Chunk> World<C> {
                     // }
 
                     if let Some(loops) = c.get_mesh_loops() {
-                        let mut body_def = BodyDef::default();
-                        body_def.position.set(
-                            (c.get_chunk_x() * i32::from(CHUNK_SIZE)) as f32 / LIQUIDFUN_SCALE,
-                            (c.get_chunk_y() * i32::from(CHUNK_SIZE)) as f32 / LIQUIDFUN_SCALE,
-                        );
-                        let mut body = self.lqf_world.create_body(&body_def);
-                        body.set_active(false);
 
                         let mut rigid_body = RigidBodyBuilder::new_static().translation(Vector2::new(
                             (c.get_chunk_x() * i32::from(CHUNK_SIZE)) as f32 / LIQUIDFUN_SCALE,
@@ -885,31 +763,23 @@ impl<'w, C: Chunk> World<C> {
 
                         for a_loop in loops.iter() {
                             for pts in a_loop.iter() {
-                                let mut verts: Vec<Vec2> = Vec::new();
+                                let mut verts: Vec<Point2<f32>> = Vec::new();
 
                                 for p in pts.iter() {
-                                    verts.push(Vec2::new(
+                                    verts.push(Point2::new(
                                         p[0] as f32 / LIQUIDFUN_SCALE,
                                         p[1] as f32 / LIQUIDFUN_SCALE,
                                     ));
                                 }
 
-                                let mut chain = ChainShape::new();
-                                #[allow(clippy::cast_possible_wrap)]
-                                chain.create_chain(&verts, verts.len() as i32);
-
-                                let mut fixture_def = FixtureDef::new(&chain);
-                                fixture_def.density = 0.0;
-                                fixture_def.filter.category_bits = CollisionFlags::WORLD.bits();
-                                fixture_def.filter.mask_bits = CollisionFlags::RIGIDBODY.bits();
-                                body.create_fixture(&fixture_def);
-
-                                let collider = ColliderBuilder::polyline(verts.iter().map(|v| Point2::new(v.x, v.y)).collect(), None).build();
+                                let collider = ColliderBuilder::polyline(verts, None)
+                                    .collision_groups(InteractionGroups::new(CollisionFlags::WORLD.bits(), CollisionFlags::RIGIDBODY.bits()))
+                                    .density(0.0)
+                                    .build();
                                 colliders.push(collider);
                             }
                         }
 
-                        c.set_b2_body(Some(body));
                         c.set_rigidbody(Some(RigidBodyState::Inactive(rigid_body, colliders)));
                     }
                 } else {
@@ -925,29 +795,27 @@ impl<'w, C: Chunk> World<C> {
 
                     let mut should_be_active = false;
 
-                    let mut psl = self.lqf_world.get_particle_system_list();
-                    while psl.is_some() && !should_be_active {
-                        let system = psl.unwrap();
-                        if system.get_position_buffer().iter().any(|pos| {
-                            (pos.x * LIQUIDFUN_SCALE as f32 - chunk_center_x as f32).abs()
-                                < dist_particle
-                                && (pos.y * LIQUIDFUN_SCALE as f32 - chunk_center_y as f32).abs()
-                                    < dist_particle
-                        }) {
-                            should_be_active = true;
-                        }
-                        psl = system.get_next();
-                    }
+                    // TODO: update for salva
+                    // let mut psl = self.lqf_world.get_particle_system_list();
+                    // while psl.is_some() && !should_be_active {
+                    //     let system = psl.unwrap();
+                    //     if system.get_position_buffer().iter().any(|pos| {
+                    //         (pos.x * LIQUIDFUN_SCALE as f32 - chunk_center_x as f32).abs()
+                    //             < dist_particle
+                    //             && (pos.y * LIQUIDFUN_SCALE as f32 - chunk_center_y as f32).abs()
+                    //                 < dist_particle
+                    //     }) {
+                    //         should_be_active = true;
+                    //     }
+                    //     psl = system.get_next();
+                    // }
 
                     // TODO: see if using box2d's query methods instead of direct iteration is faster
-                    let mut bl = self.lqf_world.get_body_list();
-                    while bl.is_some() && !should_be_active {
-                        let body = bl.unwrap();
-
-                        match body.get_type() {
-                            BodyType::DynamicBody => {
+                    for (handle, rb) in self.physics.bodies.iter() {
+                        match rb.body_type() {
+                            RigidBodyType::Dynamic => {
                                 // if body.is_awake() { // this just causes flickering
-                                let pos = body.get_position();
+                                let pos = rb.translation();
                                 let dist_x =
                                     (pos.x * LIQUIDFUN_SCALE as f32 - chunk_center_x as f32).abs();
                                 let dist_y =
@@ -957,14 +825,8 @@ impl<'w, C: Chunk> World<C> {
                                 }
                                 // }
                             }
-                            BodyType::KinematicBody | BodyType::StaticBody => {}
+                            _ => {}
                         }
-
-                        bl = body.get_next();
-                    }
-
-                    if let Some(b) = c.get_b2_body_mut() {
-                        b.set_active(should_be_active);
                     }
 
                     if let Some(state) = c.get_rigidbody_mut() {
@@ -1015,40 +877,13 @@ impl<'w, C: Chunk> World<C> {
 
     pub fn tick_lqf(&mut self, settings: &Settings) {
         // need to do this here since 'self' isn't mut in render
-        if settings.lqf_dbg_draw {
-            if let Some(cast) = self.lqf_world.get_debug_draw() {
-                unsafe {
-                    cast.SetFlags(0);
-                    if settings.lqf_dbg_draw_shape {
-                        cast.AppendFlags(b2draw::b2Draw_e_shapeBit as u32);
-                    }
-                    if settings.lqf_dbg_draw_joint {
-                        cast.AppendFlags(b2draw::b2Draw_e_jointBit as u32);
-                    }
-                    if settings.lqf_dbg_draw_aabb {
-                        cast.AppendFlags(b2draw::b2Draw_e_aabbBit as u32);
-                    }
-                    if settings.lqf_dbg_draw_pair {
-                        cast.AppendFlags(b2draw::b2Draw_e_pairBit as u32);
-                    }
-                    if settings.lqf_dbg_draw_center_of_mass {
-                        cast.AppendFlags(b2draw::b2Draw_e_centerOfMassBit as u32);
-                    }
-                    if settings.lqf_dbg_draw_particle {
-                        cast.AppendFlags(b2draw::b2Draw_e_particleBit as u32);
-                    }
-                }
-            }
-        }
 
-        let mut update_bodies = UpdateB2Bodies;
+        let mut update_bodies = UpdateRigidBodies {
+            physics: &mut self.physics,
+        };
         update_bodies.run_now(&self.ecs);
 
         let time_step = settings.tick_lqf_timestep;
-        let velocity_iterations = 8;
-        let position_iterations = 4;
-        self.lqf_world
-            .step(time_step, velocity_iterations, position_iterations);
         // match self.net_mode {
         //     WorldNetworkMode::Local => {
         //         let time_step = settings.tick_lqf_timestep;
@@ -1063,7 +898,9 @@ impl<'w, C: Chunk> World<C> {
         self.physics.step(time_step / 3.0);
         self.physics.step(time_step / 3.0);
 
-        let mut apply_bodies = ApplyB2Bodies;
+        let mut apply_bodies = ApplyRigidBodies {
+            physics: &mut self.physics,
+        };
         apply_bodies.run_now(&self.ecs);
     }
 

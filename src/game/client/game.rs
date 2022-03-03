@@ -5,16 +5,9 @@ use std::{
 };
 
 use clap::ArgMatches;
-use liquidfun::box2d::{
-    collision::shapes::polygon_shape::PolygonShape,
-    common::math::Vec2,
-    dynamics::{
-        body::{BodyDef, BodyType},
-        fixture::FixtureDef,
-    },
-};
 use log::{debug, error, info, warn};
-use rapier2d::{prelude::{RigidBodyBuilder, FixedJoint, QueryPipeline, InteractionGroups, RigidBodyType, BallJoint}, na::{Vector2, Isometry2, Point2}};
+use rapier2d::{prelude::{RigidBodyBuilder, QueryPipeline, InteractionGroups, RigidBodyType, BallJoint, ColliderBuilder}, na::{Vector2, Isometry2, Point2}};
+use salva2d::{object::Boundary, integrations::rapier::ColliderSampling};
 use sdl2::{
     event::{Event, WindowEvent},
     keyboard::Keycode,
@@ -32,7 +25,7 @@ use crate::game::{
         world::{
             entity::{GameEntity, Hitbox, Persistent, PhysicsEntity, Player, PlayerMovementMode},
             material::MaterialInstance,
-            B2BodyComponent, Camera, ChunkHandlerGeneric, CollisionFlags, Loader, Position,
+            RigidBodyComponent, Camera, ChunkHandlerGeneric, CollisionFlags, Loader, Position,
             Velocity, World, WorldNetworkMode, LIQUIDFUN_SCALE,
         },
         Settings,
@@ -206,7 +199,6 @@ impl Game<ClientChunk> {
                                                                 .translation(point).build();
 
                                                             let local_point = rb.position().inverse_transform_point(&Point2::new(point.x, point.y));
-                                                            println!("{point:?} {local_point:?}");
 
                                                             let mouse_h = w.physics.bodies.insert(new_rb);
 
@@ -472,31 +464,27 @@ impl Game<ClientChunk> {
                                         .to_path_buf(),
                                 )));
 
-                                let body_def = BodyDef {
-                                    body_type: BodyType::DynamicBody,
-                                    fixed_rotation: true,
-                                    gravity_scale: 0.0,
-                                    bullet: true,
-                                    ..BodyDef::default()
-                                };
-                                let body = self
-                                    .world
-                                    .as_mut()
-                                    .unwrap()
-                                    .lqf_world
-                                    .create_body(&body_def);
-                                let mut dynamic_box = PolygonShape::new();
-                                dynamic_box.set_as_box(
-                                    12.0 / LIQUIDFUN_SCALE / 2.0,
-                                    20.0 / LIQUIDFUN_SCALE / 2.0,
+                                let rigid_body = RigidBodyBuilder::new_dynamic()
+                                    .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
+                                    .lock_rotations()
+                                    .gravity_scale(0.0)
+                                    .build();
+                                let handle = self.world.as_mut().unwrap().physics.bodies.insert(rigid_body);
+                                let collider = ColliderBuilder::cuboid(12.0 / LIQUIDFUN_SCALE / 2.0, 20.0 / LIQUIDFUN_SCALE / 2.0)
+                                    .collision_groups(InteractionGroups::new(CollisionFlags::PLAYER.bits(), (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits()))
+                                    .density(1.5)
+                                    .friction(0.3)
+                                    .build();
+                                let w = self.world.as_mut().unwrap();
+                                let co_handle = w.physics.colliders.insert_with_parent(collider, handle, &mut w.physics.bodies);
+                                let bo_handle = self.world.as_mut().unwrap().physics.fluid_pipeline
+                                    .liquid_world
+                                    .add_boundary(Boundary::new(Vec::new()));
+                                self.world.as_mut().unwrap().physics.fluid_pipeline.coupling.register_coupling(
+                                    bo_handle,
+                                    co_handle,
+                                    ColliderSampling::DynamicContactSampling,
                                 );
-                                let mut fixture_def = FixtureDef::new(&dynamic_box);
-                                fixture_def.density = 1.5;
-                                fixture_def.friction = 0.3;
-                                fixture_def.filter.category_bits = CollisionFlags::PLAYER.bits();
-                                fixture_def.filter.mask_bits =
-                                    (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits();
-                                body.create_fixture(&fixture_def);
 
                                 if let Some(w) = &mut self.world {
                                     let player = w
@@ -516,7 +504,7 @@ impl Game<ClientChunk> {
                                         .with(Velocity { x: 0.0, y: 0.0 })
                                         .with(Hitbox { x1: -6.0, y1: -10.0, x2: 6.0, y2: 10.0 })
                                         .with(Loader)
-                                        .with(B2BodyComponent::of(body))
+                                        .with(RigidBodyComponent::of(handle))
                                         .build();
 
                                     client.world = Some(ClientWorld { local_entity: Some(player) });
@@ -596,52 +584,53 @@ impl Game<ClientChunk> {
                                                         positions,
                                                         velocities,
                                                     } => {
+                                                        // TODO: reimplement for rapier/salva
                                                         // println!("[CLIENT] Got SyncLiquidFunPacket");
-                                                        if let Some(w) = &mut self.world {
-                                                            let mut particle_system = w
-                                                                .lqf_world
-                                                                .get_particle_system_list()
-                                                                .unwrap();
+                                                        // if let Some(w) = &mut self.world {
+                                                        //     let mut particle_system = w
+                                                        //         .lqf_world
+                                                        //         .get_particle_system_list()
+                                                        //         .unwrap();
 
-                                                            let particle_count = particle_system
-                                                                .get_particle_count()
-                                                                as usize;
-                                                            // let particle_colors: &[b2ParticleColor] = particle_system.get_color_buffer();
-                                                            let particle_positions: &mut [Vec2] =
-                                                                particle_system
-                                                                    .get_position_buffer_mut();
-                                                            for i in 0..particle_count
-                                                                .min(positions.len())
-                                                            {
-                                                                let dx = positions[i].x
-                                                                    - particle_positions[i].x;
-                                                                let dy = positions[i].y
-                                                                    - particle_positions[i].y;
+                                                        //     let particle_count = particle_system
+                                                        //         .get_particle_count()
+                                                        //         as usize;
+                                                        //     // let particle_colors: &[b2ParticleColor] = particle_system.get_color_buffer();
+                                                        //     let particle_positions: &mut [Vec2] =
+                                                        //         particle_system
+                                                        //             .get_position_buffer_mut();
+                                                        //     for i in 0..particle_count
+                                                        //         .min(positions.len())
+                                                        //     {
+                                                        //         let dx = positions[i].x
+                                                        //             - particle_positions[i].x;
+                                                        //         let dy = positions[i].y
+                                                        //             - particle_positions[i].y;
 
-                                                                if dx.abs() > 1.0 || dy.abs() > 1.0
-                                                                {
-                                                                    particle_positions[i].x += dx;
-                                                                    particle_positions[i].y += dy;
-                                                                } else {
-                                                                    particle_positions[i].x +=
-                                                                        dx / 2.0;
-                                                                    particle_positions[i].y +=
-                                                                        dy / 2.0;
-                                                                }
-                                                            }
+                                                        //         if dx.abs() > 1.0 || dy.abs() > 1.0
+                                                        //         {
+                                                        //             particle_positions[i].x += dx;
+                                                        //             particle_positions[i].y += dy;
+                                                        //         } else {
+                                                        //             particle_positions[i].x +=
+                                                        //                 dx / 2.0;
+                                                        //             particle_positions[i].y +=
+                                                        //                 dy / 2.0;
+                                                        //         }
+                                                        //     }
 
-                                                            let particle_velocities: &mut [Vec2] =
-                                                                particle_system
-                                                                    .get_velocity_buffer_mut();
-                                                            for i in 0..particle_count
-                                                                .min(positions.len())
-                                                            {
-                                                                particle_velocities[i].x =
-                                                                    velocities[i].x;
-                                                                particle_velocities[i].y =
-                                                                    velocities[i].y;
-                                                            }
-                                                        }
+                                                        //     let particle_velocities: &mut [Vec2] =
+                                                        //         particle_system
+                                                        //             .get_velocity_buffer_mut();
+                                                        //     for i in 0..particle_count
+                                                        //         .min(positions.len())
+                                                        //     {
+                                                        //         particle_velocities[i].x =
+                                                        //             velocities[i].x;
+                                                        //         particle_velocities[i].y =
+                                                        //             velocities[i].y;
+                                                        //     }
+                                                        // }
                                                     }
                                                     _ => {}
                                                 }

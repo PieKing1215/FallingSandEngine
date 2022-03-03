@@ -1,7 +1,5 @@
 use std::convert::TryInto;
 
-use liquidfun::box2d::dynamics::body::Body;
-use rapier2d::prelude::RigidBodyHandle;
 use sdl2::{pixels::Color, rect::Rect};
 use sdl_gpu::{
     GPUImage, GPURect, GPUSubsystem, GPUTarget, GPUFormat, GPUFilter,
@@ -25,7 +23,6 @@ pub struct ClientChunk {
     pub pixels: Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
     pub graphics: Box<ChunkGraphics>,
     pub dirty_rect: Option<Rect>,
-    pub b2_body: Option<Body>,
     pub rigidbody: Option<RigidBodyState>,
     pub mesh: Option<Vec<Vec<Vec<Vec<f64>>>>>,
     pub mesh_simplified: Option<Vec<Vec<Vec<Vec<f64>>>>>,
@@ -46,7 +43,6 @@ impl<'ch> Chunk for ClientChunk {
                 was_dirty: true,
             }),
             dirty_rect: None,
-            b2_body: None,
             rigidbody: None,
             mesh: None,
             mesh_simplified: None,
@@ -222,18 +218,6 @@ impl<'ch> Chunk for ClientChunk {
 
     fn get_mesh_loops(&self) -> &Option<Vec<Vec<Vec<Vec<f64>>>>> {
         &self.mesh_simplified
-    }
-
-    fn get_b2_body(&self) -> &Option<Body> {
-        &self.b2_body
-    }
-
-    fn get_b2_body_mut(&mut self) -> &mut Option<Body> {
-        &mut self.b2_body
-    }
-
-    fn set_b2_body(&mut self, body: Option<Body>) {
-        self.b2_body = body;
     }
 
     fn get_rigidbody(&self) -> &Option<RigidBodyState> {

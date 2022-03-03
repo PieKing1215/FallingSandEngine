@@ -1,11 +1,5 @@
-use liquidfun::box2d::{
-    collision::shapes::polygon_shape::PolygonShape,
-    dynamics::{
-        body::{Body, BodyDef, BodyType},
-        fixture::FixtureDef,
-    },
-};
-use rapier2d::{prelude::{RigidBodyHandle, RigidBodyBuilder, ColliderBuilder, SharedShape, RigidBody}, na::{Isometry2, Vector2, Point2}};
+
+use rapier2d::{prelude::{RigidBodyHandle, RigidBodyBuilder, ColliderBuilder, SharedShape, RigidBody, InteractionGroups}, na::{Isometry2, Vector2, Point2}};
 use salva2d::{object::Boundary, integrations::rapier::ColliderSampling};
 use sdl_gpu::{GPUImage, GPURect, GPUSubsystem};
 
@@ -82,7 +76,10 @@ impl FSRigidBody {
             shapes.push((Isometry2::new(Vector2::new(0.0, 0.0), 0.0), SharedShape::triangle(Point2::new(verts[0].0, verts[0].1), Point2::new(verts[1].0, verts[1].1), Point2::new(verts[2].0, verts[2].1))));
         }
 
-        let collider = ColliderBuilder::compound(shapes).build();
+        let collider = ColliderBuilder::compound(shapes)
+            .collision_groups(InteractionGroups::new(CollisionFlags::RIGIDBODY.bits(), CollisionFlags::all().bits()))
+            .density(1.0)
+            .build();
         let co_handle = physics.colliders.insert_with_parent(collider, rb_handle, &mut physics.bodies);
         let bo_handle = physics.fluid_pipeline
             .liquid_world

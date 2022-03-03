@@ -1,12 +1,8 @@
 use core::fmt::Debug;
-use std::{
-    borrow::BorrowMut,
-    ops::Deref,
-    sync::{Arc, Mutex},
-};
+use std::ops::Deref;
 
 use bitflags::bitflags;
-use liquidfun::box2d::{common::math::Vec2, dynamics::body::Body};
+use rapier2d::{prelude::RigidBodyHandle, na::{Vector2, Isometry2}};
 use serde::{Deserialize, Serialize};
 use specs::{
     storage::{BTreeStorage, MaskedStorage},
@@ -16,7 +12,7 @@ use specs::{
 
 use crate::game::common::world::LIQUIDFUN_SCALE;
 
-use super::{entity::Hitbox, ChunkHandlerGeneric};
+use super::{entity::Hitbox, ChunkHandlerGeneric, Physics};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Position {
@@ -177,93 +173,93 @@ impl<'a> System<'a> for UpdateAutoTargets {
 }
 
 bitflags! {
-    pub struct CollisionFlags: u16 {
-        const ENTITY    = 0b0000_0001;
-        const WORLD     = 0b0000_0010;
-        const RIGIDBODY = 0b0000_0100;
+    pub struct CollisionFlags: u32 {
+        const ENTITY    = 0b0000_0000_0000_0001;
+        const WORLD     = 0b0000_0000_0000_0010;
+        const RIGIDBODY = 0b0000_0000_0000_0100;
         const PLAYER    = Self::ENTITY.bits;
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct B2BodyComponent {
-    pub body: Arc<Mutex<Body>>,
+pub struct RigidBodyComponent {
+    pub body: RigidBodyHandle,
 }
 
-impl B2BodyComponent {
-    pub fn of(body: Body) -> Self {
-        Self { body: Arc::new(Mutex::new(body)) }
+impl RigidBodyComponent {
+    pub fn of(body: RigidBodyHandle) -> Self {
+        Self { body }
     }
 }
 
-impl Component for B2BodyComponent {
+impl Component for RigidBodyComponent {
     type Storage = BTreeStorage<Self>;
 }
 
-pub struct UpdateB2Bodies;
+pub struct UpdateRigidBodies<'a> {
+    pub physics: &'a mut Physics,
+}
 
-impl<'a> System<'a> for UpdateB2Bodies {
+impl<'a> System<'a> for UpdateRigidBodies<'a> {
     #[allow(clippy::type_complexity)]
     type SystemData = (
         ReadStorage<'a, Hitbox>,
-        WriteStorage<'a, B2BodyComponent>,
+        WriteStorage<'a, RigidBodyComponent>,
         WriteStorage<'a, Position>,
         WriteStorage<'a, Velocity>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        profiling::scope!("UpdateB2Bodies::run");
+        profiling::scope!("UpdateRigidBodies::run");
 
-        let (hitboxes, mut b2bodies, mut pos, mut vel) = data;
+        let (hitboxes, mut bodies, mut pos, mut vel) = data;
 
-        (&hitboxes, &mut b2bodies, &mut pos, &mut vel)
+        (&hitboxes, &mut bodies, &mut pos, &mut vel)
             .join()
             .for_each(|(_hitbox, body, pos, vel)| {
-                let mut body = body
-                    .body
-                    .borrow_mut()
-                    .lock()
-                    .expect("UpdateB2Bodies: Lock body failed");
-                let np = Vec2::new(
+                let mut body = self.physics.bodies.get_mut(body.body).unwrap();
+                let np = Vector2::new(
                     pos.x as f32 / LIQUIDFUN_SCALE,
                     pos.y as f32 / LIQUIDFUN_SCALE,
                 );
-                body.set_transform(&np, 0.0);
-                body.set_linear_velocity(&Vec2::new(vel.x as f32, vel.y as f32));
+                body.set_position(Isometry2::new(np, 0.0), true);
+                body.set_linvel(Vector2::new(vel.x as f32, vel.y as f32), true);
             });
     }
 }
 
-pub struct ApplyB2Bodies;
+pub struct ApplyRigidBodies<'a> {
+    pub physics: &'a mut Physics,
+}
 
-impl<'a> System<'a> for ApplyB2Bodies {
+impl<'a> System<'a> for ApplyRigidBodies<'a> {
     #[allow(clippy::type_complexity)]
     type SystemData = (
         ReadStorage<'a, Hitbox>,
-        ReadStorage<'a, B2BodyComponent>,
+        ReadStorage<'a, RigidBodyComponent>,
         WriteStorage<'a, Position>,
         WriteStorage<'a, Velocity>,
     );
 
     fn run(&mut self, data: Self::SystemData) {
-        profiling::scope!("ApplyB2Bodies::run");
+        profiling::scope!("ApplyRigidBodies::run");
 
-        let (hitboxes, b2bodies, mut pos, mut vel) = data;
+        let (hitboxes, bodies, mut pos, mut vel) = data;
 
-        (&hitboxes, &b2bodies, &mut pos, &mut vel)
+        (&hitboxes, &bodies, &mut pos, &mut vel)
             .join()
-            .for_each(|(_hitbox, body, _pos, vel)| {
-                let body = body.body.lock().expect("ApplyB2Bodies: Lock body failed");
+            .for_each(|(_hitbox, body, pos, vel)| {
+                let body = self.physics.bodies.get(body.body).unwrap();
 
-                // TODO: I want to take this into account since b2d will update the position when clipping
+                // TODO: I want to take this into account since rapier will update the position when clipping
                 //         but since it also adds the velocity, it causes the player to clip into walls slightly (causing jitter)
-                // pos.x = f64::from(body.get_position().x * LIQUIDFUN_SCALE);
-                // pos.y = f64::from(body.get_position().y * LIQUIDFUN_SCALE);
+                // pos.x = f64::from(body.translation().x * LIQUIDFUN_SCALE);
+                // pos.y = f64::from(body.translation().y * LIQUIDFUN_SCALE);
 
                 let vel_before = vel.clone();
 
-                vel.x = f64::from(body.get_linear_velocity().x);
-                vel.y = f64::from(body.get_linear_velocity().y);
+                vel.x = f64::from(body.linvel().x);
+                vel.y = f64::from(body.linvel().y);
 
                 let vel_change = Velocity { x: vel.x - vel_before.x, y: vel.y - vel_before.y };
 

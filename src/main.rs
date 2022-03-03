@@ -26,14 +26,17 @@ use clap::crate_version;
 use clap::App;
 use clap::Arg;
 use game::Game;
-use liquidfun::box2d::collision::shapes::polygon_shape::PolygonShape;
-use liquidfun::box2d::dynamics::body::BodyDef;
-use liquidfun::box2d::dynamics::body::BodyType;
-use liquidfun::box2d::dynamics::fixture::FixtureDef;
 use log::error;
 use log::info;
 use log::warn;
 use log::LevelFilter;
+use rapier2d::na::Isometry2;
+use rapier2d::na::Vector2;
+use rapier2d::prelude::ColliderBuilder;
+use rapier2d::prelude::InteractionGroups;
+use rapier2d::prelude::RigidBodyBuilder;
+use salva2d::integrations::rapier::ColliderSampling;
+use salva2d::object::Boundary;
 use simplelog::CombinedLogger;
 use simplelog::ConfigBuilder;
 use simplelog::TermLogger;
@@ -57,7 +60,7 @@ use crate::game::common::world::entity::PhysicsEntity;
 use crate::game::common::world::entity::Player;
 use crate::game::common::world::entity::PlayerMovementMode;
 use crate::game::common::world::AutoTarget;
-use crate::game::common::world::B2BodyComponent;
+use crate::game::common::world::RigidBodyComponent;
 use crate::game::common::world::Camera;
 use crate::game::common::world::CollisionFlags;
 use crate::game::common::world::Loader;
@@ -196,23 +199,26 @@ fn main() -> Result<(), String> {
             let mut game: Game<ServerChunk> = Game::new(file_helper);
 
             if let Some(w) = &mut game.world {
-                let body_def = BodyDef {
-                    body_type: BodyType::DynamicBody,
-                    fixed_rotation: true,
-                    gravity_scale: 0.0,
-                    bullet: true,
-                    ..BodyDef::default()
-                };
-                let body = w.lqf_world.create_body(&body_def);
-                let mut dynamic_box = PolygonShape::new();
-                dynamic_box.set_as_box(12.0 / LIQUIDFUN_SCALE / 2.0, 20.0 / LIQUIDFUN_SCALE / 2.0);
-                let mut fixture_def = FixtureDef::new(&dynamic_box);
-                fixture_def.density = 1.5;
-                fixture_def.friction = 0.3;
-                fixture_def.filter.category_bits = CollisionFlags::PLAYER.bits();
-                fixture_def.filter.mask_bits =
-                    (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits();
-                body.create_fixture(&fixture_def);
+                let rigid_body = RigidBodyBuilder::new_dynamic()
+                    .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
+                    .lock_rotations()
+                    .gravity_scale(0.0)
+                    .build();
+                let handle = w.physics.bodies.insert(rigid_body);
+                let collider = ColliderBuilder::cuboid(12.0 / LIQUIDFUN_SCALE / 2.0, 20.0 / LIQUIDFUN_SCALE / 2.0)
+                    .collision_groups(InteractionGroups::new(CollisionFlags::PLAYER.bits(), (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits()))
+                    .density(1.5)
+                    .friction(0.3)
+                    .build();
+                let co_handle = w.physics.colliders.insert_with_parent(collider, handle, &mut w.physics.bodies);
+                let bo_handle = w.physics.fluid_pipeline
+                    .liquid_world
+                    .add_boundary(Boundary::new(Vec::new()));
+                w.physics.fluid_pipeline.coupling.register_coupling(
+                    bo_handle,
+                    co_handle,
+                    ColliderSampling::DynamicContactSampling,
+                );
 
                 let _player = w
                     .ecs
@@ -231,7 +237,7 @@ fn main() -> Result<(), String> {
                     .with(Velocity { x: 0.0, y: 0.0 })
                     .with(Hitbox { x1: -6.0, y1: -10.0, x2: 6.0, y2: 10.0 })
                     .with(Loader)
-                    .with(B2BodyComponent::of(body))
+                    .with(RigidBodyComponent::of(handle))
                     .build();
             };
 
@@ -325,23 +331,27 @@ fn main() -> Result<(), String> {
         if let Some(w) = &mut game.world {
             game.client = Some(Client::new());
 
-            let body_def = BodyDef {
-                body_type: BodyType::DynamicBody,
-                fixed_rotation: true,
-                gravity_scale: 0.0,
-                bullet: true,
-                ..BodyDef::default()
-            };
-            let body = w.lqf_world.create_body(&body_def);
-            let mut dynamic_box = PolygonShape::new();
-            dynamic_box.set_as_box(12.0 / LIQUIDFUN_SCALE / 2.0, 20.0 / LIQUIDFUN_SCALE / 2.0);
-            let mut fixture_def = FixtureDef::new(&dynamic_box);
-            fixture_def.density = 1.5;
-            fixture_def.friction = 0.3;
-            fixture_def.filter.category_bits = CollisionFlags::PLAYER.bits();
-            fixture_def.filter.mask_bits =
-                (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits();
-            body.create_fixture(&fixture_def);
+            
+            let rigid_body = RigidBodyBuilder::new_dynamic()
+                .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
+                .lock_rotations()
+                .gravity_scale(0.0)
+                .build();
+            let handle = w.physics.bodies.insert(rigid_body);
+            let collider = ColliderBuilder::cuboid(12.0 / LIQUIDFUN_SCALE / 2.0, 20.0 / LIQUIDFUN_SCALE / 2.0)
+                .collision_groups(InteractionGroups::new(CollisionFlags::PLAYER.bits(), (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits()))
+                .density(1.5)
+                .friction(0.3)
+                .build();
+            let co_handle = w.physics.colliders.insert_with_parent(collider, handle, &mut w.physics.bodies);
+            let bo_handle = w.physics.fluid_pipeline
+                .liquid_world
+                .add_boundary(Boundary::new(Vec::new()));
+            w.physics.fluid_pipeline.coupling.register_coupling(
+                bo_handle,
+                co_handle,
+                ColliderSampling::DynamicContactSampling,
+            );
 
             let player = w
                 .ecs
@@ -360,7 +370,7 @@ fn main() -> Result<(), String> {
                 .with(Velocity { x: 0.0, y: 0.0 })
                 .with(Hitbox { x1: -6.0, y1: -10.0, x2: 6.0, y2: 10.0 })
                 .with(Loader)
-                .with(B2BodyComponent::of(body))
+                .with(RigidBodyComponent::of(handle))
                 .build();
 
             let _camera = w

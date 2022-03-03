@@ -1,4 +1,4 @@
-use liquidfun::box2d::dynamics::world::World;
+
 use rapier2d::na::{Vector2, Isometry2};
 use sdl2::{pixels::Color, rect::Rect};
 
@@ -509,10 +509,10 @@ impl Simulator {
                         rb.get_body(physics).unwrap().translation().y,
                     );
 
-                    let b2_pos = rb.get_body(physics).unwrap().translation().clone();
-                    let b2_angle = rb.get_body(physics).unwrap().rotation().angle();
-                    let b2_linear_velocity = rb.get_body(physics).unwrap().linvel().clone();
-                    let b2_angular_velocity = rb.get_body(physics).unwrap().angvel();
+                    let rb_pos = rb.get_body(physics).unwrap().translation().clone();
+                    let rb_angle = rb.get_body(physics).unwrap().rotation().angle();
+                    let rb_linear_velocity = rb.get_body(physics).unwrap().linvel().clone();
+                    let rb_angular_velocity = rb.get_body(physics).unwrap().angvel();
 
                     // debug!("#bodies before = {}", lqf_world.get_body_count());
                     physics.bodies.remove(rb.body.take().unwrap(), &mut physics.islands, &mut physics.colliders, &mut physics.joints);
@@ -524,13 +524,13 @@ impl Simulator {
                     // debug!("#bodies after2 = {} new pos = {:?}", lqf_world.get_body_count(), r[0].body.as_ref().unwrap().get_position());
 
                     for rb in &mut r {
-                        rb.get_body_mut(physics).unwrap().set_position(Isometry2::new(b2_pos, b2_angle), true);
+                        rb.get_body_mut(physics).unwrap().set_position(Isometry2::new(rb_pos, rb_angle), true);
                         rb.get_body_mut(physics)
                             .unwrap()
-                            .set_linvel(b2_linear_velocity, true);
+                            .set_linvel(rb_linear_velocity, true);
                         rb.get_body_mut(physics)
                             .unwrap()
-                            .set_angvel(b2_angular_velocity, true);
+                            .set_angvel(rb_angular_velocity, true);
                     }
 
                     r

@@ -7,7 +7,6 @@ use std::{
 
 use clap::ArgMatches;
 use crossterm::event::{poll, read, Event, KeyCode, KeyEvent, KeyModifiers};
-use liquidfun::box2d::common::math::Vec2;
 use log::{debug, error, info, warn};
 use tui::{
     backend::Backend,
@@ -321,38 +320,39 @@ impl Game<ServerChunk> {
                     lqf_ticks += 1;
 
                     if lqf_ticks % 10 == 0 {
-                        if let Some(particle_system) = w.lqf_world.get_particle_system_list() {
-                            let particle_positions: &[Vec2] = particle_system.get_position_buffer();
-                            let particle_velocities: &[Vec2] =
-                                particle_system.get_velocity_buffer();
-                            for c in &mut connections {
-                                let packet = Packet {
-                                    packet_type: PacketType::SyncLiquidFunPacket {
-                                        positions: particle_positions
-                                            .iter()
-                                            .map(|v2| PVec2 { x: v2.x, y: v2.y })
-                                            .collect(),
-                                        velocities: particle_velocities
-                                            .iter()
-                                            .map(|v2| PVec2 { x: v2.x, y: v2.y })
-                                            .collect(),
-                                    },
-                                };
-                                // let buf = serde_json::to_string(&packet).unwrap().into_bytes();
-                                // let size_buf = serde_json::to_string(&(buf.len() as u32)).unwrap().into_bytes();
-                                let buf = bincode::serialize(&packet).unwrap();
-                                let size_buf = bincode::serialize(&(buf.len() as u32)).unwrap();
+                        // TODO: update for rapier/salva
+                        // if let Some(particle_system) = w.lqf_world.get_particle_system_list() {
+                        //     let particle_positions: &[Vec2] = particle_system.get_position_buffer();
+                        //     let particle_velocities: &[Vec2] =
+                        //         particle_system.get_velocity_buffer();
+                        //     for c in &mut connections {
+                        //         let packet = Packet {
+                        //             packet_type: PacketType::SyncLiquidFunPacket {
+                        //                 positions: particle_positions
+                        //                     .iter()
+                        //                     .map(|v2| PVec2 { x: v2.x, y: v2.y })
+                        //                     .collect(),
+                        //                 velocities: particle_velocities
+                        //                     .iter()
+                        //                     .map(|v2| PVec2 { x: v2.x, y: v2.y })
+                        //                     .collect(),
+                        //             },
+                        //         };
+                        //         // let buf = serde_json::to_string(&packet).unwrap().into_bytes();
+                        //         // let size_buf = serde_json::to_string(&(buf.len() as u32)).unwrap().into_bytes();
+                        //         let buf = bincode::serialize(&packet).unwrap();
+                        //         let size_buf = bincode::serialize(&(buf.len() as u32)).unwrap();
 
-                                c.0.set_nonblocking(false).unwrap();
-                                c.0.write_all(&size_buf).unwrap();
-                                c.0.flush().unwrap();
-                                c.0.write_all(&buf).unwrap();
-                                c.0.flush().unwrap();
-                                c.0.set_nonblocking(true).unwrap();
+                        //         c.0.set_nonblocking(false).unwrap();
+                        //         c.0.write_all(&size_buf).unwrap();
+                        //         c.0.flush().unwrap();
+                        //         c.0.write_all(&buf).unwrap();
+                        //         c.0.flush().unwrap();
+                        //         c.0.set_nonblocking(true).unwrap();
 
-                                // println!("Wrote SyncChunkPacket");
-                            }
-                        }
+                        //         // println!("Wrote SyncChunkPacket");
+                        //     }
+                        // }
                     }
 
                     self.fps_counter.tick_lqf_times.rotate_left(1);

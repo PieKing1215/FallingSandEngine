@@ -9,7 +9,6 @@ use std::{collections::HashMap, sync::Arc};
 
 use futures::future::join_all;
 use lazy_static::lazy_static;
-use liquidfun::box2d::dynamics::body::Body;
 use rapier2d::prelude::{RigidBodyHandle, RigidBody, Collider};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
@@ -18,6 +17,7 @@ use specs::saveload::{MarkedBuilder, SimpleMarker};
 use specs::{Builder, Join, ReadStorage, WorldExt};
 use tokio::runtime::Runtime;
 
+use super::Physics;
 use super::gen::WorldGenerator;
 use super::material::PhysicsType;
 use super::particle::Particle;
@@ -56,9 +56,6 @@ pub trait Chunk {
     fn generate_mesh(&mut self) -> Result<(), String>;
     // fn get_tris(&self) -> &Option<Vec<Vec<((f64, f64), (f64, f64), (f64, f64))>>>;
     fn get_mesh_loops(&self) -> &Option<Vec<Vec<Vec<Vec<f64>>>>>;
-    fn get_b2_body(&self) -> &Option<Body>;
-    fn get_b2_body_mut(&mut self) -> &mut Option<Body>;
-    fn set_b2_body(&mut self, body: Option<Body>);
     fn get_rigidbody(&self) -> &Option<RigidBodyState>;
     fn get_rigidbody_mut(&mut self) -> &mut Option<RigidBodyState>;
     fn set_rigidbody(&mut self, body: Option<RigidBodyState>);
@@ -94,9 +91,9 @@ pub struct ChunkHandler<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chu
 
 pub trait ChunkHandlerGeneric {
     fn update_chunk_graphics(&mut self);
-    fn tick(&mut self, tick_time: u32, settings: &Settings, world: &mut specs::World);
+    fn tick(&mut self, tick_time: u32, settings: &Settings, world: &mut specs::World, physics: &mut Physics);
     fn save_chunk(&mut self, index: u32) -> Result<(), Box<dyn std::error::Error>>;
-    fn unload_all_chunks(&mut self) -> Result<(), Box<dyn std::error::Error>>;
+    fn unload_all_chunks(&mut self, physics: &mut Physics) -> Result<(), Box<dyn std::error::Error>>;
     fn save_all_chunks(&mut self) -> Result<(), Box<dyn std::error::Error>>;
     fn queue_load_chunk(&mut self, chunk_x: i32, chunk_y: i32) -> bool;
     fn chunk_index(&self, chunk_x: i32, chunk_y: i32) -> u32;
@@ -141,7 +138,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
     // #[profiling::function] // breaks clippy
     #[allow(clippy::too_many_lines)]
-    fn tick(&mut self, tick_time: u32, settings: &Settings, world: &mut specs::World) {
+    fn tick(&mut self, tick_time: u32, settings: &Settings, world: &mut specs::World, physics: &mut Physics) {
         profiling::scope!("tick");
 
         let (loaders, positions) =
@@ -218,7 +215,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                     e
                                 );
                             };
-                            if let Err(e) = self.unload_chunk(key) {
+                            if let Err(e) = self.unload_chunk(key, physics) {
                                 log::error!(
                                     "Chunk @ {}, {} failed to unload: {:?}",
                                     self.chunk_index_inv(key).0,
@@ -545,7 +542,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                         e
                                     );
                                 };
-                                if let Err(e) = self.unload_chunk(key) {
+                                if let Err(e) = self.unload_chunk(key, physics) {
                                     log::error!(
                                         "Chunk @ {}, {} failed to unload: {:?}",
                                         self.chunk_index_inv(key).0,
@@ -608,7 +605,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                             e
                                         );
                                     };
-                                    if let Err(e) = self.unload_chunk(key) {
+                                    if let Err(e) = self.unload_chunk(key, physics) {
                                         log::error!(
                                             "Chunk @ {}, {} failed to unload: {:?}",
                                             self.chunk_index_inv(key).0,
@@ -1117,11 +1114,11 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
         Ok(())
     }
 
-    fn unload_all_chunks(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    fn unload_all_chunks(&mut self, physics: &mut Physics) -> Result<(), Box<dyn std::error::Error>> {
         #[allow(clippy::for_kv_map)] // want ? to work
         let keys = self.loaded_chunks.keys().copied().collect::<Vec<u32>>();
         for i in keys {
-            self.unload_chunk(i)?;
+            self.unload_chunk(i, physics)?;
         }
         self.loaded_chunks.clear();
         Ok(())
@@ -1401,13 +1398,14 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
     #[allow(clippy::unnecessary_wraps)]
     #[profiling::function]
-    fn unload_chunk(&mut self, index: u32) -> Result<(), Box<dyn std::error::Error>> {
+    fn unload_chunk(&mut self, index: u32, physics: &mut Physics) -> Result<(), Box<dyn std::error::Error>> {
         let chunk = self.loaded_chunks.get_mut(&index).unwrap();
-        if let Some(body) = chunk.get_b2_body() {
-            let mut lqf_world = body.get_world();
-            lqf_world.destroy_body(body);
-            chunk.set_b2_body(None);
-            std::mem::forget(lqf_world); // need to forget otherwise the deconstructor calls b2World_Delete
+        match chunk.get_rigidbody() {
+            Some(RigidBodyState::Active(handle)) => {
+                physics.remove_rigidbody(*handle);
+                chunk.set_rigidbody(None);
+            },
+            _ => {}
         }
 
         Ok(())

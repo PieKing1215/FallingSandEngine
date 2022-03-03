@@ -7,7 +7,7 @@ use sdl2::{
     pixels::Color,
     ttf::{Font, Sdl2TtfContext},
     video::{Window, GLProfile},
-    VideoSubsystem, surface::Surface,
+    VideoSubsystem,
 };
 use sdl_gpu::{shaders::Shader, GPUImage, GPURect, GPUSubsystem, GPUTarget};
 
