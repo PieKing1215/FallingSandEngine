@@ -875,7 +875,7 @@ impl<'w, C: Chunk> World<C> {
         self.chunk_handler.update_chunk_graphics();
     }
 
-    pub fn tick_lqf(&mut self, settings: &Settings) {
+    pub fn tick_physics(&mut self, settings: &Settings) {
         // need to do this here since 'self' isn't mut in render
 
         let mut update_bodies = UpdateRigidBodies {
@@ -883,10 +883,10 @@ impl<'w, C: Chunk> World<C> {
         };
         update_bodies.run_now(&self.ecs);
 
-        let time_step = settings.tick_lqf_timestep;
+        let time_step = settings.tick_physics_timestep;
         // match self.net_mode {
         //     WorldNetworkMode::Local => {
-        //         let time_step = settings.tick_lqf_timestep;
+        //         let time_step = settings.tick_physics_timestep;
         //         let velocity_iterations = 3;
         //         let position_iterations = 2;
         //         self.lqf_world.step(time_step, velocity_iterations, position_iterations);

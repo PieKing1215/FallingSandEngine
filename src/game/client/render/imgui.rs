@@ -92,25 +92,25 @@ impl Settings {
                         }
                         ui.unindent();
 
-                        ui.checkbox("tick_lqf", &mut self.tick_lqf);
+                        ui.checkbox("tick_physics", &mut self.tick_physics);
 
                         ui.indent();
                         ui.set_next_item_width(121.0);
-                        Slider::new("tick_lqf_speed", 1, 120)
+                        Slider::new("tick_physics_speed", 1, 120)
                             .flags(SliderFlags::ALWAYS_CLAMP)
-                            .build(ui, &mut self.tick_lqf_speed);
+                            .build(ui, &mut self.tick_physics_speed);
                         ui.same_line();
-                        if ui.small_button("reset##tick_lqf_speed") {
-                            self.tick_lqf_speed = 60;
+                        if ui.small_button("reset##tick_physics_speed") {
+                            self.tick_physics_speed = 60;
                         }
 
                         ui.set_next_item_width(121.0);
-                        Slider::new("tick_lqf_timestep", 0.01, 1.0)
+                        Slider::new("tick_physics_timestep", 0.01, 1.0)
                             .flags(SliderFlags::ALWAYS_CLAMP)
-                            .build(ui, &mut self.tick_lqf_timestep);
+                            .build(ui, &mut self.tick_physics_timestep);
                         ui.same_line();
-                        if ui.small_button("reset##tick_lqf_timestep") {
-                            self.tick_lqf_timestep = 1.0 / 45.0;
+                        if ui.small_button("reset##tick_physics_timestep") {
+                            self.tick_physics_timestep = 1.0 / 45.0;
                         }
                         ui.unindent();
 

@@ -222,13 +222,6 @@ impl FSRigidBody {
 
         let loops = mesh::triangulate(&mesh);
 
-        // let mut body_def = BodyDef {
-        //     body_type: BodyType::DynamicBody,
-        //     ..BodyDef::default()
-        // };
-        // body_def.position.set(position.0, position.1);
-        // let bod = lqf_world.create_body(&body_def);
-
         let rigid_body = RigidBodyBuilder::new_dynamic().translation(Vector2::new(position.0, position.1)).build();
         let rb_handle = physics.bodies.insert(rigid_body);
 

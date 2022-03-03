@@ -31,7 +31,7 @@ pub struct FPSCounter {
     pub tick_display_value: u16,
     pub frame_times: [f32; 200],
     pub tick_times: [f32; 200],
-    pub tick_lqf_times: [f32; 200],
+    pub tick_physics_times: [f32; 200],
 }
 
 impl<'a, 'b, C: Chunk> Game<C> {
@@ -49,7 +49,7 @@ impl<'a, 'b, C: Chunk> Game<C> {
                 tick_display_value: 0,
                 frame_times: [0.0; 200],
                 tick_times: [0.0; 200],
-                tick_lqf_times: [0.0; 200],
+                tick_physics_times: [0.0; 200],
             },
             process_stats: ProcessStats { cpu_usage: None, memory: None },
             settings: Settings::default(),

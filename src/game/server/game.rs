@@ -65,15 +65,15 @@ impl Game<ServerChunk> {
         let mut connections: Vec<(TcpStream, SocketAddr)> = Vec::new();
 
         let mut prev_tick_time = std::time::Instant::now();
-        let mut prev_tick_lqf_time = std::time::Instant::now();
+        let mut prev_tick_physics_time = std::time::Instant::now();
 
         let mut last_frame = Instant::now();
         let mut counter_last_frame = Instant::now();
 
         let mut do_tick_next = false;
-        let mut do_tick_lqf_next = false;
+        let mut do_tick_physics_next = false;
 
-        let mut lqf_ticks = 0;
+        let mut physics_ticks = 0;
 
         let mut input: String = String::new();
         let mut tui_widget_state = TuiWidgetState::new();
@@ -299,27 +299,27 @@ impl Game<ServerChunk> {
 
             // tick liquidfun
 
-            let can_tick = self.settings.tick_lqf;
+            let can_tick = self.settings.tick_physics;
 
-            if do_tick_lqf_next && can_tick {
+            if do_tick_physics_next && can_tick {
                 if now
-                    .saturating_duration_since(prev_tick_lqf_time)
+                    .saturating_duration_since(prev_tick_physics_time)
                     .as_millis()
                     > 500
                 {
                     warn!(target: "", "liquidfun 50+ ms behind, skipping some ticks to catch up...");
-                    prev_tick_lqf_time = now;
+                    prev_tick_physics_time = now;
                 } else {
-                    prev_tick_lqf_time = prev_tick_lqf_time.add(Duration::from_nanos(
-                        1_000_000_000 / u64::from(self.settings.tick_lqf_speed),
+                    prev_tick_physics_time = prev_tick_physics_time.add(Duration::from_nanos(
+                        1_000_000_000 / u64::from(self.settings.tick_physics_speed),
                     ));
                 }
                 if let Some(w) = &mut self.world {
                     let st = Instant::now();
-                    w.tick_lqf(&self.settings);
-                    lqf_ticks += 1;
+                    w.tick_physics(&self.settings);
+                    physics_ticks += 1;
 
-                    if lqf_ticks % 10 == 0 {
+                    if physics_ticks % 10 == 0 {
                         // TODO: update for rapier/salva
                         // if let Some(particle_system) = w.lqf_world.get_particle_system_list() {
                         //     let particle_positions: &[Vec2] = particle_system.get_position_buffer();
@@ -355,14 +355,14 @@ impl Game<ServerChunk> {
                         // }
                     }
 
-                    self.fps_counter.tick_lqf_times.rotate_left(1);
-                    self.fps_counter.tick_lqf_times[self.fps_counter.tick_lqf_times.len() - 1] =
+                    self.fps_counter.tick_physics_times.rotate_left(1);
+                    self.fps_counter.tick_physics_times[self.fps_counter.tick_physics_times.len() - 1] =
                         Instant::now().saturating_duration_since(st).as_nanos() as f32;
                 }
             }
-            do_tick_lqf_next = can_tick
-                && now.saturating_duration_since(prev_tick_lqf_time).as_nanos()
-                    > 1_000_000_000 / u128::from(self.settings.tick_lqf_speed); // intended is 60 ticks per second
+            do_tick_physics_next = can_tick
+                && now.saturating_duration_since(prev_tick_physics_time).as_nanos()
+                    > 1_000_000_000 / u128::from(self.settings.tick_physics_speed); // intended is 60 ticks per second
 
             // render
 
@@ -516,11 +516,11 @@ impl Game<ServerChunk> {
 
         let nums: Vec<&f32> = self
             .fps_counter
-            .tick_lqf_times
+            .tick_physics_times
             .iter()
             .filter(|n| **n != 0.0)
             .collect();
-        let avg_msplqft: f32 =
+        let avg_mspt_physics: f32 =
             nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
         let frames_style = Style::default();
@@ -541,10 +541,10 @@ impl Game<ServerChunk> {
             Style::default().fg(tui::style::Color::LightRed)
         };
 
-        let msplqft_style = if avg_msplqft < 18.18 {
+        let mspt_physics_style = if avg_mspt_physics < 18.18 {
             // 55 tps
             Style::default().fg(tui::style::Color::LightGreen)
-        } else if avg_msplqft < 20.0 {
+        } else if avg_mspt_physics < 20.0 {
             // 50 tps
             Style::default().fg(tui::style::Color::Yellow)
         } else {
@@ -569,8 +569,8 @@ impl Game<ServerChunk> {
                 Span::styled(format!("{:.2}", avg_ms_tick), mspt_style),
             ]),
             Spans::from(vec![
-                Span::raw("msplqft: "),
-                Span::styled(format!("{:.2}", avg_msplqft), msplqft_style),
+                Span::raw("avg_mspt_physics: "),
+                Span::styled(format!("{:.2}", avg_mspt_physics), mspt_physics_style),
             ]),
         ];
         let block = Block::default()

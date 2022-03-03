@@ -260,18 +260,18 @@ impl<'a> Renderer<'a> {
 
                     let nums: Vec<&f32> = game
                         .fps_counter
-                        .tick_lqf_times
+                        .tick_physics_times
                         .iter()
                         .filter(|n| **n != 0.0)
                         .collect();
-                    let avg_msptlqf: f32 =
+                    let avg_mspt_physics: f32 =
                         nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-                    ui.plot_histogram("", &game.fps_counter.tick_lqf_times)
+                    ui.plot_histogram("", &game.fps_counter.tick_physics_times)
                         .graph_size([200.0, 50.0])
                         .scale_min(0.0)
                         .scale_max(100_000_000.0)
-                        .overlay_text(format!("phys mspt: {:.2}", avg_msptlqf))
+                        .overlay_text(format!("phys mspt: {:.2}", avg_mspt_physics))
                         .build();
                 });
 

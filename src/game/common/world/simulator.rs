@@ -514,14 +514,11 @@ impl Simulator {
                     let rb_linear_velocity = rb.get_body(physics).unwrap().linvel().clone();
                     let rb_angular_velocity = rb.get_body(physics).unwrap().angvel();
 
-                    // debug!("#bodies before = {}", lqf_world.get_body_count());
                     physics.bodies.remove(rb.body.take().unwrap(), &mut physics.islands, &mut physics.colliders, &mut physics.joints);
-                    // debug!("#bodies after  = {}", lqf_world.get_body_count());
                     let mut r = rigidbody::FSRigidBody::make_bodies(
                         &rb.pixels, rb.width, rb.height, physics, pos,
                     )
                     .unwrap_or_default();
-                    // debug!("#bodies after2 = {} new pos = {:?}", lqf_world.get_body_count(), r[0].body.as_ref().unwrap().get_position());
 
                     for rb in &mut r {
                         rb.get_body_mut(physics).unwrap().set_position(Isometry2::new(rb_pos, rb_angle), true);

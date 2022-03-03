@@ -50,7 +50,7 @@ impl Game<ClientChunk> {
         if args.is_present("no-tick") {
             self.settings.simulate_chunks = false;
             self.settings.simulate_particles = false;
-            self.settings.tick_lqf = false;
+            self.settings.tick_physics = false;
         }
 
         let mut network = None;
@@ -73,7 +73,7 @@ impl Game<ClientChunk> {
         }
 
         let mut prev_tick_time = std::time::Instant::now();
-        let mut prev_tick_lqf_time = std::time::Instant::now();
+        let mut prev_tick_physics_time = std::time::Instant::now();
 
         let mut event_pump = sdl.sdl.event_pump().unwrap();
 
@@ -86,7 +86,7 @@ impl Game<ClientChunk> {
         let mut sys = sysinfo::System::new();
 
         let mut do_tick_next = false;
-        let mut do_tick_lqf_next = false;
+        let mut do_tick_physics_next = false;
 
         let mut bytes_to_read: Option<u32> = None;
         let mut read_buffer: Option<Vec<u8>> = None;
@@ -689,7 +689,7 @@ impl Game<ClientChunk> {
 
             // tick liquidfun
 
-            let mut can_tick = self.settings.tick_lqf;
+            let mut can_tick = self.settings.tick_physics;
 
             if let Some(r) = &renderer {
                 let flags = r.window.window_flags();
@@ -700,22 +700,22 @@ impl Game<ClientChunk> {
                             == SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32));
             }
 
-            if do_tick_lqf_next && can_tick {
-                prev_tick_lqf_time = now;
+            if do_tick_physics_next && can_tick {
+                prev_tick_physics_time = now;
                 if let Some(w) = &mut self.world {
                     let st = Instant::now();
-                    w.tick_lqf(&self.settings);
-                    self.fps_counter.tick_lqf_times.rotate_left(1);
-                    self.fps_counter.tick_lqf_times[self.fps_counter.tick_lqf_times.len() - 1] =
+                    w.tick_physics(&self.settings);
+                    self.fps_counter.tick_physics_times.rotate_left(1);
+                    self.fps_counter.tick_physics_times[self.fps_counter.tick_physics_times.len() - 1] =
                         Instant::now().saturating_duration_since(st).as_nanos() as f32;
                     if let Some(r) = &mut renderer {
                         r.world_renderer.mark_liquid_dirty();
                     }
                 }
             }
-            do_tick_lqf_next = can_tick
-                && now.saturating_duration_since(prev_tick_lqf_time).as_nanos()
-                    > 1_000_000_000 / u128::from(self.settings.tick_lqf_speed); // intended is 60 ticks per second
+            do_tick_physics_next = can_tick
+                && now.saturating_duration_since(prev_tick_physics_time).as_nanos()
+                    > 1_000_000_000 / u128::from(self.settings.tick_physics_speed); // intended is 60 ticks per second
 
             // render
 
