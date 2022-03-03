@@ -9,7 +9,7 @@ use super::gen::WorldGenerator;
 use super::material::AIR;
 use super::particle::Particle;
 use super::rigidbody::FSRigidBody;
-use super::{Chunk, ChunkHandler, ChunkHandlerGeneric, Position, Velocity, LIQUIDFUN_SCALE, Physics};
+use super::{Chunk, ChunkHandler, ChunkHandlerGeneric, Position, Velocity, physics::{PHYSICS_SCALE, Physics}};
 
 pub struct Simulator {}
 
@@ -242,8 +242,8 @@ impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelpe
                 let s = (-body.rotation().angle()).sin();
                 let c = (-body.rotation().angle()).cos();
 
-                let tx = x as f32 - body.translation().x * LIQUIDFUN_SCALE;
-                let ty = y as f32 - body.translation().y * LIQUIDFUN_SCALE;
+                let tx = x as f32 - body.translation().x * PHYSICS_SCALE;
+                let ty = y as f32 - body.translation().y * PHYSICS_SCALE;
 
                 let nt_x = (tx * c - ty * s) as i32;
                 let nt_y = (tx * s + ty * c) as i32;
@@ -290,8 +290,8 @@ impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelpe
                 let s = (-body.rotation().angle()).sin();
                 let c = (-body.rotation().angle()).cos();
 
-                let tx = x as f32 - body.translation().x * LIQUIDFUN_SCALE;
-                let ty = y as f32 - body.translation().y * LIQUIDFUN_SCALE;
+                let tx = x as f32 - body.translation().x * PHYSICS_SCALE;
+                let ty = y as f32 - body.translation().y * PHYSICS_SCALE;
 
                 let nt_x = (tx * c - ty * s) as i32;
                 let nt_y = (tx * s + ty * c) as i32;
@@ -446,8 +446,8 @@ impl Simulator {
             if body_opt.is_some() {
                 let s = body_opt.unwrap().rotation().angle().sin();
                 let c = body_opt.unwrap().rotation().angle().cos();
-                let pos_x = body_opt.unwrap().translation().x * LIQUIDFUN_SCALE;
-                let pos_y = body_opt.unwrap().translation().y * LIQUIDFUN_SCALE;
+                let pos_x = body_opt.unwrap().translation().x * PHYSICS_SCALE;
+                let pos_y = body_opt.unwrap().translation().y * PHYSICS_SCALE;
 
                 let mut helper =
                     SimulationHelperRigidBody { chunk_handler, rigidbodies, particles, physics };

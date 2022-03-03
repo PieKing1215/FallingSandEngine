@@ -68,7 +68,7 @@ use crate::game::common::world::Position;
 use crate::game::common::world::Target;
 use crate::game::common::world::TargetStyle;
 use crate::game::common::world::Velocity;
-use crate::game::common::world::LIQUIDFUN_SCALE;
+use crate::game::common::world::physics::PHYSICS_SCALE;
 use crate::game::common::FileHelper;
 use crate::game::server::world::ServerChunk;
 
@@ -205,7 +205,7 @@ fn main() -> Result<(), String> {
                     .gravity_scale(0.0)
                     .build();
                 let handle = w.physics.bodies.insert(rigid_body);
-                let collider = ColliderBuilder::cuboid(12.0 / LIQUIDFUN_SCALE / 2.0, 20.0 / LIQUIDFUN_SCALE / 2.0)
+                let collider = ColliderBuilder::cuboid(12.0 / PHYSICS_SCALE / 2.0, 20.0 / PHYSICS_SCALE / 2.0)
                     .collision_groups(InteractionGroups::new(CollisionFlags::PLAYER.bits(), (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits()))
                     .density(1.5)
                     .friction(0.3)
@@ -338,7 +338,7 @@ fn main() -> Result<(), String> {
                 .gravity_scale(0.0)
                 .build();
             let handle = w.physics.bodies.insert(rigid_body);
-            let collider = ColliderBuilder::cuboid(12.0 / LIQUIDFUN_SCALE / 2.0, 20.0 / LIQUIDFUN_SCALE / 2.0)
+            let collider = ColliderBuilder::cuboid(12.0 / PHYSICS_SCALE / 2.0, 20.0 / PHYSICS_SCALE / 2.0)
                 .collision_groups(InteractionGroups::new(CollisionFlags::PLAYER.bits(), (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits()))
                 .density(1.5)
                 .friction(0.3)

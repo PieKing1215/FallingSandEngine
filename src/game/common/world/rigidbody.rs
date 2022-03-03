@@ -3,7 +3,7 @@ use rapier2d::{prelude::{RigidBodyHandle, RigidBodyBuilder, ColliderBuilder, Sha
 use salva2d::{object::Boundary, integrations::rapier::ColliderSampling};
 use sdl_gpu::{GPUImage, GPURect, GPUSubsystem};
 
-use super::{material::MaterialInstance, mesh, CollisionFlags, LIQUIDFUN_SCALE, Physics};
+use super::{material::MaterialInstance, mesh, CollisionFlags, physics::{Physics, PHYSICS_SCALE}};
 
 pub struct FSRigidBody {
     pub width: u16,
@@ -51,16 +51,16 @@ impl FSRigidBody {
         for tri in tris {
             let verts = vec![
                 (
-                    tri.0 .0 as f32 / LIQUIDFUN_SCALE,
-                    tri.0 .1 as f32 / LIQUIDFUN_SCALE,
+                    tri.0 .0 as f32 / PHYSICS_SCALE,
+                    tri.0 .1 as f32 / PHYSICS_SCALE,
                 ),
                 (
-                    tri.1 .0 as f32 / LIQUIDFUN_SCALE,
-                    tri.1 .1 as f32 / LIQUIDFUN_SCALE,
+                    tri.1 .0 as f32 / PHYSICS_SCALE,
+                    tri.1 .1 as f32 / PHYSICS_SCALE,
                 ),
                 (
-                    tri.2 .0 as f32 / LIQUIDFUN_SCALE,
-                    tri.2 .1 as f32 / LIQUIDFUN_SCALE,
+                    tri.2 .0 as f32 / PHYSICS_SCALE,
+                    tri.2 .1 as f32 / PHYSICS_SCALE,
                 ),
             ];
 
@@ -230,16 +230,16 @@ impl FSRigidBody {
             for tri in a_loop {
                 let verts = vec![
                     (
-                        tri.0 .0 as f32 / LIQUIDFUN_SCALE,
-                        tri.0 .1 as f32 / LIQUIDFUN_SCALE,
+                        tri.0 .0 as f32 / PHYSICS_SCALE,
+                        tri.0 .1 as f32 / PHYSICS_SCALE,
                     ),
                     (
-                        tri.1 .0 as f32 / LIQUIDFUN_SCALE,
-                        tri.1 .1 as f32 / LIQUIDFUN_SCALE,
+                        tri.1 .0 as f32 / PHYSICS_SCALE,
+                        tri.1 .1 as f32 / PHYSICS_SCALE,
                     ),
                     (
-                        tri.2 .0 as f32 / LIQUIDFUN_SCALE,
-                        tri.2 .1 as f32 / LIQUIDFUN_SCALE,
+                        tri.2 .0 as f32 / PHYSICS_SCALE,
+                        tri.2 .1 as f32 / PHYSICS_SCALE,
                     ),
                 ];
 

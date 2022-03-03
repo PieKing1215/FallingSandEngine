@@ -26,7 +26,7 @@ use crate::game::{
             entity::{GameEntity, Hitbox, Persistent, PhysicsEntity, Player, PlayerMovementMode},
             material::MaterialInstance,
             RigidBodyComponent, Camera, ChunkHandlerGeneric, CollisionFlags, Loader, Position,
-            Velocity, World, WorldNetworkMode, LIQUIDFUN_SCALE,
+            Velocity, World, WorldNetworkMode, physics::PHYSICS_SCALE,
         },
         Settings,
     },
@@ -177,8 +177,8 @@ impl Game<ClientChunk> {
                                             // w.chunk_handler.force_update_chunk(chunk_x, chunk_y);
 
                                             let point = Point2::new(
-                                                world_x as f32 / LIQUIDFUN_SCALE,
-                                                world_y as f32 / LIQUIDFUN_SCALE,
+                                                world_x as f32 / PHYSICS_SCALE,
+                                                world_y as f32 / PHYSICS_SCALE,
                                             );
 
                                             let groups = InteractionGroups::all();
@@ -192,8 +192,8 @@ impl Game<ClientChunk> {
                                                         let rb = w.physics.bodies.get(rb_handle).unwrap();
                                                         if rb.body_type() == RigidBodyType::Dynamic {
                                                             let point = Vector2::new(
-                                                                world_x as f32 / LIQUIDFUN_SCALE,
-                                                                world_y as f32 / LIQUIDFUN_SCALE,
+                                                                world_x as f32 / PHYSICS_SCALE,
+                                                                world_y as f32 / PHYSICS_SCALE,
                                                             );
                                                             let new_rb = RigidBodyBuilder::new_kinematic_position_based()
                                                                 .translation(point).build();
@@ -324,10 +324,10 @@ impl Game<ClientChunk> {
                                                     let rb = w.physics.bodies.get_mut(*rb_h).unwrap();
                                                     let prev_pos = *rb.translation();
                                                     rb.set_next_kinematic_translation(Vector2::new(
-                                                        world_x as f32 / LIQUIDFUN_SCALE,
-                                                        world_y as f32 / LIQUIDFUN_SCALE,
+                                                        world_x as f32 / PHYSICS_SCALE,
+                                                        world_y as f32 / PHYSICS_SCALE,
                                                     ));
-                                                    *vel = Vector2::new(world_x as f32 / LIQUIDFUN_SCALE - prev_pos.x, world_y as f32 / LIQUIDFUN_SCALE - prev_pos.y);
+                                                    *vel = Vector2::new(world_x as f32 / PHYSICS_SCALE - prev_pos.x, world_y as f32 / PHYSICS_SCALE - prev_pos.y);
                                                 }
                                             }
                                         }
@@ -470,7 +470,7 @@ impl Game<ClientChunk> {
                                     .gravity_scale(0.0)
                                     .build();
                                 let handle = self.world.as_mut().unwrap().physics.bodies.insert(rigid_body);
-                                let collider = ColliderBuilder::cuboid(12.0 / LIQUIDFUN_SCALE / 2.0, 20.0 / LIQUIDFUN_SCALE / 2.0)
+                                let collider = ColliderBuilder::cuboid(12.0 / PHYSICS_SCALE / 2.0, 20.0 / PHYSICS_SCALE / 2.0)
                                     .collision_groups(InteractionGroups::new(CollisionFlags::PLAYER.bits(), (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits()))
                                     .density(1.5)
                                     .friction(0.3)

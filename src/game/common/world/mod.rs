@@ -10,6 +10,7 @@ mod world;
 mod world_loading;
 
 pub mod gen;
+pub mod physics;
 
 pub use chunk::*;
 pub use ecs::*;

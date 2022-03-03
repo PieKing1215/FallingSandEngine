@@ -17,10 +17,10 @@ use specs::saveload::{MarkedBuilder, SimpleMarker};
 use specs::{Builder, Join, ReadStorage, WorldExt};
 use tokio::runtime::Runtime;
 
-use super::Physics;
 use super::gen::WorldGenerator;
 use super::material::PhysicsType;
 use super::particle::Particle;
+use super::physics::Physics;
 use crate::game::common::world::material::MaterialInstance;
 
 pub const CHUNK_SIZE: u16 = 128;

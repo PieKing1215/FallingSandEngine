@@ -10,9 +10,9 @@ use specs::{
     WriteStorage,
 };
 
-use crate::game::common::world::LIQUIDFUN_SCALE;
+use crate::game::common::world::physics::PHYSICS_SCALE;
 
-use super::{entity::Hitbox, ChunkHandlerGeneric, Physics};
+use super::{entity::Hitbox, ChunkHandlerGeneric, physics::Physics};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Position {
@@ -219,8 +219,8 @@ impl<'a> System<'a> for UpdateRigidBodies<'a> {
             .for_each(|(_hitbox, body, pos, vel)| {
                 let mut body = self.physics.bodies.get_mut(body.body).unwrap();
                 let np = Vector2::new(
-                    pos.x as f32 / LIQUIDFUN_SCALE,
-                    pos.y as f32 / LIQUIDFUN_SCALE,
+                    pos.x as f32 / PHYSICS_SCALE,
+                    pos.y as f32 / PHYSICS_SCALE,
                 );
                 body.set_position(Isometry2::new(np, 0.0), true);
                 body.set_linvel(Vector2::new(vel.x as f32, vel.y as f32), true);
@@ -253,8 +253,8 @@ impl<'a> System<'a> for ApplyRigidBodies<'a> {
 
                 // TODO: I want to take this into account since rapier will update the position when clipping
                 //         but since it also adds the velocity, it causes the player to clip into walls slightly (causing jitter)
-                // pos.x = f64::from(body.translation().x * LIQUIDFUN_SCALE);
-                // pos.y = f64::from(body.translation().y * LIQUIDFUN_SCALE);
+                // pos.x = f64::from(body.translation().x * PHYSICS_SCALE);
+                // pos.y = f64::from(body.translation().y * PHYSICS_SCALE);
 
                 let vel_before = vel.clone();
 
