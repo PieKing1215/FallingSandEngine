@@ -465,10 +465,8 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                     // println!("a {}", to_exec.len());
 
                     let gen = self.generator;
-                    // WARNING: LEAK
-                    let futs2: Vec<_> = Box::leak(Box::new(to_exec))
-                        .iter()
-                        .map(Arc::from)
+                    let futs2: Vec<_> = to_exec
+                        .into_iter()
                         .map(|e| async move {
                             profiling::register_thread!("Generation thread");
                             profiling::scope!("chunk");
@@ -875,17 +873,16 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                     profiling::scope!("run simulation");
 
                     #[allow(clippy::type_complexity)]
-                    let futs2: Vec<_> = Box::leak(Box::new(to_exec))
-                        .iter()
-                        .map(Arc::from)
+                    let futs2: Vec<_> = to_exec
+                        .into_iter()
                         .map(
-                            |e: Arc<&(
+                            |e: (
                                 usize,
                                 (i32, i32),
                                 [usize; 9],
                                 [usize; 9],
                                 [Option<Rect>; 9],
-                            )>| async move {
+                            )| async move {
                                 profiling::register_thread!("Simulation thread");
                                 profiling::scope!("chunk");
                                 let ch_pos = e.1;
