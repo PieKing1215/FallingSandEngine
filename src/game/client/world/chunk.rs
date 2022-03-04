@@ -1,16 +1,14 @@
 use std::convert::TryInto;
 
 use sdl2::{pixels::Color, rect::Rect};
-use sdl_gpu::{
-    GPUImage, GPURect, GPUSubsystem, GPUTarget, GPUFormat, GPUFilter,
-};
+use sdl_gpu::{GPUFilter, GPUFormat, GPUImage, GPURect, GPUSubsystem, GPUTarget};
 
 use crate::game::{
     client::render::{Fonts, Renderable, Sdl2Context, TransformStack},
     common::{
         world::{
             gen::WorldGenerator, material::MaterialInstance, mesh, Chunk, ChunkHandler,
-            ChunkHandlerGeneric, ChunkState, CHUNK_SIZE, RigidBodyState,
+            ChunkHandlerGeneric, ChunkState, RigidBodyState, CHUNK_SIZE,
         },
         Settings,
     },
@@ -92,8 +90,7 @@ impl<'ch> Chunk for ClientChunk {
     fn update_graphics(&mut self) -> Result<(), String> {
         self.graphics.was_dirty = self.graphics.dirty;
 
-        self.graphics
-            .update_texture();
+        self.graphics.update_texture();
 
         Ok(())
     }

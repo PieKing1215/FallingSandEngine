@@ -38,7 +38,7 @@ impl MainMenu {
                 // TODO: actually implement collapsing
                 if !ui.button_with_size(
                     p.file_name()
-                            .map_or_else(|| "..", |o| o.to_str().unwrap_or("!! NON UTF-8 !!")),
+                        .map_or_else(|| "..", |o| o.to_str().unwrap_or("!! NON UTF-8 !!")),
                     [200.0, 20.0],
                 ) {
                     ui.indent();
@@ -50,7 +50,7 @@ impl MainMenu {
                     }
                     ui.unindent();
                 }
-            }
+            },
             WorldTreeNode::World((p, m)) => {
                 if ui.button_with_size(
                     format!(
@@ -66,7 +66,7 @@ impl MainMenu {
                 ) {
                     return Some(p.clone());
                 }
-            }
+            },
         }
         None
     }
@@ -99,7 +99,7 @@ impl MainMenu {
                         if ui.button_with_size("Quit", [100.0, 50.0]) {
                             self.action_queue.push(MainMenuAction::Quit);
                         }
-                    }
+                    },
                     MainMenuState::WorldSelect { context } => {
                         if ui.button_with_size("Back", [50.0, 20.0]) {
                             new_state = Some(MainMenuState::Main);
@@ -108,7 +108,7 @@ impl MainMenu {
                             log::debug!("Chose world: {:?}", choice);
                             self.action_queue.push(MainMenuAction::LoadWorld(choice));
                         }
-                    }
+                    },
                 }
 
                 if let Some(new_state) = new_state {

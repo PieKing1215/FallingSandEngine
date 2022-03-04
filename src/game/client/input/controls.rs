@@ -94,12 +94,12 @@ impl Control<bool> for KeyControl {
                     self.last_state = !self.last_state;
                 }
                 self.last_state
-            }
+            },
             KeyControlMode::Type => {
                 let r = self.raw;
                 self.raw = false;
                 r
-            }
+            },
         };
 
         self.last_raw = self.raw;
@@ -117,15 +117,15 @@ impl Control<bool> for KeyControl {
                 if !repeat || self.mode == KeyControlMode::Type {
                     self.raw = true;
                 }
-            }
+            },
             InputEvent::SDL2Event(sdl2::event::Event::KeyUp {
                 keycode: Some(k), repeat, ..
             }) if *k == self.key => {
                 if !repeat || self.mode == KeyControlMode::Type {
                     self.raw = false;
                 }
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
 }

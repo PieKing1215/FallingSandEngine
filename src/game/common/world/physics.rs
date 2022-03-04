@@ -1,7 +1,15 @@
-use rapier2d::{prelude::{RigidBodySet, ColliderSet, IntegrationParameters, PhysicsPipeline, IslandManager, BroadPhase, NarrowPhase, CCDSolver, JointSet, PhysicsHooks, EventHandler, RigidBodyBuilder, ColliderBuilder, RigidBodyHandle, RigidBody}, na::{Vector2, Isometry2}};
-use salva2d::{integrations::rapier::{FluidsPipeline, ColliderSampling}, object::Boundary};
-
-
+use rapier2d::{
+    na::{Isometry2, Vector2},
+    prelude::{
+        BroadPhase, CCDSolver, ColliderBuilder, ColliderSet, EventHandler, IntegrationParameters,
+        IslandManager, JointSet, NarrowPhase, PhysicsHooks, PhysicsPipeline, RigidBody,
+        RigidBodyBuilder, RigidBodyHandle, RigidBodySet,
+    },
+};
+use salva2d::{
+    integrations::rapier::{ColliderSampling, FluidsPipeline},
+    object::Boundary,
+};
 
 pub const PHYSICS_SCALE: f32 = 10.0;
 
@@ -25,7 +33,6 @@ pub struct Physics {
 }
 
 impl Physics {
-    
     pub fn new() -> Self {
         let mut bodies = RigidBodySet::new();
         let mut colliders = ColliderSet::new();
@@ -65,7 +72,9 @@ impl Physics {
         // // fluid.nonpressure_forces.push(Box::new(viscosity.clone()));
         // let fluid_handle = fluid_pipeline.liquid_world.add_fluid(fluid);
 
-        let rigid_body = RigidBodyBuilder::new_static().position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0)).build();
+        let rigid_body = RigidBodyBuilder::new_static()
+            .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
+            .build();
         let handle = bodies.insert(rigid_body);
         let collider = ColliderBuilder::cuboid(10.0, 1.0).build();
         let co_handle = colliders.insert_with_parent(collider, handle, &mut bodies);
@@ -104,12 +113,8 @@ impl Physics {
     }
 
     pub fn step(&mut self, time_step: f32) {
-        self.fluid_pipeline.step(
-            &self.gravity,
-            time_step,
-            &self.colliders,
-            &mut self.bodies,
-        );
+        self.fluid_pipeline
+            .step(&self.gravity, time_step, &self.colliders, &mut self.bodies);
 
         self.physics_pipeline.step(
             &self.gravity,
@@ -124,10 +129,14 @@ impl Physics {
             &*self.hooks,
             &*self.event_handler,
         );
-
     }
 
     pub fn remove_rigidbody(&mut self, handle: RigidBodyHandle) -> Option<RigidBody> {
-        self.bodies.remove(handle, &mut self.islands, &mut self.colliders, &mut self.joints)
+        self.bodies.remove(
+            handle,
+            &mut self.islands,
+            &mut self.colliders,
+            &mut self.joints,
+        )
     }
 }

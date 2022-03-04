@@ -138,12 +138,12 @@ impl Game<ServerChunk> {
                                     PacketType::SyncLiquidFunPacket { .. } => "SyncLiquidFunPacket",
                                 }
                             );
-                        }
+                        },
                         Err(e) => {
                             // TODO: this needs to be handled correctly like in client::game
                             //         since when read_to_end fails, it can still have read some of the bytes
                             panic!("read_to_end failed: {}", e);
-                        }
+                        },
                     }
                 }
             }
@@ -181,9 +181,12 @@ impl Game<ServerChunk> {
                                     let pixels_vec = ci.1.get_pixels().unwrap().to_vec();
                                     let colors_vec = ci.1.get_colors().to_vec();
 
-                                    assert!(pixels_vec.len() == (CHUNK_SIZE * CHUNK_SIZE) as usize, "Almost sent wrong size pixels Vec: {} (expected {})",
-                                            pixels_vec.len(),
-                                            CHUNK_SIZE * CHUNK_SIZE);
+                                    assert!(
+                                        pixels_vec.len() == (CHUNK_SIZE * CHUNK_SIZE) as usize,
+                                        "Almost sent wrong size pixels Vec: {} (expected {})",
+                                        pixels_vec.len(),
+                                        CHUNK_SIZE * CHUNK_SIZE
+                                    );
 
                                     if colors_vec.len()
                                         != CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4
@@ -243,7 +246,7 @@ impl Game<ServerChunk> {
                             if modifiers.contains(KeyModifiers::CONTROL) =>
                         {
                             break 'mainLoop;
-                        }
+                        },
                         Event::Key(KeyEvent { code, modifiers: _ }) => {
                             match code {
                                 KeyCode::Enter => {
@@ -255,32 +258,32 @@ impl Game<ServerChunk> {
                                             if m.subcommand_matches("shutdown").is_some() {
                                                 break 'mainLoop;
                                             }
-                                        }
+                                        },
                                         Err(clap::Error {
                                             kind: clap::ErrorKind::UnknownArgument,
                                             info,
                                             ..
                                         }) => {
                                             error!(target: "", "Found argument '{}' which wasn't expected, or isn't valid in this context.", info[0]);
-                                        }
+                                        },
                                         Err(e) if e.kind == clap::ErrorKind::DisplayHelp => {
                                             info!(target: "", "{:?}", e.to_string());
-                                        }
+                                        },
                                         Err(e) => {
                                             error!(target: "", "{}", e.to_string());
-                                        }
+                                        },
                                     }
-                                }
+                                },
                                 KeyCode::Char(c) => {
                                     input.push(c);
-                                }
+                                },
                                 KeyCode::Backspace => {
                                     input.pop();
-                                }
-                                _ => {}
+                                },
+                                _ => {},
                             }
-                        }
-                        _ => {}
+                        },
+                        _ => {},
                     }
                 }
 
@@ -356,12 +359,15 @@ impl Game<ServerChunk> {
                     }
 
                     self.fps_counter.tick_physics_times.rotate_left(1);
-                    self.fps_counter.tick_physics_times[self.fps_counter.tick_physics_times.len() - 1] =
+                    self.fps_counter.tick_physics_times
+                        [self.fps_counter.tick_physics_times.len() - 1] =
                         Instant::now().saturating_duration_since(st).as_nanos() as f32;
                 }
             }
             do_tick_physics_next = can_tick
-                && now.saturating_duration_since(prev_tick_physics_time).as_nanos()
+                && now
+                    .saturating_duration_since(prev_tick_physics_time)
+                    .as_nanos()
                     > 1_000_000_000 / u128::from(self.settings.tick_physics_speed); // intended is 60 ticks per second
 
             // render

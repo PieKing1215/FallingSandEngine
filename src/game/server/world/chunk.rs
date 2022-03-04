@@ -1,7 +1,8 @@
-
 use sdl2::{pixels::Color, rect::Rect};
 
-use crate::game::common::world::{material::MaterialInstance, mesh, Chunk, ChunkState, CHUNK_SIZE, RigidBodyState};
+use crate::game::common::world::{
+    material::MaterialInstance, mesh, Chunk, ChunkState, RigidBodyState, CHUNK_SIZE,
+};
 
 pub struct ServerChunk {
     pub chunk_x: i32,

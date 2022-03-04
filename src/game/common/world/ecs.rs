@@ -2,7 +2,10 @@ use core::fmt::Debug;
 use std::ops::Deref;
 
 use bitflags::bitflags;
-use rapier2d::{prelude::RigidBodyHandle, na::{Vector2, Isometry2}};
+use rapier2d::{
+    na::{Isometry2, Vector2},
+    prelude::RigidBodyHandle,
+};
 use serde::{Deserialize, Serialize};
 use specs::{
     storage::{BTreeStorage, MaskedStorage},
@@ -12,7 +15,7 @@ use specs::{
 
 use crate::game::common::world::physics::PHYSICS_SCALE;
 
-use super::{entity::Hitbox, ChunkHandlerGeneric, physics::Physics};
+use super::{entity::Hitbox, physics::Physics, ChunkHandlerGeneric};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Position {
@@ -141,13 +144,13 @@ impl<'a> System<'a> for UpdateAutoTargets {
                     TargetStyle::Locked => {
                         pos.x = target_pos.x;
                         pos.y = target_pos.y;
-                    }
+                    },
                     TargetStyle::EaseOut(factor) => {
                         pos.x += (target_pos.x - pos.x)
                             * (factor * delta_time.0.as_secs_f64()).clamp(0.0, 1.0);
                         pos.y += (target_pos.y - pos.y)
                             * (factor * delta_time.0.as_secs_f64()).clamp(0.0, 1.0);
-                    }
+                    },
                     TargetStyle::Linear(speed) => {
                         let dx = target_pos.x - pos.x;
                         let dy = target_pos.y - pos.y;
@@ -159,7 +162,7 @@ impl<'a> System<'a> for UpdateAutoTargets {
                             pos.x += dx / mag * speed * delta_time.0.as_secs_f64();
                             pos.y += dy / mag * speed * delta_time.0.as_secs_f64();
                         }
-                    }
+                    },
                 }
             }
 
@@ -218,10 +221,7 @@ impl<'a> System<'a> for UpdateRigidBodies<'a> {
             .join()
             .for_each(|(_hitbox, body, pos, vel)| {
                 let mut body = self.physics.bodies.get_mut(body.body).unwrap();
-                let np = Vector2::new(
-                    pos.x as f32 / PHYSICS_SCALE,
-                    pos.y as f32 / PHYSICS_SCALE,
-                );
+                let np = Vector2::new(pos.x as f32 / PHYSICS_SCALE, pos.y as f32 / PHYSICS_SCALE);
                 body.set_position(Isometry2::new(np, 0.0), true);
                 body.set_linvel(Vector2::new(vel.x as f32, vel.y as f32), true);
             });

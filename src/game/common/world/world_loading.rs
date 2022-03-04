@@ -46,11 +46,11 @@ impl<'w, C: Chunk> World<C> {
                     .map(Self::parse_file_tree_metas)
                     .collect::<Result<_, _>>();
                 WorldTreeNode::Folder(p, r?)
-            }
+            },
             WorldTreeNode::World(p) => {
                 let m = Self::parse_file_meta(&p)?;
                 WorldTreeNode::World((p, m))
-            }
+            },
         })
     }
 

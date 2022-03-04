@@ -59,16 +59,16 @@ use crate::game::common::world::entity::Persistent;
 use crate::game::common::world::entity::PhysicsEntity;
 use crate::game::common::world::entity::Player;
 use crate::game::common::world::entity::PlayerMovementMode;
+use crate::game::common::world::physics::PHYSICS_SCALE;
 use crate::game::common::world::AutoTarget;
-use crate::game::common::world::RigidBodyComponent;
 use crate::game::common::world::Camera;
 use crate::game::common::world::CollisionFlags;
 use crate::game::common::world::Loader;
 use crate::game::common::world::Position;
+use crate::game::common::world::RigidBodyComponent;
 use crate::game::common::world::Target;
 use crate::game::common::world::TargetStyle;
 use crate::game::common::world::Velocity;
-use crate::game::common::world::physics::PHYSICS_SCALE;
 use crate::game::common::FileHelper;
 use crate::game::server::world::ServerChunk;
 
@@ -205,13 +205,22 @@ fn main() -> Result<(), String> {
                     .gravity_scale(0.0)
                     .build();
                 let handle = w.physics.bodies.insert(rigid_body);
-                let collider = ColliderBuilder::cuboid(12.0 / PHYSICS_SCALE / 2.0, 20.0 / PHYSICS_SCALE / 2.0)
-                    .collision_groups(InteractionGroups::new(CollisionFlags::PLAYER.bits(), (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits()))
-                    .density(1.5)
-                    .friction(0.3)
-                    .build();
-                let co_handle = w.physics.colliders.insert_with_parent(collider, handle, &mut w.physics.bodies);
-                let bo_handle = w.physics.fluid_pipeline
+                let collider =
+                    ColliderBuilder::cuboid(12.0 / PHYSICS_SCALE / 2.0, 20.0 / PHYSICS_SCALE / 2.0)
+                        .collision_groups(InteractionGroups::new(
+                            CollisionFlags::PLAYER.bits(),
+                            (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits(),
+                        ))
+                        .density(1.5)
+                        .friction(0.3)
+                        .build();
+                let co_handle =
+                    w.physics
+                        .colliders
+                        .insert_with_parent(collider, handle, &mut w.physics.bodies);
+                let bo_handle = w
+                    .physics
+                    .fluid_pipeline
                     .liquid_world
                     .add_boundary(Boundary::new(Vec::new()));
                 w.physics.fluid_pipeline.coupling.register_coupling(
@@ -243,7 +252,7 @@ fn main() -> Result<(), String> {
 
             println!("Starting main loop...");
             match game.run(&matches, &mut terminal) {
-                Ok(_) => {}
+                Ok(_) => {},
                 Err(e) => panic!("Server encountered a fatal error: {}", e),
             }
         });
@@ -331,20 +340,28 @@ fn main() -> Result<(), String> {
         if let Some(w) = &mut game.world {
             game.client = Some(Client::new());
 
-            
             let rigid_body = RigidBodyBuilder::new_dynamic()
                 .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
                 .lock_rotations()
                 .gravity_scale(0.0)
                 .build();
             let handle = w.physics.bodies.insert(rigid_body);
-            let collider = ColliderBuilder::cuboid(12.0 / PHYSICS_SCALE / 2.0, 20.0 / PHYSICS_SCALE / 2.0)
-                .collision_groups(InteractionGroups::new(CollisionFlags::PLAYER.bits(), (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits()))
-                .density(1.5)
-                .friction(0.3)
-                .build();
-            let co_handle = w.physics.colliders.insert_with_parent(collider, handle, &mut w.physics.bodies);
-            let bo_handle = w.physics.fluid_pipeline
+            let collider =
+                ColliderBuilder::cuboid(12.0 / PHYSICS_SCALE / 2.0, 20.0 / PHYSICS_SCALE / 2.0)
+                    .collision_groups(InteractionGroups::new(
+                        CollisionFlags::PLAYER.bits(),
+                        (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits(),
+                    ))
+                    .density(1.5)
+                    .friction(0.3)
+                    .build();
+            let co_handle =
+                w.physics
+                    .colliders
+                    .insert_with_parent(collider, handle, &mut w.physics.bodies);
+            let bo_handle = w
+                .physics
+                .fluid_pipeline
                 .liquid_world
                 .add_boundary(Boundary::new(Vec::new()));
             w.physics.fluid_pipeline.coupling.register_coupling(

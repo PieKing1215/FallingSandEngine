@@ -9,7 +9,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use futures::future::join_all;
 use lazy_static::lazy_static;
-use rapier2d::prelude::{RigidBodyHandle, RigidBody, Collider};
+use rapier2d::prelude::{Collider, RigidBody, RigidBodyHandle};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use serde::{Deserialize, Serialize};
@@ -92,9 +92,18 @@ pub struct ChunkHandler<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chu
 
 pub trait ChunkHandlerGeneric {
     fn update_chunk_graphics(&mut self);
-    fn tick(&mut self, tick_time: u32, settings: &Settings, world: &mut specs::World, physics: &mut Physics);
+    fn tick(
+        &mut self,
+        tick_time: u32,
+        settings: &Settings,
+        world: &mut specs::World,
+        physics: &mut Physics,
+    );
     fn save_chunk(&mut self, index: u32) -> Result<(), Box<dyn std::error::Error>>;
-    fn unload_all_chunks(&mut self, physics: &mut Physics) -> Result<(), Box<dyn std::error::Error>>;
+    fn unload_all_chunks(
+        &mut self,
+        physics: &mut Physics,
+    ) -> Result<(), Box<dyn std::error::Error>>;
     fn save_all_chunks(&mut self) -> Result<(), Box<dyn std::error::Error>>;
     fn queue_load_chunk(&mut self, chunk_x: i32, chunk_y: i32) -> bool;
     fn chunk_index(&self, chunk_x: i32, chunk_y: i32) -> u32;
@@ -139,7 +148,13 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
     // #[profiling::function] // breaks clippy
     #[allow(clippy::too_many_lines)]
-    fn tick(&mut self, tick_time: u32, settings: &Settings, world: &mut specs::World, physics: &mut Physics) {
+    fn tick(
+        &mut self,
+        tick_time: u32,
+        settings: &Settings,
+        world: &mut specs::World,
+        physics: &mut Physics,
+    ) {
         profiling::scope!("tick");
 
         let (loaders, positions) =
@@ -264,7 +279,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                     )));
                             }
                         }
-                    }
+                    },
                     ChunkState::Active => {
                         if !active_zone.iter().any(|z| rect.has_intersection(*z)) {
                             self.loaded_chunks
@@ -272,8 +287,8 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                 .unwrap()
                                 .set_state(ChunkState::Cached);
                         }
-                    }
-                    _ => {}
+                    },
+                    _ => {},
                 }
             }
 
@@ -414,7 +429,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                                         .unwrap()
                                                         .set_state(ChunkState::Cached);
                                                 }
-                                            }
+                                            },
                                             Err(e) => {
                                                 log::error!(
                                                     "Chunk parse failed @ {},{} -> {:?}: {:?}",
@@ -427,7 +442,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                                     .get_mut(key)
                                                     .unwrap()
                                                     .set_state(ChunkState::Cached);
-                                            }
+                                            },
                                         }
                                     } else {
                                         log::error!(
@@ -551,7 +566,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                 };
                                 keep_map[i] = false;
                             }
-                        }
+                        },
                         ChunkState::Generating(cur_stage) => {
                             let chunk_x = self.loaded_chunks.get(&key).unwrap().get_chunk_x();
                             let chunk_y = self.loaded_chunks.get(&key).unwrap().get_chunk_y();
@@ -615,8 +630,8 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                     keep_map[i] = false;
                                 }
                             }
-                        }
-                        _ => {}
+                        },
+                        _ => {},
                     }
                 }
 
@@ -874,50 +889,43 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                     profiling::scope!("run simulation");
 
                     #[allow(clippy::type_complexity)]
-                    let futs2: Vec<_> = to_exec
-                        .into_iter()
-                        .map(
-                            |e: (
-                                usize,
-                                (i32, i32),
-                                [usize; 9],
-                                [usize; 9],
-                                [Option<Rect>; 9],
-                            )| async move {
-                                profiling::register_thread!("Simulation thread");
-                                profiling::scope!("chunk");
-                                let ch_pos = e.1;
+                    let futs2: Vec<_> =
+                        to_exec
+                            .into_iter()
+                            .map(
+                                |e: (
+                                    usize,
+                                    (i32, i32),
+                                    [usize; 9],
+                                    [usize; 9],
+                                    [Option<Rect>; 9],
+                                )| async move {
+                                    profiling::register_thread!("Simulation thread");
+                                    profiling::scope!("chunk");
+                                    let ch_pos = e.1;
 
-                                let mut dirty = [false; 9];
-                                let mut dirty_rects = e.4;
-                                let mut particles = Vec::new();
-                                Simulator::simulate_chunk(
-                                    ch_pos.0,
-                                    ch_pos.1,
-                                    e.2,
-                                    e.3,
-                                    &mut dirty,
-                                    &mut dirty_rects,
-                                    &mut particles,
-                                );
+                                    let mut dirty = [false; 9];
+                                    let mut dirty_rects = e.4;
+                                    let mut particles = Vec::new();
+                                    Simulator::simulate_chunk(
+                                        ch_pos.0,
+                                        ch_pos.1,
+                                        e.2,
+                                        e.3,
+                                        &mut dirty,
+                                        &mut dirty_rects,
+                                        &mut particles,
+                                    );
 
-                                (ch_pos, dirty, dirty_rects, particles)
-                            },
-                        )
-                        .map(|f| RT.spawn(f))
-                        .collect();
+                                    (ch_pos, dirty, dirty_rects, particles)
+                                },
+                            )
+                            .map(|f| RT.spawn(f))
+                            .collect();
 
                     #[allow(clippy::type_complexity)]
                     let b: Vec<
-                        Result<
-                            (
-                                (i32, i32),
-                                [bool; 9],
-                                [Option<Rect>; 9],
-                                Vec<Particle>,
-                            ),
-                            _,
-                        >,
+                        Result<((i32, i32), [bool; 9], [Option<Rect>; 9], Vec<Particle>), _>,
                     >;
                     let f = {
                         profiling::scope!("join_all", format!("#futs = {}", futs2.len()).as_str());
@@ -986,10 +994,10 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                 match r {
                                     Some(current) => {
                                         r = Some(current.union(neighbor_rect));
-                                    }
+                                    },
                                     None => {
                                         r = Some(neighbor_rect);
-                                    }
+                                    },
                                 }
                                 self.loaded_chunks
                                     .get_mut(
@@ -1010,10 +1018,10 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                 match r {
                                     Some(current) => {
                                         r = Some(current.union(new));
-                                    }
+                                    },
                                     None => {
                                         r = Some(new);
-                                    }
+                                    },
                                 }
                                 self.loaded_chunks
                                     .get_mut(
@@ -1112,7 +1120,10 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
         Ok(())
     }
 
-    fn unload_all_chunks(&mut self, physics: &mut Physics) -> Result<(), Box<dyn std::error::Error>> {
+    fn unload_all_chunks(
+        &mut self,
+        physics: &mut Physics,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         #[allow(clippy::for_kv_map)] // want ? to work
         let keys = self.loaded_chunks.keys().copied().collect::<Vec<u32>>();
         for i in keys {
@@ -1381,7 +1392,6 @@ impl std::hash::Hasher for PassThroughHasherU32 {
     }
 }
 
-
 impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandler<T, C> {
     #[profiling::function]
     pub fn new(generator: T, path: Option<PathBuf>) -> Self {
@@ -1396,7 +1406,11 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
     #[allow(clippy::unnecessary_wraps)]
     #[profiling::function]
-    fn unload_chunk(&mut self, index: u32, physics: &mut Physics) -> Result<(), Box<dyn std::error::Error>> {
+    fn unload_chunk(
+        &mut self,
+        index: u32,
+        physics: &mut Physics,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let chunk = self.loaded_chunks.get_mut(&index).unwrap();
         if let Some(RigidBodyState::Active(handle)) = chunk.get_rigidbody() {
             physics.remove_rigidbody(*handle);

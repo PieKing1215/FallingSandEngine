@@ -1,6 +1,6 @@
 use crate::game::common::world::material::PhysicsType;
 use crate::game::common::world::ChunkHandlerGeneric;
-use rapier2d::{prelude::RigidBodyHandle, na::Vector2};
+use rapier2d::{na::Vector2, prelude::RigidBodyHandle};
 use sdl2::{event::Event, keyboard::Keycode};
 use specs::{Entities, WorldExt, WriteStorage};
 
@@ -142,7 +142,7 @@ impl Client {
                                     if self.controls.launch.get() {
                                         *launch_state = PlayerLaunchState::Hold;
                                     }
-                                }
+                                },
                                 PlayerLaunchState::Hold => {
                                     do_normal_movement = false;
                                     gravity = false;
@@ -167,7 +167,7 @@ impl Client {
                                             dir_y: target_y,
                                         };
                                     }
-                                }
+                                },
                                 PlayerLaunchState::Launch { time, dir_x, dir_y } => {
                                     do_normal_movement = false;
                                     gravity = false;
@@ -193,7 +193,7 @@ impl Client {
                                         velocity_storage.get_mut(eid).unwrap().x = *dir_x;
                                         velocity_storage.get_mut(eid).unwrap().y = *dir_y;
                                     }
-                                }
+                                },
                                 PlayerLaunchState::Used => {
                                     if phys_ent_storage
                                         .get_mut(eid)
@@ -202,7 +202,7 @@ impl Client {
                                     {
                                         *launch_state = PlayerLaunchState::Ready;
                                     }
-                                }
+                                },
                             }
 
                             match grapple_state {
@@ -272,7 +272,7 @@ impl Client {
                                             };
                                         }
                                     }
-                                }
+                                },
                                 PlayerGrappleState::Out {
                                     entity,
                                     can_cancel,
@@ -535,7 +535,7 @@ impl Client {
                                                 PlayerGrappleState::Cancelled { entity: *entity };
                                         }
                                     }
-                                }
+                                },
                                 PlayerGrappleState::Cancelled { entity } => {
                                     let dx = position_storage.get(eid).unwrap().x
                                         - position_storage.get(*entity).unwrap().x;
@@ -584,7 +584,7 @@ impl Client {
                                                 * 0.1;
                                         }
                                     }
-                                }
+                                },
                                 PlayerGrappleState::Used => {
                                     if phys_ent_storage
                                         .get_mut(eid)
@@ -593,7 +593,7 @@ impl Client {
                                     {
                                         *grapple_state = PlayerGrappleState::Ready;
                                     }
-                                }
+                                },
                             }
 
                             let phys_ent = phys_ent_storage
@@ -682,7 +682,7 @@ impl Client {
                         if self.controls.free_fly.get() {
                             player.movement = PlayerMovementMode::Free;
                         }
-                    }
+                    },
                     PlayerMovementMode::Free => {
                         if let Some(vel) = velocity_storage.get_mut(eid) {
                             if self.controls.up.get() {
@@ -708,7 +708,7 @@ impl Client {
                                 grapple_state: PlayerGrappleState::Ready,
                             };
                         }
-                    }
+                    },
                 }
             }
 

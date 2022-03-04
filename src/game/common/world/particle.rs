@@ -1,6 +1,5 @@
 use super::{
-    entity::Hitbox, material::MaterialInstance,
-    ChunkHandlerGeneric, Position, TickTime, Velocity,
+    entity::Hitbox, material::MaterialInstance, ChunkHandlerGeneric, Position, TickTime, Velocity,
 };
 use crate::game::common::world::{
     material::{PhysicsType, TEST_MATERIAL},
@@ -10,10 +9,7 @@ use crate::game::common::world::{
 use rand::prelude::Distribution;
 use sdl2::pixels::Color;
 use serde::{Deserialize, Serialize};
-use specs::{
-    Entities, Join, Read, ReadStorage, System,
-    Write,
-};
+use specs::{Entities, Join, Read, ReadStorage, System, Write};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Particle {
@@ -90,29 +86,25 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdateParticles<'a, H> {
 
     #[allow(clippy::too_many_lines)]
     fn run(&mut self, data: Self::SystemData) {
-
-        let (
-            entities,
-            mut system,
-            pos,
-            vel,
-            hitbox,
-            tick_time,
-        ) = data;
-        profiling::scope!("UpdateParticles::run", format!("n = {}/{}", system.active.len(), system.sleeping.len()).as_str());
+        let (entities, mut system, pos, vel, hitbox, tick_time) = data;
+        profiling::scope!(
+            "UpdateParticles::run",
+            format!("n = {}/{}", system.active.len(), system.sleeping.len()).as_str()
+        );
         // let chunk_handler = chunk_handler.unwrap().0;
         let chunk_handler = &mut *self.chunk_handler;
 
-        system.active.push(Particle::new(MaterialInstance {
+        system.active.push(Particle::new(
+            MaterialInstance {
                 material_id: TEST_MATERIAL.id,
                 physics: PhysicsType::Sand,
                 color: Color::RGB(64, 255, 255),
-            }, 
-            Position { x: (rand::random::<f64>() - 0.5) * 10.0, y: -100.0 }, 
+            },
+            Position { x: (rand::random::<f64>() - 0.5) * 10.0, y: -100.0 },
             Velocity {
                 x: (rand::random::<f64>() - 0.5) * 4.0,
                 y: (rand::random::<f64>() - 0.75) * 2.0,
-            }
+            },
         ));
 
         if tick_time.0 % 29 == 0 {
@@ -122,7 +114,7 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdateParticles<'a, H> {
             #[allow(unstable_name_collisions)]
             let mut removed = system.active.drain_filter(|p| {
                 let (chunk_x, chunk_y) = chunk_handler.pixel_to_chunk_pos(p.pos.x as i64, p.pos.y as i64);
-                !matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active) 
+                !matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active)
             }).collect::<Vec<_>>();
             system.sleeping.append(&mut removed);
         } else if tick_time.0 % 29 == 10 {
@@ -186,13 +178,13 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdateParticles<'a, H> {
                                         } else {
                                             part.in_object_state = InObjectState::Outside;
                                         }
-                                    }
+                                    },
                                     InObjectState::Inside => {
                                         if !is_object {
                                             part.in_object_state = InObjectState::Outside;
                                         }
-                                    }
-                                    InObjectState::Outside => {}
+                                    },
+                                    InObjectState::Outside => {},
                                 }
 
                                 if !is_object || part.in_object_state == InObjectState::Outside {
@@ -207,13 +199,13 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdateParticles<'a, H> {
                                             if succeeded {
                                                 return false;
                                             }
-                                            
+
                                             // upwarp if completely blocked
                                             part.vel.y = -1.0;
                                             part.pos.y -= 16.0;
-                                            
+
                                             break;
-                                        }
+                                        },
                                         _ => {
                                             if chunk_handler
                                                 .set(lx as i64, ly as i64, part.material)
@@ -221,7 +213,7 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdateParticles<'a, H> {
                                             {
                                                 return false;
                                             }
-                                        }
+                                        },
                                     }
                                 }
                             }
@@ -268,7 +260,7 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdateParticles<'a, H> {
                             }
                         }
                     });
-            };
+            }
         }
     }
 }

@@ -1,12 +1,12 @@
 use std::{cell::RefCell, fs};
 
-use imgui::{WindowFlags};
-use imgui_glow_renderer::{AutoRenderer, versions::GlVersion};
+use imgui::WindowFlags;
+use imgui_glow_renderer::{versions::GlVersion, AutoRenderer};
 use imgui_sdl2_support::SdlPlatform;
 use sdl2::{
     pixels::Color,
     ttf::{Font, Sdl2TtfContext},
-    video::{Window, GLProfile},
+    video::{GLProfile, Window},
     VideoSubsystem,
 };
 use sdl_gpu::{shaders::Shader, GPUImage, GPURect, GPUSubsystem, GPUTarget};
@@ -64,8 +64,7 @@ impl<'a> Renderer<'a> {
         let window = {
             profiling::scope!("window");
 
-            sdl
-                .sdl_video
+            sdl.sdl_video
                 .window("FallingSandRust", 1200, 800)
                 .opengl() // allow getting opengl context
                 .resizable()
@@ -143,7 +142,8 @@ impl<'a> Renderer<'a> {
                     .unwrap()
                     .pixel_operator
                     .render("Development Build")
-                    .solid(Color::RGB(0xff, 0xff, 0xff)).unwrap();
+                    .solid(Color::RGB(0xff, 0xff, 0xff))
+                    .unwrap();
                 (surf.width(), surf.height(), GPUImage::from_surface(&surf))
             });
 
@@ -165,8 +165,9 @@ impl<'a> Renderer<'a> {
                     .unwrap()
                     .pixel_operator
                     .render(format!("{} ({})", env!("BUILD_DATETIME"), env!("GIT_HASH")).as_str())
-                    .solid(Color::RGB(0xff, 0xff, 0xff)).unwrap();
-                    (surf.width(), surf.height(), GPUImage::from_surface(&surf))
+                    .solid(Color::RGB(0xff, 0xff, 0xff))
+                    .unwrap();
+                (surf.width(), surf.height(), GPUImage::from_surface(&surf))
             });
 
             img.blit_rect(
@@ -237,9 +238,19 @@ impl<'a> Renderer<'a> {
                         .graph_size([200.0, 50.0])
                         .scale_min(0.0)
                         .scale_max(50_000_000.0)
-                        .overlay_text(
-                            format!("mspf: {:.2} fps: {:.0}/{:.0}", avg_mspf, ui.io().framerate, 1_000_000_000.0 / game.fps_counter.frame_times.iter().copied().reduce(f32::max).unwrap()),
-                        )
+                        .overlay_text(format!(
+                            "mspf: {:.2} fps: {:.0}/{:.0}",
+                            avg_mspf,
+                            ui.io().framerate,
+                            1_000_000_000.0
+                                / game
+                                    .fps_counter
+                                    .frame_times
+                                    .iter()
+                                    .copied()
+                                    .reduce(f32::max)
+                                    .unwrap()
+                        ))
                         .build();
 
                     let nums: Vec<&f32> = game

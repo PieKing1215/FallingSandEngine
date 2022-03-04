@@ -1,9 +1,19 @@
-
-use rapier2d::{prelude::{RigidBodyHandle, RigidBodyBuilder, ColliderBuilder, SharedShape, RigidBody, InteractionGroups}, na::{Isometry2, Vector2, Point2}};
-use salva2d::{object::Boundary, integrations::rapier::ColliderSampling};
+use rapier2d::{
+    na::{Isometry2, Point2, Vector2},
+    prelude::{
+        ColliderBuilder, InteractionGroups, RigidBody, RigidBodyBuilder, RigidBodyHandle,
+        SharedShape,
+    },
+};
+use salva2d::{integrations::rapier::ColliderSampling, object::Boundary};
 use sdl_gpu::{GPUImage, GPURect, GPUSubsystem};
 
-use super::{material::MaterialInstance, mesh, CollisionFlags, physics::{Physics, PHYSICS_SCALE}};
+use super::{
+    material::MaterialInstance,
+    mesh,
+    physics::{Physics, PHYSICS_SCALE},
+    CollisionFlags,
+};
 
 pub struct FSRigidBody {
     pub width: u16,
@@ -44,7 +54,9 @@ impl FSRigidBody {
         // };
         // body_def.position.set(position.0, position.1);
 
-        let rigid_body = RigidBodyBuilder::new_dynamic().translation(Vector2::new(position.0, position.1)).build();
+        let rigid_body = RigidBodyBuilder::new_dynamic()
+            .translation(Vector2::new(position.0, position.1))
+            .build();
         let rb_handle = physics.bodies.insert(rigid_body);
 
         let mut shapes = Vec::new();
@@ -73,15 +85,29 @@ impl FSRigidBody {
             // fixture_def.filter.mask_bits = CollisionFlags::all().bits();
             // bod.create_fixture(&fixture_def);
 
-            shapes.push((Isometry2::new(Vector2::new(0.0, 0.0), 0.0), SharedShape::triangle(Point2::new(verts[0].0, verts[0].1), Point2::new(verts[1].0, verts[1].1), Point2::new(verts[2].0, verts[2].1))));
+            shapes.push((
+                Isometry2::new(Vector2::new(0.0, 0.0), 0.0),
+                SharedShape::triangle(
+                    Point2::new(verts[0].0, verts[0].1),
+                    Point2::new(verts[1].0, verts[1].1),
+                    Point2::new(verts[2].0, verts[2].1),
+                ),
+            ));
         }
 
         let collider = ColliderBuilder::compound(shapes)
-            .collision_groups(InteractionGroups::new(CollisionFlags::RIGIDBODY.bits(), CollisionFlags::all().bits()))
+            .collision_groups(InteractionGroups::new(
+                CollisionFlags::RIGIDBODY.bits(),
+                CollisionFlags::all().bits(),
+            ))
             .density(1.0)
             .build();
-        let co_handle = physics.colliders.insert_with_parent(collider, rb_handle, &mut physics.bodies);
-        let bo_handle = physics.fluid_pipeline
+        let co_handle =
+            physics
+                .colliders
+                .insert_with_parent(collider, rb_handle, &mut physics.bodies);
+        let bo_handle = physics
+            .fluid_pipeline
             .liquid_world
             .add_boundary(Boundary::new(Vec::new()));
         physics.fluid_pipeline.coupling.register_coupling(
@@ -176,7 +202,9 @@ impl FSRigidBody {
 
         for (loop_i, a_loop) in loops.into_iter().enumerate() {
             let mut n_pix = 0;
-            let my_pixels = pixels.iter().copied()
+            let my_pixels = pixels
+                .iter()
+                .copied()
                 .enumerate()
                 .map(|(i, m)| {
                     if nearest_loop[i] == loop_i {
@@ -201,14 +229,15 @@ impl FSRigidBody {
         Ok(rbs)
     }
 
-    pub fn make_body(
-        &mut self,
-        physics: &mut Physics,
-        position: (f32, f32),
-    ) -> Result<(), String> {
+    pub fn make_body(&mut self, physics: &mut Physics, position: (f32, f32)) -> Result<(), String> {
         if self.body.is_some() {
             let b = self.body.take().unwrap();
-            physics.bodies.remove(b, &mut physics.islands, &mut physics.colliders, &mut physics.joints);
+            physics.bodies.remove(
+                b,
+                &mut physics.islands,
+                &mut physics.colliders,
+                &mut physics.joints,
+            );
         }
 
         let values = mesh::pixels_to_valuemap(&self.pixels);
@@ -220,7 +249,9 @@ impl FSRigidBody {
 
         let loops = mesh::triangulate(&mesh);
 
-        let rigid_body = RigidBodyBuilder::new_dynamic().translation(Vector2::new(position.0, position.1)).build();
+        let rigid_body = RigidBodyBuilder::new_dynamic()
+            .translation(Vector2::new(position.0, position.1))
+            .build();
         let rb_handle = physics.bodies.insert(rigid_body);
 
         let mut shapes = Vec::new();
@@ -250,13 +281,24 @@ impl FSRigidBody {
                 // fixture_def.filter.mask_bits = CollisionFlags::all().bits();
                 // bod.create_fixture(&fixture_def);
 
-                shapes.push((Isometry2::new(Vector2::new(0.0, 0.0), 0.0), SharedShape::triangle(Point2::new(verts[0].0, verts[0].1), Point2::new(verts[1].0, verts[1].1), Point2::new(verts[2].0, verts[2].1))));
+                shapes.push((
+                    Isometry2::new(Vector2::new(0.0, 0.0), 0.0),
+                    SharedShape::triangle(
+                        Point2::new(verts[0].0, verts[0].1),
+                        Point2::new(verts[1].0, verts[1].1),
+                        Point2::new(verts[2].0, verts[2].1),
+                    ),
+                ));
             }
         }
 
         let collider = ColliderBuilder::compound(shapes).build();
-        let co_handle = physics.colliders.insert_with_parent(collider, rb_handle, &mut physics.bodies);
-        let bo_handle = physics.fluid_pipeline
+        let co_handle =
+            physics
+                .colliders
+                .insert_with_parent(collider, rb_handle, &mut physics.bodies);
+        let bo_handle = physics
+            .fluid_pipeline
             .liquid_world
             .add_boundary(Boundary::new(Vec::new()));
         physics.fluid_pipeline.coupling.register_coupling(

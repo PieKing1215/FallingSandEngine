@@ -2,11 +2,15 @@ use std::{iter, ptr::slice_from_raw_parts};
 
 use rapier2d::prelude::Shape;
 use sdl2::{pixels::Color, rect::Rect};
-use sdl_gpu::{
-    shaders::Shader,
-    GPUImage, GPURect, GPUSubsystem, GPUTarget, GPUFormat, GPUFilter,
+use sdl_gpu::{shaders::Shader, GPUFilter, GPUFormat, GPUImage, GPURect, GPUSubsystem, GPUTarget};
+use specs::{
+    prelude::ParallelIterator,
+    rayon::{
+        iter::{IndexedParallelIterator, IntoParallelRefIterator},
+        slice::ParallelSlice,
+    },
+    Join, ReadStorage, WorldExt, WriteStorage,
 };
-use specs::{Join, ReadStorage, WriteStorage, WorldExt, rayon::{iter::{IntoParallelRefIterator, IndexedParallelIterator}, slice::ParallelSlice}, prelude::ParallelIterator};
 
 use crate::game::{
     client::{
@@ -20,8 +24,9 @@ use crate::game::{
             },
             gen::WorldGenerator,
             particle::{Particle, ParticleSystem},
+            physics::PHYSICS_SCALE,
             AutoTarget, Camera, ChunkHandlerGeneric, ChunkState, Position, Velocity, World,
-            CHUNK_SIZE, physics::PHYSICS_SCALE,
+            CHUNK_SIZE,
         },
         Settings,
     },
@@ -37,7 +42,6 @@ pub struct WorldRenderer {
 
 impl WorldRenderer {
     pub fn new() -> Self {
-
         let mut liquid_image =
             GPUSubsystem::create_image(1920 / 2, 1080 / 2, GPUFormat::GPU_FORMAT_RGBA);
         liquid_image.set_image_filter(GPUFilter::GPU_FILTER_NEAREST);
@@ -46,16 +50,10 @@ impl WorldRenderer {
             GPUSubsystem::create_image(1920 / 2, 1080 / 2, GPUFormat::GPU_FORMAT_RGBA);
         liquid_image2.set_image_filter(GPUFilter::GPU_FILTER_NEAREST);
 
-        Self {
-            liquid_image,
-            liquid_image2,
-            physics_dirty: false,
-        }
+        Self { liquid_image, liquid_image2, physics_dirty: false }
     }
 
-    pub fn init(&self, world: &mut World<ClientChunk>) {
-
-    }
+    pub fn init(&self, world: &mut World<ClientChunk>) {}
 
     #[warn(clippy::too_many_arguments)]
     #[warn(clippy::too_many_lines)]
@@ -144,7 +142,8 @@ impl WorldRenderer {
                         u32::from(CHUNK_SIZE),
                         u32::from(CHUNK_SIZE),
                     );
-                    if (settings.debug && !settings.cull_chunks) || rc.has_intersection(screen_zone) {
+                    if (settings.debug && !settings.cull_chunks) || rc.has_intersection(screen_zone)
+                    {
                         transform.push();
                         transform.translate(
                             ch.chunk_x * i32::from(CHUNK_SIZE),
@@ -179,16 +178,14 @@ impl WorldRenderer {
                         let alpha: u8 = (settings.draw_chunk_state_overlay_alpha * 255.0) as u8;
                         let color = match ch.state {
                             ChunkState::NotGenerated => Color::RGBA(127, 127, 127, alpha),
-                            ChunkState::Generating(stage) => {
-                                Color::RGBA(
-                                    64,
-                                    (f32::from(stage)
-                                        / f32::from(world.chunk_handler.generator.max_gen_stage())
-                                        * 255.0) as u8,
-                                    255,
-                                    alpha,
-                                )
-                            }
+                            ChunkState::Generating(stage) => Color::RGBA(
+                                64,
+                                (f32::from(stage)
+                                    / f32::from(world.chunk_handler.generator.max_gen_stage())
+                                    * 255.0) as u8,
+                                255,
+                                alpha,
+                            ),
                             ChunkState::Cached => Color::RGBA(255, 127, 64, alpha),
                             ChunkState::Active => Color::RGBA(64, 255, 64, alpha),
                         };
@@ -230,7 +227,10 @@ impl WorldRenderer {
 
             for (handle, fluid) in world.physics.fluid_pipeline.liquid_world.fluids().iter() {
                 for (idx, particle) in fluid.positions.iter().enumerate() {
-                    let (x, y) = transform.transform((particle.coords[0] * PHYSICS_SCALE, particle.coords[1] * PHYSICS_SCALE));
+                    let (x, y) = transform.transform((
+                        particle.coords[0] * PHYSICS_SCALE,
+                        particle.coords[1] * PHYSICS_SCALE,
+                    ));
                     target.circle_filled(x as f32, y as f32, 2.0, Color::CYAN);
                 }
             }
@@ -331,7 +331,15 @@ impl WorldRenderer {
             transform.push();
             transform.scale(PHYSICS_SCALE, PHYSICS_SCALE);
 
-            fn draw_shape(shape: &dyn Shape, x: f32, y: f32, angle: f32, transform: &mut TransformStack, target: &mut GPUTarget, color: Color) {
+            fn draw_shape(
+                shape: &dyn Shape,
+                x: f32,
+                y: f32,
+                angle: f32,
+                transform: &mut TransformStack,
+                target: &mut GPUTarget,
+                color: Color,
+            ) {
                 transform.push();
                 transform.translate(x, y);
                 if let Some(comp) = shape.as_compound() {
@@ -339,8 +347,10 @@ impl WorldRenderer {
                         draw_shape(&**shape, 0.0, 0.0, 0.0, transform, target, color);
                     }
                 } else if let Some(cuboid) = shape.as_cuboid() {
-                    let (x1, y1) = transform.transform((-cuboid.half_extents[0], -cuboid.half_extents[1]));
-                    let (x2, y2) = transform.transform((cuboid.half_extents[0], cuboid.half_extents[1]));
+                    let (x1, y1) =
+                        transform.transform((-cuboid.half_extents[0], -cuboid.half_extents[1]));
+                    let (x2, y2) =
+                        transform.transform((cuboid.half_extents[0], cuboid.half_extents[1]));
                     target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, color);
                 } else if let Some(polyline) = shape.as_polyline() {
                     for seg in polyline.segments() {
@@ -349,22 +359,38 @@ impl WorldRenderer {
                         target.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, color);
                     }
                 } else if let Some(poly) = shape.as_convex_polygon() {
-                    target.polygon(poly.points().iter().flat_map(|v| {
-                        let (x, y) = transform.transform((v[0], v[1]));
-                        [x as f32, y as f32]
-                    }).collect(), color);
+                    target.polygon(
+                        poly.points()
+                            .iter()
+                            .flat_map(|v| {
+                                let (x, y) = transform.transform((v[0], v[1]));
+                                [x as f32, y as f32]
+                            })
+                            .collect(),
+                        color,
+                    );
                 } else if let Some(trimesh) = shape.as_trimesh() {
                     for tri in trimesh.triangles() {
                         let (x1, y1) = transform.transform((tri.a[0], tri.a[1]));
                         let (x2, y2) = transform.transform((tri.b[0], tri.b[1]));
                         let (x3, y3) = transform.transform((tri.c[0], tri.c[1]));
-                        target.polygon(vec![x1 as f32, y1 as f32, x2 as f32, y2 as f32, x3 as f32, y3 as f32], color);
+                        target.polygon(
+                            vec![
+                                x1 as f32, y1 as f32, x2 as f32, y2 as f32, x3 as f32, y3 as f32,
+                            ],
+                            color,
+                        );
                     }
                 } else if let Some(tri) = shape.as_triangle() {
                     let (x1, y1) = transform.transform((x + tri.a[0], y + tri.a[1]));
                     let (x2, y2) = transform.transform((x + tri.b[0], y + tri.b[1]));
                     let (x3, y3) = transform.transform((x + tri.c[0], y + tri.c[1]));
-                    target.polygon(vec![x1 as f32, y1 as f32, x2 as f32, y2 as f32, x3 as f32, y3 as f32], color);
+                    target.polygon(
+                        vec![
+                            x1 as f32, y1 as f32, x2 as f32, y2 as f32, x3 as f32, y3 as f32,
+                        ],
+                        color,
+                    );
                 }
                 transform.pop();
             }
@@ -374,40 +400,64 @@ impl WorldRenderer {
             // TODO: physics_dbg_draw_particle
 
             for (a, b) in world.physics.bodies.iter() {
-                let (rx, ry) = (b.position().translation.vector[0], b.position().translation.vector[1]);
-                
+                let (rx, ry) = (
+                    b.position().translation.vector[0],
+                    b.position().translation.vector[1],
+                );
+
                 let (x, y) = transform.transform((rx, ry));
                 target.circle(x as f32, y as f32, 3.0, Color::GREEN);
-                
+
                 if settings.physics_dbg_draw_center_of_mass {
                     let com = b.mass_properties().world_com(b.position());
                     let (x, y) = transform.transform((com.x, com.y));
                     target.circle(x as f32, y as f32, 2.0, Color::RED);
                 }
-                
+
                 for c in b.colliders() {
                     let col = world.physics.colliders.get(*c).unwrap();
-                    
+
                     if settings.physics_dbg_draw_shape {
                         let shape = col.shape();
-                        draw_shape(shape, rx, ry, b.rotation().angle(), transform, target, Color::RGBA(0x00, 0xff, 0x00, if b.is_sleeping() { 0x64 } else { 0xff }));
+                        draw_shape(
+                            shape,
+                            rx,
+                            ry,
+                            b.rotation().angle(),
+                            transform,
+                            target,
+                            Color::RGBA(
+                                0x00,
+                                0xff,
+                                0x00,
+                                if b.is_sleeping() { 0x64 } else { 0xff },
+                            ),
+                        );
                     }
-                    
+
                     if settings.physics_dbg_draw_aabb {
                         let aabb = col.compute_aabb();
-                        
+
                         transform.push();
                         transform.translate(aabb.center().x, aabb.center().y);
-                        
-                        let (x1, y1) = transform.transform((-aabb.half_extents()[0], -aabb.half_extents()[1]));
-                        let (x2, y2) = transform.transform((aabb.half_extents()[0], aabb.half_extents()[1]));
-                        target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(0xff, 0, 0xff, if b.is_sleeping() { 0x64 } else { 0xff }));
+
+                        let (x1, y1) =
+                            transform.transform((-aabb.half_extents()[0], -aabb.half_extents()[1]));
+                        let (x2, y2) =
+                            transform.transform((aabb.half_extents()[0], aabb.half_extents()[1]));
+                        target.rectangle(
+                            x1 as f32,
+                            y1 as f32,
+                            x2 as f32,
+                            y2 as f32,
+                            Color::RGBA(0xff, 0, 0xff, if b.is_sleeping() { 0x64 } else { 0xff }),
+                        );
 
                         transform.pop();
                     }
                 }
             }
-            
+
             transform.pop();
         }
 
@@ -416,53 +466,46 @@ impl WorldRenderer {
             let particle_system = world.ecs.read_resource::<ParticleSystem>();
 
             // TODO: magic number, works well on my machine but probably different on others
-            let mut batches: Vec<Vec<f32>> = particle_system.active.par_chunks(2000).map(|chunk| {
-                
-                let mut batch = Vec::new();
-                for part in chunk {
-                    #[allow(clippy::cast_lossless)]
-                    if screen_zone
-                        .contains_point(sdl2::rect::Point::new(part.pos.x as i32, part.pos.y as i32))
-                        || !settings.cull_chunks
-                    {
-                        let lerp_x = part.pos.x + part.vel.x * partial_ticks;
-                        let lerp_y = part.pos.y + part.vel.y * partial_ticks;
-                        let (x1, y1) = transform.transform((lerp_x - 0.5, lerp_y - 0.5));
-                        let (x2, y2) = transform.transform((lerp_x + 0.5, lerp_y + 0.5));
-                        let col = f32::from_le_bytes([part.material.color.r, part.material.color.g, part.material.color.b, part.material.color.a]);
-                        
-                        batch.extend([
-                            x1 as f32,
-                            y1 as f32,
-                            col,
-                            x2 as f32,
-                            y1 as f32,
-                            col,
-                            x2 as f32,
-                            y2 as f32,
-                            col,
+            let mut batches: Vec<Vec<f32>> = particle_system
+                .active
+                .par_chunks(2000)
+                .map(|chunk| {
+                    let mut batch = Vec::new();
+                    for part in chunk {
+                        #[allow(clippy::cast_lossless)]
+                        if screen_zone.contains_point(sdl2::rect::Point::new(
+                            part.pos.x as i32,
+                            part.pos.y as i32,
+                        )) || !settings.cull_chunks
+                        {
+                            let lerp_x = part.pos.x + part.vel.x * partial_ticks;
+                            let lerp_y = part.pos.y + part.vel.y * partial_ticks;
+                            let (x1, y1) = transform.transform((lerp_x - 0.5, lerp_y - 0.5));
+                            let (x2, y2) = transform.transform((lerp_x + 0.5, lerp_y + 0.5));
+                            let col = f32::from_le_bytes([
+                                part.material.color.r,
+                                part.material.color.g,
+                                part.material.color.b,
+                                part.material.color.a,
+                            ]);
 
-                            x1 as f32,
-                            y1 as f32,
-                            col,
-                            x2 as f32,
-                            y2 as f32,
-                            col,
-                            x1 as f32,
-                            y2 as f32,
-                            col,
-                        ]);
-                        // target.rectangle_filled(
-                        //     x1 as f32,
-                        //     y1 as f32,
-                        //     x2 as f32,
-                        //     y2 as f32,
-                        //     part.material.color,
-                        // );
+                            batch.extend([
+                                x1 as f32, y1 as f32, col, x2 as f32, y1 as f32, col, x2 as f32,
+                                y2 as f32, col, x1 as f32, y1 as f32, col, x2 as f32, y2 as f32,
+                                col, x1 as f32, y2 as f32, col,
+                            ]);
+                            // target.rectangle_filled(
+                            //     x1 as f32,
+                            //     y1 as f32,
+                            //     x2 as f32,
+                            //     y2 as f32,
+                            //     part.material.color,
+                            // );
+                        }
                     }
-                }
-                batch
-            }).collect();
+                    batch
+                })
+                .collect();
             for mut batch in &mut batches {
                 // profiling::scope!("triangle_batch_raw_u8", format!("#verts = {}", batch.len() / 3).as_str());
                 target.triangle_batch_raw_u8(batch);
@@ -713,13 +756,13 @@ impl WorldRenderer {
                         match grapple_state {
                             PlayerGrappleState::Out { entity, pivots, .. } => {
                                 draw_grapple(entity, pivots);
-                            }
+                            },
                             PlayerGrappleState::Cancelled { entity } => {
                                 draw_grapple(entity, &vec![]);
-                            }
+                            },
                             PlayerGrappleState::Ready | PlayerGrappleState::Used => (),
                         }
-                    }
+                    },
                     PlayerMovementMode::Free => (),
                 });
         }

@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use specs::{
     saveload::{SimpleMarker, SimpleMarkerAllocator},
     storage::BTreeStorage,
-    Component, Entities, Join, System, Write, WriteStorage, Read,
+    Component, Entities, Join, Read, System, Write, WriteStorage,
 };
 
 mod player;
@@ -12,7 +12,8 @@ pub use player::*;
 use crate::game::common::world::material::{MaterialInstance, PhysicsType};
 
 use super::{
-    particle::{Particle, ParticleSystem}, ChunkHandlerGeneric, ChunkState, FilePersistent, Position, Velocity,
+    particle::{Particle, ParticleSystem},
+    ChunkHandlerGeneric, ChunkState, FilePersistent, Position, Velocity,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -6,8 +6,14 @@ use std::{
 
 use clap::ArgMatches;
 use log::{debug, error, info, warn};
-use rapier2d::{prelude::{RigidBodyBuilder, QueryPipeline, InteractionGroups, RigidBodyType, BallJoint, ColliderBuilder}, na::{Vector2, Isometry2, Point2}};
-use salva2d::{object::Boundary, integrations::rapier::ColliderSampling};
+use rapier2d::{
+    na::{Isometry2, Point2, Vector2},
+    prelude::{
+        BallJoint, ColliderBuilder, InteractionGroups, QueryPipeline, RigidBodyBuilder,
+        RigidBodyType,
+    },
+};
+use salva2d::{integrations::rapier::ColliderSampling, object::Boundary};
 use sdl2::{
     event::{Event, WindowEvent},
     keyboard::Keycode,
@@ -25,8 +31,9 @@ use crate::game::{
         world::{
             entity::{GameEntity, Hitbox, Persistent, PhysicsEntity, Player, PlayerMovementMode},
             material::MaterialInstance,
-            RigidBodyComponent, Camera, ChunkHandlerGeneric, CollisionFlags, Loader, Position,
-            Velocity, World, WorldNetworkMode, physics::PHYSICS_SCALE,
+            physics::PHYSICS_SCALE,
+            Camera, ChunkHandlerGeneric, CollisionFlags, Loader, Position, RigidBodyComponent,
+            Velocity, World, WorldNetworkMode,
         },
         Settings,
     },
@@ -65,10 +72,10 @@ impl Game<ClientChunk> {
                     self.world.as_mut().unwrap().net_mode = WorldNetworkMode::Remote;
 
                     network = Some(r);
-                }
+                },
                 Err(e) => {
                     error!("[CLIENT] Failed to connect to server: {}", e);
-                }
+                },
             }
         }
 
@@ -114,17 +121,17 @@ impl Game<ClientChunk> {
                         | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => break 'mainLoop,
                         Event::KeyDown { keycode: Some(Keycode::F11), .. } => {
                             self.settings.fullscreen = !self.settings.fullscreen;
-                        }
+                        },
                         Event::KeyDown {
                             keycode: Some(Keycode::RShift | Keycode::LShift), ..
                         } => {
                             shift_key = true;
-                        }
+                        },
                         Event::KeyUp {
                             keycode: Some(Keycode::RShift | Keycode::LShift), ..
                         } => {
                             shift_key = false;
-                        }
+                        },
                         Event::MouseWheel { y, .. } => {
                             if let Some(c) = &mut self.client {
                                 if shift_key {
@@ -142,7 +149,7 @@ impl Game<ClientChunk> {
                                         .clamp(0.01, 10.0);
                                 }
                             }
-                        }
+                        },
                         Event::MouseButtonDown {
                             mouse_btn: sdl2::mouse::MouseButton::Right,
                             x,
@@ -184,7 +191,11 @@ impl Game<ClientChunk> {
                                             let groups = InteractionGroups::all();
                                             let filter = None;
                                             let mut query_pipeline = QueryPipeline::new();
-                                            query_pipeline.update(&w.physics.islands, &w.physics.bodies, &w.physics.colliders);
+                                            query_pipeline.update(
+                                                &w.physics.islands,
+                                                &w.physics.bodies,
+                                                &w.physics.colliders,
+                                            );
                                             query_pipeline.intersections_with_point(
                                                 &w.physics.colliders, &point, groups, filter, |handle| {
                                                     let col = w.physics.colliders.get(handle).unwrap();
@@ -216,7 +227,7 @@ impl Game<ClientChunk> {
                                     }
                                 }
                             }
-                        }
+                        },
                         Event::MouseButtonUp {
                             mouse_btn: sdl2::mouse::MouseButton::Right, ..
                         } => {
@@ -224,13 +235,22 @@ impl Game<ClientChunk> {
                                 if let Some(ref mut c) = &mut self.client {
                                     if let Some((rb_h, linvel)) = c.mouse_joint.take() {
                                         for j in w.physics.joints.joints_with(rb_h) {
-                                            w.physics.bodies.get_mut(j.1).unwrap().set_linvel(linvel, true);
+                                            w.physics
+                                                .bodies
+                                                .get_mut(j.1)
+                                                .unwrap()
+                                                .set_linvel(linvel, true);
                                         }
-                                        w.physics.bodies.remove(rb_h, &mut w.physics.islands, &mut w.physics.colliders, &mut w.physics.joints);
+                                        w.physics.bodies.remove(
+                                            rb_h,
+                                            &mut w.physics.islands,
+                                            &mut w.physics.colliders,
+                                            &mut w.physics.joints,
+                                        );
                                     }
                                 }
                             }
-                        }
+                        },
                         Event::MouseMotion { xrel, yrel, mousestate, x, y, .. } => {
                             if mousestate.left() {
                                 if let Some(w) = &mut self.world {
@@ -321,25 +341,31 @@ impl Game<ClientChunk> {
                                                         / c.camera_scale;
 
                                                 if let Some((rb_h, vel)) = &mut c.mouse_joint {
-                                                    let rb = w.physics.bodies.get_mut(*rb_h).unwrap();
+                                                    let rb =
+                                                        w.physics.bodies.get_mut(*rb_h).unwrap();
                                                     let prev_pos = *rb.translation();
-                                                    rb.set_next_kinematic_translation(Vector2::new(
-                                                        world_x as f32 / PHYSICS_SCALE,
-                                                        world_y as f32 / PHYSICS_SCALE,
-                                                    ));
-                                                    *vel = Vector2::new(world_x as f32 / PHYSICS_SCALE - prev_pos.x, world_y as f32 / PHYSICS_SCALE - prev_pos.y);
+                                                    rb.set_next_kinematic_translation(
+                                                        Vector2::new(
+                                                            world_x as f32 / PHYSICS_SCALE,
+                                                            world_y as f32 / PHYSICS_SCALE,
+                                                        ),
+                                                    );
+                                                    *vel = Vector2::new(
+                                                        world_x as f32 / PHYSICS_SCALE - prev_pos.x,
+                                                        world_y as f32 / PHYSICS_SCALE - prev_pos.y,
+                                                    );
                                                 }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
+                        },
                         Event::Window { win_event: WindowEvent::Resized(w, h), .. } => {
                             #[allow(clippy::cast_sign_loss)]
                             GPUSubsystem::set_window_resolution(w as u16, h as u16);
-                        }
-                        _ => {}
+                        },
+                        _ => {},
                     }
                 }
             }
@@ -367,12 +393,12 @@ impl Game<ClientChunk> {
                         if fullscreen && fullscreen_type == 0 =>
                     {
                         FullscreenType::Desktop
-                    }
+                    },
                     Settings { fullscreen, fullscreen_type, .. }
                         if fullscreen && fullscreen_type != 0 =>
                     {
                         FullscreenType::True
-                    }
+                    },
                     _ => FullscreenType::Off,
                 };
 
@@ -434,7 +460,8 @@ impl Game<ClientChunk> {
                 can_tick = can_tick
                     && !(self.settings.pause_on_lost_focus
                         && renderer.is_some()
-                        && (flags & SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32) != SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32);
+                        && (flags & SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32)
+                            != SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32);
             }
 
             if do_tick_next && can_tick {
@@ -447,7 +474,7 @@ impl Game<ClientChunk> {
                         match act {
                             crate::game::client::ui::MainMenuAction::Quit => {
                                 break 'mainLoop;
-                            }
+                            },
                             crate::game::client::ui::MainMenuAction::LoadWorld(path) => {
                                 let world_meta = crate::game::common::world::World::<ClientChunk>::parse_file_meta(path.clone()).expect("Failed to parse file meta");
                                 if let Some(w) = &mut self.world {
@@ -468,22 +495,49 @@ impl Game<ClientChunk> {
                                     .lock_rotations()
                                     .gravity_scale(0.0)
                                     .build();
-                                let handle = self.world.as_mut().unwrap().physics.bodies.insert(rigid_body);
-                                let collider = ColliderBuilder::cuboid(12.0 / PHYSICS_SCALE / 2.0, 20.0 / PHYSICS_SCALE / 2.0)
-                                    .collision_groups(InteractionGroups::new(CollisionFlags::PLAYER.bits(), (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits()))
-                                    .density(1.5)
-                                    .friction(0.3)
-                                    .build();
+                                let handle = self
+                                    .world
+                                    .as_mut()
+                                    .unwrap()
+                                    .physics
+                                    .bodies
+                                    .insert(rigid_body);
+                                let collider = ColliderBuilder::cuboid(
+                                    12.0 / PHYSICS_SCALE / 2.0,
+                                    20.0 / PHYSICS_SCALE / 2.0,
+                                )
+                                .collision_groups(InteractionGroups::new(
+                                    CollisionFlags::PLAYER.bits(),
+                                    (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits(),
+                                ))
+                                .density(1.5)
+                                .friction(0.3)
+                                .build();
                                 let w = self.world.as_mut().unwrap();
-                                let co_handle = w.physics.colliders.insert_with_parent(collider, handle, &mut w.physics.bodies);
-                                let bo_handle = self.world.as_mut().unwrap().physics.fluid_pipeline
+                                let co_handle = w.physics.colliders.insert_with_parent(
+                                    collider,
+                                    handle,
+                                    &mut w.physics.bodies,
+                                );
+                                let bo_handle = self
+                                    .world
+                                    .as_mut()
+                                    .unwrap()
+                                    .physics
+                                    .fluid_pipeline
                                     .liquid_world
                                     .add_boundary(Boundary::new(Vec::new()));
-                                self.world.as_mut().unwrap().physics.fluid_pipeline.coupling.register_coupling(
-                                    bo_handle,
-                                    co_handle,
-                                    ColliderSampling::DynamicContactSampling,
-                                );
+                                self.world
+                                    .as_mut()
+                                    .unwrap()
+                                    .physics
+                                    .fluid_pipeline
+                                    .coupling
+                                    .register_coupling(
+                                        bo_handle,
+                                        co_handle,
+                                        ColliderSampling::DynamicContactSampling,
+                                    );
 
                                 if let Some(w) = &mut self.world {
                                     let player = w
@@ -508,7 +562,7 @@ impl Game<ClientChunk> {
 
                                     client.world = Some(ClientWorld { local_entity: Some(player) });
                                 };
-                            }
+                            },
                         }
                     }
                 }
@@ -578,7 +632,7 @@ impl Game<ClientChunk> {
                                                                 warn!("[CLIENT] sync_chunk failed: {}", e);
                                                             }
                                                         }
-                                                    }
+                                                    },
                                                     PacketType::SyncLiquidFunPacket {
                                                         positions,
                                                         velocities,
@@ -630,10 +684,10 @@ impl Game<ClientChunk> {
                                                         //             velocities[i].y;
                                                         //     }
                                                         // }
-                                                    }
-                                                    _ => {}
+                                                    },
+                                                    _ => {},
                                                 }
-                                            }
+                                            },
                                             Err(e) => {
                                                 warn!(
                                                     "[CLIENT] Failed to deserialize packet: {}",
@@ -659,18 +713,18 @@ impl Game<ClientChunk> {
                                                 //         panic!("[CLIENT] See data.dat: {} : {:?}", e, sl);
                                                 //     },
                                                 // }
-                                            }
+                                            },
                                         };
                                         // println!("[CLIENT] Recieved packet : {:?}", match p.packet_type {
                                         //     PacketType::SyncChunkPacket{..} => "SyncChunkPacket",
                                         //     _ => "???",
                                         // });
-                                    }
+                                    },
                                     Err(_e) => {
                                         let read = buf.len() - prev_size;
                                         // println!("[CLIENT] read_to_end failed (but read {} bytes): {}", read, e);
                                         bytes_to_read = Some(size - read as u32);
-                                    }
+                                    },
                                 }
                             }
                         }
@@ -705,7 +759,8 @@ impl Game<ClientChunk> {
                     let st = Instant::now();
                     w.tick_physics(&self.settings);
                     self.fps_counter.tick_physics_times.rotate_left(1);
-                    self.fps_counter.tick_physics_times[self.fps_counter.tick_physics_times.len() - 1] =
+                    self.fps_counter.tick_physics_times
+                        [self.fps_counter.tick_physics_times.len() - 1] =
                         Instant::now().saturating_duration_since(st).as_nanos() as f32;
                     if let Some(r) = &mut renderer {
                         r.world_renderer.mark_liquid_dirty();
@@ -713,7 +768,9 @@ impl Game<ClientChunk> {
                 }
             }
             do_tick_physics_next = can_tick
-                && now.saturating_duration_since(prev_tick_physics_time).as_nanos()
+                && now
+                    .saturating_duration_since(prev_tick_physics_time)
+                    .as_nanos()
                     > 1_000_000_000 / u128::from(self.settings.tick_physics_speed); // intended is 60 ticks per second
 
             // render

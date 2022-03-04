@@ -1,5 +1,4 @@
-
-use rapier2d::na::{Vector2, Isometry2};
+use rapier2d::na::{Isometry2, Vector2};
 use sdl2::{pixels::Color, rect::Rect};
 
 use crate::game::common::world::material::{MaterialInstance, PhysicsType};
@@ -9,7 +8,10 @@ use super::gen::WorldGenerator;
 use super::material::AIR;
 use super::particle::Particle;
 use super::rigidbody::FSRigidBody;
-use super::{Chunk, ChunkHandler, ChunkHandlerGeneric, Position, Velocity, physics::{PHYSICS_SCALE, Physics}};
+use super::{
+    physics::{Physics, PHYSICS_SCALE},
+    Chunk, ChunkHandler, ChunkHandlerGeneric, Position, Velocity,
+};
 
 pub struct Simulator {}
 
@@ -84,7 +86,7 @@ impl SimulationHelperChunk<'_> {
         *self.max_x.get_unchecked_mut(ch) = (*self.max_x.get_unchecked_mut(ch)).max(ch_x);
         *self.max_y.get_unchecked_mut(ch) = (*self.max_y.get_unchecked_mut(ch)).max(ch_y);
     }
-    
+
     #[inline]
     unsafe fn set_pixel_local_unchecked(&mut self, x: i32, y: i32, mat: MaterialInstance) {
         self.set_pixel_from_index_unchecked(Self::local_to_indices(x, y), mat);
@@ -101,7 +103,10 @@ impl SimulationHelperChunk<'_> {
     }
 
     #[inline]
-    unsafe fn get_color_from_index_unchecked(&self, (ch, px, ..): (usize, usize, u16, u16)) -> Color {
+    unsafe fn get_color_from_index_unchecked(
+        &self,
+        (ch, px, ..): (usize, usize, u16, u16),
+    ) -> Color {
         Color::RGBA(
             *(**self.colors.get_unchecked(ch)).get_unchecked(px * 4),
             *(**self.colors.get_unchecked(ch)).get_unchecked(px * 4 + 1),
@@ -205,16 +210,14 @@ impl SimulationHelper for SimulationHelperChunk<'_> {
 
     #[inline]
     fn add_particle(&mut self, material: MaterialInstance, pos: Position, vel: Velocity) {
-        self.particles.push(
-            Particle::new(
-                material,
-                Position {
-                    x: pos.x + f64::from(self.chunk_x) * f64::from(CHUNK_SIZE),
-                    y: pos.y + f64::from(self.chunk_y) * f64::from(CHUNK_SIZE),
-                },
-                vel
-            )
-        );
+        self.particles.push(Particle::new(
+            material,
+            Position {
+                x: pos.x + f64::from(self.chunk_x) * f64::from(CHUNK_SIZE),
+                y: pos.y + f64::from(self.chunk_y) * f64::from(CHUNK_SIZE),
+            },
+            vel,
+        ));
     }
 }
 
@@ -248,8 +251,7 @@ impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelpe
                 let nt_x = (tx * c - ty * s) as i32;
                 let nt_y = (tx * s + ty * c) as i32;
 
-                if nt_x >= 0 && nt_y >= 0 && nt_x < cur.width.into() && nt_y < cur.width.into()
-                {
+                if nt_x >= 0 && nt_y >= 0 && nt_x < cur.width.into() && nt_y < cur.width.into() {
                     let px = cur.pixels[(nt_x + nt_y * i32::from(cur.width)) as usize];
 
                     if px.material_id != AIR.id {
@@ -296,8 +298,7 @@ impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelpe
                 let nt_x = (tx * c - ty * s) as i32;
                 let nt_y = (tx * s + ty * c) as i32;
 
-                if nt_x >= 0 && nt_y >= 0 && nt_x < cur.width.into() && nt_y < cur.width.into()
-                {
+                if nt_x >= 0 && nt_y >= 0 && nt_x < cur.width.into() && nt_y < cur.width.into() {
                     let px = cur.pixels[(nt_x + nt_y * i32::from(cur.width)) as usize];
 
                     if px.material_id != AIR.id {
@@ -400,20 +401,21 @@ impl Simulator {
                 profiling::scope!("loop");
                 if rng.bool() {
                     for y in (my_dirty_rect.y..(my_dirty_rect.y + my_dirty_rect.h) as i32).rev() {
-                            for x in my_dirty_rect.x..(my_dirty_rect.x + my_dirty_rect.w) as i32 {
-                                let cur = helper.get_pixel_local_unchecked(x, y);
-        
-                                if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper, &rng) {
-                                    helper.set_color_local_unchecked(x, y, mat.color);
-                                    helper.set_pixel_local_unchecked(x, y, mat);
-                                }
+                        for x in my_dirty_rect.x..(my_dirty_rect.x + my_dirty_rect.w) as i32 {
+                            let cur = helper.get_pixel_local_unchecked(x, y);
+
+                            if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper, &rng) {
+                                helper.set_color_local_unchecked(x, y, mat.color);
+                                helper.set_pixel_local_unchecked(x, y, mat);
                             }
+                        }
                     }
                 } else {
                     for y in (my_dirty_rect.y..(my_dirty_rect.y + my_dirty_rect.h) as i32).rev() {
-                        for x in (my_dirty_rect.x..(my_dirty_rect.x + my_dirty_rect.w) as i32).rev() {
+                        for x in (my_dirty_rect.x..(my_dirty_rect.x + my_dirty_rect.w) as i32).rev()
+                        {
                             let cur = helper.get_pixel_local_unchecked(x, y);
-    
+
                             if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper, &rng) {
                                 helper.set_color_local_unchecked(x, y, mat.color);
                                 helper.set_pixel_local_unchecked(x, y, mat);
@@ -461,7 +463,8 @@ impl Simulator {
                         // let cur = helper.get_pixel_local(tx as i32, ty as i32);
                         let cur = helper.rigidbodies[i].pixels[(rb_x + rb_y * rb_w) as usize];
 
-                        let res = Self::simulate_pixel(tx as i32, ty as i32, cur, &mut helper, &rng);
+                        let res =
+                            Self::simulate_pixel(tx as i32, ty as i32, cur, &mut helper, &rng);
 
                         // if cur.material_id != AIR.id {
                         //     // helper.set_pixel_local(tx as i32, ty as i32, MaterialInstance {
@@ -514,14 +517,21 @@ impl Simulator {
                     let rb_linear_velocity = *rb.get_body(physics).unwrap().linvel();
                     let rb_angular_velocity = rb.get_body(physics).unwrap().angvel();
 
-                    physics.bodies.remove(rb.body.take().unwrap(), &mut physics.islands, &mut physics.colliders, &mut physics.joints);
+                    physics.bodies.remove(
+                        rb.body.take().unwrap(),
+                        &mut physics.islands,
+                        &mut physics.colliders,
+                        &mut physics.joints,
+                    );
                     let mut r = rigidbody::FSRigidBody::make_bodies(
                         &rb.pixels, rb.width, rb.height, physics, pos,
                     )
                     .unwrap_or_default();
 
                     for rb in &mut r {
-                        rb.get_body_mut(physics).unwrap().set_position(Isometry2::new(rb_pos, rb_angle), true);
+                        rb.get_body_mut(physics)
+                            .unwrap()
+                            .set_position(Isometry2::new(rb_pos, rb_angle), true);
                         rb.get_body_mut(physics)
                             .unwrap()
                             .set_linvel(rb_linear_velocity, true);
@@ -582,12 +592,11 @@ impl Simulator {
                             helper.add_particle(
                                 cur,
                                 Position { x: f64::from(x), y: f64::from(y) },
-                                Velocity {
-                                    x: (rng.f64() - 0.5) * 0.5,
-                                    y: 1.0 + rng.f64(),
-                                },
+                                Velocity { x: (rng.f64() - 0.5) * 0.5, y: 1.0 + rng.f64() },
                             );
-                        } else if rng.bool() && helper.get_pixel_local(x, y + 2).physics == PhysicsType::Air {
+                        } else if rng.bool()
+                            && helper.get_pixel_local(x, y + 2).physics == PhysicsType::Air
+                        {
                             helper.set_color_local(x, y + 2, cur.color);
                             helper.set_pixel_local(x, y + 2, cur);
                         } else {
@@ -612,7 +621,12 @@ impl Simulator {
                                 }
                                 new_mat = Some(MaterialInstance::air());
                             } else if bl_can {
-                                if rng.bool() && helper.get_pixel_local(x - 2, y + 1).physics == PhysicsType::Air && helper.get_pixel_local(x - 2, y + 2).physics != PhysicsType::Air {
+                                if rng.bool()
+                                    && helper.get_pixel_local(x - 2, y + 1).physics
+                                        == PhysicsType::Air
+                                    && helper.get_pixel_local(x - 2, y + 2).physics
+                                        != PhysicsType::Air
+                                {
                                     helper.set_color_local(x - 2, y + 1, cur.color);
                                     helper.set_pixel_local(x - 2, y + 1, cur);
                                     new_mat = Some(MaterialInstance::air());
@@ -622,7 +636,12 @@ impl Simulator {
                                     new_mat = Some(MaterialInstance::air());
                                 }
                             } else if br_can {
-                                if rng.bool() && helper.get_pixel_local(x + 2, y + 1).physics == PhysicsType::Air && helper.get_pixel_local(x + 2, y + 2).physics != PhysicsType::Air {
+                                if rng.bool()
+                                    && helper.get_pixel_local(x + 2, y + 1).physics
+                                        == PhysicsType::Air
+                                    && helper.get_pixel_local(x + 2, y + 2).physics
+                                        != PhysicsType::Air
+                                {
                                     helper.set_color_local(x + 2, y + 1, cur.color);
                                     helper.set_pixel_local(x + 2, y + 1, cur);
                                     new_mat = Some(MaterialInstance::air());
@@ -634,8 +653,8 @@ impl Simulator {
                             }
                         }
                     }
-                }
-                _ => {}
+                },
+                _ => {},
             }
 
             new_mat

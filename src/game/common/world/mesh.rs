@@ -126,7 +126,7 @@ pub fn generate_mesh_with_simplified(
                     .filter(|p: &(Loop, Loop)| !p.0.is_empty() && !p.1.is_empty())
                     .unzip();
                 v
-            }
+            },
             _ => unreachable!(), // it is always a MultiPolygon
         }
     });
