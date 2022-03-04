@@ -434,8 +434,7 @@ impl Game<ClientChunk> {
                 can_tick = can_tick
                     && !(self.settings.pause_on_lost_focus
                         && renderer.is_some()
-                        && !(flags & SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32
-                            == SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32));
+                        && (flags & SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32) != SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32);
             }
 
             if do_tick_next && can_tick {
@@ -696,8 +695,8 @@ impl Game<ClientChunk> {
                 can_tick = can_tick
                     && !(self.settings.pause_on_lost_focus
                         && renderer.is_some()
-                        && !(flags & SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32
-                            == SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32));
+                        && (flags & SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32)
+                            != SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32);
             }
 
             if do_tick_physics_next && can_tick {

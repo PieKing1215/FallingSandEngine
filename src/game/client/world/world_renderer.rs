@@ -177,28 +177,21 @@ impl WorldRenderer {
                         let rect = transform.transform_rect(rc);
 
                         let alpha: u8 = (settings.draw_chunk_state_overlay_alpha * 255.0) as u8;
-                        let color;
-                        match ch.state {
-                            ChunkState::NotGenerated => {
-                                color = Color::RGBA(127, 127, 127, alpha);
-                            }
+                        let color = match ch.state {
+                            ChunkState::NotGenerated => Color::RGBA(127, 127, 127, alpha),
                             ChunkState::Generating(stage) => {
-                                color = Color::RGBA(
+                                Color::RGBA(
                                     64,
                                     (f32::from(stage)
                                         / f32::from(world.chunk_handler.generator.max_gen_stage())
                                         * 255.0) as u8,
                                     255,
                                     alpha,
-                                );
+                                )
                             }
-                            ChunkState::Cached => {
-                                color = Color::RGBA(255, 127, 64, alpha);
-                            }
-                            ChunkState::Active => {
-                                color = Color::RGBA(64, 255, 64, alpha);
-                            }
-                        }
+                            ChunkState::Cached => Color::RGBA(255, 127, 64, alpha),
+                            ChunkState::Active => Color::RGBA(64, 255, 64, alpha),
+                        };
                         target.rectangle_filled2(rect, color);
                         target.rectangle2(rect, color);
 
@@ -472,7 +465,7 @@ impl WorldRenderer {
             }).collect();
             for mut batch in &mut batches {
                 // profiling::scope!("triangle_batch_raw_u8", format!("#verts = {}", batch.len() / 3).as_str());
-                target.triangle_batch_raw_u8(&mut batch);
+                target.triangle_batch_raw_u8(batch);
             }
         }
 

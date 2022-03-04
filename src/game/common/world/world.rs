@@ -687,27 +687,24 @@ impl<'w, C: Chunk> World<C> {
 
                     // TODO: see if using box2d's query methods instead of direct iteration is faster
                     for (handle, rb) in self.physics.bodies.iter() {
-                        match rb.body_type() {
-                            RigidBodyType::Dynamic => {
-                                // if body.is_awake() { // this just causes flickering
-                                let pos = rb.translation();
-                                let dist_x =
-                                    (pos.x * PHYSICS_SCALE as f32 - chunk_center_x as f32).abs();
-                                let dist_y =
-                                    (pos.y * PHYSICS_SCALE as f32 - chunk_center_y as f32).abs();
-                                if dist_x < dist_body && dist_y < dist_body {
-                                    should_be_active = true;
-                                }
-                                // }
+                        if rb.body_type() == RigidBodyType::Dynamic {
+                            // if body.is_awake() { // this just causes flickering
+                            let pos = rb.translation();
+                            let dist_x =
+                                (pos.x * PHYSICS_SCALE as f32 - chunk_center_x as f32).abs();
+                            let dist_y =
+                                (pos.y * PHYSICS_SCALE as f32 - chunk_center_y as f32).abs();
+                            if dist_x < dist_body && dist_y < dist_body {
+                                should_be_active = true;
                             }
-                            _ => {}
+                            // }
                         }
                     }
 
                     if let Some(state) = c.get_rigidbody_mut() {
                         match state {
                             RigidBodyState::Active(h) if !should_be_active => {
-                                let cls = self.physics.bodies.get(*h).unwrap().colliders().iter().map(|h| *h).collect::<Vec<_>>();
+                                let cls = self.physics.bodies.get(*h).unwrap().colliders().to_vec();
                                 let colls = cls.iter().map(|ch| self.physics.colliders.remove(*ch, &mut self.physics.islands, &mut self.physics.bodies, false).unwrap()).collect::<Vec<_>>();
                                 let rb = self.physics.bodies.remove(*h, &mut self.physics.islands, &mut self.physics.colliders, &mut self.physics.joints).unwrap();
                                 *state = RigidBodyState::Inactive(rb, colls);

@@ -509,9 +509,9 @@ impl Simulator {
                         rb.get_body(physics).unwrap().translation().y,
                     );
 
-                    let rb_pos = rb.get_body(physics).unwrap().translation().clone();
+                    let rb_pos = *rb.get_body(physics).unwrap().translation();
                     let rb_angle = rb.get_body(physics).unwrap().rotation().angle();
-                    let rb_linear_velocity = rb.get_body(physics).unwrap().linvel().clone();
+                    let rb_linear_velocity = *rb.get_body(physics).unwrap().linvel();
                     let rb_angular_velocity = rb.get_body(physics).unwrap().angvel();
 
                     physics.bodies.remove(rb.body.take().unwrap(), &mut physics.islands, &mut physics.colliders, &mut physics.joints);

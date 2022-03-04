@@ -38,7 +38,7 @@ impl MainMenu {
                 // TODO: actually implement collapsing
                 if !ui.button_with_size(
                     p.file_name()
-                            .map_or_else(|| "..", |o| o.to_str().unwrap_or("!! NON UTF-8 !!")).to_string(),
+                            .map_or_else(|| "..", |o| o.to_str().unwrap_or("!! NON UTF-8 !!")),
                     [200.0, 20.0],
                 ) {
                     ui.indent();

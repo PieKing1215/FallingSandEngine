@@ -176,9 +176,7 @@ impl FSRigidBody {
 
         for (loop_i, a_loop) in loops.into_iter().enumerate() {
             let mut n_pix = 0;
-            let my_pixels = pixels
-                .to_owned()
-                .into_iter()
+            let my_pixels = pixels.iter().copied()
                 .enumerate()
                 .map(|(i, m)| {
                     if nearest_loop[i] == loop_i {

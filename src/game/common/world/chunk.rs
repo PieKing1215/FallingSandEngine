@@ -25,6 +25,7 @@ use crate::game::common::world::material::MaterialInstance;
 
 pub const CHUNK_SIZE: u16 = 128;
 
+#[warn(clippy::large_enum_variant)]
 pub enum RigidBodyState {
     Active(RigidBodyHandle),
     Inactive(RigidBody, Vec<Collider>),
@@ -1397,12 +1398,9 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
     #[profiling::function]
     fn unload_chunk(&mut self, index: u32, physics: &mut Physics) -> Result<(), Box<dyn std::error::Error>> {
         let chunk = self.loaded_chunks.get_mut(&index).unwrap();
-        match chunk.get_rigidbody() {
-            Some(RigidBodyState::Active(handle)) => {
-                physics.remove_rigidbody(*handle);
-                chunk.set_rigidbody(None);
-            },
-            _ => {}
+        if let Some(RigidBodyState::Active(handle)) = chunk.get_rigidbody() {
+            physics.remove_rigidbody(*handle);
+            chunk.set_rigidbody(None);
         }
 
         Ok(())
