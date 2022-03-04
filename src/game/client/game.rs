@@ -756,8 +756,8 @@ impl Game<ClientChunk> {
                         error!("Failed to set window title.");
                     }
 
-                    sys.refresh_process(std::process::id() as Pid);
-                    if let Some(pc) = sys.process(std::process::id() as Pid) {
+                    sys.refresh_process(Pid::from(std::process::id() as usize));
+                    if let Some(pc) = sys.process(Pid::from(std::process::id() as usize)) {
                         self.process_stats.cpu_usage =
                             Some(pc.cpu_usage() / sys.processors().len() as f32);
                         self.process_stats.memory = Some(pc.memory());

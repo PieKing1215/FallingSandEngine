@@ -25,7 +25,8 @@ imgui = { git = "https://github.com/PieKing1215/imgui-rs.git", branch = "custom-
 imgui-sdl2-support = { git = "https://github.com/PieKing1215/imgui-rs.git", branch = "custom-edit" }
 imgui-glow-renderer = { git = "https://github.com/PieKing1215/imgui-rs.git", branch = "custom-edit" }
 glow = "0.10" # imgui-glow-renderer uses old version
-sysinfo = "0.22" # TODO: should be optional in the future
+sysinfo = "0.23" # TODO: should be optional in the future
+sdl2 = { version = "0.35", default-features = false, features = ["ttf","image","gfx","static-link","use-vcpkg"] }
 sdl_gpu = { git = "https://github.com/PieKing1215/sdl-gpu-rust" }
 serde = { version = "1.0", features = ["derive"] }
 serde-big-array = "0.3"
@@ -33,10 +34,11 @@ bincode = "1.3"
 toml = "0.5"
 # serde_json = "1.0"
 clap = { version = "3.0", features = ["cargo"] }
-crossterm = "0.22"
+crossterm = "0.23"
 log = "0.4"
 simplelog = "0.11"
-tui-logger = "0.6"
+tui = { version = "0.17", default-features = false, features = ["crossterm"] }
+tui-logger = "0.7"
 backtrace = "0.3"
 specs = { version = "0.17", features = ["serde", "specs-derive"] }
 specs-derive = "0.4"
@@ -57,16 +59,6 @@ earcutr = "0.2"
 [features]
 #default = ["profile-with-tracy"]
 profile = ["profiling/profile-with-tracy"]
-
-[dependencies.tui]
-version = "0.16"
-default-features = false
-features = ["crossterm"]
-
-[dependencies.sdl2]
-version = "0.35"
-default-features = false
-features = ["ttf","image","gfx","static-link","use-vcpkg"]
 
 [package.metadata.vcpkg]
 dependencies = ["sdl2", "sdl2-gfx", "sdl2-image[libjpeg-turbo,libwebp]", "sdl2-ttf"]
