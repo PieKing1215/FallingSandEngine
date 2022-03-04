@@ -32,7 +32,7 @@ use super::{ClientChunk, ClientWorld};
 pub struct WorldRenderer {
     pub liquid_image: GPUImage,
     pub liquid_image2: GPUImage,
-    lqf_dirty: bool,
+    physics_dirty: bool,
 }
 
 impl WorldRenderer {
@@ -49,7 +49,7 @@ impl WorldRenderer {
         Self {
             liquid_image,
             liquid_image2,
-            lqf_dirty: false,
+            physics_dirty: false,
         }
     }
 
@@ -229,67 +229,18 @@ impl WorldRenderer {
 
         // draw liquids
 
-        for (handle, fluid) in world.physics.fluid_pipeline.liquid_world.fluids().iter() {
-            for (idx, particle) in fluid.positions.iter().enumerate() {
-                let (x, y) = transform.transform((particle.coords[0] * PHYSICS_SCALE, particle.coords[1] * PHYSICS_SCALE));
-                target.circle_filled(x as f32, y as f32, 2.0, Color::CYAN);
-            }
-        }
-
-        fn draw_shape(shape: &dyn Shape, x: f32, y: f32, angle: f32, sleep: bool, transform: &mut TransformStack, target: &mut GPUTarget) {
-            transform.push();
-            transform.translate(x * PHYSICS_SCALE, y * PHYSICS_SCALE);
-            if let Some(comp) = shape.as_compound() {
-                for (iso, shape) in comp.shapes() {
-                    draw_shape(&**shape, 0.0, 0.0, 0.0, sleep, transform, target);
-                }
-            } else if let Some(cuboid) = shape.as_cuboid() {
-                let (x1, y1) = transform.transform(((-cuboid.half_extents[0]) * PHYSICS_SCALE, (-cuboid.half_extents[1]) * PHYSICS_SCALE));
-                let (x2, y2) = transform.transform(((cuboid.half_extents[0]) * PHYSICS_SCALE, (cuboid.half_extents[1]) * PHYSICS_SCALE));
-                target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(0xff, 0xff, 0x00, if sleep { 0x64 } else { 0xff }));
-            } else if let Some(polyline) = shape.as_polyline() {
-                for seg in polyline.segments() {
-                    let (x1, y1) = transform.transform(((seg.a[0]) * PHYSICS_SCALE, (seg.a[1]) * PHYSICS_SCALE));
-                    let (x2, y2) = transform.transform(((seg.b[0]) * PHYSICS_SCALE, (seg.b[1]) * PHYSICS_SCALE));
-                    target.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(0x00, 0xff, 0x00, if sleep { 0x64 } else { 0xff }));
-                }
-            } else if let Some(poly) = shape.as_convex_polygon() {
-                target.polygon(poly.points().iter().flat_map(|v| {
-                    let (x, y) = transform.transform(((v[0]) * PHYSICS_SCALE, (v[1]) * PHYSICS_SCALE));
-                    [x as f32, y as f32]
-                }).collect(), Color::RGBA(0x00, 0xff, 0x00, if sleep { 0x64 } else { 0xff }));
-            } else if let Some(trimesh) = shape.as_trimesh() {
-                for tri in trimesh.triangles() {
-                    let (x1, y1) = transform.transform(((tri.a[0]) * PHYSICS_SCALE, (tri.a[1]) * PHYSICS_SCALE));
-                    let (x2, y2) = transform.transform(((tri.b[0]) * PHYSICS_SCALE, (tri.b[1]) * PHYSICS_SCALE));
-                    let (x3, y3) = transform.transform(((tri.c[0]) * PHYSICS_SCALE, (tri.c[1]) * PHYSICS_SCALE));
-                    target.polygon(vec![x1 as f32, y1 as f32, x2 as f32, y2 as f32, x3 as f32, y3 as f32], Color::RGBA(0x00, 0xff, 0x00, if sleep { 0x64 } else { 0xff }));
-                }
-            } else if let Some(tri) = shape.as_triangle() {
-                let (x1, y1) = transform.transform(((x + tri.a[0]) * PHYSICS_SCALE, (y + tri.a[1]) * PHYSICS_SCALE));
-                let (x2, y2) = transform.transform(((x + tri.b[0]) * PHYSICS_SCALE, (y + tri.b[1]) * PHYSICS_SCALE));
-                let (x3, y3) = transform.transform(((x + tri.c[0]) * PHYSICS_SCALE, (y + tri.c[1]) * PHYSICS_SCALE));
-                target.polygon(vec![x1 as f32, y1 as f32, x2 as f32, y2 as f32, x3 as f32, y3 as f32], Color::RGBA(0x00, 0xff, 0x00, if sleep { 0x64 } else { 0xff }));
-            }
-            transform.pop();
-        }
-
-        for (a, b) in world.physics.bodies.iter() {
-            let (rx, ry) = (b.position().translation.vector[0], b.position().translation.vector[1]);
-            let (x, y) = transform.transform((rx * PHYSICS_SCALE, ry * PHYSICS_SCALE));
-            target.circle(x as f32, y as f32, 3.0, Color::GREEN);
-            for c in b.colliders() {
-                let col = world.physics.colliders.get(*c).unwrap();
-                let shape = col.shape();
-                draw_shape(shape, rx, ry, b.rotation().angle(), b.is_sleeping(), transform, target);
-            }
-        }
-
-        if self.lqf_dirty {
-            self.lqf_dirty = false;
+        if self.physics_dirty {
+            self.physics_dirty = false;
 
             let mut liquid_target = self.liquid_image.get_target();
             liquid_target.clear();
+
+            for (handle, fluid) in world.physics.fluid_pipeline.liquid_world.fluids().iter() {
+                for (idx, particle) in fluid.positions.iter().enumerate() {
+                    let (x, y) = transform.transform((particle.coords[0] * PHYSICS_SCALE, particle.coords[1] * PHYSICS_SCALE));
+                    target.circle_filled(x as f32, y as f32, 2.0, Color::CYAN);
+                }
+            }
 
             // if let Some(particle_system) = world.lqf_world.get_particle_system_list() {
             //     let particle_count = particle_system.get_particle_count();
@@ -380,21 +331,90 @@ impl WorldRenderer {
             transform.pop();
         }
 
-        // lqf debug draw
+        // physics debug draw
 
-        let transform_ptr: *const TransformStack = transform;
-        let transform_ptr_raw = transform_ptr as usize;
-
-        let canvas_ptr: *mut RenderCanvas = target;
-        let canvas_ptr_raw = canvas_ptr as usize;
-
-        let mut data = Some((canvas_ptr_raw, transform_ptr_raw));
-
-        if settings.debug && settings.lqf_dbg_draw {
-            profiling::scope!("lqf debug");
+        if settings.debug && settings.physics_dbg_draw {
+            profiling::scope!("physics debug");
             transform.push();
             transform.scale(PHYSICS_SCALE, PHYSICS_SCALE);
-            // TODO
+
+            fn draw_shape(shape: &dyn Shape, x: f32, y: f32, angle: f32, transform: &mut TransformStack, target: &mut GPUTarget, color: Color) {
+                transform.push();
+                transform.translate(x, y);
+                if let Some(comp) = shape.as_compound() {
+                    for (iso, shape) in comp.shapes() {
+                        draw_shape(&**shape, 0.0, 0.0, 0.0, transform, target, color);
+                    }
+                } else if let Some(cuboid) = shape.as_cuboid() {
+                    let (x1, y1) = transform.transform((-cuboid.half_extents[0], -cuboid.half_extents[1]));
+                    let (x2, y2) = transform.transform((cuboid.half_extents[0], cuboid.half_extents[1]));
+                    target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, color);
+                } else if let Some(polyline) = shape.as_polyline() {
+                    for seg in polyline.segments() {
+                        let (x1, y1) = transform.transform((seg.a[0], seg.a[1]));
+                        let (x2, y2) = transform.transform((seg.b[0], seg.b[1]));
+                        target.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, color);
+                    }
+                } else if let Some(poly) = shape.as_convex_polygon() {
+                    target.polygon(poly.points().iter().flat_map(|v| {
+                        let (x, y) = transform.transform((v[0], v[1]));
+                        [x as f32, y as f32]
+                    }).collect(), color);
+                } else if let Some(trimesh) = shape.as_trimesh() {
+                    for tri in trimesh.triangles() {
+                        let (x1, y1) = transform.transform((tri.a[0], tri.a[1]));
+                        let (x2, y2) = transform.transform((tri.b[0], tri.b[1]));
+                        let (x3, y3) = transform.transform((tri.c[0], tri.c[1]));
+                        target.polygon(vec![x1 as f32, y1 as f32, x2 as f32, y2 as f32, x3 as f32, y3 as f32], color);
+                    }
+                } else if let Some(tri) = shape.as_triangle() {
+                    let (x1, y1) = transform.transform((x + tri.a[0], y + tri.a[1]));
+                    let (x2, y2) = transform.transform((x + tri.b[0], y + tri.b[1]));
+                    let (x3, y3) = transform.transform((x + tri.c[0], y + tri.c[1]));
+                    target.polygon(vec![x1 as f32, y1 as f32, x2 as f32, y2 as f32, x3 as f32, y3 as f32], color);
+                }
+                transform.pop();
+            }
+
+            // TODO: physics_dbg_draw_joint
+            // TODO: physics_dbg_draw_pair
+            // TODO: physics_dbg_draw_particle
+
+            for (a, b) in world.physics.bodies.iter() {
+                let (rx, ry) = (b.position().translation.vector[0], b.position().translation.vector[1]);
+                
+                let (x, y) = transform.transform((rx, ry));
+                target.circle(x as f32, y as f32, 3.0, Color::GREEN);
+                
+                if settings.physics_dbg_draw_center_of_mass {
+                    let com = b.mass_properties().world_com(b.position());
+                    let (x, y) = transform.transform((com.x, com.y));
+                    target.circle(x as f32, y as f32, 2.0, Color::RED);
+                }
+                
+                for c in b.colliders() {
+                    let col = world.physics.colliders.get(*c).unwrap();
+                    
+                    if settings.physics_dbg_draw_shape {
+                        let shape = col.shape();
+                        draw_shape(shape, rx, ry, b.rotation().angle(), transform, target, Color::RGBA(0x00, 0xff, 0x00, if b.is_sleeping() { 0x64 } else { 0xff }));
+                    }
+                    
+                    if settings.physics_dbg_draw_aabb {
+                        let aabb = col.compute_aabb();
+                        
+                        transform.push();
+                        transform.translate(aabb.center().x, aabb.center().y);
+                        
+                        let (x1, y1) = transform.transform((-aabb.half_extents()[0], -aabb.half_extents()[1]));
+                        let (x2, y2) = transform.transform((aabb.half_extents()[0], aabb.half_extents()[1]));
+                        target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, Color::RGBA(0xff, 0, 0xff, if b.is_sleeping() { 0x64 } else { 0xff }));
+
+                        transform.pop();
+                    }
+                }
+            }
+            
             transform.pop();
         }
 
@@ -791,6 +811,6 @@ impl WorldRenderer {
     }
 
     pub fn mark_liquid_dirty(&mut self) {
-        self.lqf_dirty = true;
+        self.physics_dirty = true;
     }
 }

@@ -25,7 +25,7 @@ pub enum PacketType {
     },
     SyncLiquidFunPacket {
         //TODO: this assumes the number of particles never changes
-        //      should probably send the entire state of lqf (or only nearby?)
+        //      should probably send the entire state of rapier/salva (or only nearby?)
         positions: Vec<PVec2>,
         velocities: Vec<PVec2>,
     },

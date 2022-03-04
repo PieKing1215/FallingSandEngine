@@ -44,19 +44,19 @@ impl Settings {
                             ],
                         );
 
-                        ui.checkbox("lqf_dbg_draw", &mut self.lqf_dbg_draw);
+                        ui.checkbox("physics_dbg_draw", &mut self.physics_dbg_draw);
                         ui.indent();
-                        ui.checkbox("lqf_dbg_draw_shape", &mut self.lqf_dbg_draw_shape);
-                        ui.checkbox("lqf_dbg_draw_joint", &mut self.lqf_dbg_draw_joint);
-                        ui.checkbox("lqf_dbg_draw_aabb", &mut self.lqf_dbg_draw_aabb);
-                        ui.checkbox("lqf_dbg_draw_pair", &mut self.lqf_dbg_draw_pair);
+                        ui.checkbox("shape", &mut self.physics_dbg_draw_shape);
+                        ui.checkbox("joint", &mut self.physics_dbg_draw_joint);
+                        ui.checkbox("aabb", &mut self.physics_dbg_draw_aabb);
+                        ui.checkbox("pair", &mut self.physics_dbg_draw_pair);
                         ui.checkbox(
-                            "lqf_dbg_draw_center_of_mass",
-                            &mut self.lqf_dbg_draw_center_of_mass,
+                            "center_of_mass",
+                            &mut self.physics_dbg_draw_center_of_mass,
                         );
                         ui.checkbox(
-                            "lqf_dbg_draw_particle",
-                            &mut self.lqf_dbg_draw_particle,
+                            "particle",
+                            &mut self.physics_dbg_draw_particle,
                         );
                         ui.unindent();
                         // });

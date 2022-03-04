@@ -391,10 +391,10 @@ impl Game<ServerChunk> {
                 // let nums: Vec<f32> = self.fps_counter.tick_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
                 // let avg_mspt: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-                // let nums: Vec<f32> = self.fps_counter.tick_lqf_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
-                // let avg_msplqft: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+                // let nums: Vec<f32> = self.fps_counter.tick_physics_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
+                // let avg_mspt_phys: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-                // println!("FPS: {}, TPS: {}, mspf: {:.2}, mspt: {:.2}, msplqft: {:.2}", self.fps_counter.display_value, ticks, avg_mspf, avg_mspt, avg_msplqft);
+                // println!("FPS: {}, TPS: {}, mspf: {:.2}, mspt: {:.2}, mspt_phys: {:.2}", self.fps_counter.display_value, ticks, avg_mspf, avg_mspt, avg_mspt_phys);
             }
 
             let time_nano = Instant::now()
