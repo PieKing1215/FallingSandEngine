@@ -19,7 +19,6 @@ profiling = "1.0"
 rand = "0.8"
 simdnoise = "3.1"
 futures = { version = "0.3", features = [] }
-tokio = {version = "1.11", features = ["rt", "rt-multi-thread", "macros"] }
 lazy_static = "1.4"
 imgui = { git = "https://github.com/PieKing1215/imgui-rs.git", branch = "custom-edit" }
 imgui-sdl2-support = { git = "https://github.com/PieKing1215/imgui-rs.git", branch = "custom-edit" }
@@ -48,6 +47,8 @@ drain_filter_polyfill = "0.1"
 retain_mut = "0.1"
 salva2d = { version = "0.7", features = ["rapier"] }
 rapier2d = { version = "0.11", features = ["simd-stable"] }
+rayon = "1.5"
+num_cpus = "1.13"
 
 # mesh generation
 contour = "0.4"

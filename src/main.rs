@@ -406,6 +406,8 @@ fn main() -> Result<(), String> {
             game.client.as_mut().unwrap().world = Some(ClientWorld { local_entity: Some(player) });
         };
 
+        std::env::set_var("RAYON_NUM_THREADS", format!("{}", num_cpus::get() - 1));
+
         info!("Starting main loop...");
         game.run(&sdl, Some(&mut r), &matches);
         info!("Goodbye!");
