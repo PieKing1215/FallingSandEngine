@@ -59,13 +59,14 @@ impl WorldGenerator for TestGenerator {
                     pixels[i] = MaterialInstance::air();
                     // chunk.set(x, y, MaterialInstance::air()).unwrap();
                 } else if v2 > 0.0 {
+                    let f = (v2 / 0.02).clamp(0.0, 1.0);
                     pixels[i] = MaterialInstance {
                         material_id: TEST_MATERIAL.id,
                         physics: PhysicsType::Sand,
                         color: Color::RGB(
-                            if v2 <= 0.01 { 255 } else { 64 },
+                            (f * 191.0) as u8 + 64,
                             64,
-                            if v2 > 0.01 { 255 } else { 64 },
+                            ((1.0 - f) * 191.0) as u8 + 64,
                         ),
                     };
                     colors[i * 4] = pixels[i].color.r;
