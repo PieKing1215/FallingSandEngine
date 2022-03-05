@@ -938,13 +938,11 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
                     for r in b {
                         profiling::scope!("apply");
-                        let (ch_pos, dirty, dirty_rects, parts) = r.unwrap();
+                        let (ch_pos, dirty, dirty_rects, mut parts) = r.unwrap();
 
                         {
                             profiling::scope!("particles");
-                            for p in parts {
-                                world.write_resource::<ParticleSystem>().active.push(p);
-                            }
+                            world.write_resource::<ParticleSystem>().active.append(&mut parts);
                         }
 
                         for i in 0..9 {
