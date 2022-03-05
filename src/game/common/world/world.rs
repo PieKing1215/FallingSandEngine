@@ -810,6 +810,7 @@ impl<'w, C: Chunk> World<C> {
         self.chunk_handler.update_chunk_graphics();
     }
 
+    #[profiling::function]
     pub fn tick_physics(&mut self, settings: &Settings) {
         // need to do this here since 'self' isn't mut in render
 
