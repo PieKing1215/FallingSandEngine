@@ -23,7 +23,7 @@ use super::particle::Particle;
 use super::physics::Physics;
 use crate::game::common::world::material::MaterialInstance;
 
-pub const CHUNK_SIZE: u16 = 128;
+pub const CHUNK_SIZE: u16 = 100;
 
 #[warn(clippy::large_enum_variant)]
 pub enum RigidBodyState {
@@ -901,19 +901,6 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                             )
                             .collect()
                         };
-
-                    // #[allow(clippy::type_complexity)]
-                    // let b: Vec<
-                    //     Result<((i32, i32), [bool; 9], [Option<Rect>; 9], Vec<Particle>), _>,
-                    // >;
-                    // let f = {
-                    //     profiling::scope!("join_all", format!("#futs = {}", futs2.len()).as_str());
-                    //     join_all(futs2)
-                    // };
-                    // {
-                    //     profiling::scope!("wait for threads");
-                    //     b = RT.block_on(f);
-                    // }
 
                     for r in b {
                         profiling::scope!("apply");
