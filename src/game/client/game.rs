@@ -818,7 +818,7 @@ impl Game<ClientChunk> {
 
             profiling::finish_frame!();
             // sleep a bit if we aren't going to tick next frame
-            if !do_tick_next {
+            if !do_tick_next && !self.settings.vsync {
                 profiling::scope!("sleep");
                 ::std::thread::sleep(Duration::new(0, 1_000_000)); // 1ms sleep so the computer doesn't explode
             }
