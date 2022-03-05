@@ -6,7 +6,7 @@ use imgui_sdl2_support::SdlPlatform;
 use sdl2::{
     pixels::Color,
     ttf::{Font, Sdl2TtfContext},
-    video::{GLProfile, Window},
+    video::{GLProfile, Window, SwapInterval},
     VideoSubsystem,
 };
 use sdl_gpu::{shaders::Shader, GPUImage, GPURect, GPUSubsystem, GPUTarget};
@@ -189,7 +189,29 @@ impl<'a> Renderer<'a> {
             // ui.show_demo_window(&mut true);
 
             if game.settings.debug {
+                let last_vsync = game.settings.vsync;
+                let last_minimize_on_lost_focus = game.settings.minimize_on_lost_focus;
+
                 game.settings.imgui(ui);
+
+                // TODO: this should be somewhere better
+                // maybe clone the Settings before each frame and at the end compare it?
+
+                if game.settings.vsync != last_vsync {
+                    let si_des = if game.settings.vsync {
+                        SwapInterval::VSync
+                    } else {
+                        SwapInterval::Immediate
+                    };
+                    
+                    sdl.sdl_video.gl_set_swap_interval(si_des).unwrap();
+                }
+
+                if last_minimize_on_lost_focus != game.settings.minimize_on_lost_focus {
+                    sdl2::hint::set_video_minimize_on_focus_loss(
+                        game.settings.minimize_on_lost_focus,
+                    );
+                }
             }
 
             game.client

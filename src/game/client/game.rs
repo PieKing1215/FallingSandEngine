@@ -79,6 +79,20 @@ impl Game<ClientChunk> {
             }
         }
 
+        // TODO: updating settings like this should be a fn
+
+        let si_des = if self.settings.vsync {
+            SwapInterval::VSync
+        } else {
+            SwapInterval::Immediate
+        };
+        
+        sdl.sdl_video.gl_set_swap_interval(si_des).unwrap();
+
+        sdl2::hint::set_video_minimize_on_focus_loss(
+            self.settings.minimize_on_lost_focus,
+        );
+
         let mut prev_tick_time = std::time::Instant::now();
         let mut prev_tick_physics_time = std::time::Instant::now();
 
@@ -421,32 +435,6 @@ impl Game<ClientChunk> {
                             r.window.size().0 as u16,
                             r.window.size().1 as u16,
                         );
-                    }
-                }
-
-                {
-                    profiling::scope!("minimize_on_focus_loss");
-                    if sdl2::hint::get_video_minimize_on_focus_loss()
-                        != self.settings.minimize_on_lost_focus
-                    {
-                        sdl2::hint::set_video_minimize_on_focus_loss(
-                            self.settings.minimize_on_lost_focus,
-                        );
-                    }
-                }
-
-                {
-                    // this block looks like it causes lag spikes during loading but really any gl calls do
-                    // if gl_get_swap_interval is bypassed, the first couple imgui renders take a while instead
-                    profiling::scope!("vsync");
-
-                    let si_des = if self.settings.vsync {
-                        SwapInterval::VSync
-                    } else {
-                        SwapInterval::Immediate
-                    };
-                    if sdl.sdl_video.gl_get_swap_interval() != si_des {
-                        sdl.sdl_video.gl_set_swap_interval(si_des).unwrap();
                     }
                 }
             }
