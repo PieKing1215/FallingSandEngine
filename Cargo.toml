@@ -49,6 +49,8 @@ salva2d = { version = "0.7", features = ["rapier"] }
 rapier2d = { version = "0.11", features = ["simd-stable"] }
 rayon = "1.5"
 num_cpus = "1.13"
+itertools = "0.10"
+async-scoped = { version = "0.7", features = ["use-tokio"] }
 
 # mesh generation
 contour = "0.4"

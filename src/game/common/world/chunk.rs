@@ -90,6 +90,9 @@ pub struct ChunkHandler<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chu
     pub path: Option<PathBuf>,
 }
 
+unsafe impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> Send for ChunkHandler<T, C> {}
+unsafe impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> Sync for ChunkHandler<T, C> {}
+
 pub trait ChunkHandlerGeneric {
     fn update_chunk_graphics(&mut self);
     fn tick(
