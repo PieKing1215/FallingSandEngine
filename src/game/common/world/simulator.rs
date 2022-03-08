@@ -7,6 +7,7 @@ use crate::game::common::world::{rigidbody, CHUNK_SIZE};
 use super::gen::WorldGenerator;
 use super::material::AIR;
 use super::particle::Particle;
+use super::pixel_to_chunk_pos;
 use super::rigidbody::FSRigidBody;
 use super::{
     physics::{Physics, PHYSICS_SCALE},
@@ -269,9 +270,7 @@ impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelpe
     }
 
     unsafe fn get_color_local(&self, x: i32, y: i32) -> Color {
-        let (chunk_x, chunk_y) = self
-            .chunk_handler
-            .pixel_to_chunk_pos(i64::from(x), i64::from(y));
+        let (chunk_x, chunk_y) = pixel_to_chunk_pos(i64::from(x), i64::from(y));
         let chunk = self.chunk_handler.get_chunk(chunk_x, chunk_y);
 
         if let Some(ch) = chunk {
@@ -312,9 +311,7 @@ impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelpe
     }
 
     unsafe fn set_color_local(&mut self, x: i32, y: i32, col: Color) {
-        let (chunk_x, chunk_y) = self
-            .chunk_handler
-            .pixel_to_chunk_pos(i64::from(x), i64::from(y));
+        let (chunk_x, chunk_y) = pixel_to_chunk_pos(i64::from(x), i64::from(y));
         let chunk = self.chunk_handler.get_chunk_mut(chunk_x, chunk_y);
 
         if let Some(ch) = chunk {

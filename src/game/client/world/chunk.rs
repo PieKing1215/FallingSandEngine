@@ -8,7 +8,7 @@ use crate::game::{
     common::{
         world::{
             gen::WorldGenerator, material::MaterialInstance, mesh, Chunk, ChunkHandler,
-            ChunkHandlerGeneric, ChunkState, RigidBodyState, CHUNK_SIZE,
+            ChunkHandlerGeneric, ChunkState, RigidBodyState, CHUNK_SIZE, chunk_index,
         },
         Settings,
     },
@@ -100,8 +100,9 @@ impl<'ch> Chunk for ClientChunk {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             if let Some(px) = &mut self.pixels {
                 let i = (x + y * CHUNK_SIZE) as usize;
-                px[i] = mat;
-                self.graphics.set(x, y, px[i].color)?;
+                // we do our own bounds check
+                *unsafe { px.get_unchecked_mut(i) } = mat;
+                self.graphics.set(x, y, unsafe { px.get_unchecked_mut(i) }.color)?;
 
                 self.dirty_rect = Some(Rect::new(
                     0,
@@ -124,7 +125,8 @@ impl<'ch> Chunk for ClientChunk {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             if let Some(px) = &self.pixels {
                 let i = (x + y * CHUNK_SIZE) as usize;
-                return Ok(&px[i]);
+                // we do our own bounds check
+                return Ok(unsafe { px.get_unchecked(i) });
             }
 
             return Err("Chunk is not ready yet.".to_string());
@@ -447,7 +449,7 @@ impl<T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<T, ClientChu
 
         if let Some(chunk) = self
             .loaded_chunks
-            .get_mut(&self.chunk_index(chunk_x, chunk_y))
+            .get_mut(&chunk_index(chunk_x, chunk_y))
         {
             chunk.pixels = Some(pixels.try_into().unwrap());
             chunk.graphics.pixel_data = colors.try_into().unwrap();
@@ -460,7 +462,7 @@ impl<T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<T, ClientChu
             chunk.mark_dirty();
             chunk.set_state(ChunkState::Cached);
             self.loaded_chunks
-                .insert(self.chunk_index(chunk_x, chunk_y), chunk);
+                .insert(chunk_index(chunk_x, chunk_y), chunk);
         }
 
         Ok(())

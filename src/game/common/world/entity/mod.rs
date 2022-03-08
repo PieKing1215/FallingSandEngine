@@ -9,7 +9,7 @@ use specs::{
 mod player;
 pub use player::*;
 
-use crate::game::common::world::material::{MaterialInstance, PhysicsType};
+use crate::game::common::world::{material::{MaterialInstance, PhysicsType}, pixel_to_chunk_pos};
 
 use super::{
     particle::{Particle, ParticleSystem},
@@ -65,11 +65,11 @@ impl Component for Persistent {
     type Storage = BTreeStorage<Self>;
 }
 
-pub struct UpdatePhysicsEntities<'a> {
-    pub chunk_handler: &'a mut (dyn ChunkHandlerGeneric),
+pub struct UpdatePhysicsEntities<'a, H: ChunkHandlerGeneric> {
+    pub chunk_handler: &'a mut H,
 }
 
-impl<'a> UpdatePhysicsEntities<'a> {
+impl<'a, H: ChunkHandlerGeneric> UpdatePhysicsEntities<'a, H> {
     fn check_collide(&self, x: i64, y: i64, phys_ent: &PhysicsEntity) -> Option<&MaterialInstance> {
         self.chunk_handler.get(x, y).ok().filter(|mat| {
             mat.physics == PhysicsType::Solid
@@ -78,7 +78,7 @@ impl<'a> UpdatePhysicsEntities<'a> {
     }
 }
 
-impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
+impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdatePhysicsEntities<'a, H> {
     #[allow(clippy::type_complexity)]
     type SystemData = (
         Entities<'a>,
@@ -121,7 +121,7 @@ impl<'a> System<'a> for UpdatePhysicsEntities<'a> {
         (&entities, &mut pos, &mut vel, &mut game_ent, &mut phys_ent, persistent.maybe(), &mut hitbox, (&mut collision_detect).maybe()).join().for_each(|(_ent, pos, vel, _game_ent, phys_ent, persistent, hitbox, mut collision_detect): (specs::Entity, &mut Position, &mut Velocity, &mut GameEntity, &mut PhysicsEntity, Option<&Persistent>, &mut Hitbox, Option<&mut CollisionDetector>)| {
 
             // skip if chunk not active
-            let (chunk_x, chunk_y) = self.chunk_handler.pixel_to_chunk_pos(pos.x as i64, pos.y as i64);
+            let (chunk_x, chunk_y) = pixel_to_chunk_pos(pos.x as i64, pos.y as i64);
             if persistent.is_none() && !matches!(self.chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active) {
                 return;
             }

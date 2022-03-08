@@ -23,7 +23,7 @@ use crate::game::{
     common::{
         commands::CommandHandler,
         networking::{PVec2, Packet, PacketType},
-        world::{Chunk, ChunkHandlerGeneric, ChunkState, CHUNK_SIZE},
+        world::{Chunk, ChunkHandlerGeneric, ChunkState, CHUNK_SIZE, chunk_index_inv},
     },
     Game,
 };
@@ -88,7 +88,7 @@ impl Game<ServerChunk> {
                 if let Some(w) = &self.world {
                     for ci in &w.chunk_handler.loaded_chunks {
                         // println!("Writing SyncChunkPacket");
-                        let (chunk_x, chunk_y) = w.chunk_handler.chunk_index_inv(*ci.0);
+                        let (chunk_x, chunk_y) = chunk_index_inv(*ci.0);
                         let packet = Packet {
                             packet_type: PacketType::SyncChunkPacket {
                                 chunk_x,
@@ -177,7 +177,7 @@ impl Game<ServerChunk> {
                             {
                                 for c in &mut connections {
                                     // println!("Writing SyncChunkPacket");
-                                    let (chunk_x, chunk_y) = w.chunk_handler.chunk_index_inv(*ci.0);
+                                    let (chunk_x, chunk_y) = chunk_index_inv(*ci.0);
                                     let pixels_vec = ci.1.get_pixels().unwrap().to_vec();
                                     let colors_vec = ci.1.get_colors().to_vec();
 
