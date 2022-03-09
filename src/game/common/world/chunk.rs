@@ -1596,6 +1596,14 @@ pub fn pixel_to_chunk_pos(x: i64, y: i64) -> (i32, i32) {
 }
 
 #[inline]
+pub fn pixel_to_chunk_pos_with_chunk_size(x: i64, y: i64, chunk_size: u16) -> (i32, i32) {
+    (
+        (x as f64 / f64::from(chunk_size)).floor() as i32,
+        (y as f64 / f64::from(chunk_size)).floor() as i32,
+    )
+}
+
+#[inline]
 pub fn chunk_index(chunk_x: i32, chunk_y: i32) -> u32 {
     fn int_to_nat(i: i32) -> u32 {
         if i >= 0 {

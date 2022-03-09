@@ -5,7 +5,7 @@ use super::{
 };
 use crate::game::common::world::{
     material::{PhysicsType, TEST_MATERIAL},
-    ChunkState, pixel_to_chunk_pos, chunk_index, chunk_update_order, PassThroughHasherU32,
+    ChunkState, pixel_to_chunk_pos, chunk_index, chunk_update_order, PassThroughHasherU32, pixel_to_chunk_pos_with_chunk_size,
 };
 
 use itertools::Itertools;
@@ -14,6 +14,8 @@ use rayon::{iter::{IntoParallelRefMutIterator, ParallelIterator, IntoParallelRef
 use sdl2::pixels::Color;
 use serde::{Deserialize, Serialize};
 use specs::{Entities, Join, Read, ReadStorage, System, Write};
+
+const PARTICLE_CHUNK_SIZE: u16 = 64;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Particle {
@@ -26,7 +28,7 @@ pub struct Particle {
 
 impl Particle {
     pub fn new(material: MaterialInstance, pos: Position, vel: Velocity) -> Self {
-        let (chunk_x, chunk_y) = pixel_to_chunk_pos(pos.x as i64, pos.y as i64);
+        let (chunk_x, chunk_y) = pixel_to_chunk_pos_with_chunk_size(pos.x as i64, pos.y as i64, PARTICLE_CHUNK_SIZE);
         Self {
             material,
             chunk_cache: (chunk_index(chunk_x, chunk_y), chunk_update_order(chunk_x, chunk_y)),
@@ -269,7 +271,7 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
                         };
 
                         let res = process(part);
-                        let (chunk_x, chunk_y) = pixel_to_chunk_pos(part.pos.x as i64, part.pos.y as i64);
+                        let (chunk_x, chunk_y) = pixel_to_chunk_pos_with_chunk_size(part.pos.x as i64, part.pos.y as i64, PARTICLE_CHUNK_SIZE);
                         part.chunk_cache = (chunk_index(chunk_x, chunk_y), chunk_update_order(chunk_x, chunk_y));
                         res
                     });
