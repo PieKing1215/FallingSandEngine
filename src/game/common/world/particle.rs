@@ -1,16 +1,16 @@
-use std::sync::Arc;
+use std::{sync::Arc, collections::HashMap, hash::BuildHasherDefault};
 
 use super::{
     entity::Hitbox, material::MaterialInstance, ChunkHandlerGeneric, Position, TickTime, Velocity,
 };
 use crate::game::common::world::{
     material::{PhysicsType, TEST_MATERIAL},
-    ChunkState, pixel_to_chunk_pos, chunk_index, chunk_update_order,
+    ChunkState, pixel_to_chunk_pos, chunk_index, chunk_update_order, PassThroughHasherU32,
 };
 
 use itertools::Itertools;
 use rand::prelude::Distribution;
-use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator, IntoParallelRefIterator, IntoParallelIterator, ParallelDrainRange, ParallelExtend};
+use rayon::{iter::{IntoParallelRefMutIterator, ParallelIterator, IntoParallelRefIterator, IntoParallelIterator, ParallelDrainRange, ParallelExtend}, slice::ParallelSliceMut};
 use sdl2::pixels::Color;
 use serde::{Deserialize, Serialize};
 use specs::{Entities, Join, Read, ReadStorage, System, Write};
@@ -154,27 +154,23 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
 
             let async_chunk_handler = Arc::new(ForceSendSync::<*mut &mut H > { value: &mut self.chunk_handler });
 
-            let mut vecs = [Vec::new(), Vec::new(), Vec::new(), Vec::new()];
-
-            {
-                profiling::scope!("sort");
-                for p in system.active.drain(..) {
-                    vecs[p.chunk_cache.1 as usize].push(p);
-                }
-            }
-
             let parts: Vec<_> = {
-                profiling::scope!("grouping");
-                vecs.into_par_iter().map(|v| {
-                    profiling::scope!("group");
-                    v.into_iter()
-                        .group_by(|p| p.chunk_cache.0).into_iter()
-                        .map(|(_, g)| g.collect_vec())
-                        .collect_vec()
-                }).collect()
+                profiling::scope!("sort+group");
+                let mut maps = [
+                    HashMap::<u32, Vec<Particle>, BuildHasherDefault<PassThroughHasherU32>>::default(),
+                    HashMap::<u32, Vec<Particle>, BuildHasherDefault<PassThroughHasherU32>>::default(),
+                    HashMap::<u32, Vec<Particle>, BuildHasherDefault<PassThroughHasherU32>>::default(),
+                    HashMap::<u32, Vec<Particle>, BuildHasherDefault<PassThroughHasherU32>>::default(),
+                ];
+                for p in system.active.drain(..) {
+                    // safety: p.chunk_cache.1 is a chunk order number, assumed to be 0..=3
+                    unsafe { maps.get_unchecked_mut(p.chunk_cache.1 as usize) }.entry(p.chunk_cache.0).or_insert_with(Vec::new).push(p);
+                }
+                maps.into_iter().map(|m| m.into_values().collect_vec()).collect()
             };
 
             for p in parts {
+                profiling::scope!("phase", format!("n_chunks = {}", p.len()).as_str());
                 let v = p.into_par_iter().flat_map_iter(|mut chunk_px| {
                     profiling::scope!("chunk");
 
