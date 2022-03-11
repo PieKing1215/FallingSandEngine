@@ -44,7 +44,8 @@ impl WorldRenderer {
         Self { liquid_image, liquid_image2, physics_dirty: false }
     }
 
-    pub fn init(&self, world: &mut World<ClientChunk>) {}
+    #[allow(clippy::unused_self)]
+    pub fn init(&self, _world: &mut World<ClientChunk>) {}
 
     #[warn(clippy::too_many_arguments)]
     #[warn(clippy::too_many_lines)]
@@ -58,7 +59,7 @@ impl WorldRenderer {
         sdl: &Sdl2Context,
         fonts: &Fonts,
         settings: &Settings,
-        shaders: &Shaders,
+        _shaders: &Shaders,
         client: &mut Option<Client>,
         partial_ticks: f64,
     ) {
@@ -326,7 +327,7 @@ impl WorldRenderer {
                 shape: &dyn Shape,
                 x: f32,
                 y: f32,
-                angle: f32,
+                _angle: f32,
                 transform: &mut TransformStack,
                 target: &mut GPUTarget,
                 color: Color,

@@ -1,7 +1,6 @@
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use specs::{
-    saveload::{SimpleMarker, SimpleMarkerAllocator},
     storage::BTreeStorage,
     Component, Entities, Join, System, Write, WriteStorage,
 };
@@ -16,7 +15,7 @@ use crate::game::common::world::{
 
 use super::{
     particle::{Particle, ParticleSystem},
-    ChunkHandlerGeneric, ChunkState, FilePersistent, Position, Velocity,
+    ChunkHandlerGeneric, ChunkState, Position, Velocity,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

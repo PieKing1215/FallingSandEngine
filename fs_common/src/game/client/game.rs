@@ -620,8 +620,8 @@ impl Game<ClientChunk> {
                                                         }
                                                     },
                                                     PacketType::SyncLiquidFunPacket {
-                                                        positions,
-                                                        velocities,
+                                                        positions: _,
+                                                        velocities: _,
                                                     } => {
                                                         // TODO: reimplement for rapier/salva
                                                         // println!("[CLIENT] Got SyncLiquidFunPacket");

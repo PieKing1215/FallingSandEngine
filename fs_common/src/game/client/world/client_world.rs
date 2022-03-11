@@ -7,6 +7,7 @@ pub struct ClientWorld {
 }
 
 impl ClientWorld {
+    #[allow(clippy::unused_self)]
     pub fn tick(&mut self, _world: &mut World<ClientChunk>) {}
 }
 

@@ -104,6 +104,7 @@ impl SimulationHelperChunk<'_> {
     }
 
     #[inline]
+    #[allow(dead_code)]
     unsafe fn get_color_from_index_unchecked(
         &self,
         (ch, px, ..): (usize, usize, u16, u16),
@@ -117,6 +118,7 @@ impl SimulationHelperChunk<'_> {
     }
 
     #[inline]
+    #[allow(dead_code)]
     unsafe fn get_color_local_unchecked(&self, x: i32, y: i32) -> Color {
         self.get_color_from_index_unchecked(Self::local_to_indices(x, y))
     }
