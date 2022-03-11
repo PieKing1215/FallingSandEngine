@@ -15,6 +15,18 @@ build = "src/build.rs"
 
 [dependencies]
 fs_common = { path = "../fs_common" }
+clap = { version = "3.0", features = ["cargo"] }
+profiling = "1.0"
+log = "0.4"
+crossterm = "0.23"
+simplelog = "0.11"
+tui = { version = "0.17", default-features = false, features = ["crossterm"] }
+tui-logger = "0.7"
+backtrace = "0.3"
+rapier2d = { version = "0.11", features = ["simd-stable"] }
+salva2d = { version = "0.7", features = ["rapier"] }
+specs = { version = "0.17", features = ["serde", "specs-derive"] }
+num_cpus = "1.13"
 
 [package.metadata.vcpkg]
 git = "https://github.com/microsoft/vcpkg"
