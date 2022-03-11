@@ -7,8 +7,8 @@ use crate::game::{
     client::render::{Fonts, Renderable, Sdl2Context, TransformStack},
     common::{
         world::{
-            gen::WorldGenerator, material::MaterialInstance, mesh, Chunk, ChunkHandler,
-            ChunkState, RigidBodyState, CHUNK_SIZE, chunk_index,
+            chunk_index, gen::WorldGenerator, material::MaterialInstance, mesh, Chunk,
+            ChunkHandler, ChunkState, RigidBodyState, CHUNK_SIZE,
         },
         Settings,
     },
@@ -102,7 +102,8 @@ impl<'ch> Chunk for ClientChunk {
                 let i = (x + y * CHUNK_SIZE) as usize;
                 // we do our own bounds check
                 *unsafe { px.get_unchecked_mut(i) } = mat;
-                self.graphics.set(x, y, unsafe { px.get_unchecked_mut(i) }.color)?;
+                self.graphics
+                    .set(x, y, unsafe { px.get_unchecked_mut(i) }.color)?;
 
                 self.dirty_rect = Some(Rect::new(
                     0,
@@ -447,10 +448,7 @@ impl<T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<T, ClientChu
             ));
         }
 
-        if let Some(chunk) = self
-            .loaded_chunks
-            .get_mut(&chunk_index(chunk_x, chunk_y))
-        {
+        if let Some(chunk) = self.loaded_chunks.get_mut(&chunk_index(chunk_x, chunk_y)) {
             chunk.pixels = Some(pixels.try_into().unwrap());
             chunk.graphics.pixel_data = colors.try_into().unwrap();
             chunk.mark_dirty();

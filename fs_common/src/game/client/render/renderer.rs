@@ -6,7 +6,7 @@ use imgui_sdl2_support::SdlPlatform;
 use sdl2::{
     pixels::Color,
     ttf::{Font, Sdl2TtfContext},
-    video::{GLProfile, Window, SwapInterval},
+    video::{GLProfile, SwapInterval, Window},
     VideoSubsystem,
 };
 use sdl_gpu::{shaders::Shader, GPUImage, GPURect, GPUSubsystem, GPUTarget};
@@ -167,7 +167,14 @@ impl<'a> Renderer<'a> {
                     .as_ref()
                     .unwrap()
                     .pixel_operator
-                    .render(format!("{} ({})", unsafe { BUILD_DATETIME }.unwrap_or("???"), unsafe { GIT_HASH }.unwrap_or("???")).as_str())
+                    .render(
+                        format!(
+                            "{} ({})",
+                            unsafe { BUILD_DATETIME }.unwrap_or("???"),
+                            unsafe { GIT_HASH }.unwrap_or("???")
+                        )
+                        .as_str(),
+                    )
                     .solid(Color::RGB(0xff, 0xff, 0xff))
                     .unwrap();
                 (surf.width(), surf.height(), GPUImage::from_surface(&surf))
@@ -206,7 +213,7 @@ impl<'a> Renderer<'a> {
                     } else {
                         SwapInterval::Immediate
                     };
-                    
+
                     sdl.sdl_video.gl_set_swap_interval(si_des).unwrap();
                 }
 

@@ -2,13 +2,13 @@ use crate::game::common::world::particle::ParticleSystem;
 use crate::game::common::world::simulator::Simulator;
 use crate::game::common::world::{Loader, Position};
 use crate::game::common::Settings;
+use std::collections::HashMap;
 use std::convert::TryInto;
 use std::hash::BuildHasherDefault;
 use std::path::PathBuf;
-use std::{collections::HashMap};
 
 use rapier2d::prelude::{Collider, RigidBody, RigidBodyHandle};
-use rayon::iter::{ParallelIterator, IntoParallelIterator};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use serde::{Deserialize, Serialize};
@@ -87,8 +87,14 @@ pub struct ChunkHandler<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chu
     pub path: Option<PathBuf>,
 }
 
-unsafe impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> Send for ChunkHandler<T, C> {}
-unsafe impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> Sync for ChunkHandler<T, C> {}
+unsafe impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> Send
+    for ChunkHandler<T, C>
+{
+}
+unsafe impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> Sync
+    for ChunkHandler<T, C>
+{
+}
 
 pub trait ChunkHandlerGeneric {
     fn update_chunk_graphics(&mut self);
@@ -489,11 +495,12 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                 );
 
                                 #[allow(clippy::cast_lossless)]
-                                let mut colors =
-                                    Box::new([0; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]);
+                                let mut colors = Box::new(
+                                    [0; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize],
+                                );
 
                                 gen.generate(e.1, e.2, 2, &mut pixels, &mut colors); // TODO: non constant seed
-                                                                                    // println!("{}", e.0);
+                                                                                     // println!("{}", e.0);
                                 (e.0, pixels, colors)
                             })
                             .collect();
@@ -871,32 +878,35 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                     profiling::scope!("run simulation");
 
                     #[allow(clippy::type_complexity)]
-                    let b: Vec<((i32, i32), [bool; 9], [Option<Rect>; 9], Vec<Particle>)> = {
+                    let b: Vec<(
+                        (i32, i32),
+                        [bool; 9],
+                        [Option<Rect>; 9],
+                        Vec<Particle>,
+                    )> = {
                         profiling::scope!("par_iter");
                         to_exec
                             .into_par_iter()
-                            .map(
-                                |(ch_pos, pixels_raw, colors_raw, mut dirty_rects)| {
-                                    profiling::register_thread!("Simulation thread");
-                                    profiling::scope!("chunk");
+                            .map(|(ch_pos, pixels_raw, colors_raw, mut dirty_rects)| {
+                                profiling::register_thread!("Simulation thread");
+                                profiling::scope!("chunk");
 
-                                    let mut dirty = [false; 9];
-                                    let mut particles = Vec::new();
-                                    Simulator::simulate_chunk(
-                                        ch_pos.0,
-                                        ch_pos.1,
-                                        pixels_raw,
-                                        colors_raw,
-                                        &mut dirty,
-                                        &mut dirty_rects,
-                                        &mut particles,
-                                    );
+                                let mut dirty = [false; 9];
+                                let mut particles = Vec::new();
+                                Simulator::simulate_chunk(
+                                    ch_pos.0,
+                                    ch_pos.1,
+                                    pixels_raw,
+                                    colors_raw,
+                                    &mut dirty,
+                                    &mut dirty_rects,
+                                    &mut particles,
+                                );
 
-                                    (ch_pos, dirty, dirty_rects, particles)
-                                },
-                            )
+                                (ch_pos, dirty, dirty_rects, particles)
+                            })
                             .collect()
-                        };
+                    };
 
                     for r in b {
                         profiling::scope!("apply");
@@ -904,7 +914,10 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
                         {
                             profiling::scope!("particles");
-                            world.write_resource::<ParticleSystem>().active.append(&mut parts);
+                            world
+                                .write_resource::<ParticleSystem>()
+                                .active
+                                .append(&mut parts);
                         }
 
                         for i in 0..9 {
@@ -913,9 +926,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
                             if dirty[i as usize] {
                                 self.loaded_chunks
-                                    .get_mut(
-                                        &chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y),
-                                    )
+                                    .get_mut(&chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y))
                                     .unwrap()
                                     .mark_dirty();
                             }
@@ -946,9 +957,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                 // let neighbor_rect = Rect::new(0, 0, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
                                 let mut r = self
                                     .loaded_chunks
-                                    .get_mut(
-                                        &chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y),
-                                    )
+                                    .get_mut(&chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y))
                                     .unwrap()
                                     .get_dirty_rect();
                                 match r {
@@ -960,9 +969,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                     },
                                 }
                                 self.loaded_chunks
-                                    .get_mut(
-                                        &chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y),
-                                    )
+                                    .get_mut(&chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y))
                                     .unwrap()
                                     .set_dirty_rect(r);
                             }
@@ -970,9 +977,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                             if let Some(new) = dirty_rects[i as usize] {
                                 let mut r = self
                                     .loaded_chunks
-                                    .get_mut(
-                                        &chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y),
-                                    )
+                                    .get_mut(&chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y))
                                     .unwrap()
                                     .get_dirty_rect();
                                 match r {
@@ -984,9 +989,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                     },
                                 }
                                 self.loaded_chunks
-                                    .get_mut(
-                                        &chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y),
-                                    )
+                                    .get_mut(&chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y))
                                     .unwrap()
                                     .set_dirty_rect(r);
                             }
@@ -1215,10 +1218,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
     }
 
     fn force_update_chunk(&mut self, chunk_x: i32, chunk_y: i32) {
-        if let Some(ch) = self
-            .loaded_chunks
-            .get_mut(&chunk_index(chunk_x, chunk_y))
-        {
+        if let Some(ch) = self.loaded_chunks.get_mut(&chunk_index(chunk_x, chunk_y)) {
             ch.set_dirty_rect(Some(Rect::new(
                 0,
                 0,
@@ -1341,7 +1341,10 @@ mod tests {
     use super::*;
 
     use rand::Rng;
-    use specs::{saveload::{SimpleMarker, SimpleMarkerAllocator}, Builder};
+    use specs::{
+        saveload::{SimpleMarker, SimpleMarkerAllocator},
+        Builder,
+    };
 
     use crate::game::{
         common::world::{gen::TestGenerator, FilePersistent, Velocity},

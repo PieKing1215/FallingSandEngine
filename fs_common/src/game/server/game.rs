@@ -23,7 +23,7 @@ use crate::game::{
     common::{
         commands::CommandHandler,
         networking::{Packet, PacketType},
-        world::{Chunk, ChunkState, CHUNK_SIZE, chunk_index_inv},
+        world::{chunk_index_inv, Chunk, ChunkState, CHUNK_SIZE},
     },
     Game,
 };

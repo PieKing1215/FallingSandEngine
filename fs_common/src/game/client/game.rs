@@ -86,12 +86,10 @@ impl Game<ClientChunk> {
         } else {
             SwapInterval::Immediate
         };
-        
+
         sdl.sdl_video.gl_set_swap_interval(si_des).unwrap();
 
-        sdl2::hint::set_video_minimize_on_focus_loss(
-            self.settings.minimize_on_lost_focus,
-        );
+        sdl2::hint::set_video_minimize_on_focus_loss(self.settings.minimize_on_lost_focus);
 
         let mut prev_tick_time = std::time::Instant::now();
         let mut prev_tick_physics_time = std::time::Instant::now();

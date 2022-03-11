@@ -7,15 +7,9 @@ use crate::game::common::{
 
 use rapier2d::{
     na::{Point2, Vector2},
-    prelude::{
-        ColliderBuilder,
-        InteractionGroups, RigidBodyBuilder, RigidBodyType,
-    },
+    prelude::{ColliderBuilder, InteractionGroups, RigidBodyBuilder, RigidBodyType},
 };
-use salva2d::{
-    integrations::rapier::{ColliderSampling},
-    object::Boundary,
-};
+use salva2d::{integrations::rapier::ColliderSampling, object::Boundary};
 use sdl2::pixels::Color;
 use specs::{
     saveload::{SimpleMarker, SimpleMarkerAllocator},

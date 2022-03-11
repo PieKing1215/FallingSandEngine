@@ -9,7 +9,10 @@ use specs::{
 mod player;
 pub use player::*;
 
-use crate::game::common::world::{material::{MaterialInstance, PhysicsType}, pixel_to_chunk_pos};
+use crate::game::common::world::{
+    material::{MaterialInstance, PhysicsType},
+    pixel_to_chunk_pos,
+};
 
 use super::{
     particle::{Particle, ParticleSystem},

@@ -1,14 +1,7 @@
-
 use rapier2d::prelude::Shape;
 use sdl2::{pixels::Color, rect::Rect};
 use sdl_gpu::{GPUFilter, GPUFormat, GPUImage, GPURect, GPUSubsystem, GPUTarget};
-use specs::{
-    prelude::ParallelIterator,
-    rayon::{
-        slice::ParallelSlice,
-    },
-    Join, ReadStorage, WorldExt,
-};
+use specs::{prelude::ParallelIterator, rayon::slice::ParallelSlice, Join, ReadStorage, WorldExt};
 
 use crate::game::{
     client::{

@@ -1,16 +1,17 @@
-use std::{sync::Arc, collections::HashMap, hash::BuildHasherDefault};
+use std::{collections::HashMap, hash::BuildHasherDefault, sync::Arc};
 
 use super::{
     entity::Hitbox, material::MaterialInstance, ChunkHandlerGeneric, Position, TickTime, Velocity,
 };
 use crate::game::common::world::{
+    chunk_index, chunk_update_order,
     material::{PhysicsType, TEST_MATERIAL},
-    ChunkState, pixel_to_chunk_pos, chunk_index, chunk_update_order, PassThroughHasherU32, pixel_to_chunk_pos_with_chunk_size,
+    pixel_to_chunk_pos, pixel_to_chunk_pos_with_chunk_size, ChunkState, PassThroughHasherU32,
 };
 
 use itertools::Itertools;
 use rand::prelude::Distribution;
-use rayon::{iter::{ParallelIterator, IntoParallelIterator, ParallelExtend}};
+use rayon::iter::{IntoParallelIterator, ParallelExtend, ParallelIterator};
 use sdl2::pixels::Color;
 use serde::{Deserialize, Serialize};
 use specs::{Entities, Join, Read, ReadStorage, System, Write};
@@ -28,10 +29,14 @@ pub struct Particle {
 
 impl Particle {
     pub fn new(material: MaterialInstance, pos: Position, vel: Velocity) -> Self {
-        let (chunk_x, chunk_y) = pixel_to_chunk_pos_with_chunk_size(pos.x as i64, pos.y as i64, PARTICLE_CHUNK_SIZE);
+        let (chunk_x, chunk_y) =
+            pixel_to_chunk_pos_with_chunk_size(pos.x as i64, pos.y as i64, PARTICLE_CHUNK_SIZE);
         Self {
             material,
-            chunk_cache: (chunk_index(chunk_x, chunk_y), chunk_update_order(chunk_x, chunk_y)),
+            chunk_cache: (
+                chunk_index(chunk_x, chunk_y),
+                chunk_update_order(chunk_x, chunk_y),
+            ),
             pos,
             vel,
             in_object_state: InObjectState::FirstFrame,
@@ -148,13 +153,14 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
             // TODO: look into replacing the chunks HashMap with https://crates.io/crates/evmap or https://crates.io/crates/chashmap so it's actually sound
 
             struct ForceSendSync<T> {
-                value: T
+                value: T,
             }
 
-            unsafe impl <T> Send for ForceSendSync<T> {}
-            unsafe impl <T> Sync for ForceSendSync<T> {}
+            unsafe impl<T> Send for ForceSendSync<T> {}
+            unsafe impl<T> Sync for ForceSendSync<T> {}
 
-            let async_chunk_handler = Arc::new(ForceSendSync::<*mut &mut H > { value: &mut self.chunk_handler });
+            let async_chunk_handler =
+                Arc::new(ForceSendSync::<*mut &mut H> { value: &mut self.chunk_handler });
 
             let parts: Vec<_> = {
                 profiling::scope!("sort+group");
@@ -166,9 +172,14 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
                 ];
                 for p in system.active.drain(..) {
                     // safety: p.chunk_cache.1 is a chunk order number, assumed to be 0..=3
-                    unsafe { maps.get_unchecked_mut(p.chunk_cache.1 as usize) }.entry(p.chunk_cache.0).or_insert_with(Vec::new).push(p);
+                    unsafe { maps.get_unchecked_mut(p.chunk_cache.1 as usize) }
+                        .entry(p.chunk_cache.0)
+                        .or_insert_with(Vec::new)
+                        .push(p);
                 }
-                maps.into_iter().map(|m| m.into_values().collect_vec()).collect()
+                maps.into_iter()
+                    .map(|m| m.into_values().collect_vec())
+                    .collect()
             };
 
             for p in parts {
@@ -179,10 +190,10 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
                     use retain_mut::RetainMut;
                     #[allow(unstable_name_collisions)]
                     chunk_px.retain_mut(|part| {
-
-                        let unsafe_async_chunk_handler = unsafe { &mut **((async_chunk_handler.clone()).value) };
+                        let unsafe_async_chunk_handler =
+                            unsafe { &mut **((async_chunk_handler.clone()).value) };
                         let chunk_handler = unsafe_async_chunk_handler;
-                        
+
                         let mut process = |part: &mut Particle| {
                             let lx = part.pos.x;
                             let ly = part.pos.y;
@@ -207,7 +218,9 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
 
                                     // this check does catch repeated steps, but actually makes performance slightly worse
                                     // if pos.x as i64 != last_step_x || pos.y as i64 != last_step_y {
-                                    if let Ok(mat) = chunk_handler.get(part.pos.x as i64, part.pos.y as i64) {
+                                    if let Ok(mat) =
+                                        chunk_handler.get(part.pos.x as i64, part.pos.y as i64)
+                                    {
                                         if mat.physics == PhysicsType::Air {
                                             part.in_object_state = InObjectState::Outside;
                                         } else {
@@ -216,20 +229,25 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
                                             match part.in_object_state {
                                                 InObjectState::FirstFrame => {
                                                     if is_object {
-                                                        part.in_object_state = InObjectState::Inside;
+                                                        part.in_object_state =
+                                                            InObjectState::Inside;
                                                     } else {
-                                                        part.in_object_state = InObjectState::Outside;
+                                                        part.in_object_state =
+                                                            InObjectState::Outside;
                                                     }
                                                 },
                                                 InObjectState::Inside => {
                                                     if !is_object {
-                                                        part.in_object_state = InObjectState::Outside;
+                                                        part.in_object_state =
+                                                            InObjectState::Outside;
                                                     }
                                                 },
                                                 InObjectState::Outside => {},
                                             }
 
-                                            if !is_object || part.in_object_state == InObjectState::Outside {
+                                            if !is_object
+                                                || part.in_object_state == InObjectState::Outside
+                                            {
                                                 match chunk_handler.get(lx as i64, ly as i64) {
                                                     Ok(m) if m.physics != PhysicsType::Air => {
                                                         let succeeded = chunk_handler.displace(
@@ -250,7 +268,11 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
                                                     },
                                                     _ => {
                                                         if chunk_handler
-                                                            .set(lx as i64, ly as i64, part.material)
+                                                            .set(
+                                                                lx as i64,
+                                                                ly as i64,
+                                                                part.material,
+                                                            )
                                                             .is_ok()
                                                         {
                                                             return false;
@@ -271,8 +293,15 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
                         };
 
                         let res = process(part);
-                        let (chunk_x, chunk_y) = pixel_to_chunk_pos_with_chunk_size(part.pos.x as i64, part.pos.y as i64, PARTICLE_CHUNK_SIZE);
-                        part.chunk_cache = (chunk_index(chunk_x, chunk_y), chunk_update_order(chunk_x, chunk_y));
+                        let (chunk_x, chunk_y) = pixel_to_chunk_pos_with_chunk_size(
+                            part.pos.x as i64,
+                            part.pos.y as i64,
+                            PARTICLE_CHUNK_SIZE,
+                        );
+                        part.chunk_cache = (
+                            chunk_index(chunk_x, chunk_y),
+                            chunk_update_order(chunk_x, chunk_y),
+                        );
                         res
                     });
 
@@ -290,12 +319,12 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
                 // });
 
                 // for p in parts {
-                    
+
                 // }
             }
         }
 
-            // TODO: we want to use the std version once it is stable
+        // TODO: we want to use the std version once it is stable
         //     use retain_mut::RetainMut;
         //     #[allow(unstable_name_collisions)]
         //     system.active.retain_mut(|part| {
