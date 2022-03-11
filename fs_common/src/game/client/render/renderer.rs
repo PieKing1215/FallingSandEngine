@@ -18,6 +18,9 @@ use crate::game::{
     Game,
 };
 
+pub static mut BUILD_DATETIME: Option<&str> = None;
+pub static mut GIT_HASH: Option<&str> = None;
+
 pub struct Renderer<'ttf> {
     pub fonts: Option<Fonts<'ttf>>,
     pub shaders: Shaders,
@@ -164,7 +167,7 @@ impl<'a> Renderer<'a> {
                     .as_ref()
                     .unwrap()
                     .pixel_operator
-                    .render(format!("{} ({})", env!("BUILD_DATETIME"), env!("GIT_HASH")).as_str())
+                    .render(format!("{} ({})", unsafe { BUILD_DATETIME }.unwrap_or("???"), unsafe { GIT_HASH }.unwrap_or("???")).as_str())
                     .solid(Color::RGB(0xff, 0xff, 0xff))
                     .unwrap();
                 (surf.width(), surf.height(), GPUImage::from_surface(&surf))

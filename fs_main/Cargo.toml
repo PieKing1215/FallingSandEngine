@@ -1,0 +1,30 @@
+[package]
+name = "fs_main"
+version = "0.1.0"
+authors = ["PieKing1215"]
+description = "Falling Sand Engine main"
+repository = "https://github.com/PieKing1215/FallingSandEngine"
+readme = "README.md"
+license = "ARR"
+keywords = ["game", "falling-sand", "2d"]
+categories = ["game-engines", "games"]
+edition = "2021"
+build = "src/build.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fs_common = { path = "../fs_common" }
+
+[package.metadata.vcpkg]
+git = "https://github.com/microsoft/vcpkg"
+branch = "master"
+
+[package.metadata.vcpkg.target]
+x86_64-pc-windows-msvc = { triplet = "x64-windows-static-md" }
+
+[build-dependencies]
+chrono = "0.4"
+
+[features]
+profile = ["fs_common/profile"]

@@ -13,7 +13,7 @@
 #![allow(clippy::items_after_statements)]
 #![allow(clippy::similar_names)]
 
-mod game;
+pub mod game;
 
 use std::fs::File;
 use std::str::FromStr;
@@ -84,7 +84,7 @@ where
 }
 
 #[profiling::function]
-fn main() -> Result<(), String> {
+pub fn main() -> Result<(), String> {
     let matches = App::new(crate_name!())
         .version(crate_version!())
         .author(crate_authors!())
