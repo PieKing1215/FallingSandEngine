@@ -17,9 +17,9 @@ use fs_common::game::{
         },
         FileHelper,
     },
-    server::world::ServerChunk,
     Game,
 };
+use fs_server::ServerGame;
 use log::{error, info, LevelFilter};
 use rapier2d::{
     na::{Isometry2, Vector2},
@@ -164,9 +164,9 @@ pub fn main() -> Result<(), String> {
 
         let res = std::panic::catch_unwind(move || {
             println!("Starting server...");
-            let mut game: Game<ServerChunk> = Game::new(file_helper);
+            let mut game: ServerGame = ServerGame::new(file_helper);
 
-            if let Some(w) = &mut game.world {
+            if let Some(w) = &mut game.0.world {
                 let rigid_body = RigidBodyBuilder::new_dynamic()
                     .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
                     .lock_rotations()

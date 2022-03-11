@@ -15,6 +15,8 @@ build = "src/build.rs"
 
 [dependencies]
 fs_common = { path = "../fs_common" }
+fs_client = { path = "../fs_client" }
+fs_server = { path = "../fs_server" }
 clap = { version = "3.0", features = ["cargo"] }
 profiling = "1.0"
 log = "0.4"

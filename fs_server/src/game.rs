@@ -1,13 +1,12 @@
+use clap::{error::ContextKind, ArgMatches};
+use crossterm::event::{poll, read, Event, KeyCode, KeyEvent, KeyModifiers};
+use log::{debug, error, info, warn};
 use std::{
     io::{Read, Write},
     net::{SocketAddr, TcpListener, TcpStream},
     ops::Add,
     time::{Duration, Instant},
 };
-
-use clap::{error::ContextKind, ArgMatches};
-use crossterm::event::{poll, read, Event, KeyCode, KeyEvent, KeyModifiers};
-use log::{debug, error, info, warn};
 use tui::{
     backend::Backend,
     layout::{Constraint, Layout},
@@ -19,16 +18,23 @@ use tui::{
 use tui_logger::{TuiLoggerSmartWidget, TuiWidgetState};
 
 use super::world::ServerChunk;
-use crate::game::{
+use fs_common::game::{
     common::{
         commands::CommandHandler,
         networking::{Packet, PacketType},
         world::{chunk_index_inv, Chunk, ChunkState, CHUNK_SIZE},
+        FileHelper,
     },
     Game,
 };
 
-impl Game<ServerChunk> {
+pub struct ServerGame(pub Game<ServerChunk>);
+
+impl ServerGame {
+    pub fn new(file_helper: FileHelper) -> Self {
+        Self(Game::new(file_helper))
+    }
+
     #[profiling::function]
     pub fn run<TB: Backend>(
         &mut self,
@@ -37,13 +43,14 @@ impl Game<ServerChunk> {
     ) -> Result<(), String> {
         tui_logger::init_logger(log::LevelFilter::Trace).unwrap();
         tui_logger::set_default_level(log::LevelFilter::Trace);
-        if !self.file_helper.game_path("logs/").exists() {
+        if !self.0.file_helper.game_path("logs/").exists() {
             info!("logs dir missing, creating it...");
-            std::fs::create_dir_all(self.file_helper.game_path("logs/"))
+            std::fs::create_dir_all(self.0.file_helper.game_path("logs/"))
                 .expect("Failed to create logs dir:");
         }
         tui_logger::set_log_file(
-            self.file_helper
+            self.0
+                .file_helper
                 .game_path("logs/server_latest.log")
                 .to_str()
                 .expect("Server log path must be UTF-8."),
@@ -85,7 +92,7 @@ impl Game<ServerChunk> {
             if let Ok((mut stream, addr)) = net_listener.accept() {
                 info!("Incoming Connection: {}", addr.to_string());
                 stream.set_nonblocking(false).unwrap();
-                if let Some(w) = &self.world {
+                if let Some(w) = &self.0.world {
                     for ci in &w.chunk_handler.loaded_chunks {
                         // println!("Writing SyncChunkPacket");
                         let (chunk_x, chunk_y) = chunk_index_inv(*ci.0);
@@ -152,7 +159,7 @@ impl Game<ServerChunk> {
 
             // tick
 
-            let can_tick = self.settings.tick;
+            let can_tick = self.0.settings.tick;
 
             if do_tick_next && can_tick {
                 if now.saturating_duration_since(prev_tick_time).as_millis() > 500 {
@@ -160,20 +167,20 @@ impl Game<ServerChunk> {
                     prev_tick_time = now;
                 } else {
                     prev_tick_time = prev_tick_time.add(Duration::from_nanos(
-                        1_000_000_000 / u64::from(self.settings.tick_speed),
+                        1_000_000_000 / u64::from(self.0.settings.tick_speed),
                     ));
                 }
                 let st = Instant::now();
                 self.tick();
 
-                if self.tick_time % 4 == 0 {
-                    if let Some(w) = &self.world {
+                if self.0.tick_time % 4 == 0 {
+                    if let Some(w) = &self.0.world {
                         let mut n = 0;
                         for ci in &w.chunk_handler.loaded_chunks {
                             n += 1;
                             if ci.1.get_state() == ChunkState::Active
                                 && ci.1.dirty
-                                && n % (self.tick_time / 4) % 4 == 0
+                                && n % (self.0.tick_time / 4) % 4 == 0
                             {
                                 for c in &mut connections {
                                     // println!("Writing SyncChunkPacket");
@@ -225,7 +232,7 @@ impl Game<ServerChunk> {
                     }
 
                     // TODO: come up with a good way to merge this loop with the one right above
-                    if let Some(w) = &mut self.world {
+                    if let Some(w) = &mut self.0.world {
                         for ci in &mut w.chunk_handler.loaded_chunks {
                             if ci.1.get_state() == ChunkState::Active && ci.1.dirty {
                                 ci.1.dirty = false;
@@ -234,8 +241,8 @@ impl Game<ServerChunk> {
                     }
                 }
 
-                self.fps_counter.tick_times.rotate_left(1);
-                self.fps_counter.tick_times[self.fps_counter.tick_times.len() - 1] =
+                self.0.fps_counter.tick_times.rotate_left(1);
+                self.0.fps_counter.tick_times[self.0.fps_counter.tick_times.len() - 1] =
                     Instant::now().saturating_duration_since(st).as_nanos() as f32;
 
                 if poll(Duration::from_millis(1)).unwrap() {
@@ -290,15 +297,15 @@ impl Game<ServerChunk> {
                 term.draw(|f| self.draw_terminal(f, &input, &mut tui_widget_state))
                     .unwrap();
 
-                self.fps_counter.ticks += 1;
+                self.0.fps_counter.ticks += 1;
             }
             do_tick_next = can_tick
                 && now.saturating_duration_since(prev_tick_time).as_nanos()
-                    > 1_000_000_000 / u128::from(self.settings.tick_speed); // intended is 30 ticks per second
+                    > 1_000_000_000 / u128::from(self.0.settings.tick_speed); // intended is 30 ticks per second
 
             // tick liquidfun
 
-            let can_tick = self.settings.tick_physics;
+            let can_tick = self.0.settings.tick_physics;
 
             if do_tick_physics_next && can_tick {
                 if now
@@ -310,12 +317,12 @@ impl Game<ServerChunk> {
                     prev_tick_physics_time = now;
                 } else {
                     prev_tick_physics_time = prev_tick_physics_time.add(Duration::from_nanos(
-                        1_000_000_000 / u64::from(self.settings.tick_physics_speed),
+                        1_000_000_000 / u64::from(self.0.settings.tick_physics_speed),
                     ));
                 }
-                if let Some(w) = &mut self.world {
+                if let Some(w) = &mut self.0.world {
                     let st = Instant::now();
-                    w.tick_physics(&self.settings);
+                    w.tick_physics(&self.0.settings);
                     physics_ticks += 1;
 
                     if physics_ticks % 10 == 0 {
@@ -354,9 +361,9 @@ impl Game<ServerChunk> {
                         // }
                     }
 
-                    self.fps_counter.tick_physics_times.rotate_left(1);
-                    self.fps_counter.tick_physics_times
-                        [self.fps_counter.tick_physics_times.len() - 1] =
+                    self.0.fps_counter.tick_physics_times.rotate_left(1);
+                    self.0.fps_counter.tick_physics_times
+                        [self.0.fps_counter.tick_physics_times.len() - 1] =
                         Instant::now().saturating_duration_since(st).as_nanos() as f32;
                 }
             }
@@ -364,46 +371,47 @@ impl Game<ServerChunk> {
                 && now
                     .saturating_duration_since(prev_tick_physics_time)
                     .as_nanos()
-                    > 1_000_000_000 / u128::from(self.settings.tick_physics_speed); // intended is 60 ticks per second
+                    > 1_000_000_000 / u128::from(self.0.settings.tick_physics_speed); // intended is 60 ticks per second
 
             // render
 
             let now = Instant::now();
             let delta = now.saturating_duration_since(last_frame);
             last_frame = now;
-            if let Some(w) = &mut self.world {
+            if let Some(w) = &mut self.0.world {
                 w.frame(delta); // this delta is more accurate than the one based on counter_last_frame
             }
 
-            self.fps_counter.frames += 1;
+            self.0.fps_counter.frames += 1;
             if now
-                .saturating_duration_since(self.fps_counter.last_update)
+                .saturating_duration_since(self.0.fps_counter.last_update)
                 .as_millis()
                 >= 1000
             {
-                self.fps_counter.display_value = self.fps_counter.frames;
-                self.fps_counter.frames = 0;
-                self.fps_counter.tick_display_value = self.fps_counter.ticks;
-                self.fps_counter.ticks = 0;
-                self.fps_counter.last_update = now;
+                self.0.fps_counter.display_value = self.0.fps_counter.frames;
+                self.0.fps_counter.frames = 0;
+                self.0.fps_counter.tick_display_value = self.0.fps_counter.ticks;
+                self.0.fps_counter.ticks = 0;
+                self.0.fps_counter.last_update = now;
 
-                // let nums: Vec<f32> = self.fps_counter.frame_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
+                // let nums: Vec<f32> = self.0.fps_counter.frame_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
                 // let avg_mspf: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-                // let nums: Vec<f32> = self.fps_counter.tick_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
+                // let nums: Vec<f32> = self.0.fps_counter.tick_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
                 // let avg_mspt: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-                // let nums: Vec<f32> = self.fps_counter.tick_physics_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
+                // let nums: Vec<f32> = self.0.fps_counter.tick_physics_times.iter().filter(|n| **n != 0.0).map(|f| *f).collect();
                 // let avg_mspt_phys: f32 = nums.iter().map(|f| f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-                // println!("FPS: {}, TPS: {}, mspf: {:.2}, mspt: {:.2}, mspt_phys: {:.2}", self.fps_counter.display_value, ticks, avg_mspf, avg_mspt, avg_mspt_phys);
+                // println!("FPS: {}, TPS: {}, mspf: {:.2}, mspt: {:.2}, mspt_phys: {:.2}", self.0.fps_counter.display_value, ticks, avg_mspf, avg_mspt, avg_mspt_phys);
             }
 
             let time_nano = Instant::now()
                 .saturating_duration_since(counter_last_frame)
                 .as_nanos();
-            self.fps_counter.frame_times.rotate_left(1);
-            self.fps_counter.frame_times[self.fps_counter.frame_times.len() - 1] = time_nano as f32;
+            self.0.fps_counter.frame_times.rotate_left(1);
+            self.0.fps_counter.frame_times[self.0.fps_counter.frame_times.len() - 1] =
+                time_nano as f32;
 
             profiling::finish_frame!();
             // sleep
@@ -437,10 +445,10 @@ impl Game<ServerChunk> {
 
     #[profiling::function]
     fn tick(&mut self) {
-        self.tick_time += 1;
+        self.0.tick_time += 1;
 
-        if let Some(w) = &mut self.world {
-            w.tick(self.tick_time, &self.settings);
+        if let Some(w) = &mut self.0.world {
+            w.tick(self.0.tick_time, &self.0.settings);
         }
     }
 
@@ -499,6 +507,7 @@ impl Game<ServerChunk> {
         // main right
 
         let nums: Vec<&f32> = self
+            .0
             .fps_counter
             .frame_times
             .iter()
@@ -508,6 +517,7 @@ impl Game<ServerChunk> {
             nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
         let nums: Vec<&f32> = self
+            .0
             .fps_counter
             .tick_times
             .iter()
@@ -517,6 +527,7 @@ impl Game<ServerChunk> {
             nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
         let nums: Vec<&f32> = self
+            .0
             .fps_counter
             .tick_physics_times
             .iter()
@@ -527,7 +538,7 @@ impl Game<ServerChunk> {
 
         let frames_style = Style::default();
 
-        let ticks_style = match self.fps_counter.tick_display_value {
+        let ticks_style = match self.0.fps_counter.tick_display_value {
             0..=20 => Style::default().fg(tui::style::Color::LightRed),
             21..=27 => Style::default().fg(tui::style::Color::Yellow),
             _ => Style::default().fg(tui::style::Color::LightGreen),
@@ -556,12 +567,15 @@ impl Game<ServerChunk> {
         let text = vec![
             Spans::from(vec![
                 Span::raw("FPS: "),
-                Span::styled(format!("{}", self.fps_counter.display_value), frames_style),
+                Span::styled(
+                    format!("{}", self.0.fps_counter.display_value),
+                    frames_style,
+                ),
             ]),
             Spans::from(vec![
                 Span::raw("TPS: "),
                 Span::styled(
-                    format!("{}", self.fps_counter.tick_display_value),
+                    format!("{}", self.0.fps_counter.tick_display_value),
                     ticks_style,
                 ),
             ]),

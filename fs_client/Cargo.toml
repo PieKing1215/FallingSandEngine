@@ -1,6 +1,13 @@
 [package]
 name = "fs_client"
 version = "0.1.0"
+authors = ["PieKing1215"]
+description = "Falling Sand Engine client"
+repository = "https://github.com/PieKing1215/FallingSandEngine"
+readme = "README.md"
+license = "ARR"
+keywords = ["game", "falling-sand", "2d"]
+categories = ["game-engines", "games"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

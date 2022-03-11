@@ -1,8 +1,11 @@
-use sdl2::{pixels::Color, rect::Rect};
+use fs_common::game::common::world::material::MaterialInstance;
+use fs_common::game::common::world::mesh;
+use fs_common::game::common::world::Chunk;
+use fs_common::game::common::world::ChunkState;
+use fs_common::game::common::world::RigidBodyState;
+use fs_common::game::common::world::CHUNK_SIZE;
 
-use crate::game::common::world::{
-    material::MaterialInstance, mesh, Chunk, ChunkState, RigidBodyState, CHUNK_SIZE,
-};
+use sdl2::{pixels::Color, rect::Rect};
 
 pub struct ServerChunk {
     pub chunk_x: i32,
