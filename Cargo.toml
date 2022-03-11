@@ -3,6 +3,8 @@
 members = [
     "fs_main",
     "fs_common",
+    "fs_client",
+    "fs_server",
 ]
 
 [profile.dev]
