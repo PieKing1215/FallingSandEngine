@@ -604,6 +604,7 @@ impl Game<ClientChunk> {
                                             Ok(p) => {
                                                 // n += 1;
                                                 #[allow(unreachable_patterns)]
+                                                #[allow(clippy::match_same_arms)]
                                                 match p.packet_type {
                                                     PacketType::SyncChunkPacket {
                                                         chunk_x,

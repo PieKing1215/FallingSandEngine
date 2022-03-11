@@ -5,7 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use clap::ArgMatches;
+use clap::{error::ContextKind, ArgMatches};
 use crossterm::event::{poll, read, Event, KeyCode, KeyEvent, KeyModifiers};
 use log::{debug, error, info, warn};
 use tui::{
@@ -259,14 +259,10 @@ impl Game<ServerChunk> {
                                                 break 'mainLoop;
                                             }
                                         },
-                                        Err(clap::Error {
-                                            kind: clap::ErrorKind::UnknownArgument,
-                                            info,
-                                            ..
-                                        }) => {
-                                            error!(target: "", "Found argument '{}' which wasn't expected, or isn't valid in this context.", info[0]);
+                                        Err(e) if e.kind() == clap::ErrorKind::UnknownArgument => {
+                                            error!(target: "", "Found argument '{:?}' which wasn't expected, or isn't valid in this context.", e.context().find_map(|(k,v)| (k == ContextKind::InvalidArg).then(|| v)).unwrap());
                                         },
-                                        Err(e) if e.kind == clap::ErrorKind::DisplayHelp => {
+                                        Err(e) if e.kind() == clap::ErrorKind::DisplayHelp => {
                                             info!(target: "", "{:?}", e.to_string());
                                         },
                                         Err(e) => {

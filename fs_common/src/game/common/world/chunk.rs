@@ -25,7 +25,7 @@ pub const CHUNK_SIZE: u16 = 100;
 #[warn(clippy::large_enum_variant)]
 pub enum RigidBodyState {
     Active(RigidBodyHandle),
-    Inactive(RigidBody, Vec<Collider>),
+    Inactive(Box<RigidBody>, Vec<Collider>),
 }
 
 pub trait Chunk {

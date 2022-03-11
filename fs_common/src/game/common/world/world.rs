@@ -683,7 +683,10 @@ impl<'w, C: Chunk> World<C> {
                             }
                         }
 
-                        c.set_rigidbody(Some(RigidBodyState::Inactive(rigid_body, colliders)));
+                        c.set_rigidbody(Some(RigidBodyState::Inactive(
+                            Box::new(rigid_body),
+                            colliders,
+                        )));
                     }
                 } else {
                     // TODO: profile this and if it's too slow, could stagger it based on tick_time
@@ -757,7 +760,7 @@ impl<'w, C: Chunk> World<C> {
                                         &mut self.physics.joints,
                                     )
                                     .unwrap();
-                                *state = RigidBodyState::Inactive(rb, colls);
+                                *state = RigidBodyState::Inactive(Box::new(rb), colls);
                             },
                             _ => {},
                         }
@@ -765,7 +768,7 @@ impl<'w, C: Chunk> World<C> {
                         if should_be_active && matches!(state, RigidBodyState::Inactive(_, _)) {
                             match c.get_rigidbody_mut().take().unwrap() {
                                 RigidBodyState::Inactive(rb, colls) if should_be_active => {
-                                    let rb_handle = self.physics.bodies.insert(rb);
+                                    let rb_handle = self.physics.bodies.insert(*rb);
                                     for collider in colls {
                                         let bo_handle = self
                                             .physics

@@ -1,24 +1,24 @@
-use clap::{App, ArgMatches};
+use clap::{ArgMatches, Command};
 
 pub struct CommandHandler<'a> {
-    commands: App<'a>,
+    commands: Command<'a>,
 }
 
 impl CommandHandler<'_> {
     pub fn new() -> Self {
         Self {
-            commands: App::new("commands")
-                .setting(clap::AppSettings::NoBinaryName)
-                .setting(clap::AppSettings::SubcommandRequired)
-                .setting(clap::AppSettings::DisableHelpFlag)
-                .setting(clap::AppSettings::DisableVersionFlag)
+            commands: Command::new("commands")
+                .no_binary_name(true)
+                .subcommand_required(true)
+                .disable_help_flag(true)
+                .disable_version_flag(true)
                 .help_template("Command Help:\n{subcommands}")
                 .subcommand(
-                    App::new("shutdown")
+                    Command::new("shutdown")
                         .aliases(&["exit", "quit", "stop"])
                         .about("Exit the game"),
                 )
-                .subcommand(App::new("save").about("Save the game")),
+                .subcommand(Command::new("save").about("Save the game")),
         }
     }
 

@@ -1,9 +1,6 @@
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use specs::{
-    storage::BTreeStorage,
-    Component, Entities, Join, System, Write, WriteStorage,
-};
+use specs::{storage::BTreeStorage, Component, Entities, Join, System, Write, WriteStorage};
 
 mod player;
 pub use player::*;

@@ -47,7 +47,7 @@ impl WorldRenderer {
     #[allow(clippy::unused_self)]
     pub fn init(&self, _world: &mut World<ClientChunk>) {}
 
-    #[warn(clippy::too_many_arguments)]
+    #[warn(clippy::too_many_arguments)] // TODO: RenderContext struct
     #[warn(clippy::too_many_lines)]
     #[profiling::function]
     pub fn render(

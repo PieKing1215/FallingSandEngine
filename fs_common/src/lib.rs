@@ -28,8 +28,8 @@ use backtrace::Backtrace;
 use clap::crate_authors;
 use clap::crate_name;
 use clap::crate_version;
-use clap::App;
 use clap::Arg;
+use clap::Command;
 use game::Game;
 use log::error;
 use log::info;
@@ -90,7 +90,7 @@ where
 
 #[profiling::function]
 pub fn main() -> Result<(), String> {
-    let matches = App::new(crate_name!())
+    let matches = Command::new(crate_name!())
         .version(crate_version!())
         .author(crate_authors!())
         .arg(
@@ -129,7 +129,7 @@ pub fn main() -> Result<(), String> {
                 .help("Set the assets directory"),
         )
         .subcommand(
-            App::new("server").about("Run dedicated server").arg(
+            Command::new("server").about("Run dedicated server").arg(
                 Arg::new("port")
                     .short('p')
                     .long("port")
