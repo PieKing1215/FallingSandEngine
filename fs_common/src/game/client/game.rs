@@ -35,17 +35,29 @@ use crate::game::{
             Camera, ChunkHandlerGeneric, CollisionFlags, Loader, Position, RigidBodyComponent,
             Velocity, World, WorldNetworkMode,
         },
-        Settings,
+        Settings, FileHelper,
     },
     GameData,
 };
 
 use super::{
     render::{Renderer, Sdl2Context},
-    world::ClientChunk,
+    world::ClientChunk, Client,
 };
 
-impl GameData<ClientChunk> {
+pub struct ClientGame {
+    pub data: GameData<ClientChunk>,
+    pub client: Client,
+}
+
+impl ClientGame {
+    pub fn new(file_helper: FileHelper) -> Self {
+        Self {
+            data: GameData::new(file_helper),
+            client: Client::new(),
+        }
+    }
+
     #[profiling::function]
     pub fn run(
         &mut self,
@@ -53,11 +65,11 @@ impl GameData<ClientChunk> {
         mut renderer: Option<&mut Renderer>,
         args: &ArgMatches,
     ) {
-        self.settings.debug = args.is_present("debug");
+        self.data.settings.debug = args.is_present("debug");
         if args.is_present("no-tick") {
-            self.settings.simulate_chunks = false;
-            self.settings.simulate_particles = false;
-            self.settings.tick_physics = false;
+            self.data.settings.simulate_chunks = false;
+            self.data.settings.simulate_particles = false;
+            self.data.settings.tick_physics = false;
         }
 
         let mut network = None;
@@ -69,7 +81,7 @@ impl GameData<ClientChunk> {
                     info!("[CLIENT] Connected to server");
 
                     r.get_mut().set_nonblocking(true).unwrap();
-                    self.world.as_mut().unwrap().net_mode = WorldNetworkMode::Remote;
+                    self.data.world.as_mut().unwrap().net_mode = WorldNetworkMode::Remote;
 
                     network = Some(r);
                 },
@@ -81,7 +93,7 @@ impl GameData<ClientChunk> {
 
         // TODO: updating settings like this should be a fn
 
-        let si_des = if self.settings.vsync {
+        let si_des = if self.data.settings.vsync {
             SwapInterval::VSync
         } else {
             SwapInterval::Immediate
@@ -89,7 +101,7 @@ impl GameData<ClientChunk> {
 
         sdl.sdl_video.gl_set_swap_interval(si_des).unwrap();
 
-        sdl2::hint::set_video_minimize_on_focus_loss(self.settings.minimize_on_lost_focus);
+        sdl2::hint::set_video_minimize_on_focus_loss(self.data.settings.minimize_on_lost_focus);
 
         let mut prev_tick_time = std::time::Instant::now();
         let mut prev_tick_physics_time = std::time::Instant::now();
@@ -122,17 +134,14 @@ impl GameData<ClientChunk> {
                     // }
                 }
 
-                let client_consumed_event = match &mut self.client {
-                    Some(c) => c.on_event(&event),
-                    None => false,
-                };
+                let client_consumed_event = self.client.on_event(&event);
 
                 if !client_consumed_event {
                     match event {
                         Event::Quit { .. }
                         | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => break 'mainLoop,
                         Event::KeyDown { keycode: Some(Keycode::F11), .. } => {
-                            self.settings.fullscreen = !self.settings.fullscreen;
+                            self.data.settings.fullscreen = !self.data.settings.fullscreen;
                         },
                         Event::KeyDown {
                             keycode: Some(Keycode::RShift | Keycode::LShift), ..
@@ -145,21 +154,19 @@ impl GameData<ClientChunk> {
                             shift_key = false;
                         },
                         Event::MouseWheel { y, .. } => {
-                            if let Some(c) = &mut self.client {
-                                if shift_key {
-                                    let mut v = c.camera_scale + 0.1 * f64::from(y);
-                                    if y > 0 {
-                                        v = v.ceil();
-                                    } else {
-                                        v = v.floor();
-                                    }
-
-                                    v = v.clamp(1.0, 10.0);
-                                    c.camera_scale = v;
+                            if shift_key {
+                                let mut v = self.client.camera_scale + 0.1 * f64::from(y);
+                                if y > 0 {
+                                    v = v.ceil();
                                 } else {
-                                    c.camera_scale = (c.camera_scale * (1.0 + 0.1 * f64::from(y)))
-                                        .clamp(0.01, 10.0);
+                                    v = v.floor();
                                 }
+
+                                v = v.clamp(1.0, 10.0);
+                                self.client.camera_scale = v;
+                            } else {
+                                self.client.camera_scale = (self.client.camera_scale * (1.0 + 0.1 * f64::from(y)))
+                                    .clamp(0.01, 10.0);
                             }
                         },
                         Event::MouseButtonDown {
@@ -168,9 +175,122 @@ impl GameData<ClientChunk> {
                             y,
                             ..
                         } => {
-                            if let Some(w) = &mut self.world {
+                            if let Some(w) = &mut self.data.world {
                                 if let Some(ref r) = renderer {
-                                    if let Some(ref mut c) = &mut self.client {
+                                    let (
+                                        position_storage,
+                                        camera_storage,
+                                    ) = w.ecs.system_data::<(
+                                        ReadStorage<Position>,
+                                        ReadStorage<Camera>,
+                                    )>();
+
+                                    let camera_pos = (&position_storage, &camera_storage)
+                                        .join()
+                                        .find_map(|(p, _c)| Some(p));
+
+                                    if let Some(camera_pos) = camera_pos {
+                                        let world_x = camera_pos.x
+                                            + (f64::from(x)
+                                                - f64::from(r.window.size().0) / 2.0)
+                                                / self.client.camera_scale;
+                                        let world_y = camera_pos.y
+                                            + (f64::from(y)
+                                                - f64::from(r.window.size().1) / 2.0)
+                                                / self.client.camera_scale;
+                                        // let (chunk_x, chunk_y) = w.chunk_handler.pixel_to_chunk_pos(world_x as i64, world_y as i64);
+                                        // w.chunk_handler.force_update_chunk(chunk_x, chunk_y);
+
+                                        let point = Point2::new(
+                                            world_x as f32 / PHYSICS_SCALE,
+                                            world_y as f32 / PHYSICS_SCALE,
+                                        );
+
+                                        let groups = InteractionGroups::all();
+                                        let filter = None;
+                                        let mut query_pipeline = QueryPipeline::new();
+                                        query_pipeline.update(
+                                            &w.physics.islands,
+                                            &w.physics.bodies,
+                                            &w.physics.colliders,
+                                        );
+                                        query_pipeline.intersections_with_point(
+                                            &w.physics.colliders, &point, groups, filter, |handle| {
+                                                let col = w.physics.colliders.get(handle).unwrap();
+                                                if let Some(rb_handle) = col.parent() {
+                                                    let rb = w.physics.bodies.get(rb_handle).unwrap();
+                                                    if rb.body_type() == RigidBodyType::Dynamic {
+                                                        let point = Vector2::new(
+                                                            world_x as f32 / PHYSICS_SCALE,
+                                                            world_y as f32 / PHYSICS_SCALE,
+                                                        );
+                                                        let new_rb = RigidBodyBuilder::new_kinematic_position_based()
+                                                            .translation(point).build();
+
+                                                        let local_point = rb.position().inverse_transform_point(&Point2::new(point.x, point.y));
+
+                                                        let mouse_h = w.physics.bodies.insert(new_rb);
+
+                                                        let joint = BallJoint::new(Point2::new(0.0, 0.0), local_point);
+                                                        w.physics.joints.insert(mouse_h, rb_handle, joint);
+
+                                                        self.client.mouse_joint = Some((mouse_h, Vector2::new(0.0, 0.0)));
+                                                    }
+                                                }
+
+                                                false
+                                            }
+                                        );
+                                    }
+                                }
+                            }
+                        },
+                        Event::MouseButtonUp {
+                            mouse_btn: sdl2::mouse::MouseButton::Right, ..
+                        } => {
+                            if let Some(w) = &mut self.data.world {
+                                if let Some((rb_h, linvel)) = self.client.mouse_joint.take() {
+                                    for j in w.physics.joints.joints_with(rb_h) {
+                                        w.physics
+                                            .bodies
+                                            .get_mut(j.1)
+                                            .unwrap()
+                                            .set_linvel(linvel, true);
+                                    }
+                                    w.physics.bodies.remove(
+                                        rb_h,
+                                        &mut w.physics.islands,
+                                        &mut w.physics.colliders,
+                                        &mut w.physics.joints,
+                                    );
+                                }
+                            }
+                        },
+                        Event::MouseMotion { xrel, yrel, mousestate, x, y, .. } => {
+                            if mousestate.left() {
+                                if let Some(w) = &mut self.data.world {
+                                    let (
+                                        mut position_storage,
+                                        camera_storage,
+                                    ) = w.ecs.system_data::<(
+                                        WriteStorage<Position>,
+                                        ReadStorage<Camera>,
+                                    )>();
+
+                                    let camera_pos = (&mut position_storage, &camera_storage)
+                                        .join()
+                                        .find_map(|(p, _c)| Some(p));
+
+                                    if let Some(camera_pos) = camera_pos {
+                                        // this doesn't do anything if game.client_entity_id exists
+                                        //     since the renderer will snap the camera to the client entity
+                                        camera_pos.x -= f64::from(xrel) / self.client.camera_scale;
+                                        camera_pos.y -= f64::from(yrel) / self.client.camera_scale;
+                                    }
+                                }
+                            } else if mousestate.middle() {
+                                if let Some(w) = &mut self.data.world {
+                                    if let Some(ref r) = renderer {
                                         let (
                                             position_storage,
                                             camera_storage,
@@ -187,186 +307,63 @@ impl GameData<ClientChunk> {
                                             let world_x = camera_pos.x
                                                 + (f64::from(x)
                                                     - f64::from(r.window.size().0) / 2.0)
-                                                    / c.camera_scale;
+                                                    / self.client.camera_scale;
                                             let world_y = camera_pos.y
                                                 + (f64::from(y)
                                                     - f64::from(r.window.size().1) / 2.0)
-                                                    / c.camera_scale;
-                                            // let (chunk_x, chunk_y) = w.chunk_handler.pixel_to_chunk_pos(world_x as i64, world_y as i64);
-                                            // w.chunk_handler.force_update_chunk(chunk_x, chunk_y);
+                                                    / self.client.camera_scale;
 
-                                            let point = Point2::new(
-                                                world_x as f32 / PHYSICS_SCALE,
-                                                world_y as f32 / PHYSICS_SCALE,
-                                            );
-
-                                            let groups = InteractionGroups::all();
-                                            let filter = None;
-                                            let mut query_pipeline = QueryPipeline::new();
-                                            query_pipeline.update(
-                                                &w.physics.islands,
-                                                &w.physics.bodies,
-                                                &w.physics.colliders,
-                                            );
-                                            query_pipeline.intersections_with_point(
-                                                &w.physics.colliders, &point, groups, filter, |handle| {
-                                                    let col = w.physics.colliders.get(handle).unwrap();
-                                                    if let Some(rb_handle) = col.parent() {
-                                                        let rb = w.physics.bodies.get(rb_handle).unwrap();
-                                                        if rb.body_type() == RigidBodyType::Dynamic {
-                                                            let point = Vector2::new(
-                                                                world_x as f32 / PHYSICS_SCALE,
-                                                                world_y as f32 / PHYSICS_SCALE,
-                                                            );
-                                                            let new_rb = RigidBodyBuilder::new_kinematic_position_based()
-                                                                .translation(point).build();
-
-                                                            let local_point = rb.position().inverse_transform_point(&Point2::new(point.x, point.y));
-
-                                                            let mouse_h = w.physics.bodies.insert(new_rb);
-
-                                                            let joint = BallJoint::new(Point2::new(0.0, 0.0), local_point);
-                                                            w.physics.joints.insert(mouse_h, rb_handle, joint);
-
-                                                            c.mouse_joint = Some((mouse_h, Vector2::new(0.0, 0.0)));
-                                                        }
-                                                    }
-
-                                                    false
-                                                }
-                                            );
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        Event::MouseButtonUp {
-                            mouse_btn: sdl2::mouse::MouseButton::Right, ..
-                        } => {
-                            if let Some(w) = &mut self.world {
-                                if let Some(ref mut c) = &mut self.client {
-                                    if let Some((rb_h, linvel)) = c.mouse_joint.take() {
-                                        for j in w.physics.joints.joints_with(rb_h) {
-                                            w.physics
-                                                .bodies
-                                                .get_mut(j.1)
-                                                .unwrap()
-                                                .set_linvel(linvel, true);
-                                        }
-                                        w.physics.bodies.remove(
-                                            rb_h,
-                                            &mut w.physics.islands,
-                                            &mut w.physics.colliders,
-                                            &mut w.physics.joints,
-                                        );
-                                    }
-                                }
-                            }
-                        },
-                        Event::MouseMotion { xrel, yrel, mousestate, x, y, .. } => {
-                            if mousestate.left() {
-                                if let Some(w) = &mut self.world {
-                                    if let Some(c) = &mut self.client {
-                                        let (
-                                            mut position_storage,
-                                            camera_storage,
-                                        ) = w.ecs.system_data::<(
-                                            WriteStorage<Position>,
-                                            ReadStorage<Camera>,
-                                        )>();
-
-                                        let camera_pos = (&mut position_storage, &camera_storage)
-                                            .join()
-                                            .find_map(|(p, _c)| Some(p));
-
-                                        if let Some(camera_pos) = camera_pos {
-                                            // this doesn't do anything if game.client_entity_id exists
-                                            //     since the renderer will snap the camera to the client entity
-                                            camera_pos.x -= f64::from(xrel) / c.camera_scale;
-                                            camera_pos.y -= f64::from(yrel) / c.camera_scale;
-                                        }
-                                    }
-                                }
-                            } else if mousestate.middle() {
-                                if let Some(w) = &mut self.world {
-                                    if let Some(ref c) = &mut self.client {
-                                        if let Some(ref r) = renderer {
-                                            let (
-                                                position_storage,
-                                                camera_storage,
-                                            ) = w.ecs.system_data::<(
-                                                ReadStorage<Position>,
-                                                ReadStorage<Camera>,
-                                            )>();
-
-                                            let camera_pos = (&position_storage, &camera_storage)
-                                                .join()
-                                                .find_map(|(p, _c)| Some(p));
-
-                                            if let Some(camera_pos) = camera_pos {
-                                                let world_x = camera_pos.x
-                                                    + (f64::from(x)
-                                                        - f64::from(r.window.size().0) / 2.0)
-                                                        / c.camera_scale;
-                                                let world_y = camera_pos.y
-                                                    + (f64::from(y)
-                                                        - f64::from(r.window.size().1) / 2.0)
-                                                        / c.camera_scale;
-
-                                                for xx in -3..=3 {
-                                                    for yy in -3..=3 {
-                                                        let _ = w.chunk_handler.set(
-                                                            world_x as i64 + xx,
-                                                            world_y as i64 + yy,
-                                                            MaterialInstance::air(),
-                                                        );
-                                                    }
+                                            for xx in -3..=3 {
+                                                for yy in -3..=3 {
+                                                    let _ = w.chunk_handler.set(
+                                                        world_x as i64 + xx,
+                                                        world_y as i64 + yy,
+                                                        MaterialInstance::air(),
+                                                    );
                                                 }
                                             }
                                         }
                                     }
                                 }
                             } else if mousestate.right() {
-                                if let Some(w) = &mut self.world {
+                                if let Some(w) = &mut self.data.world {
                                     if let Some(ref r) = renderer {
-                                        if let Some(ref mut c) = &mut self.client {
-                                            let (
-                                                position_storage,
-                                                camera_storage,
-                                            ) = w.ecs.system_data::<(
-                                                ReadStorage<Position>,
-                                                ReadStorage<Camera>,
-                                            )>();
+                                        let (
+                                            position_storage,
+                                            camera_storage,
+                                        ) = w.ecs.system_data::<(
+                                            ReadStorage<Position>,
+                                            ReadStorage<Camera>,
+                                        )>();
 
-                                            let camera_pos = (&position_storage, &camera_storage)
-                                                .join()
-                                                .find_map(|(p, _c)| Some(p));
+                                        let camera_pos = (&position_storage, &camera_storage)
+                                            .join()
+                                            .find_map(|(p, _c)| Some(p));
 
-                                            if let Some(camera_pos) = camera_pos {
-                                                let world_x = camera_pos.x
-                                                    + (f64::from(x)
-                                                        - f64::from(r.window.size().0) / 2.0)
-                                                        / c.camera_scale;
-                                                let world_y = camera_pos.y
-                                                    + (f64::from(y)
-                                                        - f64::from(r.window.size().1) / 2.0)
-                                                        / c.camera_scale;
+                                        if let Some(camera_pos) = camera_pos {
+                                            let world_x = camera_pos.x
+                                                + (f64::from(x)
+                                                    - f64::from(r.window.size().0) / 2.0)
+                                                    / self.client.camera_scale;
+                                            let world_y = camera_pos.y
+                                                + (f64::from(y)
+                                                    - f64::from(r.window.size().1) / 2.0)
+                                                    / self.client.camera_scale;
 
-                                                if let Some((rb_h, vel)) = &mut c.mouse_joint {
-                                                    let rb =
-                                                        w.physics.bodies.get_mut(*rb_h).unwrap();
-                                                    let prev_pos = *rb.translation();
-                                                    rb.set_next_kinematic_translation(
-                                                        Vector2::new(
-                                                            world_x as f32 / PHYSICS_SCALE,
-                                                            world_y as f32 / PHYSICS_SCALE,
-                                                        ),
-                                                    );
-                                                    *vel = Vector2::new(
-                                                        world_x as f32 / PHYSICS_SCALE - prev_pos.x,
-                                                        world_y as f32 / PHYSICS_SCALE - prev_pos.y,
-                                                    );
-                                                }
+                                            if let Some((rb_h, vel)) = &mut self.client.mouse_joint {
+                                                let rb =
+                                                    w.physics.bodies.get_mut(*rb_h).unwrap();
+                                                let prev_pos = *rb.translation();
+                                                rb.set_next_kinematic_translation(
+                                                    Vector2::new(
+                                                        world_x as f32 / PHYSICS_SCALE,
+                                                        world_y as f32 / PHYSICS_SCALE,
+                                                    ),
+                                                );
+                                                *vel = Vector2::new(
+                                                    world_x as f32 / PHYSICS_SCALE - prev_pos.x,
+                                                    world_y as f32 / PHYSICS_SCALE - prev_pos.y,
+                                                );
                                             }
                                         }
                                     }
@@ -400,7 +397,7 @@ impl GameData<ClientChunk> {
 
                 let fs = r.window.fullscreen_state();
 
-                let des_fs = match self.settings {
+                let des_fs = match self.data.settings {
                     Settings { fullscreen, fullscreen_type, .. }
                         if fullscreen && fullscreen_type == 0 =>
                     {
@@ -439,12 +436,12 @@ impl GameData<ClientChunk> {
 
             // tick
 
-            let mut can_tick = self.settings.tick;
+            let mut can_tick = self.data.settings.tick;
 
             if let Some(r) = &renderer {
                 let flags = r.window.window_flags();
                 can_tick = can_tick
-                    && !(self.settings.pause_on_lost_focus
+                    && !(self.data.settings.pause_on_lost_focus
                         && renderer.is_some()
                         && (flags & SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32)
                             != SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32);
@@ -455,101 +452,101 @@ impl GameData<ClientChunk> {
                 let st = Instant::now();
                 self.tick();
 
-                if let Some(client) = &mut self.client {
-                    for act in client.main_menu.action_queue.drain(..) {
-                        match act {
-                            crate::game::client::ui::MainMenuAction::Quit => {
-                                break 'mainLoop;
-                            },
-                            crate::game::client::ui::MainMenuAction::LoadWorld(path) => {
-                                let world_meta = crate::game::common::world::World::<ClientChunk>::parse_file_meta(path.clone()).expect("Failed to parse file meta");
-                                if let Some(w) = &mut self.world {
-                                    info!("Unload current world...");
-                                    w.save().expect("World save failed");
-                                    w.close().expect("World unload failed");
-                                }
+                for act in self.client.main_menu.action_queue.drain(..) {
+                    match act {
+                        crate::game::client::ui::MainMenuAction::Quit => {
+                            break 'mainLoop;
+                        },
+                        crate::game::client::ui::MainMenuAction::LoadWorld(path) => {
+                            let world_meta = crate::game::common::world::World::<ClientChunk>::parse_file_meta(path.clone()).expect("Failed to parse file meta");
+                            if let Some(w) = &mut self.data.world {
+                                info!("Unload current world...");
+                                w.save().expect("World save failed");
+                                w.close().expect("World unload failed");
+                            }
 
-                                info!("Load world \"{}\"...", world_meta.name);
-                                self.world = Some(World::create(Some(
-                                    path.parent()
-                                        .expect("World meta file has no parent directory ??")
-                                        .to_path_buf(),
-                                )));
+                            info!("Load world \"{}\"...", world_meta.name);
+                            self.data.world = Some(World::create(Some(
+                                path.parent()
+                                    .expect("World meta file has no parent directory ??")
+                                    .to_path_buf(),
+                            )));
 
-                                let rigid_body = RigidBodyBuilder::new_dynamic()
-                                    .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
-                                    .lock_rotations()
-                                    .gravity_scale(0.0)
-                                    .build();
-                                let handle = self
-                                    .world
-                                    .as_mut()
-                                    .unwrap()
-                                    .physics
-                                    .bodies
-                                    .insert(rigid_body);
-                                let collider = ColliderBuilder::cuboid(
-                                    12.0 / PHYSICS_SCALE / 2.0,
-                                    20.0 / PHYSICS_SCALE / 2.0,
-                                )
-                                .collision_groups(InteractionGroups::new(
-                                    CollisionFlags::PLAYER.bits(),
-                                    (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits(),
-                                ))
-                                .density(1.5)
-                                .friction(0.3)
+                            let rigid_body = RigidBodyBuilder::new_dynamic()
+                                .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
+                                .lock_rotations()
+                                .gravity_scale(0.0)
                                 .build();
-                                let w = self.world.as_mut().unwrap();
-                                let co_handle = w.physics.colliders.insert_with_parent(
-                                    collider,
-                                    handle,
-                                    &mut w.physics.bodies,
+                            let handle = self
+                                .data
+                                .world
+                                .as_mut()
+                                .unwrap()
+                                .physics
+                                .bodies
+                                .insert(rigid_body);
+                            let collider = ColliderBuilder::cuboid(
+                                12.0 / PHYSICS_SCALE / 2.0,
+                                20.0 / PHYSICS_SCALE / 2.0,
+                            )
+                            .collision_groups(InteractionGroups::new(
+                                CollisionFlags::PLAYER.bits(),
+                                (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits(),
+                            ))
+                            .density(1.5)
+                            .friction(0.3)
+                            .build();
+                            let w = self.data.world.as_mut().unwrap();
+                            let co_handle = w.physics.colliders.insert_with_parent(
+                                collider,
+                                handle,
+                                &mut w.physics.bodies,
+                            );
+                            let bo_handle = self
+                                .data
+                                .world
+                                .as_mut()
+                                .unwrap()
+                                .physics
+                                .fluid_pipeline
+                                .liquid_world
+                                .add_boundary(Boundary::new(Vec::new()));
+                            self.data.world
+                                .as_mut()
+                                .unwrap()
+                                .physics
+                                .fluid_pipeline
+                                .coupling
+                                .register_coupling(
+                                    bo_handle,
+                                    co_handle,
+                                    ColliderSampling::DynamicContactSampling,
                                 );
-                                let bo_handle = self
-                                    .world
-                                    .as_mut()
-                                    .unwrap()
-                                    .physics
-                                    .fluid_pipeline
-                                    .liquid_world
-                                    .add_boundary(Boundary::new(Vec::new()));
-                                self.world
-                                    .as_mut()
-                                    .unwrap()
-                                    .physics
-                                    .fluid_pipeline
-                                    .coupling
-                                    .register_coupling(
-                                        bo_handle,
-                                        co_handle,
-                                        ColliderSampling::DynamicContactSampling,
-                                    );
 
-                                if let Some(w) = &mut self.world {
-                                    let player = w
-                                        .ecs
-                                        .create_entity()
-                                        .with(Player { movement: PlayerMovementMode::Free })
-                                        .with(GameEntity)
-                                        .with(PhysicsEntity {
-                                            on_ground: false,
-                                            gravity: 0.1,
-                                            edge_clip_distance: 2.0,
-                                            collision: true,
-                                            collide_with_sand: true,
-                                        })
-                                        .with(Persistent)
-                                        .with(Position { x: 0.0, y: -20.0 })
-                                        .with(Velocity { x: 0.0, y: 0.0 })
-                                        .with(Hitbox { x1: -6.0, y1: -10.0, x2: 6.0, y2: 10.0 })
-                                        .with(Loader)
-                                        .with(RigidBodyComponent::of(handle))
-                                        .build();
+                            if let Some(w) = &mut self.data.world {
+                                let player = w
+                                    .ecs
+                                    .create_entity()
+                                    .with(Player { movement: PlayerMovementMode::Free })
+                                    .with(GameEntity)
+                                    .with(PhysicsEntity {
+                                        on_ground: false,
+                                        gravity: 0.1,
+                                        edge_clip_distance: 2.0,
+                                        collision: true,
+                                        collide_with_sand: true,
+                                    })
+                                    .with(Persistent)
+                                    .with(Position { x: 0.0, y: -20.0 })
+                                    .with(Velocity { x: 0.0, y: 0.0 })
+                                    .with(Hitbox { x1: -6.0, y1: -10.0, x2: 6.0, y2: 10.0 })
+                                    .with(Loader)
+                                    .with(RigidBodyComponent::of(handle))
+                                    .build();
 
-                                    client.world = Some(ClientWorld { local_entity: Some(player) });
-                                };
-                            },
-                        }
+                                self.client.world = Some(ClientWorld { local_entity: Some(player) });
+                            };
+                        },
                     }
                 }
 
@@ -612,7 +609,7 @@ impl GameData<ClientChunk> {
                                                         pixels,
                                                         colors,
                                                     } => {
-                                                        if let Some(w) = &mut self.world {
+                                                        if let Some(w) = &mut self.data.world {
                                                             if let Err(e) = w.sync_chunk(
                                                                 chunk_x, chunk_y, pixels, colors,
                                                             ) {
@@ -626,7 +623,7 @@ impl GameData<ClientChunk> {
                                                     } => {
                                                         // TODO: reimplement for rapier/salva
                                                         // println!("[CLIENT] Got SyncLiquidFunPacket");
-                                                        // if let Some(w) = &mut self.world {
+                                                        // if let Some(w) = &mut self.data.world {
                                                         //     let mut particle_system = w
                                                         //         .lqf_world
                                                         //         .get_particle_system_list()
@@ -719,22 +716,22 @@ impl GameData<ClientChunk> {
                     // println!("[CLIENT] Handled {} packets.", n);
                 }
 
-                self.fps_counter.tick_times.rotate_left(1);
-                self.fps_counter.tick_times[self.fps_counter.tick_times.len() - 1] =
+                self.data.fps_counter.tick_times.rotate_left(1);
+                self.data.fps_counter.tick_times[self.data.fps_counter.tick_times.len() - 1] =
                     Instant::now().saturating_duration_since(st).as_nanos() as f32;
             }
             do_tick_next = can_tick
                 && now.saturating_duration_since(prev_tick_time).as_nanos()
-                    > 1_000_000_000 / u128::from(self.settings.tick_speed); // intended is 30 ticks per second
+                    > 1_000_000_000 / u128::from(self.data.settings.tick_speed); // intended is 30 ticks per second
 
             // tick liquidfun
 
-            let mut can_tick = self.settings.tick_physics;
+            let mut can_tick = self.data.settings.tick_physics;
 
             if let Some(r) = &renderer {
                 let flags = r.window.window_flags();
                 can_tick = can_tick
-                    && !(self.settings.pause_on_lost_focus
+                    && !(self.data.settings.pause_on_lost_focus
                         && renderer.is_some()
                         && (flags & SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32)
                             != SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32);
@@ -742,12 +739,12 @@ impl GameData<ClientChunk> {
 
             if do_tick_physics_next && can_tick {
                 prev_tick_physics_time = now;
-                if let Some(w) = &mut self.world {
+                if let Some(w) = &mut self.data.world {
                     let st = Instant::now();
-                    w.tick_physics(&self.settings);
-                    self.fps_counter.tick_physics_times.rotate_left(1);
-                    self.fps_counter.tick_physics_times
-                        [self.fps_counter.tick_physics_times.len() - 1] =
+                    w.tick_physics(&self.data.settings);
+                    self.data.fps_counter.tick_physics_times.rotate_left(1);
+                    self.data.fps_counter.tick_physics_times
+                        [self.data.fps_counter.tick_physics_times.len() - 1] =
                         Instant::now().saturating_duration_since(st).as_nanos() as f32;
                     if let Some(r) = &mut renderer {
                         r.world_renderer.mark_liquid_dirty();
@@ -758,11 +755,11 @@ impl GameData<ClientChunk> {
                 && now
                     .saturating_duration_since(prev_tick_physics_time)
                     .as_nanos()
-                    > 1_000_000_000 / u128::from(self.settings.tick_physics_speed); // intended is 60 ticks per second
+                    > 1_000_000_000 / u128::from(self.data.settings.tick_physics_speed); // intended is 60 ticks per second
 
             // render
 
-            if let Some(w) = &mut self.world {
+            if let Some(w) = &mut self.data.world {
                 w.frame(delta); // this delta is more accurate than the one based on counter_last_frame
             }
 
@@ -770,26 +767,26 @@ impl GameData<ClientChunk> {
                 profiling::scope!("rendering");
 
                 let partial_ticks = (now.saturating_duration_since(prev_tick_time).as_secs_f64()
-                    / (1.0 / f64::from(self.settings.tick_speed)))
+                    / (1.0 / f64::from(self.data.settings.tick_speed)))
                 .clamp(0.0, 1.0);
                 let delta_time = Instant::now().saturating_duration_since(counter_last_frame);
                 self.render(r, sdl, delta_time.as_secs_f64(), partial_ticks);
 
-                self.frame_count += 1;
-                self.fps_counter.frames += 1;
+                self.data.frame_count += 1;
+                self.data.fps_counter.frames += 1;
                 if now
-                    .saturating_duration_since(self.fps_counter.last_update)
+                    .saturating_duration_since(self.data.fps_counter.last_update)
                     .as_millis()
                     >= 1000
                 {
-                    self.fps_counter.display_value = self.fps_counter.frames;
-                    self.fps_counter.frames = 0;
-                    self.fps_counter.last_update = now;
+                    self.data.fps_counter.display_value = self.data.fps_counter.frames;
+                    self.data.fps_counter.frames = 0;
+                    self.data.fps_counter.last_update = now;
                     let set = r.window.set_title(
                         format!(
                             "FallingSandRust ({} FPS) ({})",
-                            self.fps_counter.display_value,
-                            self.world.as_ref().map_or_else(
+                            self.data.fps_counter.display_value,
+                            self.data.world.as_ref().map_or_else(
                                 || "unknown".to_owned(),
                                 |w| format!("{:?}", w.net_mode)
                             )
@@ -802,9 +799,9 @@ impl GameData<ClientChunk> {
 
                     sys.refresh_process(Pid::from(std::process::id() as usize));
                     if let Some(pc) = sys.process(Pid::from(std::process::id() as usize)) {
-                        self.process_stats.cpu_usage =
+                        self.data.process_stats.cpu_usage =
                             Some(pc.cpu_usage() / sys.processors().len() as f32);
-                        self.process_stats.memory = Some(pc.memory());
+                        self.data.process_stats.memory = Some(pc.memory());
                     }
                 }
             }
@@ -812,19 +809,19 @@ impl GameData<ClientChunk> {
             let time_nano = Instant::now()
                 .saturating_duration_since(counter_last_frame)
                 .as_nanos();
-            self.fps_counter.frame_times.rotate_left(1);
-            self.fps_counter.frame_times[self.fps_counter.frame_times.len() - 1] = time_nano as f32;
+            self.data.fps_counter.frame_times.rotate_left(1);
+            self.data.fps_counter.frame_times[self.data.fps_counter.frame_times.len() - 1] = time_nano as f32;
 
             profiling::finish_frame!();
             // sleep a bit if we aren't going to tick next frame
-            if !do_tick_next && !self.settings.vsync {
+            if !do_tick_next && !self.data.settings.vsync {
                 profiling::scope!("sleep");
                 ::std::thread::sleep(Duration::new(0, 1_000_000)); // 1ms sleep so the computer doesn't explode
             }
             counter_last_frame = Instant::now();
         }
 
-        if let Some(w) = &mut self.world {
+        if let Some(w) = &mut self.data.world {
             info!("Unload current world...");
             w.save().expect("World save failed");
             w.close().expect("World unload failed");
@@ -840,18 +837,16 @@ impl GameData<ClientChunk> {
         delta_time: f64,
         partial_ticks: f64,
     ) {
-        renderer.render(sdl, self, delta_time, partial_ticks);
+        renderer.render(sdl, &mut self.data, &mut self.client, delta_time, partial_ticks);
     }
 
     #[profiling::function]
     fn tick(&mut self) {
-        self.tick_time += 1;
+        self.data.tick_time += 1;
 
-        if let Some(w) = &mut self.world {
-            w.tick(self.tick_time, &self.settings);
-            if let Some(cw) = &mut self.client {
-                cw.tick(w);
-            }
+        if let Some(w) = &mut self.data.world {
+            w.tick(self.data.tick_time, &self.data.settings);
+            self.client.tick(w);
         }
     }
 }

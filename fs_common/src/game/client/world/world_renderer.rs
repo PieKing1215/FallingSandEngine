@@ -60,7 +60,7 @@ impl WorldRenderer {
         fonts: &Fonts,
         settings: &Settings,
         _shaders: &Shaders,
-        client: &mut Option<Client>,
+        client: &mut Client,
         partial_ticks: f64,
     ) {
         // TODO
@@ -87,7 +87,7 @@ impl WorldRenderer {
             .expect("No Camera in world!");
 
         let loader_pos = match client {
-            Some(Client { world: Some(ClientWorld { local_entity }), .. }) => local_entity
+            Client { world: Some(ClientWorld { local_entity }), .. } => local_entity
                 .and_then(|local| position_storage.get(local))
                 .or(Some(&camera_pos))
                 .map(|pos| (pos.x, pos.y))
@@ -99,7 +99,7 @@ impl WorldRenderer {
         drop(velocity_storage);
         drop(camera_storage);
 
-        let camera_scale = client.as_ref().unwrap().camera_scale;
+        let camera_scale = client.camera_scale;
 
         transform.push();
         transform.translate(

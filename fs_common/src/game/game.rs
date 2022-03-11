@@ -3,7 +3,6 @@ use crate::game::common::Settings;
 
 use std::time::Instant;
 
-use super::client::Client;
 use super::common::world::Chunk;
 use super::common::FileHelper;
 
@@ -15,7 +14,6 @@ pub struct GameData<C: Chunk> {
     pub process_stats: ProcessStats,
     pub settings: Settings,
     pub file_helper: FileHelper,
-    pub client: Option<Client>,
 }
 
 pub struct ProcessStats {
@@ -54,7 +52,6 @@ impl<C: Chunk> GameData<C> {
             process_stats: ProcessStats { cpu_usage: None, memory: None },
             settings: Settings::default(),
             file_helper,
-            client: None,
         }
     }
 }

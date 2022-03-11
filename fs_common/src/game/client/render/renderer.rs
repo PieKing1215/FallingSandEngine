@@ -13,7 +13,7 @@ use sdl_gpu::{shaders::Shader, GPUImage, GPURect, GPUSubsystem, GPUTarget};
 
 use super::TransformStack;
 use crate::game::{
-    client::world::{ClientChunk, WorldRenderer},
+    client::{world::{ClientChunk, WorldRenderer}, Client},
     common::FileHelper,
     GameData,
 };
@@ -126,12 +126,13 @@ impl<'a> Renderer<'a> {
         &mut self,
         sdl: &Sdl2Context,
         game: &mut GameData<ClientChunk>,
+        client: &mut Client,
         delta_time: f64,
         partial_ticks: f64,
     ) {
         self.target.borrow_mut().clear();
 
-        self.render_internal(sdl, game, delta_time, partial_ticks);
+        self.render_internal(sdl, game, client, delta_time, partial_ticks);
 
         let target = &mut self.target.borrow_mut();
 
@@ -224,11 +225,7 @@ impl<'a> Renderer<'a> {
                 }
             }
 
-            game.client
-                .as_mut()
-                .expect("Missing client in Renderer::render ??")
-                .main_menu
-                .render(ui, &game.file_helper);
+            client.main_menu.render(ui, &game.file_helper);
 
             ui.window("Stats")
                 .size([300.0, 300.0], imgui::Condition::FirstUseEver)
@@ -336,6 +333,7 @@ impl<'a> Renderer<'a> {
         &mut self,
         sdl: &Sdl2Context,
         game: &mut GameData<ClientChunk>,
+        client: &mut Client,
         delta_time: f64,
         partial_ticks: f64,
     ) {
@@ -389,7 +387,7 @@ impl<'a> Renderer<'a> {
                 self.fonts.as_ref().unwrap(),
                 &game.settings,
                 &self.shaders,
-                &mut game.client,
+                client,
                 partial_ticks,
             );
         }

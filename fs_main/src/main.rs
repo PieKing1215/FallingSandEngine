@@ -6,7 +6,7 @@ use fs_common::game::{
     client::{
         render::{Fonts, Renderer},
         world::{ClientChunk, ClientWorld},
-        Client,
+        Client, ClientGame,
     },
     common::{
         world::{
@@ -303,11 +303,9 @@ pub fn main() -> Result<(), String> {
 
         info!("Finished init.");
 
-        let mut game: GameData<ClientChunk> = GameData::new(file_helper);
+        let mut game: ClientGame = ClientGame::new(file_helper);
 
-        if let Some(w) = &mut game.world {
-            game.client = Some(Client::new());
-
+        if let Some(w) = &mut game.data.world {
             let rigid_body = RigidBodyBuilder::new_dynamic()
                 .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
                 .lock_rotations()
@@ -371,7 +369,7 @@ pub fn main() -> Result<(), String> {
                 })
                 .build();
 
-            game.client.as_mut().unwrap().world = Some(ClientWorld { local_entity: Some(player) });
+            game.client.world = Some(ClientWorld { local_entity: Some(player) });
         };
 
         info!("Starting main loop...");
