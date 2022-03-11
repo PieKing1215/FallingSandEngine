@@ -25,14 +25,14 @@ use fs_common::game::{
         world::{chunk_index_inv, Chunk, ChunkState, CHUNK_SIZE},
         FileHelper,
     },
-    Game,
+    GameData,
 };
 
-pub struct ServerGame(pub Game<ServerChunk>);
+pub struct ServerGame(pub GameData<ServerChunk>);
 
 impl ServerGame {
     pub fn new(file_helper: FileHelper) -> Self {
-        Self(Game::new(file_helper))
+        Self(GameData::new(file_helper))
     }
 
     #[profiling::function]

@@ -7,7 +7,7 @@ use super::client::Client;
 use super::common::world::Chunk;
 use super::common::FileHelper;
 
-pub struct Game<C: Chunk> {
+pub struct GameData<C: Chunk> {
     pub world: Option<World<C>>,
     pub tick_time: u32,
     pub frame_count: u32,
@@ -34,10 +34,10 @@ pub struct FPSCounter {
     pub tick_physics_times: [f32; 200],
 }
 
-impl<'a, 'b, C: Chunk> Game<C> {
+impl<C: Chunk> GameData<C> {
     #[profiling::function]
     pub fn new(file_helper: FileHelper) -> Self {
-        Game {
+        GameData {
             world: Some(World::create(None)),
             tick_time: 0,
             frame_count: 0,
@@ -57,21 +57,4 @@ impl<'a, 'b, C: Chunk> Game<C> {
             client: None,
         }
     }
-
-    // #[profiling::function]
-    // pub fn init(&'b mut self, sdl: &'a Sdl2Context) -> Result<(), String>  {
-
-    //     let r = Box::new(Renderer::create(&sdl)?);
-    //     self.renderer = Some(r);
-
-    //     let rm = self.renderer.as_mut().unwrap();
-    //     let pixel_operator2 = sdl.sdl_ttf.load_font("./assets/font/pixel_operator/PixelOperator.ttf", 16).unwrap();
-    //     let f = Some(Fonts {
-    //         pixel_operator: pixel_operator2,
-    //     });
-    //     rm.fonts = f;
-    //     self.sdl = Some(sdl);
-
-    //     return Ok(());
-    // }
 }

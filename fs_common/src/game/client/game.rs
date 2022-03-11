@@ -37,7 +37,7 @@ use crate::game::{
         },
         Settings,
     },
-    Game,
+    GameData,
 };
 
 use super::{
@@ -45,7 +45,7 @@ use super::{
     world::ClientChunk,
 };
 
-impl Game<ClientChunk> {
+impl GameData<ClientChunk> {
     #[profiling::function]
     pub fn run(
         &mut self,

@@ -15,7 +15,7 @@ use super::TransformStack;
 use crate::game::{
     client::world::{ClientChunk, WorldRenderer},
     common::FileHelper,
-    Game,
+    GameData,
 };
 
 pub static mut BUILD_DATETIME: Option<&str> = None;
@@ -125,7 +125,7 @@ impl<'a> Renderer<'a> {
     pub fn render(
         &mut self,
         sdl: &Sdl2Context,
-        game: &mut Game<ClientChunk>,
+        game: &mut GameData<ClientChunk>,
         delta_time: f64,
         partial_ticks: f64,
     ) {
@@ -335,7 +335,7 @@ impl<'a> Renderer<'a> {
     fn render_internal(
         &mut self,
         sdl: &Sdl2Context,
-        game: &mut Game<ClientChunk>,
+        game: &mut GameData<ClientChunk>,
         delta_time: f64,
         partial_ticks: f64,
     ) {

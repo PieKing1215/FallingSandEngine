@@ -17,7 +17,7 @@ use fs_common::game::{
         },
         FileHelper,
     },
-    Game,
+    GameData,
 };
 use fs_server::ServerGame;
 use log::{error, info, LevelFilter};
@@ -303,7 +303,7 @@ pub fn main() -> Result<(), String> {
 
         info!("Finished init.");
 
-        let mut game: Game<ClientChunk> = Game::new(file_helper);
+        let mut game: GameData<ClientChunk> = GameData::new(file_helper);
 
         if let Some(w) = &mut game.world {
             game.client = Some(Client::new());
