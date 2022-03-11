@@ -22,8 +22,8 @@ use super::world::ServerChunk;
 use crate::game::{
     common::{
         commands::CommandHandler,
-        networking::{PVec2, Packet, PacketType},
-        world::{Chunk, ChunkHandlerGeneric, ChunkState, CHUNK_SIZE, chunk_index_inv},
+        networking::{Packet, PacketType},
+        world::{Chunk, ChunkState, CHUNK_SIZE, chunk_index_inv},
     },
     Game,
 };

@@ -27,3 +27,9 @@ impl CommandHandler<'_> {
             .try_get_matches_from_mut(msg.split_whitespace())
     }
 }
+
+impl Default for CommandHandler<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
+}

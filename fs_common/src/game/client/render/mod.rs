@@ -114,6 +114,12 @@ impl TransformStack {
     }
 }
 
+impl Default for TransformStack {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Clone)]
 struct Transform {
     translate_x: f64,

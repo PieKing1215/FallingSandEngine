@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use specs::{
     saveload::{SimpleMarker, SimpleMarkerAllocator},
     storage::BTreeStorage,
-    Component, Entities, Join, Read, System, Write, WriteStorage,
+    Component, Entities, Join, System, Write, WriteStorage,
 };
 
 mod player;
@@ -89,8 +89,6 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdatePhysicsEntities<'a, H> {
         WriteStorage<'a, Persistent>,
         WriteStorage<'a, Hitbox>,
         WriteStorage<'a, CollisionDetector>,
-        Write<'a, SimpleMarkerAllocator<FilePersistent>>,
-        WriteStorage<'a, SimpleMarker<FilePersistent>>,
         Write<'a, ParticleSystem>,
     );
 
@@ -107,8 +105,6 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdatePhysicsEntities<'a, H> {
             persistent,
             mut hitbox,
             mut collision_detect,
-            mut marker_alloc,
-            mut markers,
             mut particle_system,
         ) = data;
 

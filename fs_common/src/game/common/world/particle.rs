@@ -10,7 +10,7 @@ use crate::game::common::world::{
 
 use itertools::Itertools;
 use rand::prelude::Distribution;
-use rayon::{iter::{IntoParallelRefMutIterator, ParallelIterator, IntoParallelRefIterator, IntoParallelIterator, ParallelDrainRange, ParallelExtend}, slice::ParallelSliceMut};
+use rayon::{iter::{ParallelIterator, IntoParallelIterator, ParallelExtend}};
 use sdl2::pixels::Color;
 use serde::{Deserialize, Serialize};
 use specs::{Entities, Join, Read, ReadStorage, System, Write};

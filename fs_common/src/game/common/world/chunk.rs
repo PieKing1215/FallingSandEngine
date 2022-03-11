@@ -1,21 +1,18 @@
 use crate::game::common::world::particle::ParticleSystem;
 use crate::game::common::world::simulator::Simulator;
-use crate::game::common::world::{FilePersistent, Loader, Position, Velocity};
+use crate::game::common::world::{Loader, Position};
 use crate::game::common::Settings;
 use std::convert::TryInto;
 use std::hash::BuildHasherDefault;
 use std::path::PathBuf;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap};
 
-use futures::future::join_all;
-use lazy_static::lazy_static;
 use rapier2d::prelude::{Collider, RigidBody, RigidBodyHandle};
-use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator, IntoParallelIterator};
+use rayon::iter::{ParallelIterator, IntoParallelIterator};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use serde::{Deserialize, Serialize};
-use specs::saveload::{MarkedBuilder, SimpleMarker};
-use specs::{Builder, Join, ReadStorage, WorldExt};
+use specs::{Join, ReadStorage, WorldExt};
 
 use super::gen::WorldGenerator;
 use super::material::PhysicsType;
@@ -1344,18 +1341,15 @@ mod tests {
     use super::*;
 
     use rand::Rng;
-    use specs::saveload::{SimpleMarker, SimpleMarkerAllocator};
+    use specs::{saveload::{SimpleMarker, SimpleMarkerAllocator}, Builder};
 
     use crate::game::{
-        common::world::{gen::TestGenerator, FilePersistent},
+        common::world::{gen::TestGenerator, FilePersistent, Velocity},
         server::world::ServerChunk,
     };
 
     #[test]
     fn chunk_index_correct() {
-        let ch: ChunkHandler<TestGenerator, ServerChunk> =
-            ChunkHandler::<_, ServerChunk>::new(TestGenerator {}, None);
-
         // center
         assert_eq!(chunk_index(0, 0), 0);
         assert_eq!(chunk_index(1, 0), 3);
@@ -1397,9 +1391,6 @@ mod tests {
 
     #[test]
     fn chunk_index_inv_correct() {
-        let ch: ChunkHandler<TestGenerator, ServerChunk> =
-            ChunkHandler::<_, ServerChunk>::new(TestGenerator {}, None);
-
         // center
         assert_eq!(chunk_index_inv(0), (0, 0));
         assert_eq!(chunk_index_inv(3), (1, 0));
@@ -1441,9 +1432,6 @@ mod tests {
 
     #[test]
     fn chunk_index_correctly_invertible() {
-        let ch: ChunkHandler<TestGenerator, ServerChunk> =
-            ChunkHandler::<_, ServerChunk>::new(TestGenerator {}, None);
-
         for _ in 0..1000 {
             let x: i32 = rand::thread_rng().gen_range(-10000..10000);
             let y: i32 = rand::thread_rng().gen_range(-10000..10000);
@@ -1547,9 +1535,6 @@ mod tests {
 
     #[test]
     fn chunk_update_order() {
-        let ch: ChunkHandler<TestGenerator, ServerChunk> =
-            ChunkHandler::<_, ServerChunk>::new(TestGenerator {}, None);
-
         for _ in 0..100 {
             let x: i32 = rand::thread_rng().gen_range(-10000..10000);
             let y: i32 = rand::thread_rng().gen_range(-10000..10000);

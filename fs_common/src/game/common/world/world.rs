@@ -6,15 +6,14 @@ use crate::game::common::{
 };
 
 use rapier2d::{
-    na::{Isometry2, Point2, Vector2},
+    na::{Point2, Vector2},
     prelude::{
-        BroadPhase, CCDSolver, ColliderBuilder, ColliderSet, EventHandler, IntegrationParameters,
-        InteractionGroups, IslandManager, JointSet, NarrowPhase, PhysicsHooks, PhysicsPipeline,
-        RigidBody, RigidBodyBuilder, RigidBodyHandle, RigidBodySet, RigidBodyType,
+        ColliderBuilder,
+        InteractionGroups, RigidBodyBuilder, RigidBodyType,
     },
 };
 use salva2d::{
-    integrations::rapier::{ColliderSampling, FluidsPipeline},
+    integrations::rapier::{ColliderSampling},
     object::Boundary,
 };
 use sdl2::pixels::Color;
@@ -660,7 +659,7 @@ impl<'w, C: Chunk> World<C> {
                     // }
 
                     if let Some(loops) = c.get_mesh_loops() {
-                        let mut rigid_body = RigidBodyBuilder::new_static()
+                        let rigid_body = RigidBodyBuilder::new_static()
                             .translation(Vector2::new(
                                 (c.get_chunk_x() * i32::from(CHUNK_SIZE)) as f32 / PHYSICS_SCALE,
                                 (c.get_chunk_y() * i32::from(CHUNK_SIZE)) as f32 / PHYSICS_SCALE,
@@ -700,7 +699,7 @@ impl<'w, C: Chunk> World<C> {
                     let chunk_center_y =
                         c.get_chunk_y() * i32::from(CHUNK_SIZE) + i32::from(CHUNK_SIZE) / 2;
 
-                    let dist_particle = f32::from(CHUNK_SIZE) * 0.6;
+                    // let dist_particle = f32::from(CHUNK_SIZE) * 0.6;
                     let dist_body = f32::from(CHUNK_SIZE) * 1.0;
 
                     let mut should_be_active = false;
@@ -721,7 +720,7 @@ impl<'w, C: Chunk> World<C> {
                     // }
 
                     // TODO: see if using box2d's query methods instead of direct iteration is faster
-                    for (handle, rb) in self.physics.bodies.iter() {
+                    for (_handle, rb) in self.physics.bodies.iter() {
                         if rb.body_type() == RigidBodyType::Dynamic {
                             // if body.is_awake() { // this just causes flickering
                             let pos = rb.translation();

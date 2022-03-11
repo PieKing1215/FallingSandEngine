@@ -1,20 +1,18 @@
-use std::{iter, ptr::slice_from_raw_parts};
 
 use rapier2d::prelude::Shape;
 use sdl2::{pixels::Color, rect::Rect};
-use sdl_gpu::{shaders::Shader, GPUFilter, GPUFormat, GPUImage, GPURect, GPUSubsystem, GPUTarget};
+use sdl_gpu::{GPUFilter, GPUFormat, GPUImage, GPURect, GPUSubsystem, GPUTarget};
 use specs::{
     prelude::ParallelIterator,
     rayon::{
-        iter::{IndexedParallelIterator, IntoParallelRefIterator},
         slice::ParallelSlice,
     },
-    Join, ReadStorage, WorldExt, WriteStorage,
+    Join, ReadStorage, WorldExt,
 };
 
 use crate::game::{
     client::{
-        render::{Fonts, RenderCanvas, Renderable, Sdl2Context, Shaders, TransformStack},
+        render::{Fonts, Renderable, Sdl2Context, Shaders, TransformStack},
         Client,
     },
     common::{
@@ -23,7 +21,7 @@ use crate::game::{
                 GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState, PlayerMovementMode,
             },
             gen::WorldGenerator,
-            particle::{Particle, ParticleSystem},
+            particle::ParticleSystem,
             physics::PHYSICS_SCALE,
             AutoTarget, Camera, ChunkHandlerGeneric, ChunkState, Position, Velocity, World,
             CHUNK_SIZE,
@@ -225,8 +223,8 @@ impl WorldRenderer {
             let mut liquid_target = self.liquid_image.get_target();
             liquid_target.clear();
 
-            for (handle, fluid) in world.physics.fluid_pipeline.liquid_world.fluids().iter() {
-                for (idx, particle) in fluid.positions.iter().enumerate() {
+            for (_handle, fluid) in world.physics.fluid_pipeline.liquid_world.fluids().iter() {
+                for (_idx, particle) in fluid.positions.iter().enumerate() {
                     let (x, y) = transform.transform((
                         particle.coords[0] * PHYSICS_SCALE,
                         particle.coords[1] * PHYSICS_SCALE,
@@ -343,7 +341,7 @@ impl WorldRenderer {
                 transform.push();
                 transform.translate(x, y);
                 if let Some(comp) = shape.as_compound() {
-                    for (iso, shape) in comp.shapes() {
+                    for (_iso, shape) in comp.shapes() {
                         draw_shape(&**shape, 0.0, 0.0, 0.0, transform, target, color);
                     }
                 } else if let Some(cuboid) = shape.as_cuboid() {
@@ -399,7 +397,7 @@ impl WorldRenderer {
             // TODO: physics_dbg_draw_pair
             // TODO: physics_dbg_draw_particle
 
-            for (a, b) in world.physics.bodies.iter() {
+            for (_handle, b) in world.physics.bodies.iter() {
                 let (rx, ry) = (
                     b.position().translation.vector[0],
                     b.position().translation.vector[1],
@@ -506,7 +504,7 @@ impl WorldRenderer {
                     batch
                 })
                 .collect();
-            for mut batch in &mut batches {
+            for batch in &mut batches {
                 // profiling::scope!("triangle_batch_raw_u8", format!("#verts = {}", batch.len() / 3).as_str());
                 target.triangle_batch_raw_u8(batch);
             }
@@ -848,5 +846,11 @@ impl WorldRenderer {
 
     pub fn mark_liquid_dirty(&mut self) {
         self.physics_dirty = true;
+    }
+}
+
+impl Default for WorldRenderer {
+    fn default() -> Self {
+        Self::new()
     }
 }

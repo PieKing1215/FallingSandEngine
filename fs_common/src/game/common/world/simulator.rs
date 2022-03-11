@@ -1,4 +1,4 @@
-use rapier2d::na::{Isometry2, Vector2};
+use rapier2d::na::Isometry2;
 use sdl2::{pixels::Color, rect::Rect};
 
 use crate::game::common::world::material::{MaterialInstance, PhysicsType};

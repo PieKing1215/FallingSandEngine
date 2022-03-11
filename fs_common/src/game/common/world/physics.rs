@@ -36,7 +36,6 @@ impl Physics {
     pub fn new() -> Self {
         let mut bodies = RigidBodySet::new();
         let mut colliders = ColliderSet::new();
-        let joints = JointSet::new();
         let mut fluid_pipeline = FluidsPipeline::new(PARTICLE_RADIUS, SMOOTHING_FACTOR);
 
         // let mut points1: Vec<Point2<f32>> = Vec::new();
@@ -88,12 +87,12 @@ impl Physics {
         );
 
         let integration_parameters = IntegrationParameters::default();
-        let mut physics_pipeline = PhysicsPipeline::new();
-        let mut islands = IslandManager::new();
-        let mut broad_phase = BroadPhase::new();
-        let mut narrow_phase = NarrowPhase::new();
-        let mut ccd_solver = CCDSolver::new();
-        let mut joints = JointSet::new();
+        let physics_pipeline = PhysicsPipeline::new();
+        let islands = IslandManager::new();
+        let broad_phase = BroadPhase::new();
+        let narrow_phase = NarrowPhase::new();
+        let ccd_solver = CCDSolver::new();
+        let joints = JointSet::new();
 
         Self {
             fluid_pipeline,
@@ -138,5 +137,11 @@ impl Physics {
             &mut self.colliders,
             &mut self.joints,
         )
+    }
+}
+
+impl Default for Physics {
+    fn default() -> Self {
+        Self::new()
     }
 }

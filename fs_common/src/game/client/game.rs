@@ -228,9 +228,9 @@ impl Game<ClientChunk> {
                                                             let mouse_h = w.physics.bodies.insert(new_rb);
 
                                                             let joint = BallJoint::new(Point2::new(0.0, 0.0), local_point);
-                                                            let joint_handle = w.physics.joints.insert(mouse_h, rb_handle, joint);
+                                                            w.physics.joints.insert(mouse_h, rb_handle, joint);
 
-                                                            c.mouse_joint.insert((mouse_h, Vector2::new(0.0, 0.0)));
+                                                            c.mouse_joint = Some((mouse_h, Vector2::new(0.0, 0.0)));
                                                         }
                                                     }
 

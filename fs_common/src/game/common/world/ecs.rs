@@ -220,7 +220,7 @@ impl<'a> System<'a> for UpdateRigidBodies<'a> {
         (&hitboxes, &mut bodies, &mut pos, &mut vel)
             .join()
             .for_each(|(_hitbox, body, pos, vel)| {
-                let mut body = self.physics.bodies.get_mut(body.body).unwrap();
+                let body = self.physics.bodies.get_mut(body.body).unwrap();
                 let np = Vector2::new(pos.x as f32 / PHYSICS_SCALE, pos.y as f32 / PHYSICS_SCALE);
                 body.set_position(Isometry2::new(np, 0.0), true);
                 body.set_linvel(Vector2::new(vel.x as f32, vel.y as f32), true);
@@ -248,7 +248,7 @@ impl<'a> System<'a> for ApplyRigidBodies<'a> {
 
         (&hitboxes, &bodies, &mut pos, &mut vel)
             .join()
-            .for_each(|(_hitbox, body, pos, vel)| {
+            .for_each(|(_hitbox, body, _pos, vel)| {
                 let body = self.physics.bodies.get(body.body).unwrap();
 
                 // TODO: I want to take this into account since rapier will update the position when clipping

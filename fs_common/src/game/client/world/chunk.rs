@@ -8,7 +8,7 @@ use crate::game::{
     common::{
         world::{
             gen::WorldGenerator, material::MaterialInstance, mesh, Chunk, ChunkHandler,
-            ChunkHandlerGeneric, ChunkState, RigidBodyState, CHUNK_SIZE, chunk_index,
+            ChunkState, RigidBodyState, CHUNK_SIZE, chunk_index,
         },
         Settings,
     },
