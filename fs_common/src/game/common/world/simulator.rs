@@ -1,11 +1,11 @@
 use rapier2d::na::Isometry2;
 
-use crate::game::common::Rect;
 use crate::game::common::world::material::{MaterialInstance, PhysicsType};
 use crate::game::common::world::{rigidbody, CHUNK_SIZE};
+use crate::game::common::Rect;
 
 use super::gen::WorldGenerator;
-use super::material::{AIR, Color};
+use super::material::{Color, AIR};
 use super::particle::Particle;
 use super::pixel_to_chunk_pos;
 use super::rigidbody::FSRigidBody;

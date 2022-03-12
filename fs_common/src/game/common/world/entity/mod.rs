@@ -6,7 +6,7 @@ mod player;
 pub use player::*;
 
 use crate::game::common::world::{
-    material::{MaterialInstance, PhysicsType, Color},
+    material::{Color, MaterialInstance, PhysicsType},
     pixel_to_chunk_pos,
 };
 

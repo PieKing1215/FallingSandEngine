@@ -1,4 +1,3 @@
-use fs_common::game::common::Rect;
 use fs_common::game::common::world::material::Color;
 use fs_common::game::common::world::material::MaterialInstance;
 use fs_common::game::common::world::mesh;
@@ -6,6 +5,7 @@ use fs_common::game::common::world::Chunk;
 use fs_common::game::common::world::ChunkState;
 use fs_common::game::common::world::RigidBodyState;
 use fs_common::game::common::world::CHUNK_SIZE;
+use fs_common::game::common::Rect;
 
 pub struct ServerChunk {
     pub chunk_x: i32,

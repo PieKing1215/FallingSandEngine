@@ -34,16 +34,20 @@ use fs_common::game::{
             Camera, ChunkHandlerGeneric, CollisionFlags, Loader, Position, RigidBodyComponent,
             Velocity, World, WorldNetworkMode,
         },
-        Settings, FileHelper,
+        FileHelper, Settings,
     },
     GameData,
 };
 
-use crate::{ui::MainMenuAction, world::{ClientWorld, ClientWorldExt}};
+use crate::{
+    ui::MainMenuAction,
+    world::{ClientWorld, ClientWorldExt},
+};
 
 use super::{
     render::{Renderer, Sdl2Context},
-    world::ClientChunk, Client,
+    world::ClientChunk,
+    Client,
 };
 
 pub struct ClientGame {
@@ -166,8 +170,9 @@ impl ClientGame {
                                 v = v.clamp(1.0, 10.0);
                                 self.client.camera_scale = v;
                             } else {
-                                self.client.camera_scale = (self.client.camera_scale * (1.0 + 0.1 * f64::from(y)))
-                                    .clamp(0.01, 10.0);
+                                self.client.camera_scale = (self.client.camera_scale
+                                    * (1.0 + 0.1 * f64::from(y)))
+                                .clamp(0.01, 10.0);
                             }
                         },
                         Event::MouseButtonDown {
@@ -178,13 +183,11 @@ impl ClientGame {
                         } => {
                             if let Some(w) = &mut self.data.world {
                                 if let Some(ref r) = renderer {
-                                    let (
-                                        position_storage,
-                                        camera_storage,
-                                    ) = w.ecs.system_data::<(
+                                    let (position_storage, camera_storage) = w.ecs.system_data::<(
                                         ReadStorage<Position>,
                                         ReadStorage<Camera>,
-                                    )>();
+                                    )>(
+                                    );
 
                                     let camera_pos = (&position_storage, &camera_storage)
                                         .join()
@@ -192,12 +195,10 @@ impl ClientGame {
 
                                     if let Some(camera_pos) = camera_pos {
                                         let world_x = camera_pos.x
-                                            + (f64::from(x)
-                                                - f64::from(r.window.size().0) / 2.0)
+                                            + (f64::from(x) - f64::from(r.window.size().0) / 2.0)
                                                 / self.client.camera_scale;
                                         let world_y = camera_pos.y
-                                            + (f64::from(y)
-                                                - f64::from(r.window.size().1) / 2.0)
+                                            + (f64::from(y) - f64::from(r.window.size().1) / 2.0)
                                                 / self.client.camera_scale;
                                         // let (chunk_x, chunk_y) = w.chunk_handler.pixel_to_chunk_pos(world_x as i64, world_y as i64);
                                         // w.chunk_handler.force_update_chunk(chunk_x, chunk_y);
@@ -351,16 +352,14 @@ impl ClientGame {
                                                     - f64::from(r.window.size().1) / 2.0)
                                                     / self.client.camera_scale;
 
-                                            if let Some((rb_h, vel)) = &mut self.client.mouse_joint {
-                                                let rb =
-                                                    w.physics.bodies.get_mut(*rb_h).unwrap();
+                                            if let Some((rb_h, vel)) = &mut self.client.mouse_joint
+                                            {
+                                                let rb = w.physics.bodies.get_mut(*rb_h).unwrap();
                                                 let prev_pos = *rb.translation();
-                                                rb.set_next_kinematic_translation(
-                                                    Vector2::new(
-                                                        world_x as f32 / PHYSICS_SCALE,
-                                                        world_y as f32 / PHYSICS_SCALE,
-                                                    ),
-                                                );
+                                                rb.set_next_kinematic_translation(Vector2::new(
+                                                    world_x as f32 / PHYSICS_SCALE,
+                                                    world_y as f32 / PHYSICS_SCALE,
+                                                ));
                                                 *vel = Vector2::new(
                                                     world_x as f32 / PHYSICS_SCALE - prev_pos.x,
                                                     world_y as f32 / PHYSICS_SCALE - prev_pos.y,
@@ -459,7 +458,8 @@ impl ClientGame {
                             break 'mainLoop;
                         },
                         MainMenuAction::LoadWorld(path) => {
-                            let world_meta = World::<ClientChunk>::parse_file_meta(path.clone()).expect("Failed to parse file meta");
+                            let world_meta = World::<ClientChunk>::parse_file_meta(path.clone())
+                                .expect("Failed to parse file meta");
                             if let Some(w) = &mut self.data.world {
                                 info!("Unload current world...");
                                 w.save().expect("World save failed");
@@ -512,7 +512,8 @@ impl ClientGame {
                                 .fluid_pipeline
                                 .liquid_world
                                 .add_boundary(Boundary::new(Vec::new()));
-                            self.data.world
+                            self.data
+                                .world
                                 .as_mut()
                                 .unwrap()
                                 .physics
@@ -545,7 +546,8 @@ impl ClientGame {
                                     .with(RigidBodyComponent::of(handle))
                                     .build();
 
-                                self.client.world = Some(ClientWorld { local_entity: Some(player) });
+                                self.client.world =
+                                    Some(ClientWorld { local_entity: Some(player) });
                             };
                         },
                     }
@@ -811,7 +813,8 @@ impl ClientGame {
                 .saturating_duration_since(counter_last_frame)
                 .as_nanos();
             self.data.fps_counter.frame_times.rotate_left(1);
-            self.data.fps_counter.frame_times[self.data.fps_counter.frame_times.len() - 1] = time_nano as f32;
+            self.data.fps_counter.frame_times[self.data.fps_counter.frame_times.len() - 1] =
+                time_nano as f32;
 
             profiling::finish_frame!();
             // sleep a bit if we aren't going to tick next frame
@@ -838,7 +841,13 @@ impl ClientGame {
         delta_time: f64,
         partial_ticks: f64,
     ) {
-        renderer.render(sdl, &mut self.data, &mut self.client, delta_time, partial_ticks);
+        renderer.render(
+            sdl,
+            &mut self.data,
+            &mut self.client,
+            delta_time,
+            partial_ticks,
+        );
     }
 
     #[profiling::function]

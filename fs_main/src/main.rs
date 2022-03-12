@@ -2,20 +2,19 @@ use std::{fs::File, str::FromStr, thread};
 
 use backtrace::Backtrace;
 use clap::{crate_authors, crate_name, crate_version, Arg, Command};
-use fs_common::game::{
-    common::{
-        world::{
-            entity::{GameEntity, Hitbox, Persistent, PhysicsEntity, Player, PlayerMovementMode},
-            physics::PHYSICS_SCALE,
-            AutoTarget, Camera, CollisionFlags, Loader, Position, RigidBodyComponent, Target,
-            TargetStyle, Velocity,
-        },
-        FileHelper,
-    },
-};
 use fs_client::{
     render::{Fonts, Renderer},
-    world::{ClientWorld}, ClientGame,
+    world::ClientWorld,
+    ClientGame,
+};
+use fs_common::game::common::{
+    world::{
+        entity::{GameEntity, Hitbox, Persistent, PhysicsEntity, Player, PlayerMovementMode},
+        physics::PHYSICS_SCALE,
+        AutoTarget, Camera, CollisionFlags, Loader, Position, RigidBodyComponent, Target,
+        TargetStyle, Velocity,
+    },
+    FileHelper,
 };
 use fs_server::ServerGame;
 use log::{error, info, LevelFilter};

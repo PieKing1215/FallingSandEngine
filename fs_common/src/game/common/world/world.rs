@@ -21,7 +21,7 @@ use super::{
         UpdatePhysicsEntities,
     },
     gen::{TestGenerator, TEST_GENERATOR},
-    material::{MaterialInstance, PhysicsType, AIR, TEST_MATERIAL, Color},
+    material::{Color, MaterialInstance, PhysicsType, AIR, TEST_MATERIAL},
     particle::{Particle, ParticleSystem, UpdateParticles},
     physics::Physics,
     rigidbody::FSRigidBody,

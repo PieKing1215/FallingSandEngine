@@ -1,4 +1,3 @@
-
 use rapier2d::{na::Vector2, prelude::RigidBodyHandle};
 use sdl2::{event::Event, keyboard::Keycode};
 use specs::{Entities, WorldExt, WriteStorage};
@@ -9,7 +8,7 @@ use fs_common::game::common::world::{
         PlayerJumpState, PlayerLaunchState, PlayerMovementMode,
     },
     material::{MaterialInstance, PhysicsType},
-    Position, Velocity, World, ChunkHandlerGeneric,
+    ChunkHandlerGeneric, Position, Velocity, World,
 };
 
 use super::{

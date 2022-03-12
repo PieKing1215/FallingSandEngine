@@ -1,5 +1,5 @@
 mod renderer;
-use fs_common::game::common::{Settings, world::material::Color, Rect};
+use fs_common::game::common::{world::material::Color, Rect, Settings};
 pub use renderer::*;
 
 mod imgui;

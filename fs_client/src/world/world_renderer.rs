@@ -2,23 +2,24 @@ use rapier2d::prelude::Shape;
 use sdl_gpu::{GPUFilter, GPUFormat, GPUImage, GPURect, GPUSubsystem, GPUTarget};
 use specs::{prelude::ParallelIterator, rayon::slice::ParallelSlice, Join, ReadStorage, WorldExt};
 
-use fs_common::game::{
-    common::{
-        world::{
-            entity::{
-                GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState, PlayerMovementMode,
-            },
-            gen::WorldGenerator,
-            particle::ParticleSystem,
-            physics::PHYSICS_SCALE,
-            AutoTarget, Camera, ChunkHandlerGeneric, ChunkState, Position, Velocity, World,
-            CHUNK_SIZE, material::Color,
+use fs_common::game::common::{
+    world::{
+        entity::{
+            GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState, PlayerMovementMode,
         },
-        Settings, Rect,
+        gen::WorldGenerator,
+        material::Color,
+        particle::ParticleSystem,
+        physics::PHYSICS_SCALE,
+        AutoTarget, Camera, ChunkHandlerGeneric, ChunkState, Position, Velocity, World, CHUNK_SIZE,
     },
+    Rect, Settings,
 };
 
-use crate::{render::{TransformStack, Sdl2Context, Fonts, Shaders, Renderable, ColorExt, RectExt}, Client};
+use crate::{
+    render::{ColorExt, Fonts, RectExt, Renderable, Sdl2Context, Shaders, TransformStack},
+    Client,
+};
 
 use super::{ClientChunk, ClientWorld};
 
@@ -131,8 +132,7 @@ impl WorldRenderer {
                         u32::from(CHUNK_SIZE),
                         u32::from(CHUNK_SIZE),
                     );
-                    if (settings.debug && !settings.cull_chunks) || rc.intersects(&screen_zone)
-                    {
+                    if (settings.debug && !settings.cull_chunks) || rc.intersects(&screen_zone) {
                         transform.push();
                         transform.translate(
                             ch.chunk_x * i32::from(CHUNK_SIZE),
@@ -143,8 +143,14 @@ impl WorldRenderer {
                         if settings.debug && settings.draw_chunk_dirty_rects {
                             if let Some(dr) = ch.dirty_rect {
                                 let rect = transform.transform_rect(dr);
-                                target.rectangle_filled2(rect.into_sdl(), Color::rgba(255, 64, 64, 127).into_sdl());
-                                target.rectangle2(rect.into_sdl(), Color::rgba(255, 64, 64, 127).into_sdl());
+                                target.rectangle_filled2(
+                                    rect.into_sdl(),
+                                    Color::rgba(255, 64, 64, 127).into_sdl(),
+                                );
+                                target.rectangle2(
+                                    rect.into_sdl(),
+                                    Color::rgba(255, 64, 64, 127).into_sdl(),
+                                );
                             }
                             if ch.graphics.was_dirty {
                                 let rect = transform.transform_rect(Rect::new(
@@ -153,8 +159,14 @@ impl WorldRenderer {
                                     u32::from(CHUNK_SIZE),
                                     u32::from(CHUNK_SIZE),
                                 ));
-                                target.rectangle_filled2(rect.into_sdl(), Color::rgba(255, 255, 64, 127).into_sdl());
-                                target.rectangle2(rect.into_sdl(), Color::rgba(255, 255, 64, 127).into_sdl());
+                                target.rectangle_filled2(
+                                    rect.into_sdl(),
+                                    Color::rgba(255, 255, 64, 127).into_sdl(),
+                                );
+                                target.rectangle2(
+                                    rect.into_sdl(),
+                                    Color::rgba(255, 255, 64, 127).into_sdl(),
+                                );
                             }
                         }
 
@@ -177,7 +189,8 @@ impl WorldRenderer {
                             ),
                             ChunkState::Cached => Color::rgba(255, 127, 64, alpha),
                             ChunkState::Active => Color::rgba(64, 255, 64, alpha),
-                        }.into_sdl();
+                        }
+                        .into_sdl();
                         target.rectangle_filled2(rect.into_sdl(), color);
                         target.rectangle2(rect.into_sdl(), color);
 
@@ -268,8 +281,11 @@ impl WorldRenderer {
         }
 
         // TODO: transforming screen zone here is not the right way to do this, it causes some jumping when x or y switch between + and -
-        self.liquid_image2
-            .blit_rect(None, target, Some(transform.transform_rect(screen_zone).into_sdl()));
+        self.liquid_image2.blit_rect(
+            None,
+            target,
+            Some(transform.transform_rect(screen_zone).into_sdl()),
+        );
 
         // draw solids
 
@@ -439,7 +455,8 @@ impl WorldRenderer {
                             y1 as f32,
                             x2 as f32,
                             y2 as f32,
-                            Color::rgba(0xff, 0, 0xff, if b.is_sleeping() { 0x64 } else { 0xff }).into_sdl(),
+                            Color::rgba(0xff, 0, 0xff, if b.is_sleeping() { 0x64 } else { 0xff })
+                                .into_sdl(),
                         );
 
                         transform.pop();
@@ -462,10 +479,8 @@ impl WorldRenderer {
                     let mut batch = Vec::new();
                     for part in chunk {
                         #[allow(clippy::cast_lossless)]
-                        if screen_zone.contains_point((
-                            part.pos.x as i32,
-                            part.pos.y as i32,
-                        )) || !settings.cull_chunks
+                        if screen_zone.contains_point((part.pos.x as i32, part.pos.y as i32))
+                            || !settings.cull_chunks
                         {
                             let lerp_x = part.pos.x + part.vel.x * partial_ticks;
                             let lerp_y = part.pos.y + part.vel.y * partial_ticks;
@@ -768,7 +783,10 @@ impl WorldRenderer {
                         u32::from(CHUNK_SIZE),
                         u32::from(CHUNK_SIZE),
                     );
-                    target.rectangle2(transform.transform_rect(rc).into_sdl(), Color::rgba(64, 64, 64, 127).into_sdl());
+                    target.rectangle2(
+                        transform.transform_rect(rc).into_sdl(),
+                        Color::rgba(64, 64, 64, 127).into_sdl(),
+                    );
                 }
             }
         }

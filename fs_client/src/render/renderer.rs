@@ -1,6 +1,9 @@
 use std::{cell::RefCell, fs};
 
-use fs_common::game::{common::{FileHelper, world::material::Color}, GameData};
+use fs_common::game::{
+    common::{world::material::Color, FileHelper},
+    GameData,
+};
 use imgui::WindowFlags;
 use imgui_glow_renderer::{versions::GlVersion, AutoRenderer};
 use imgui_sdl2_support::SdlPlatform;
@@ -11,7 +14,11 @@ use sdl2::{
 };
 use sdl_gpu::{shaders::Shader, GPUImage, GPURect, GPUSubsystem, GPUTarget};
 
-use crate::{world::{WorldRenderer, ClientChunk}, Client, render::{imgui::DebugUI, ColorExt}};
+use crate::{
+    render::{imgui::DebugUI, ColorExt},
+    world::{ClientChunk, WorldRenderer},
+    Client,
+};
 
 use super::TransformStack;
 

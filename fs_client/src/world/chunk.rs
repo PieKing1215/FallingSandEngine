@@ -2,17 +2,17 @@ use std::convert::TryInto;
 
 use sdl_gpu::{GPUFilter, GPUFormat, GPUImage, GPURect, GPUSubsystem, GPUTarget};
 
-use fs_common::game::{
-    common::{
-        world::{
-            chunk_index, gen::WorldGenerator, material::{MaterialInstance, Color}, mesh, Chunk,
-            ChunkHandler, ChunkState, RigidBodyState, CHUNK_SIZE,
-        },
-        Settings, Rect,
+use fs_common::game::common::{
+    world::{
+        chunk_index,
+        gen::WorldGenerator,
+        material::{Color, MaterialInstance},
+        mesh, Chunk, ChunkHandler, ChunkState, RigidBodyState, CHUNK_SIZE,
     },
+    Rect, Settings,
 };
 
-use crate::render::{Renderable, TransformStack, Sdl2Context, Fonts, ColorExt, RectExt};
+use crate::render::{ColorExt, Fonts, RectExt, Renderable, Sdl2Context, TransformStack};
 
 pub struct ClientChunk {
     pub chunk_x: i32,
@@ -434,7 +434,9 @@ pub trait ClientChunkHandlerExt {
     ) -> Result<(), String>;
 }
 
-impl<T: WorldGenerator + Copy + Send + Sync + 'static> ClientChunkHandlerExt for ChunkHandler<T, ClientChunk> {
+impl<T: WorldGenerator + Copy + Send + Sync + 'static> ClientChunkHandlerExt
+    for ChunkHandler<T, ClientChunk>
+{
     fn sync_chunk(
         &mut self,
         chunk_x: i32,

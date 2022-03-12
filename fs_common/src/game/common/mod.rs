@@ -4,7 +4,7 @@ pub mod world;
 mod settings;
 use std::ops::Range;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 pub use settings::*;
 pub mod commands;
 
@@ -22,16 +22,16 @@ pub struct Rect {
 impl Rect {
     #[inline]
     pub fn new(x: impl Into<i32>, y: impl Into<i32>, w: impl Into<u32>, h: impl Into<u32>) -> Self {
-        Self {
-            x: x.into(),
-            y: y.into(),
-            w: w.into(),
-            h: h.into(),
-        }
+        Self { x: x.into(), y: y.into(), w: w.into(), h: h.into() }
     }
-    
+
     #[inline]
-    pub fn new_points(x1: impl Into<i32>, y1: impl Into<i32>, x2: impl Into<i32>, y2: impl Into<i32>) -> Self {
+    pub fn new_points(
+        x1: impl Into<i32>,
+        y1: impl Into<i32>,
+        x2: impl Into<i32>,
+        y2: impl Into<i32>,
+    ) -> Self {
         let x1 = x1.into();
         let y1 = y1.into();
         let x2 = x2.into();
@@ -72,20 +72,15 @@ impl Rect {
     }
 
     pub const fn intersects(&self, other: &Self) -> bool {
-        !(
-            self.bottom() < other.top() ||
-            self.top() > other.bottom() ||
-            self.right() < other.left() ||
-            self.left() > other.right()
-        )
+        !(self.bottom() < other.top()
+            || self.top() > other.bottom()
+            || self.right() < other.left()
+            || self.left() > other.right())
     }
 
     pub fn contains_point(&self, point: (impl Into<i32>, impl Into<i32>)) -> bool {
         let (x, y) = (point.0.into(), point.1.into());
-        x >= self.left() &&
-        y >= self.top() &&
-        x <= self.right() &&
-        y <= self.bottom()
+        x >= self.left() && y >= self.top() && x <= self.right() && y <= self.bottom()
     }
 
     #[must_use]

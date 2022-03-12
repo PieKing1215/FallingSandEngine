@@ -1,7 +1,7 @@
 use crate::game::common::world::particle::ParticleSystem;
 use crate::game::common::world::simulator::Simulator;
 use crate::game::common::world::{Loader, Position};
-use crate::game::common::{Settings, Rect};
+use crate::game::common::{Rect, Settings};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::hash::BuildHasherDefault;
@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use specs::{Join, ReadStorage, WorldExt};
 
 use super::gen::WorldGenerator;
-use super::material::{PhysicsType, Color};
+use super::material::{Color, PhysicsType};
 use super::particle::Particle;
 use super::physics::Physics;
 use crate::game::common::world::material::MaterialInstance;
@@ -182,8 +182,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                 profiling::scope!("queue chunk loading");
                 for load_zone in load_zone {
                     for px in load_zone.range_lr().step_by(CHUNK_SIZE.into()) {
-                        for py in load_zone.range_tb().step_by(CHUNK_SIZE.into())
-                        {
+                        for py in load_zone.range_tb().step_by(CHUNK_SIZE.into()) {
                             let chunk_pos = pixel_to_chunk_pos(px.into(), py.into());
                             self.queue_load_chunk(chunk_pos.0, chunk_pos.1);
                         }
@@ -930,16 +929,8 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
                             if i != 4 && dirty_rects[4].is_some() {
                                 let neighbor_rect = Rect::new(
-                                    if rel_ch_x == -1 {
-                                        CHUNK_SIZE / 2
-                                    } else {
-                                        0
-                                    },
-                                    if rel_ch_y == -1 {
-                                        CHUNK_SIZE / 2
-                                    } else {
-                                        0
-                                    },
+                                    if rel_ch_x == -1 { CHUNK_SIZE / 2 } else { 0 },
+                                    if rel_ch_y == -1 { CHUNK_SIZE / 2 } else { 0 },
                                     if rel_ch_x == 0 {
                                         CHUNK_SIZE
                                     } else {

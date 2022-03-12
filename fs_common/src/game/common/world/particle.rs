@@ -5,7 +5,7 @@ use super::{
 };
 use crate::game::common::world::{
     chunk_index, chunk_update_order,
-    material::{PhysicsType, TEST_MATERIAL, Color},
+    material::{Color, PhysicsType, TEST_MATERIAL},
     pixel_to_chunk_pos, pixel_to_chunk_pos_with_chunk_size, ChunkState, PassThroughHasherU32,
 };
 

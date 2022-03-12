@@ -1,4 +1,4 @@
-use crate::game::common::world::material::{MaterialInstance, PhysicsType, TEST_MATERIAL, Color};
+use crate::game::common::world::material::{Color, MaterialInstance, PhysicsType, TEST_MATERIAL};
 
 use simdnoise::NoiseBuilder;
 
