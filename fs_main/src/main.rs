@@ -12,12 +12,10 @@ use fs_common::game::{
         },
         FileHelper,
     },
-    GameData,
 };
 use fs_client::{
     render::{Fonts, Renderer},
-    world::{ClientChunk, ClientWorld},
-    Client, ClientGame,
+    world::{ClientWorld}, ClientGame,
 };
 use fs_server::ServerGame;
 use log::{error, info, LevelFilter};

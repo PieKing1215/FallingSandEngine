@@ -1,6 +1,6 @@
 use rapier2d::na::Isometry2;
-use sdl2::{rect::Rect};
 
+use crate::game::common::Rect;
 use crate::game::common::world::material::{MaterialInstance, PhysicsType};
 use crate::game::common::world::{rigidbody, CHUNK_SIZE};
 
@@ -399,8 +399,8 @@ impl Simulator {
             {
                 profiling::scope!("loop");
                 if rng.bool() {
-                    for y in (my_dirty_rect.y..(my_dirty_rect.y + my_dirty_rect.h) as i32).rev() {
-                        for x in my_dirty_rect.x..(my_dirty_rect.x + my_dirty_rect.w) as i32 {
+                    for y in my_dirty_rect.range_lr().rev() {
+                        for x in my_dirty_rect.range_tb() {
                             let cur = helper.get_pixel_local_unchecked(x, y);
 
                             if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper, &rng) {
@@ -410,9 +410,8 @@ impl Simulator {
                         }
                     }
                 } else {
-                    for y in (my_dirty_rect.y..(my_dirty_rect.y + my_dirty_rect.h) as i32).rev() {
-                        for x in (my_dirty_rect.x..(my_dirty_rect.x + my_dirty_rect.w) as i32).rev()
-                        {
+                    for y in my_dirty_rect.range_lr().rev() {
+                        for x in my_dirty_rect.range_tb().rev() {
                             let cur = helper.get_pixel_local_unchecked(x, y);
 
                             if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper, &rng) {

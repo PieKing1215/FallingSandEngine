@@ -1,5 +1,4 @@
 use rapier2d::prelude::Shape;
-use sdl2::{rect::Rect};
 use sdl_gpu::{GPUFilter, GPUFormat, GPUImage, GPURect, GPUSubsystem, GPUTarget};
 use specs::{prelude::ParallelIterator, rayon::slice::ParallelSlice, Join, ReadStorage, WorldExt};
 
@@ -15,11 +14,11 @@ use fs_common::game::{
             AutoTarget, Camera, ChunkHandlerGeneric, ChunkState, Position, Velocity, World,
             CHUNK_SIZE, material::Color,
         },
-        Settings,
+        Settings, Rect,
     },
 };
 
-use crate::{render::{TransformStack, Sdl2Context, Fonts, Shaders, Renderable, ColorExt}, Client};
+use crate::{render::{TransformStack, Sdl2Context, Fonts, Shaders, Renderable, ColorExt, RectExt}, Client};
 
 use super::{ClientChunk, ClientWorld};
 
@@ -132,7 +131,7 @@ impl WorldRenderer {
                         u32::from(CHUNK_SIZE),
                         u32::from(CHUNK_SIZE),
                     );
-                    if (settings.debug && !settings.cull_chunks) || rc.has_intersection(screen_zone)
+                    if (settings.debug && !settings.cull_chunks) || rc.intersects(&screen_zone)
                     {
                         transform.push();
                         transform.translate(
@@ -144,8 +143,8 @@ impl WorldRenderer {
                         if settings.debug && settings.draw_chunk_dirty_rects {
                             if let Some(dr) = ch.dirty_rect {
                                 let rect = transform.transform_rect(dr);
-                                target.rectangle_filled2(rect, Color::rgba(255, 64, 64, 127).into_sdl());
-                                target.rectangle2(rect, Color::rgba(255, 64, 64, 127).into_sdl());
+                                target.rectangle_filled2(rect.into_sdl(), Color::rgba(255, 64, 64, 127).into_sdl());
+                                target.rectangle2(rect.into_sdl(), Color::rgba(255, 64, 64, 127).into_sdl());
                             }
                             if ch.graphics.was_dirty {
                                 let rect = transform.transform_rect(Rect::new(
@@ -154,8 +153,8 @@ impl WorldRenderer {
                                     u32::from(CHUNK_SIZE),
                                     u32::from(CHUNK_SIZE),
                                 ));
-                                target.rectangle_filled2(rect, Color::rgba(255, 255, 64, 127).into_sdl());
-                                target.rectangle2(rect, Color::rgba(255, 255, 64, 127).into_sdl());
+                                target.rectangle_filled2(rect.into_sdl(), Color::rgba(255, 255, 64, 127).into_sdl());
+                                target.rectangle2(rect.into_sdl(), Color::rgba(255, 255, 64, 127).into_sdl());
                             }
                         }
 
@@ -179,8 +178,8 @@ impl WorldRenderer {
                             ChunkState::Cached => Color::rgba(255, 127, 64, alpha),
                             ChunkState::Active => Color::rgba(64, 255, 64, alpha),
                         }.into_sdl();
-                        target.rectangle_filled2(rect, color);
-                        target.rectangle2(rect, color);
+                        target.rectangle_filled2(rect.into_sdl(), color);
+                        target.rectangle2(rect.into_sdl(), color);
 
                         // let ind = world.chunk_handler.chunk_index(ch.chunk_x, ch.chunk_y);
                         // let ind = world.chunk_handler.chunk_update_order(ch.chunk_x, ch.chunk_y);
@@ -270,7 +269,7 @@ impl WorldRenderer {
 
         // TODO: transforming screen zone here is not the right way to do this, it causes some jumping when x or y switch between + and -
         self.liquid_image2
-            .blit_rect(None, target, Some(transform.transform_rect(screen_zone)));
+            .blit_rect(None, target, Some(transform.transform_rect(screen_zone).into_sdl()));
 
         // draw solids
 
@@ -463,7 +462,7 @@ impl WorldRenderer {
                     let mut batch = Vec::new();
                     for part in chunk {
                         #[allow(clippy::cast_lossless)]
-                        if screen_zone.contains_point(sdl2::rect::Point::new(
+                        if screen_zone.contains_point((
                             part.pos.x as i32,
                             part.pos.y as i32,
                         )) || !settings.cull_chunks
@@ -769,7 +768,7 @@ impl WorldRenderer {
                         u32::from(CHUNK_SIZE),
                         u32::from(CHUNK_SIZE),
                     );
-                    target.rectangle2(transform.transform_rect(rc), Color::rgba(64, 64, 64, 127).into_sdl());
+                    target.rectangle2(transform.transform_rect(rc).into_sdl(), Color::rgba(64, 64, 64, 127).into_sdl());
                 }
             }
         }
@@ -814,19 +813,19 @@ impl WorldRenderer {
 
         if settings.debug && settings.draw_load_zones {
             target.rectangle2(
-                transform.transform_rect(unload_zone),
+                transform.transform_rect(unload_zone).into_sdl(),
                 Color::rgba(255, 0, 0, 127).into_sdl(),
             );
             target.rectangle2(
-                transform.transform_rect(load_zone),
+                transform.transform_rect(load_zone).into_sdl(),
                 Color::rgba(255, 127, 0, 127).into_sdl(),
             );
             target.rectangle2(
-                transform.transform_rect(active_zone),
+                transform.transform_rect(active_zone).into_sdl(),
                 Color::rgba(255, 255, 0, 127).into_sdl(),
             );
             target.rectangle2(
-                transform.transform_rect(screen_zone),
+                transform.transform_rect(screen_zone).into_sdl(),
                 Color::rgba(0, 255, 0, 127).into_sdl(),
             );
         }

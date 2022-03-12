@@ -1,10 +1,9 @@
 mod renderer;
-use fs_common::game::common::{Settings, world::material::Color};
+use fs_common::game::common::{Settings, world::material::Color, Rect};
 pub use renderer::*;
 
 mod imgui;
 
-use sdl2::rect::Rect;
 use sdl_gpu::GPUTarget;
 
 pub type RenderCanvas = sdl_gpu::GPUTarget;
@@ -146,5 +145,16 @@ impl ColorExt for Color {
     #[inline]
     fn into_sdl(self) -> sdl2::pixels::Color {
         sdl2::pixels::Color::RGBA(self.r, self.g, self.b, self.a)
+    }
+}
+
+pub trait RectExt {
+    fn into_sdl(self) -> sdl2::rect::Rect;
+}
+
+impl RectExt for Rect {
+    #[inline]
+    fn into_sdl(self) -> sdl2::rect::Rect {
+        sdl2::rect::Rect::new(self.x, self.y, self.w, self.h)
     }
 }

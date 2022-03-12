@@ -1,7 +1,7 @@
 use crate::game::common::world::particle::ParticleSystem;
 use crate::game::common::world::simulator::Simulator;
 use crate::game::common::world::{Loader, Position};
-use crate::game::common::Settings;
+use crate::game::common::{Settings, Rect};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::hash::BuildHasherDefault;
@@ -9,7 +9,6 @@ use std::path::PathBuf;
 
 use rapier2d::prelude::{Collider, RigidBody, RigidBodyHandle};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use sdl2::rect::Rect;
 use serde::{Deserialize, Serialize};
 use specs::{Join, ReadStorage, WorldExt};
 
@@ -182,9 +181,8 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
             {
                 profiling::scope!("queue chunk loading");
                 for load_zone in load_zone {
-                    for px in (load_zone.x..load_zone.x + load_zone.w).step_by(CHUNK_SIZE.into()) {
-                        for py in
-                            (load_zone.y..load_zone.y + load_zone.h).step_by(CHUNK_SIZE.into())
+                    for px in load_zone.range_lr().step_by(CHUNK_SIZE.into()) {
+                        for py in load_zone.range_tb().step_by(CHUNK_SIZE.into())
                         {
                             let chunk_pos = pixel_to_chunk_pos(px.into(), py.into());
                             self.queue_load_chunk(chunk_pos.0, chunk_pos.1);
@@ -223,7 +221,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
                 match state {
                     ChunkState::Cached => {
-                        if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
+                        if !unload_zone.iter().any(|z| rect.intersects(z)) {
                             if let Err(e) = self.save_chunk(key) {
                                 log::error!(
                                     "Chunk @ {}, {} failed to save: {:?}",
@@ -241,7 +239,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                 );
                             };
                             keep_map[i] = false;
-                        } else if active_zone.iter().any(|z| rect.has_intersection(*z)) {
+                        } else if active_zone.iter().any(|z| rect.intersects(z)) {
                             let chunk_x = self.loaded_chunks.get(&key).unwrap().get_chunk_x();
                             let chunk_y = self.loaded_chunks.get(&key).unwrap().get_chunk_y();
                             if [
@@ -282,7 +280,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                         }
                     },
                     ChunkState::Active => {
-                        if !active_zone.iter().any(|z| rect.has_intersection(*z)) {
+                        if !active_zone.iter().any(|z| rect.intersects(z)) {
                             self.loaded_chunks
                                 .get_mut(&key)
                                 .unwrap()
@@ -352,7 +350,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                     );
 
                     if state == ChunkState::NotGenerated {
-                        if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
+                        if !unload_zone.iter().any(|z| rect.intersects(z)) {
                         } else if num_loaded_this_tick < 32 {
                             let chunk_x = self.loaded_chunks.get_mut(key).unwrap().get_chunk_x();
                             let chunk_y = self.loaded_chunks.get_mut(key).unwrap().get_chunk_y();
@@ -539,7 +537,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
                     match state {
                         ChunkState::NotGenerated => {
-                            if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
+                            if !unload_zone.iter().any(|z| rect.intersects(z)) {
                                 if let Err(e) = self.save_chunk(key) {
                                     log::error!(
                                         "Chunk @ {}, {} failed to save: {:?}",
@@ -602,7 +600,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                         .set_state(ChunkState::Generating(cur_stage + 1));
                                 }
 
-                                if !unload_zone.iter().any(|z| rect.has_intersection(*z)) {
+                                if !unload_zone.iter().any(|z| rect.intersects(z)) {
                                     if let Err(e) = self.save_chunk(key) {
                                         log::error!(
                                             "Chunk @ {}, {} failed to save: {:?}",
@@ -933,24 +931,24 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                             if i != 4 && dirty_rects[4].is_some() {
                                 let neighbor_rect = Rect::new(
                                     if rel_ch_x == -1 {
-                                        (CHUNK_SIZE / 2).into()
+                                        CHUNK_SIZE / 2
                                     } else {
                                         0
                                     },
                                     if rel_ch_y == -1 {
-                                        (CHUNK_SIZE / 2).into()
+                                        CHUNK_SIZE / 2
                                     } else {
                                         0
                                     },
                                     if rel_ch_x == 0 {
-                                        (CHUNK_SIZE).into()
+                                        CHUNK_SIZE
                                     } else {
-                                        (CHUNK_SIZE / 2).into()
+                                        CHUNK_SIZE / 2
                                     },
                                     if rel_ch_y == 0 {
-                                        (CHUNK_SIZE).into()
+                                        CHUNK_SIZE
                                     } else {
-                                        (CHUNK_SIZE / 2).into()
+                                        CHUNK_SIZE / 2
                                     },
                                 );
                                 // let neighbor_rect = Rect::new(0, 0, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));

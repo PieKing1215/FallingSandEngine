@@ -21,13 +21,4 @@ crossterm = "0.23"
 tui = { version = "0.17", default-features = false, features = ["crossterm"] }
 tui-logger = "0.7"
 bincode = "1.3"
-sdl2 = { version = "0.35", default-features = false, features = ["ttf","image","gfx","static-link","use-vcpkg"] }
 specs = { version = "0.17", features = ["serde", "specs-derive"] }
-
-[package.metadata.vcpkg]
-dependencies = ["sdl2", "sdl2-gfx", "sdl2-image[libjpeg-turbo,libwebp]", "sdl2-ttf"]
-git = "https://github.com/microsoft/vcpkg"
-branch = "master"
-
-[package.metadata.vcpkg.target]
-x86_64-pc-windows-msvc = { triplet = "x64-windows-static-md" }

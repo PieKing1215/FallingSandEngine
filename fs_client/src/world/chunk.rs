@@ -1,6 +1,5 @@
 use std::convert::TryInto;
 
-use sdl2::{rect::Rect};
 use sdl_gpu::{GPUFilter, GPUFormat, GPUImage, GPURect, GPUSubsystem, GPUTarget};
 
 use fs_common::game::{
@@ -9,11 +8,11 @@ use fs_common::game::{
             chunk_index, gen::WorldGenerator, material::{MaterialInstance, Color}, mesh, Chunk,
             ChunkHandler, ChunkState, RigidBodyState, CHUNK_SIZE,
         },
-        Settings,
+        Settings, Rect,
     },
 };
 
-use crate::render::{Renderable, TransformStack, Sdl2Context, Fonts, ColorExt};
+use crate::render::{Renderable, TransformStack, Sdl2Context, Fonts, ColorExt, RectExt};
 
 pub struct ClientChunk {
     pub chunk_x: i32,
@@ -418,9 +417,9 @@ impl Renderable for ChunkGraphics {
         ));
 
         if let Some(tex) = &self.texture {
-            tex.blit_rect(None, target, Some(chunk_rect));
+            tex.blit_rect(None, target, Some(chunk_rect.into_sdl()));
         } else {
-            target.rectangle_filled2(chunk_rect, Color::rgb(127, 0, 0).into_sdl());
+            target.rectangle_filled2(chunk_rect.into_sdl(), Color::rgb(127, 0, 0).into_sdl());
         }
     }
 }
