@@ -3,11 +3,7 @@ use sdl2::{pixels::Color, rect::Rect};
 use sdl_gpu::{GPUFilter, GPUFormat, GPUImage, GPURect, GPUSubsystem, GPUTarget};
 use specs::{prelude::ParallelIterator, rayon::slice::ParallelSlice, Join, ReadStorage, WorldExt};
 
-use crate::game::{
-    client::{
-        render::{Fonts, Renderable, Sdl2Context, Shaders, TransformStack},
-        Client,
-    },
+use fs_common::game::{
     common::{
         world::{
             entity::{
@@ -22,6 +18,8 @@ use crate::game::{
         Settings,
     },
 };
+
+use crate::{render::{TransformStack, Sdl2Context, Fonts, Shaders, Renderable}, Client};
 
 use super::{ClientChunk, ClientWorld};
 

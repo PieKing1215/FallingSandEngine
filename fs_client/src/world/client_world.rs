@@ -1,6 +1,6 @@
-use crate::game::common::world::{material::MaterialInstance, World};
+use fs_common::game::common::world::{material::MaterialInstance, World};
 
-use super::ClientChunk;
+use super::{ClientChunk, ClientChunkHandlerExt};
 
 pub struct ClientWorld {
     pub local_entity: Option<specs::Entity>,
@@ -11,8 +11,18 @@ impl ClientWorld {
     pub fn tick(&mut self, _world: &mut World<ClientChunk>) {}
 }
 
-impl World<ClientChunk> {
-    pub fn sync_chunk(
+pub trait ClientWorldExt {
+    fn sync_chunk(
+        &mut self,
+        chunk_x: i32,
+        chunk_y: i32,
+        pixels: Vec<MaterialInstance>,
+        colors: Vec<u8>,
+    ) -> Result<(), String>;
+}
+
+impl ClientWorldExt for World<ClientChunk> {
+    fn sync_chunk(
         &mut self,
         chunk_x: i32,
         chunk_y: i32,

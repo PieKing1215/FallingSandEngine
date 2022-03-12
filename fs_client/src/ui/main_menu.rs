@@ -2,14 +2,15 @@ use std::path::PathBuf;
 
 use imgui::WindowFlags;
 
-use crate::game::{
+use fs_common::game::{
     self,
-    client::world::ClientChunk,
     common::{
         world::{WorldMeta, WorldTreeNode},
         FileHelper,
     },
 };
+
+use crate::world::ClientChunk;
 
 pub struct MainMenu {
     pub state: MainMenuState,

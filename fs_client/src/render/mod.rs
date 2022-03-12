@@ -1,12 +1,11 @@
 mod renderer;
+use fs_common::game::common::Settings;
 pub use renderer::*;
 
 mod imgui;
 
 use sdl2::rect::Rect;
 use sdl_gpu::GPUTarget;
-
-use crate::game::common::Settings;
 
 pub type RenderCanvas = sdl_gpu::GPUTarget;
 

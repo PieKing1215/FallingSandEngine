@@ -24,8 +24,7 @@ use sdl_gpu::GPUSubsystem;
 use specs::{Builder, Join, ReadStorage, WorldExt, WriteStorage};
 use sysinfo::{Pid, ProcessExt, SystemExt};
 
-use crate::game::{
-    client::world::ClientWorld,
+use fs_common::game::{
     common::{
         networking::{Packet, PacketType},
         world::{
@@ -39,6 +38,8 @@ use crate::game::{
     },
     GameData,
 };
+
+use crate::{ui::MainMenuAction, world::{ClientWorld, ClientWorldExt}};
 
 use super::{
     render::{Renderer, Sdl2Context},
@@ -454,11 +455,11 @@ impl ClientGame {
 
                 for act in self.client.main_menu.action_queue.drain(..) {
                     match act {
-                        crate::game::client::ui::MainMenuAction::Quit => {
+                        MainMenuAction::Quit => {
                             break 'mainLoop;
                         },
-                        crate::game::client::ui::MainMenuAction::LoadWorld(path) => {
-                            let world_meta = crate::game::common::world::World::<ClientChunk>::parse_file_meta(path.clone()).expect("Failed to parse file meta");
+                        MainMenuAction::LoadWorld(path) => {
+                            let world_meta = World::<ClientChunk>::parse_file_meta(path.clone()).expect("Failed to parse file meta");
                             if let Some(w) = &mut self.data.world {
                                 info!("Unload current world...");
                                 w.save().expect("World save failed");

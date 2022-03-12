@@ -1,5 +1,6 @@
 use std::{cell::RefCell, fs};
 
+use fs_common::game::{common::FileHelper, GameData};
 use imgui::WindowFlags;
 use imgui_glow_renderer::{versions::GlVersion, AutoRenderer};
 use imgui_sdl2_support::SdlPlatform;
@@ -11,12 +12,9 @@ use sdl2::{
 };
 use sdl_gpu::{shaders::Shader, GPUImage, GPURect, GPUSubsystem, GPUTarget};
 
+use crate::{world::{WorldRenderer, ClientChunk}, Client, render::imgui::DebugUI};
+
 use super::TransformStack;
-use crate::game::{
-    client::{world::{ClientChunk, WorldRenderer}, Client},
-    common::FileHelper,
-    GameData,
-};
 
 pub static mut BUILD_DATETIME: Option<&str> = None;
 pub static mut GIT_HASH: Option<&str> = None;
@@ -203,7 +201,7 @@ impl<'a> Renderer<'a> {
                 let last_vsync = game.settings.vsync;
                 let last_minimize_on_lost_focus = game.settings.minimize_on_lost_focus;
 
-                game.settings.imgui(ui);
+                game.settings.debug_ui(ui);
 
                 // TODO: this should be somewhere better
                 // maybe clone the Settings before each frame and at the end compare it?

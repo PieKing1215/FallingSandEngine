@@ -20,8 +20,6 @@ simdnoise = "3.1"
 futures = { version = "0.3", features = [] }
 lazy_static = "1.4"
 imgui = { git = "https://github.com/PieKing1215/imgui-rs.git", branch = "custom-edit" }
-imgui-sdl2-support = { git = "https://github.com/PieKing1215/imgui-rs.git", branch = "custom-edit" }
-imgui-glow-renderer = { git = "https://github.com/PieKing1215/imgui-rs.git", branch = "custom-edit" }
 glow = "0.10" # imgui-glow-renderer uses old version
 sysinfo = "0.23" # TODO: should be optional in the future
 sdl2 = { version = "0.35", default-features = false, features = ["ttf","image","gfx","static-link","use-vcpkg"] }

@@ -1341,10 +1341,6 @@ mod tests {
     use super::*;
 
     use rand::Rng;
-    use specs::{
-        saveload::{SimpleMarker, SimpleMarkerAllocator},
-        Builder,
-    };
 
     #[test]
     fn chunk_index_correct() {

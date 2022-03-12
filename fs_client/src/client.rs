@@ -1,16 +1,15 @@
-use crate::game::common::world::material::PhysicsType;
-use crate::game::common::world::ChunkHandlerGeneric;
+
 use rapier2d::{na::Vector2, prelude::RigidBodyHandle};
 use sdl2::{event::Event, keyboard::Keycode};
 use specs::{Entities, WorldExt, WriteStorage};
 
-use crate::game::common::world::{
+use fs_common::game::common::world::{
     entity::{
         CollisionDetector, GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState,
         PlayerJumpState, PlayerLaunchState, PlayerMovementMode,
     },
-    material::MaterialInstance,
-    Position, Velocity, World,
+    material::{MaterialInstance, PhysicsType},
+    Position, Velocity, World, ChunkHandlerGeneric,
 };
 
 use super::{

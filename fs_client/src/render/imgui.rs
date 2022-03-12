@@ -1,9 +1,13 @@
-use crate::game::common::Settings;
+use fs_common::game::common::Settings;
 use imgui::{Slider, SliderFlags, WindowFlags};
 
-impl Settings {
+pub trait DebugUI {
+    fn debug_ui(&mut self, ui: &imgui::Ui);
+}
+
+impl DebugUI for Settings {
     #[profiling::function]
-    pub fn imgui(&mut self, ui: &imgui::Ui) {
+    fn debug_ui(&mut self, ui: &imgui::Ui) {
         ui.window("Debug Menu")
             .size([300.0, 600.0], imgui::Condition::FirstUseEver)
             .flags(WindowFlags::ALWAYS_AUTO_RESIZE)

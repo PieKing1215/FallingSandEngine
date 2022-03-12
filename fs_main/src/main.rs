@@ -3,11 +3,6 @@ use std::{fs::File, str::FromStr, thread};
 use backtrace::Backtrace;
 use clap::{crate_authors, crate_name, crate_version, Arg, Command};
 use fs_common::game::{
-    client::{
-        render::{Fonts, Renderer},
-        world::{ClientChunk, ClientWorld},
-        Client, ClientGame,
-    },
     common::{
         world::{
             entity::{GameEntity, Hitbox, Persistent, PhysicsEntity, Player, PlayerMovementMode},
@@ -18,6 +13,11 @@ use fs_common::game::{
         FileHelper,
     },
     GameData,
+};
+use fs_client::{
+    render::{Fonts, Renderer},
+    world::{ClientChunk, ClientWorld},
+    Client, ClientGame,
 };
 use fs_server::ServerGame;
 use log::{error, info, LevelFilter};
@@ -47,8 +47,8 @@ where
 #[profiling::function]
 pub fn main() -> Result<(), String> {
     unsafe {
-        fs_common::game::client::render::BUILD_DATETIME = option_env!("BUILD_DATETIME");
-        fs_common::game::client::render::GIT_HASH = option_env!("GIT_HASH");
+        fs_client::render::BUILD_DATETIME = option_env!("BUILD_DATETIME");
+        fs_client::render::GIT_HASH = option_env!("GIT_HASH");
     }
 
     let matches = Command::new(crate_name!())

@@ -3,8 +3,7 @@ use std::convert::TryInto;
 use sdl2::{pixels::Color, rect::Rect};
 use sdl_gpu::{GPUFilter, GPUFormat, GPUImage, GPURect, GPUSubsystem, GPUTarget};
 
-use crate::game::{
-    client::render::{Fonts, Renderable, Sdl2Context, TransformStack},
+use fs_common::game::{
     common::{
         world::{
             chunk_index, gen::WorldGenerator, material::MaterialInstance, mesh, Chunk,
@@ -13,6 +12,8 @@ use crate::game::{
         Settings,
     },
 };
+
+use crate::render::{Renderable, TransformStack, Sdl2Context, Fonts};
 
 pub struct ClientChunk {
     pub chunk_x: i32,
@@ -424,8 +425,18 @@ impl Renderable for ChunkGraphics {
     }
 }
 
-impl<T: WorldGenerator + Copy + Send + Sync + 'static> ChunkHandler<T, ClientChunk> {
-    pub fn sync_chunk(
+pub trait ClientChunkHandlerExt {
+    fn sync_chunk(
+        &mut self,
+        chunk_x: i32,
+        chunk_y: i32,
+        pixels: Vec<MaterialInstance>,
+        colors: Vec<u8>,
+    ) -> Result<(), String>;
+}
+
+impl<T: WorldGenerator + Copy + Send + Sync + 'static> ClientChunkHandlerExt for ChunkHandler<T, ClientChunk> {
+    fn sync_chunk(
         &mut self,
         chunk_x: i32,
         chunk_y: i32,
