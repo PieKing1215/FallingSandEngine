@@ -1,3 +1,4 @@
+use fs_common::game::common::world::material::Color;
 use fs_common::game::common::world::material::MaterialInstance;
 use fs_common::game::common::world::mesh;
 use fs_common::game::common::world::Chunk;
@@ -5,7 +6,7 @@ use fs_common::game::common::world::ChunkState;
 use fs_common::game::common::world::RigidBodyState;
 use fs_common::game::common::world::CHUNK_SIZE;
 
-use sdl2::{pixels::Color, rect::Rect};
+use sdl2::{rect::Rect};
 
 pub struct ServerChunk {
     pub chunk_x: i32,
@@ -122,7 +123,7 @@ impl<'ch> Chunk for ServerChunk {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             let i = (x + y * CHUNK_SIZE) as usize;
 
-            return Ok(Color::RGBA(
+            return Ok(Color::rgba(
                 self.pixel_data[i * 4],
                 self.pixel_data[i * 4 + 1],
                 self.pixel_data[i * 4 + 2],

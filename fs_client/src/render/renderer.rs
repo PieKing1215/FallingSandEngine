@@ -1,18 +1,17 @@
 use std::{cell::RefCell, fs};
 
-use fs_common::game::{common::FileHelper, GameData};
+use fs_common::game::{common::{FileHelper, world::material::Color}, GameData};
 use imgui::WindowFlags;
 use imgui_glow_renderer::{versions::GlVersion, AutoRenderer};
 use imgui_sdl2_support::SdlPlatform;
 use sdl2::{
-    pixels::Color,
     ttf::{Font, Sdl2TtfContext},
     video::{GLProfile, SwapInterval, Window},
     VideoSubsystem,
 };
 use sdl_gpu::{shaders::Shader, GPUImage, GPURect, GPUSubsystem, GPUTarget};
 
-use crate::{world::{WorldRenderer, ClientChunk}, Client, render::imgui::DebugUI};
+use crate::{world::{WorldRenderer, ClientChunk}, Client, render::{imgui::DebugUI, ColorExt}};
 
 use super::TransformStack;
 
@@ -144,7 +143,7 @@ impl<'a> Renderer<'a> {
                     .unwrap()
                     .pixel_operator
                     .render("Development Build")
-                    .solid(Color::RGB(0xff, 0xff, 0xff))
+                    .solid((0xff, 0xff, 0xff))
                     .unwrap();
                 (surf.width(), surf.height(), GPUImage::from_surface(&surf))
             });
@@ -174,7 +173,7 @@ impl<'a> Renderer<'a> {
                         )
                         .as_str(),
                     )
-                    .solid(Color::RGB(0xff, 0xff, 0xff))
+                    .solid((0xff, 0xff, 0xff))
                     .unwrap();
                 (surf.width(), surf.height(), GPUImage::from_surface(&surf))
             });
@@ -346,7 +345,7 @@ impl<'a> Renderer<'a> {
                     15.0,
                     15.0,
                 ),
-                Color::RGBA(255, 0, 0, 255),
+                Color::rgb(255, 0, 0).into_sdl(),
             );
 
             GPUSubsystem::set_shape_blend_mode(sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_NORMAL);
@@ -371,7 +370,7 @@ impl<'a> Renderer<'a> {
                     20.0,
                     20.0,
                 );
-                target.rectangle_filled2(rect, Color::RGBA(0, thru, 255 - thru, thru2));
+                target.rectangle_filled2(rect, Color::rgba(0, thru, 255 - thru, thru2).into_sdl());
             }
         }
 

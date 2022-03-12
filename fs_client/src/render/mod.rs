@@ -1,5 +1,5 @@
 mod renderer;
-use fs_common::game::common::Settings;
+use fs_common::game::common::{Settings, world::material::Color};
 pub use renderer::*;
 
 mod imgui;
@@ -136,4 +136,15 @@ pub trait Renderable {
         fonts: &Fonts,
         settings: &Settings,
     );
+}
+
+pub trait ColorExt {
+    fn into_sdl(self) -> sdl2::pixels::Color;
+}
+
+impl ColorExt for Color {
+    #[inline]
+    fn into_sdl(self) -> sdl2::pixels::Color {
+        sdl2::pixels::Color::RGBA(self.r, self.g, self.b, self.a)
+    }
 }

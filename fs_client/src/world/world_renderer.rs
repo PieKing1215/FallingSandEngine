@@ -1,5 +1,5 @@
 use rapier2d::prelude::Shape;
-use sdl2::{pixels::Color, rect::Rect};
+use sdl2::{rect::Rect};
 use sdl_gpu::{GPUFilter, GPUFormat, GPUImage, GPURect, GPUSubsystem, GPUTarget};
 use specs::{prelude::ParallelIterator, rayon::slice::ParallelSlice, Join, ReadStorage, WorldExt};
 
@@ -13,13 +13,13 @@ use fs_common::game::{
             particle::ParticleSystem,
             physics::PHYSICS_SCALE,
             AutoTarget, Camera, ChunkHandlerGeneric, ChunkState, Position, Velocity, World,
-            CHUNK_SIZE,
+            CHUNK_SIZE, material::Color,
         },
         Settings,
     },
 };
 
-use crate::{render::{TransformStack, Sdl2Context, Fonts, Shaders, Renderable}, Client};
+use crate::{render::{TransformStack, Sdl2Context, Fonts, Shaders, Renderable, ColorExt}, Client};
 
 use super::{ClientChunk, ClientWorld};
 
@@ -144,8 +144,8 @@ impl WorldRenderer {
                         if settings.debug && settings.draw_chunk_dirty_rects {
                             if let Some(dr) = ch.dirty_rect {
                                 let rect = transform.transform_rect(dr);
-                                target.rectangle_filled2(rect, Color::RGBA(255, 64, 64, 127));
-                                target.rectangle2(rect, Color::RGBA(255, 64, 64, 127));
+                                target.rectangle_filled2(rect, Color::rgba(255, 64, 64, 127).into_sdl());
+                                target.rectangle2(rect, Color::rgba(255, 64, 64, 127).into_sdl());
                             }
                             if ch.graphics.was_dirty {
                                 let rect = transform.transform_rect(Rect::new(
@@ -154,8 +154,8 @@ impl WorldRenderer {
                                     u32::from(CHUNK_SIZE),
                                     u32::from(CHUNK_SIZE),
                                 ));
-                                target.rectangle_filled2(rect, Color::RGBA(255, 255, 64, 127));
-                                target.rectangle2(rect, Color::RGBA(255, 255, 64, 127));
+                                target.rectangle_filled2(rect, Color::rgba(255, 255, 64, 127).into_sdl());
+                                target.rectangle2(rect, Color::rgba(255, 255, 64, 127).into_sdl());
                             }
                         }
 
@@ -167,8 +167,8 @@ impl WorldRenderer {
 
                         let alpha: u8 = (settings.draw_chunk_state_overlay_alpha * 255.0) as u8;
                         let color = match ch.state {
-                            ChunkState::NotGenerated => Color::RGBA(127, 127, 127, alpha),
-                            ChunkState::Generating(stage) => Color::RGBA(
+                            ChunkState::NotGenerated => Color::rgba(127, 127, 127, alpha),
+                            ChunkState::Generating(stage) => Color::rgba(
                                 64,
                                 (f32::from(stage)
                                     / f32::from(world.chunk_handler.generator.max_gen_stage())
@@ -176,9 +176,9 @@ impl WorldRenderer {
                                 255,
                                 alpha,
                             ),
-                            ChunkState::Cached => Color::RGBA(255, 127, 64, alpha),
-                            ChunkState::Active => Color::RGBA(64, 255, 64, alpha),
-                        };
+                            ChunkState::Cached => Color::rgba(255, 127, 64, alpha),
+                            ChunkState::Active => Color::rgba(64, 255, 64, alpha),
+                        }.into_sdl();
                         target.rectangle_filled2(rect, color);
                         target.rectangle2(rect, color);
 
@@ -221,7 +221,7 @@ impl WorldRenderer {
                         particle.coords[0] * PHYSICS_SCALE,
                         particle.coords[1] * PHYSICS_SCALE,
                     ));
-                    target.circle_filled(x as f32, y as f32, 2.0, Color::CYAN);
+                    target.circle_filled(x as f32, y as f32, 2.0, Color::CYAN.into_sdl());
                 }
             }
 
@@ -238,8 +238,8 @@ impl WorldRenderer {
             //         GPUSubsystem::set_shape_blend_mode(
             //             sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_SET,
             //         );
-            //         let color = Color::RGBA(color.r, color.g, color.b, color.a);
-            //         // let color = Color::RGBA(64, 90, 255, 191);
+            //         let color = Color::rgba(color.r, color.g, color.b, color.a);
+            //         // let color = Color::rgba(64, 90, 255, 191);
             //         liquid_target.pixel(
             //             pos.x * PHYSICS_SCALE - cam_x as f32 + 1920.0 / 4.0 - 1.0,
             //             pos.y * PHYSICS_SCALE - cam_y as f32 + 1080.0 / 4.0 - 1.0,
@@ -341,12 +341,12 @@ impl WorldRenderer {
                         transform.transform((-cuboid.half_extents[0], -cuboid.half_extents[1]));
                     let (x2, y2) =
                         transform.transform((cuboid.half_extents[0], cuboid.half_extents[1]));
-                    target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, color);
+                    target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, color.into_sdl());
                 } else if let Some(polyline) = shape.as_polyline() {
                     for seg in polyline.segments() {
                         let (x1, y1) = transform.transform((seg.a[0], seg.a[1]));
                         let (x2, y2) = transform.transform((seg.b[0], seg.b[1]));
-                        target.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, color);
+                        target.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, color.into_sdl());
                     }
                 } else if let Some(poly) = shape.as_convex_polygon() {
                     target.polygon(
@@ -357,7 +357,7 @@ impl WorldRenderer {
                                 [x as f32, y as f32]
                             })
                             .collect(),
-                        color,
+                        color.into_sdl(),
                     );
                 } else if let Some(trimesh) = shape.as_trimesh() {
                     for tri in trimesh.triangles() {
@@ -368,7 +368,7 @@ impl WorldRenderer {
                             vec![
                                 x1 as f32, y1 as f32, x2 as f32, y2 as f32, x3 as f32, y3 as f32,
                             ],
-                            color,
+                            color.into_sdl(),
                         );
                     }
                 } else if let Some(tri) = shape.as_triangle() {
@@ -379,7 +379,7 @@ impl WorldRenderer {
                         vec![
                             x1 as f32, y1 as f32, x2 as f32, y2 as f32, x3 as f32, y3 as f32,
                         ],
-                        color,
+                        color.into_sdl(),
                     );
                 }
                 transform.pop();
@@ -396,12 +396,12 @@ impl WorldRenderer {
                 );
 
                 let (x, y) = transform.transform((rx, ry));
-                target.circle(x as f32, y as f32, 3.0, Color::GREEN);
+                target.circle(x as f32, y as f32, 3.0, Color::GREEN.into_sdl());
 
                 if settings.physics_dbg_draw_center_of_mass {
                     let com = b.mass_properties().world_com(b.position());
                     let (x, y) = transform.transform((com.x, com.y));
-                    target.circle(x as f32, y as f32, 2.0, Color::RED);
+                    target.circle(x as f32, y as f32, 2.0, Color::RED.into_sdl());
                 }
 
                 for c in b.colliders() {
@@ -416,7 +416,7 @@ impl WorldRenderer {
                             b.rotation().angle(),
                             transform,
                             target,
-                            Color::RGBA(
+                            Color::rgba(
                                 0x00,
                                 0xff,
                                 0x00,
@@ -440,7 +440,7 @@ impl WorldRenderer {
                             y1 as f32,
                             x2 as f32,
                             y2 as f32,
-                            Color::RGBA(0xff, 0, 0xff, if b.is_sleeping() { 0x64 } else { 0xff }),
+                            Color::rgba(0xff, 0, 0xff, if b.is_sleeping() { 0x64 } else { 0xff }).into_sdl(),
                         );
 
                         transform.pop();
@@ -539,7 +539,7 @@ impl WorldRenderer {
                                 y1 as f32,
                                 x2 as f32,
                                 y2 as f32,
-                                Color::RGBA(64, 255, 64, alpha),
+                                Color::rgba(64, 255, 64, alpha).into_sdl(),
                             );
 
                             if let Some(vel) = vel {
@@ -551,7 +551,7 @@ impl WorldRenderer {
                                     vel_y1 as f32,
                                     vel_x2 as f32,
                                     vel_y2 as f32,
-                                    Color::RGBA(64, 255, 64, alpha),
+                                    Color::rgba(64, 255, 64, alpha).into_sdl(),
                                 );
                             }
 
@@ -586,7 +586,7 @@ impl WorldRenderer {
                             y1 as f32,
                             x2 as f32,
                             y2 as f32,
-                            Color::RGBA(255, 64, 64, alpha),
+                            Color::rgba(255, 64, 64, alpha).into_sdl(),
                         );
 
                         transform.pop();
@@ -619,7 +619,7 @@ impl WorldRenderer {
                             y1 as f32,
                             x2 as f32,
                             y2 as f32,
-                            Color::RGBA(64, 255, 64, alpha),
+                            Color::rgba(64, 255, 64, alpha).into_sdl(),
                         );
 
                         let target_pos = at.get_target_pos(&position_storage);
@@ -632,7 +632,7 @@ impl WorldRenderer {
                                 line_y1 as f32,
                                 line_x2 as f32,
                                 line_y2 as f32,
-                                Color::RGBA(255, 255, 64, alpha / 2),
+                                Color::rgba(255, 255, 64, alpha / 2).into_sdl(),
                             );
                         }
 
@@ -687,7 +687,7 @@ impl WorldRenderer {
                                     y1 as f32,
                                     x2 as f32,
                                     y2 as f32,
-                                    Color::RGBA(191, 191, 191, 255),
+                                    Color::rgba(191, 191, 191, 255).into_sdl(),
                                 );
                             } else {
                                 {
@@ -701,7 +701,7 @@ impl WorldRenderer {
                                         y1 as f32,
                                         x2 as f32,
                                         y2 as f32,
-                                        Color::RGBA(191, 191, 191, 255),
+                                        Color::rgba(191, 191, 191, 255).into_sdl(),
                                     );
                                 }
 
@@ -717,7 +717,7 @@ impl WorldRenderer {
                                             y1 as f32,
                                             x2 as f32,
                                             y2 as f32,
-                                            Color::RGBA(191, 191, 191, 255),
+                                            Color::rgba(191, 191, 191, 255).into_sdl(),
                                         );
                                     }
                                 }
@@ -736,7 +736,7 @@ impl WorldRenderer {
                                         y1 as f32,
                                         x2 as f32,
                                         y2 as f32,
-                                        Color::RGBA(191, 191, 191, 255),
+                                        Color::rgba(191, 191, 191, 255).into_sdl(),
                                     );
                                 }
                             }
@@ -769,7 +769,7 @@ impl WorldRenderer {
                         u32::from(CHUNK_SIZE),
                         u32::from(CHUNK_SIZE),
                     );
-                    target.rectangle2(transform.transform_rect(rc), Color::RGBA(64, 64, 64, 127));
+                    target.rectangle2(transform.transform_rect(rc), Color::rgba(64, 64, 64, 127).into_sdl());
                 }
             }
         }
@@ -784,7 +784,7 @@ impl WorldRenderer {
                     (len * 2.0 + 4.0) as f32,
                     3.0,
                 ),
-                Color::RGBA(0, 0, 0, 127),
+                Color::rgba(0, 0, 0, 127).into_sdl(),
             );
             target.rectangle_filled2(
                 GPURect::new(
@@ -793,7 +793,7 @@ impl WorldRenderer {
                     3.0,
                     (len * 2.0 + 4.0) as f32,
                 ),
-                Color::RGBA(0, 0, 0, 127),
+                Color::rgba(0, 0, 0, 127).into_sdl(),
             );
 
             target.line(
@@ -801,33 +801,33 @@ impl WorldRenderer {
                 origin.1 as f32,
                 origin.0 as f32 + len,
                 origin.1 as f32,
-                Color::RGBA(255, 0, 0, 255),
+                Color::rgba(255, 0, 0, 255).into_sdl(),
             );
             target.line(
                 origin.0 as f32,
                 origin.1 as f32 - len,
                 origin.0 as f32,
                 origin.1 as f32 + len,
-                Color::RGBA(0, 255, 0, 255),
+                Color::rgba(0, 255, 0, 255).into_sdl(),
             );
         }
 
         if settings.debug && settings.draw_load_zones {
             target.rectangle2(
                 transform.transform_rect(unload_zone),
-                Color::RGBA(255, 0, 0, 127),
+                Color::rgba(255, 0, 0, 127).into_sdl(),
             );
             target.rectangle2(
                 transform.transform_rect(load_zone),
-                Color::RGBA(255, 127, 0, 127),
+                Color::rgba(255, 127, 0, 127).into_sdl(),
             );
             target.rectangle2(
                 transform.transform_rect(active_zone),
-                Color::RGBA(255, 255, 0, 127),
+                Color::rgba(255, 255, 0, 127).into_sdl(),
             );
             target.rectangle2(
                 transform.transform_rect(screen_zone),
-                Color::RGBA(0, 255, 0, 127),
+                Color::rgba(0, 255, 0, 127).into_sdl(),
             );
         }
 

@@ -9,13 +9,12 @@ use std::path::PathBuf;
 
 use rapier2d::prelude::{Collider, RigidBody, RigidBodyHandle};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use serde::{Deserialize, Serialize};
 use specs::{Join, ReadStorage, WorldExt};
 
 use super::gen::WorldGenerator;
-use super::material::PhysicsType;
+use super::material::{PhysicsType, Color};
 use super::particle::Particle;
 use super::physics::Physics;
 use crate::game::common::world::material::MaterialInstance;

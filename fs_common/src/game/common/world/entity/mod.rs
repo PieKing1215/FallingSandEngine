@@ -6,7 +6,7 @@ mod player;
 pub use player::*;
 
 use crate::game::common::world::{
-    material::{MaterialInstance, PhysicsType},
+    material::{MaterialInstance, PhysicsType, Color},
     pixel_to_chunk_pos,
 };
 
@@ -195,7 +195,7 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdatePhysicsEntities<'a, H> {
                                     would_clip_collide = true;
                                     if debug_visualize {
                                         let _ignore = self.chunk_handler.set((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + clip_y + f64::from(h_dy)).floor() as i64, MaterialInstance {
-                                            color: sdl2::pixels::Color::RGB(255, 255, 0),
+                                            color: Color::rgb(255, 255, 0),
                                             ..mat
                                         });
                                     }
@@ -230,7 +230,7 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdatePhysicsEntities<'a, H> {
                             collided_x = true;
                             if debug_visualize {
                                 let _ignore = self.chunk_handler.set((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + f64::from(h_dy)).floor() as i64, MaterialInstance {
-                                    color: sdl2::pixels::Color::RGB(255, 255, 0),
+                                    color: Color::rgb(255, 255, 0),
                                     ..mat
                                 });
                             }
@@ -270,7 +270,7 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdatePhysicsEntities<'a, H> {
                             collided_y = true;
                             if debug_visualize {
                                 let _ignore = self.chunk_handler.set((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, MaterialInstance {
-                                    color: sdl2::pixels::Color::RGB(255, 0, 255),
+                                    color: Color::rgb(255, 0, 255),
                                     ..mat
                                 });
                             }

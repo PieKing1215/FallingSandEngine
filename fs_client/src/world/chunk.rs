@@ -1,19 +1,19 @@
 use std::convert::TryInto;
 
-use sdl2::{pixels::Color, rect::Rect};
+use sdl2::{rect::Rect};
 use sdl_gpu::{GPUFilter, GPUFormat, GPUImage, GPURect, GPUSubsystem, GPUTarget};
 
 use fs_common::game::{
     common::{
         world::{
-            chunk_index, gen::WorldGenerator, material::MaterialInstance, mesh, Chunk,
+            chunk_index, gen::WorldGenerator, material::{MaterialInstance, Color}, mesh, Chunk,
             ChunkHandler, ChunkState, RigidBodyState, CHUNK_SIZE,
         },
         Settings,
     },
 };
 
-use crate::render::{Renderable, TransformStack, Sdl2Context, Fonts};
+use crate::render::{Renderable, TransformStack, Sdl2Context, Fonts, ColorExt};
 
 pub struct ClientChunk {
     pub chunk_x: i32,
@@ -265,7 +265,7 @@ impl<'cg> ChunkGraphics {
             // self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
             let i = (x + y * CHUNK_SIZE) as usize;
 
-            return Ok(Color::RGBA(
+            return Ok(Color::rgba(
                 self.pixel_data[i * 4],
                 self.pixel_data[i * 4 + 1],
                 self.pixel_data[i * 4 + 2],
@@ -324,12 +324,12 @@ impl Renderable for ClientChunk {
         if settings.debug && settings.draw_chunk_collision == 1 {
             if let Some(f) = &self.mesh {
                 let colors = vec![
-                    Color::RGB(32, 255, 32),
-                    Color::RGB(255, 32, 32),
-                    Color::RGB(32, 64, 255),
-                    Color::RGB(255, 255, 32),
-                    Color::RGB(32, 255, 255),
-                    Color::RGB(255, 32, 255),
+                    Color::rgb(32, 255, 32),
+                    Color::rgb(255, 32, 32),
+                    Color::rgb(32, 64, 255),
+                    Color::rgb(255, 255, 32),
+                    Color::rgb(32, 255, 255),
+                    Color::rgb(255, 32, 255),
                 ];
 
                 f.iter().enumerate().for_each(|(j, f)| {
@@ -342,7 +342,7 @@ impl Renderable for ClientChunk {
                                 y1 as f32,
                                 x2 as f32,
                                 y2 as f32,
-                                colors[j % colors.len()],
+                                colors[j % colors.len()].into_sdl(),
                             );
                         }
 
@@ -357,12 +357,12 @@ impl Renderable for ClientChunk {
         } else if settings.debug && settings.draw_chunk_collision == 2 {
             if let Some(f) = &self.mesh_simplified {
                 let colors = vec![
-                    Color::RGB(32, 255, 32),
-                    Color::RGB(255, 32, 32),
-                    Color::RGB(32, 64, 255),
-                    Color::RGB(255, 255, 32),
-                    Color::RGB(32, 255, 255),
-                    Color::RGB(255, 32, 255),
+                    Color::rgb(32, 255, 32),
+                    Color::rgb(255, 32, 32),
+                    Color::rgb(32, 64, 255),
+                    Color::rgb(255, 255, 32),
+                    Color::rgb(32, 255, 255),
+                    Color::rgb(255, 32, 255),
                 ];
 
                 f.iter().enumerate().for_each(|(j, f)| {
@@ -375,7 +375,7 @@ impl Renderable for ClientChunk {
                                 y1 as f32,
                                 x2 as f32,
                                 y2 as f32,
-                                colors[j % colors.len()],
+                                colors[j % colors.len()].into_sdl(),
                             );
                         }
                     });
@@ -389,7 +389,7 @@ impl Renderable for ClientChunk {
                         let (x2, y2) = transform.transform(tri.1);
                         let (x3, y3) = transform.transform(tri.2);
 
-                        let color = Color::RGBA(32, 255, 255, 255);
+                        let color = Color::rgba(32, 255, 255, 255).into_sdl();
 
                         canvas.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, color);
                         canvas.line(x2 as f32, y2 as f32, x3 as f32, y3 as f32, color);
@@ -420,7 +420,7 @@ impl Renderable for ChunkGraphics {
         if let Some(tex) = &self.texture {
             tex.blit_rect(None, target, Some(chunk_rect));
         } else {
-            target.rectangle_filled2(chunk_rect, Color::RGB(127, 0, 0));
+            target.rectangle_filled2(chunk_rect, Color::rgb(127, 0, 0).into_sdl());
         }
     }
 }

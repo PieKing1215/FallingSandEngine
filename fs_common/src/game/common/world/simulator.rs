@@ -1,11 +1,11 @@
 use rapier2d::na::Isometry2;
-use sdl2::{pixels::Color, rect::Rect};
+use sdl2::{rect::Rect};
 
 use crate::game::common::world::material::{MaterialInstance, PhysicsType};
 use crate::game::common::world::{rigidbody, CHUNK_SIZE};
 
 use super::gen::WorldGenerator;
-use super::material::AIR;
+use super::material::{AIR, Color};
 use super::particle::Particle;
 use super::pixel_to_chunk_pos;
 use super::rigidbody::FSRigidBody;
@@ -95,7 +95,7 @@ impl SimulationHelperChunk<'_> {
 
     #[inline]
     unsafe fn get_color_from_index(&self, (ch, px, ..): (usize, usize, u16, u16)) -> Color {
-        Color::RGBA(
+        Color::rgba(
             (*self.colors[ch])[px * 4],
             (*self.colors[ch])[px * 4 + 1],
             (*self.colors[ch])[px * 4 + 2],
@@ -109,7 +109,7 @@ impl SimulationHelperChunk<'_> {
         &self,
         (ch, px, ..): (usize, usize, u16, u16),
     ) -> Color {
-        Color::RGBA(
+        Color::rgba(
             *(**self.colors.get_unchecked(ch)).get_unchecked(px * 4),
             *(**self.colors.get_unchecked(ch)).get_unchecked(px * 4 + 1),
             *(**self.colors.get_unchecked(ch)).get_unchecked(px * 4 + 2),
@@ -309,7 +309,7 @@ impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelpe
             }
         }
 
-        Color::RGBA(0, 0, 0, 0)
+        Color::rgba(0, 0, 0, 0)
     }
 
     unsafe fn set_color_local(&mut self, x: i32, y: i32, col: Color) {

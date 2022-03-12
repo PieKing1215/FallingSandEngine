@@ -10,7 +10,6 @@ use rapier2d::{
     prelude::{ColliderBuilder, InteractionGroups, RigidBodyBuilder, RigidBodyType},
 };
 use salva2d::{integrations::rapier::ColliderSampling, object::Boundary};
-use sdl2::pixels::Color;
 use specs::{
     saveload::{SimpleMarker, SimpleMarkerAllocator},
     Join, Read, ReadStorage, RunNow, WorldExt,
@@ -22,7 +21,7 @@ use super::{
         UpdatePhysicsEntities,
     },
     gen::{TestGenerator, TEST_GENERATOR},
-    material::{MaterialInstance, PhysicsType, AIR, TEST_MATERIAL},
+    material::{MaterialInstance, PhysicsType, AIR, TEST_MATERIAL, Color},
     particle::{Particle, ParticleSystem, UpdateParticles},
     physics::Physics,
     rigidbody::FSRigidBody,
@@ -128,7 +127,7 @@ impl<'w, C: Chunk> World<C> {
                     MaterialInstance {
                         material_id: TEST_MATERIAL.id,
                         physics: PhysicsType::Solid,
-                        color: Color::RGB(
+                        color: Color::rgb(
                             64,
                             if (x + y) % 4 >= 2 { 191 } else { 64 },
                             if (x + y) % 4 > 2 { 64 } else { 191 },
@@ -155,13 +154,13 @@ impl<'w, C: Chunk> World<C> {
                     MaterialInstance {
                         material_id: TEST_MATERIAL.id,
                         physics: PhysicsType::Sand,
-                        color: Color::RGB(255, 64, 255),
+                        color: Color::rgb(255, 64, 255),
                     }
                 } else if dst <= 20 * 20 && ((x - 20).abs() >= 5 || y > 20) {
                     MaterialInstance {
                         material_id: TEST_MATERIAL.id,
                         physics: PhysicsType::Solid,
-                        color: Color::RGB(
+                        color: Color::rgb(
                             if (x + y) % 4 >= 2 { 191 } else { 64 },
                             if (x + y) % 4 > 2 { 64 } else { 191 },
                             64,
@@ -189,7 +188,7 @@ impl<'w, C: Chunk> World<C> {
                         MaterialInstance {
                             material_id: TEST_MATERIAL.id,
                             physics: PhysicsType::Solid,
-                            color: Color::RGB(
+                            color: Color::rgb(
                                 if (x + y) % 4 >= 2 { 191 } else { 64 },
                                 if (x + y) % 4 > 2 { 64 } else { 191 },
                                 if (x + y) % 4 >= 2 { 191 } else { 64 },
@@ -477,7 +476,7 @@ impl<'w, C: Chunk> World<C> {
                                     pos_y.floor() as i64,
                                     MaterialInstance {
                                         physics: PhysicsType::Object,
-                                        color: Color::RGB(0, 255, 0),
+                                        color: Color::rgb(0, 255, 0),
                                         ..mat
                                     },
                                 );

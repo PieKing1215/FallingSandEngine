@@ -5,14 +5,13 @@ use super::{
 };
 use crate::game::common::world::{
     chunk_index, chunk_update_order,
-    material::{PhysicsType, TEST_MATERIAL},
+    material::{PhysicsType, TEST_MATERIAL, Color},
     pixel_to_chunk_pos, pixel_to_chunk_pos_with_chunk_size, ChunkState, PassThroughHasherU32,
 };
 
 use itertools::Itertools;
 use rand::prelude::Distribution;
 use rayon::iter::{IntoParallelIterator, ParallelExtend, ParallelIterator};
-use sdl2::pixels::Color;
 use serde::{Deserialize, Serialize};
 use specs::{Entities, Join, Read, ReadStorage, System, Write};
 
@@ -112,7 +111,7 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
             MaterialInstance {
                 material_id: TEST_MATERIAL.id,
                 physics: PhysicsType::Sand,
-                color: Color::RGB(64, 255, 255),
+                color: Color::rgb(64, 255, 255),
             },
             Position { x: (rand::random::<f64>() - 0.5) * 10.0, y: -100.0 },
             Velocity {

@@ -1,6 +1,5 @@
-use crate::game::common::world::material::{MaterialInstance, PhysicsType, TEST_MATERIAL};
+use crate::game::common::world::material::{MaterialInstance, PhysicsType, TEST_MATERIAL, Color};
 
-use sdl2::pixels::Color;
 use simdnoise::NoiseBuilder;
 
 use crate::game::common::world::CHUNK_SIZE;
@@ -63,7 +62,7 @@ impl WorldGenerator for TestGenerator {
                     pixels[i] = MaterialInstance {
                         material_id: TEST_MATERIAL.id,
                         physics: PhysicsType::Sand,
-                        color: Color::RGB(
+                        color: Color::rgb(
                             (f * 191.0) as u8 + 64,
                             64,
                             ((1.0 - f) * 191.0) as u8 + 64,
@@ -76,13 +75,13 @@ impl WorldGenerator for TestGenerator {
                     // chunk.set(x, y, MaterialInstance {
                     //     material_id: TEST_MATERIAL.id,
                     //     physics: crate::game::world::PhysicsType::Solid,
-                    //     color: Color::RGB(0, 0, 255),
+                    //     color: Color::rgb(0, 0, 255),
                     // }).unwrap();
                 } else {
                     pixels[i] = MaterialInstance {
                         material_id: TEST_MATERIAL.id,
                         physics: PhysicsType::Solid,
-                        color: Color::RGB(80, 64, 32),
+                        color: Color::rgb(80, 64, 32),
                     };
                     colors[i * 4] = pixels[i].color.r;
                     colors[i * 4 + 1] = pixels[i].color.g;
@@ -91,7 +90,7 @@ impl WorldGenerator for TestGenerator {
                     // chunk.set(x, y, MaterialInstance {
                     //     material_id: TEST_MATERIAL.id,
                     //     physics: crate::game::world::PhysicsType::Solid,
-                    //     color: Color::RGB(0, 255, 0),
+                    //     color: Color::rgb(0, 255, 0),
                     // }).unwrap();
                 }
             }
