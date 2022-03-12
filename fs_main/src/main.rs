@@ -17,6 +17,7 @@ use fs_common::game::common::{
     FileHelper,
 };
 use fs_server::ServerGame;
+use glium::Surface;
 use log::{error, info, LevelFilter};
 use rapier2d::{
     na::{Isometry2, Vector2},
@@ -283,20 +284,11 @@ pub fn main() -> Result<(), String> {
         info!("Starting client...");
 
         // TODO: come up with a better way to handle this sdl's lifetime
-        let sdl = Renderer::init_sdl().unwrap();
+        // let sdl = Renderer::init_sdl().unwrap();
         info!("Starting init...");
 
-        let mut r = Renderer::create(&sdl, &file_helper).expect("Renderer::create failed"); // want to panic
-
-        let pixel_operator2 = sdl
-            .sdl_ttf
-            .load_font(
-                file_helper.asset_path("font/pixel_operator/PixelOperator.ttf"),
-                16,
-            )
-            .unwrap();
-        let f = Some(Fonts { pixel_operator: pixel_operator2 });
-        r.fonts = f;
+        let event_loop = glutin::event_loop::EventLoop::new();
+        let r = Renderer::create(&event_loop, &file_helper).expect("Renderer::create failed"); // want to panic
 
         info!("Finished init.");
 
@@ -370,7 +362,7 @@ pub fn main() -> Result<(), String> {
         };
 
         info!("Starting main loop...");
-        game.run(&sdl, Some(&mut r), &matches);
+        game.run(r, matches, event_loop);
         info!("Goodbye!");
     }
 

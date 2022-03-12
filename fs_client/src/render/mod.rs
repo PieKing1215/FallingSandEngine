@@ -1,12 +1,13 @@
 mod renderer;
 use fs_common::game::common::{world::material::Color, Rect, Settings};
+use glium::Frame;
 pub use renderer::*;
 
 mod imgui;
 
-use sdl_gpu::GPUTarget;
+// use sdl_gpu::GPUTarget;
 
-pub type RenderCanvas = sdl_gpu::GPUTarget;
+// pub type RenderCanvas = sdl_gpu::GPUTarget;
 
 #[derive(Clone)]
 pub struct TransformStack {
@@ -129,32 +130,31 @@ struct Transform {
 pub trait Renderable {
     fn render(
         &self,
-        target: &mut GPUTarget,
+        target: &mut Frame,
         transform: &mut TransformStack,
-        sdl: &Sdl2Context,
         fonts: &Fonts,
         settings: &Settings,
     );
 }
 
-pub trait ColorExt {
-    fn into_sdl(self) -> sdl2::pixels::Color;
-}
+// pub trait ColorExt {
+//     fn into_sdl(self) -> sdl2::pixels::Color;
+// }
 
-impl ColorExt for Color {
-    #[inline]
-    fn into_sdl(self) -> sdl2::pixels::Color {
-        sdl2::pixels::Color::RGBA(self.r, self.g, self.b, self.a)
-    }
-}
+// impl ColorExt for Color {
+//     #[inline]
+//     fn into_sdl(self) -> sdl2::pixels::Color {
+//         sdl2::pixels::Color::RGBA(self.r, self.g, self.b, self.a)
+//     }
+// }
 
-pub trait RectExt {
-    fn into_sdl(self) -> sdl2::rect::Rect;
-}
+// pub trait RectExt {
+//     fn into_sdl(self) -> sdl2::rect::Rect;
+// }
 
-impl RectExt for Rect {
-    #[inline]
-    fn into_sdl(self) -> sdl2::rect::Rect {
-        sdl2::rect::Rect::new(self.x, self.y, self.w, self.h)
-    }
-}
+// impl RectExt for Rect {
+//     #[inline]
+//     fn into_sdl(self) -> sdl2::rect::Rect {
+//         sdl2::rect::Rect::new(self.x, self.y, self.w, self.h)
+//     }
+// }

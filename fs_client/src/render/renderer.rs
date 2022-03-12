@@ -4,18 +4,12 @@ use fs_common::game::{
     common::{world::material::Color, FileHelper},
     GameData,
 };
+use glium::{Display, Surface, Frame};
+use glutin::{dpi::LogicalSize, event_loop::EventLoop};
 use imgui::WindowFlags;
 use imgui_glow_renderer::{versions::GlVersion, AutoRenderer};
-use imgui_sdl2_support::SdlPlatform;
-use sdl2::{
-    ttf::{Font, Sdl2TtfContext},
-    video::{GLProfile, SwapInterval, Window},
-    VideoSubsystem,
-};
-use sdl_gpu::{shaders::Shader, GPUImage, GPURect, GPUSubsystem, GPUTarget};
-
 use crate::{
-    render::{imgui::DebugUI, ColorExt},
+    render::{imgui::DebugUI},
     world::{ClientChunk, WorldRenderer},
     Client,
 };
@@ -25,375 +19,343 @@ use super::TransformStack;
 pub static mut BUILD_DATETIME: Option<&str> = None;
 pub static mut GIT_HASH: Option<&str> = None;
 
-pub struct Renderer<'ttf> {
-    pub fonts: Option<Fonts<'ttf>>,
-    pub shaders: Shaders,
-    pub target: RefCell<GPUTarget>,
-    pub window: Window,
-    pub imgui: imgui::Context,
-    pub imgui_sdl2: SdlPlatform,
-    pub imgui_renderer: AutoRenderer,
+pub struct Renderer {
+    pub fonts: Option<Fonts>,
+    // pub shaders: Shaders,
+    pub display: Display,
     pub world_renderer: WorldRenderer,
-    pub version_info_cache_1: Option<(u32, u32, GPUImage)>,
-    pub version_info_cache_2: Option<(u32, u32, GPUImage)>,
+    // pub version_info_cache_1: Option<(u32, u32, GPUImage)>,
+    // pub version_info_cache_2: Option<(u32, u32, GPUImage)>,
 }
 
-pub struct Fonts<'ttf> {
-    pub pixel_operator: Font<'ttf, 'static>,
+pub struct Fonts {
+    // pub pixel_operator: Font<'ttf, 'static>,
 }
 
 pub struct Shaders {
-    pub liquid_shader: Shader,
+    // pub liquid_shader: Shader,
 }
 
-pub struct Sdl2Context {
-    pub sdl: sdl2::Sdl,
-    pub sdl_video: VideoSubsystem,
-    pub sdl_ttf: Sdl2TtfContext,
-}
-
-impl<'a> Renderer<'a> {
+impl Renderer {
     #[profiling::function]
-    pub fn init_sdl() -> Result<Sdl2Context, String> {
-        let sdl = sdl2::init()?;
-        let sdl_video = sdl.video()?;
-        let sdl_ttf = sdl2::ttf::init().map_err(|e| e.to_string()).unwrap();
+    pub fn create(event_loop: &EventLoop<()>, file_helper: &FileHelper) -> Result<Self, String> {
+        let wb = glutin::window::WindowBuilder::new()
+            .with_inner_size(LogicalSize::new(1200_i16, 800_i16))
+            .with_title("FallingSandRust");
+        let cb = glutin::ContextBuilder::new();
+        let display = glium::Display::new(wb, cb, event_loop).unwrap();
 
-        Ok(Sdl2Context { sdl, sdl_video, sdl_ttf })
-    }
+        // let mut imgui = imgui::Context::create();
+        // imgui.set_ini_filename(None);
 
-    #[profiling::function]
-    pub fn create(sdl: &Sdl2Context, file_helper: &FileHelper) -> Result<Self, String> {
-        let gl_attr = sdl.sdl_video.gl_attr();
-        gl_attr.set_context_version(4, 1);
-        gl_attr.set_context_profile(GLProfile::Core);
+        // log::info!("glversion = {:?}", display.get_opengl_version());
+        // let imgui_renderer = imgui_glium_renderer::Renderer::init(&mut imgui, &display).unwrap();
+        // let imgui_sdl2 = SdlPlatform::init(&mut imgui);
 
-        let window = {
-            profiling::scope!("window");
-
-            sdl.sdl_video
-                .window("FallingSandRust", 1200, 800)
-                .opengl() // allow getting opengl context
-                .resizable()
-                .build()
-                .unwrap()
-        };
-
-        sdl_gpu::GPUSubsystem::set_init_window(window.id());
-        let target = {
-            profiling::scope!("GPUSubsystem::init");
-            sdl_gpu::GPUSubsystem::init(window.size().0 as u16, window.size().1 as u16, 0)
-        };
-        unsafe {
-            let ctx: sdl2::sys::SDL_GLContext = (*target.raw.context).context;
-            sdl2::sys::SDL_GL_MakeCurrent(window.raw(), ctx);
-        }
-
-        let mut imgui = imgui::Context::create();
-        imgui.set_ini_filename(None);
-
-        let gl = unsafe {
-            glow::Context::from_loader_function(|s| sdl.sdl_video.gl_get_proc_address(s).cast())
-        };
-        let v = GlVersion::read(&gl);
-        log::info!("glversion = {} {} {}", v.major, v.minor, v.is_gles);
-        let imgui_renderer = AutoRenderer::initialize(gl, &mut imgui).unwrap();
-        let imgui_sdl2 = SdlPlatform::init(&mut imgui);
-
-        let shaders = Shaders {
-            liquid_shader: Shader::load_shader_program(
-                fs::read_to_string(file_helper.asset_path("data/shaders/common.vert"))
-                    .map_err(|e| e.to_string())?
-                    .as_str(),
-                fs::read_to_string(file_helper.asset_path("data/shaders/liquid.frag"))
-                    .map_err(|e| e.to_string())?
-                    .as_str(),
-            )?,
-        };
+        // let shaders = Shaders {
+        //     liquid_shader: Shader::load_shader_program(
+        //         fs::read_to_string(file_helper.asset_path("data/shaders/common.vert"))
+        //             .map_err(|e| e.to_string())?
+        //             .as_str(),
+        //         fs::read_to_string(file_helper.asset_path("data/shaders/liquid.frag"))
+        //             .map_err(|e| e.to_string())?
+        //             .as_str(),
+        //     )?,
+        // };
 
         Ok(Renderer {
             fonts: None,
-            shaders,
-            target: RefCell::new(target),
-            window,
-            imgui,
-            imgui_sdl2,
-            imgui_renderer,
+            // shaders,
+            display,
             world_renderer: WorldRenderer::new(),
-            version_info_cache_1: None,
-            version_info_cache_2: None,
+            // version_info_cache_1: None,
+            // version_info_cache_2: None,
         })
     }
 
     #[profiling::function]
     pub fn render(
         &mut self,
-        sdl: &Sdl2Context,
         game: &mut GameData<ClientChunk>,
         client: &mut Client,
         delta_time: f64,
         partial_ticks: f64,
     ) {
-        self.target.borrow_mut().clear();
+        let mut target = self.display.draw();
+        target.clear_color_srgb(0.0, 0.5, 1.0, 1.0);
 
-        self.render_internal(sdl, game, client, delta_time, partial_ticks);
-
-        let target = &mut self.target.borrow_mut();
+        self.render_internal(&mut target, game, client, delta_time, partial_ticks);
 
         {
             profiling::scope!("version info");
 
-            let (w, h, img) = self.version_info_cache_1.get_or_insert_with(|| {
-                let surf = self
-                    .fonts
-                    .as_ref()
-                    .unwrap()
-                    .pixel_operator
-                    .render("Development Build")
-                    .solid((0xff, 0xff, 0xff))
-                    .unwrap();
-                (surf.width(), surf.height(), GPUImage::from_surface(&surf))
-            });
+            // let (w, h, img) = self.version_info_cache_1.get_or_insert_with(|| {
 
-            img.blit_rect(
-                None,
-                target,
-                Some(GPURect::new(
-                    4.0,
-                    self.window.size().1 as f32 - 4.0 - 14.0 * 2.0,
-                    *w as f32,
-                    *h as f32,
-                )),
-            );
+            //     let pixel_operator2 = self.sdl.as_ref().unwrap()
+            //         .sdl_ttf
+            //         .load_font(
+            //             game.file_helper.asset_path("font/pixel_operator/PixelOperator.ttf"),
+            //             16,
+            //         )
+            //         .unwrap();
 
-            let (w, h, img) = self.version_info_cache_2.get_or_insert_with(|| {
-                let surf = self
-                    .fonts
-                    .as_ref()
-                    .unwrap()
-                    .pixel_operator
-                    .render(
-                        format!(
-                            "{} ({})",
-                            unsafe { BUILD_DATETIME }.unwrap_or("???"),
-                            unsafe { GIT_HASH }.unwrap_or("???")
-                        )
-                        .as_str(),
-                    )
-                    .solid((0xff, 0xff, 0xff))
-                    .unwrap();
-                (surf.width(), surf.height(), GPUImage::from_surface(&surf))
-            });
+            //     let surf = pixel_operator2
+            //         .render("Development Build")
+            //         .solid((0xff, 0xff, 0xff))
+            //         .unwrap();
+            //     (surf.width(), surf.height(), GPUImage::from_surface(&surf))
+            // });
 
-            img.blit_rect(
-                None,
-                target,
-                Some(GPURect::new(
-                    4.0,
-                    self.window.size().1 as f32 - 4.0 - 14.0,
-                    *w as f32,
-                    *h as f32,
-                )),
-            );
+            // img.blit_rect(
+            //     None,
+            //     target,
+            //     Some(GPURect::new(
+            //         4.0,
+            //         self.window.size().1 as f32 - 4.0 - 14.0 * 2.0,
+            //         *w as f32,
+            //         *h as f32,
+            //     )),
+            // );
+
+            // let (w, h, img) = self.version_info_cache_2.get_or_insert_with(|| {
+            //     let pixel_operator2 = self.sdl.as_ref().unwrap()
+            //         .sdl_ttf
+            //         .load_font(
+            //             game.file_helper.asset_path("font/pixel_operator/PixelOperator.ttf"),
+            //             16,
+            //         )
+            //         .unwrap();
+            //     let surf = pixel_operator2
+            //         .render(
+            //             format!(
+            //                 "{} ({})",
+            //                 unsafe { BUILD_DATETIME }.unwrap_or("???"),
+            //                 unsafe { GIT_HASH }.unwrap_or("???")
+            //             )
+            //             .as_str(),
+            //         )
+            //         .solid((0xff, 0xff, 0xff))
+            //         .unwrap();
+            //     (surf.width(), surf.height(), GPUImage::from_surface(&surf))
+            // });
+
+            // img.blit_rect(
+            //     None,
+            //     target,
+            //     Some(GPURect::new(
+            //         4.0,
+            //         self.window.size().1 as f32 - 4.0 - 14.0,
+            //         *w as f32,
+            //         *h as f32,
+            //     )),
+            // );
         }
 
         {
             profiling::scope!("imgui");
-            let ui = self.imgui.new_frame();
+            // let ui = self.imgui.new_frame();
 
-            // ui.show_demo_window(&mut true);
+            // // ui.show_demo_window(&mut true);
 
-            if game.settings.debug {
-                let last_vsync = game.settings.vsync;
-                let last_minimize_on_lost_focus = game.settings.minimize_on_lost_focus;
+            // if game.settings.debug {
+            //     let last_vsync = game.settings.vsync;
+            //     let last_minimize_on_lost_focus = game.settings.minimize_on_lost_focus;
 
-                game.settings.debug_ui(ui);
+            //     game.settings.debug_ui(ui);
 
-                // TODO: this should be somewhere better
-                // maybe clone the Settings before each frame and at the end compare it?
+            //     // TODO: this should be somewhere better
+            //     // maybe clone the Settings before each frame and at the end compare it?
 
-                if game.settings.vsync != last_vsync {
-                    let si_des = if game.settings.vsync {
-                        SwapInterval::VSync
-                    } else {
-                        SwapInterval::Immediate
-                    };
+            //     if game.settings.vsync != last_vsync {
+            //         let si_des = if game.settings.vsync {
+            //             SwapInterval::VSync
+            //         } else {
+            //             SwapInterval::Immediate
+            //         };
 
-                    sdl.sdl_video.gl_set_swap_interval(si_des).unwrap();
-                }
+            //         self.sdl.as_ref().unwrap().sdl_video.gl_set_swap_interval(si_des).unwrap();
+            //     }
 
-                if last_minimize_on_lost_focus != game.settings.minimize_on_lost_focus {
-                    sdl2::hint::set_video_minimize_on_focus_loss(
-                        game.settings.minimize_on_lost_focus,
-                    );
-                }
-            }
+            //     if last_minimize_on_lost_focus != game.settings.minimize_on_lost_focus {
+            //         sdl2::hint::set_video_minimize_on_focus_loss(
+            //             game.settings.minimize_on_lost_focus,
+            //         );
+            //     }
+            // }
 
-            client.main_menu.render(ui, &game.file_helper);
+            // client.main_menu.render(ui, &game.file_helper);
 
-            ui.window("Stats")
-                .size([300.0, 300.0], imgui::Condition::FirstUseEver)
-                .position_pivot([1.0, 1.0])
-                .position(
-                    [self.window.size().0 as f32, self.window.size().1 as f32],
-                    imgui::Condition::Always,
-                )
-                .flags(
-                    WindowFlags::ALWAYS_AUTO_RESIZE
-                        | WindowFlags::NO_DECORATION
-                        | WindowFlags::NO_MOUSE_INPUTS
-                        | WindowFlags::NO_FOCUS_ON_APPEARING
-                        | WindowFlags::NO_NAV,
-                )
-                .bg_alpha(0.25)
-                .resizable(false)
-                .build(|| {
-                    ui.text(match game.process_stats.cpu_usage {
-                        Some(c) => format!("CPU: {:.0}%", c),
-                        None => "CPU: n/a".to_string(),
-                    });
-                    ui.same_line();
-                    ui.text(match game.process_stats.memory {
-                        Some(m) => format!(" mem: {:.1} MB", m as f32 / 1000.0),
-                        None => " mem: n/a".to_string(),
-                    });
+            // ui.window("Stats")
+            //     .size([300.0, 300.0], imgui::Condition::FirstUseEver)
+            //     .position_pivot([1.0, 1.0])
+            //     .position(
+            //         [self.window.size().0 as f32, self.window.size().1 as f32],
+            //         imgui::Condition::Always,
+            //     )
+            //     .flags(
+            //         WindowFlags::ALWAYS_AUTO_RESIZE
+            //             | WindowFlags::NO_DECORATION
+            //             | WindowFlags::NO_MOUSE_INPUTS
+            //             | WindowFlags::NO_FOCUS_ON_APPEARING
+            //             | WindowFlags::NO_NAV,
+            //     )
+            //     .bg_alpha(0.25)
+            //     .resizable(false)
+            //     .build(|| {
+            //         ui.text(match game.process_stats.cpu_usage {
+            //             Some(c) => format!("CPU: {:.0}%", c),
+            //             None => "CPU: n/a".to_string(),
+            //         });
+            //         ui.same_line();
+            //         ui.text(match game.process_stats.memory {
+            //             Some(m) => format!(" mem: {:.1} MB", m as f32 / 1000.0),
+            //             None => " mem: n/a".to_string(),
+            //         });
 
-                    let nums: Vec<&f32> = game
-                        .fps_counter
-                        .frame_times
-                        .iter()
-                        .filter(|n| **n != 0.0)
-                        .collect();
-                    let avg_mspf: f32 =
-                        nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+            //         let nums: Vec<&f32> = game
+            //             .fps_counter
+            //             .frame_times
+            //             .iter()
+            //             .filter(|n| **n != 0.0)
+            //             .collect();
+            //         let avg_mspf: f32 =
+            //             nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-                    ui.plot_lines("", &game.fps_counter.frame_times)
-                        .graph_size([200.0, 50.0])
-                        .scale_min(0.0)
-                        .scale_max(50_000_000.0)
-                        .overlay_text(format!(
-                            "mspf: {:.2} fps: {:.0}/{:.0}",
-                            avg_mspf,
-                            ui.io().framerate,
-                            1_000_000_000.0
-                                / game
-                                    .fps_counter
-                                    .frame_times
-                                    .iter()
-                                    .copied()
-                                    .reduce(f32::max)
-                                    .unwrap()
-                        ))
-                        .build();
+            //         ui.plot_lines("", &game.fps_counter.frame_times)
+            //             .graph_size([200.0, 50.0])
+            //             .scale_min(0.0)
+            //             .scale_max(50_000_000.0)
+            //             .overlay_text(format!(
+            //                 "mspf: {:.2} fps: {:.0}/{:.0}",
+            //                 avg_mspf,
+            //                 ui.io().framerate,
+            //                 1_000_000_000.0
+            //                     / game
+            //                         .fps_counter
+            //                         .frame_times
+            //                         .iter()
+            //                         .copied()
+            //                         .reduce(f32::max)
+            //                         .unwrap()
+            //             ))
+            //             .build();
 
-                    let nums: Vec<&f32> = game
-                        .fps_counter
-                        .tick_times
-                        .iter()
-                        .filter(|n| **n != 0.0)
-                        .collect();
-                    let avg_mspt: f32 =
-                        nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+            //         let nums: Vec<&f32> = game
+            //             .fps_counter
+            //             .tick_times
+            //             .iter()
+            //             .filter(|n| **n != 0.0)
+            //             .collect();
+            //         let avg_mspt: f32 =
+            //             nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-                    ui.plot_histogram("", &game.fps_counter.tick_times)
-                        .graph_size([200.0, 50.0])
-                        .scale_min(0.0)
-                        .scale_max(100_000_000.0)
-                        .overlay_text(format!("tick mspt: {:.2}", avg_mspt))
-                        .build();
+            //         ui.plot_histogram("", &game.fps_counter.tick_times)
+            //             .graph_size([200.0, 50.0])
+            //             .scale_min(0.0)
+            //             .scale_max(100_000_000.0)
+            //             .overlay_text(format!("tick mspt: {:.2}", avg_mspt))
+            //             .build();
 
-                    let nums: Vec<&f32> = game
-                        .fps_counter
-                        .tick_physics_times
-                        .iter()
-                        .filter(|n| **n != 0.0)
-                        .collect();
-                    let avg_mspt_physics: f32 =
-                        nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+            //         let nums: Vec<&f32> = game
+            //             .fps_counter
+            //             .tick_physics_times
+            //             .iter()
+            //             .filter(|n| **n != 0.0)
+            //             .collect();
+            //         let avg_mspt_physics: f32 =
+            //             nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-                    ui.plot_histogram("", &game.fps_counter.tick_physics_times)
-                        .graph_size([200.0, 50.0])
-                        .scale_min(0.0)
-                        .scale_max(100_000_000.0)
-                        .overlay_text(format!("phys mspt: {:.2}", avg_mspt_physics))
-                        .build();
-                });
+            //         ui.plot_histogram("", &game.fps_counter.tick_physics_times)
+            //             .graph_size([200.0, 50.0])
+            //             .scale_min(0.0)
+            //             .scale_max(100_000_000.0)
+            //             .overlay_text(format!("phys mspt: {:.2}", avg_mspt_physics))
+            //             .build();
+            //     });
 
-            let draw_data = {
-                profiling::scope!("prepare_render");
-                self.imgui.render()
-            };
-            {
-                profiling::scope!("render");
-                self.imgui_renderer.render(draw_data).unwrap();
-            }
+            // let draw_data = {
+            //     profiling::scope!("prepare_render");
+            //     self.imgui.render()
+            // };
+            // {
+            //     profiling::scope!("render");
+            //     self.imgui_renderer.render(draw_data).unwrap();
+            // }
         }
 
-        target.flip();
+        target.finish().unwrap();
     }
 
     #[profiling::function]
     fn render_internal(
         &mut self,
-        sdl: &Sdl2Context,
+        target: &mut Frame,
         game: &mut GameData<ClientChunk>,
         client: &mut Client,
         delta_time: f64,
         partial_ticks: f64,
     ) {
-        let target = &mut self.target.borrow_mut();
 
         {
             profiling::scope!("test stuff");
-            target.rectangle2(
-                GPURect::new(
-                    40.0 + ((game.tick_time as f32 / 5.0).sin() * 20.0),
-                    30.0 + ((game.tick_time as f32 / 5.0).cos().abs() * -10.0),
-                    15.0,
-                    15.0,
-                ),
-                Color::rgb(255, 0, 0).into_sdl(),
-            );
+            // target.rectangle2(
+            //     GPURect::new(
+            //         40.0 + ((game.tick_time as f32 / 5.0).sin() * 20.0),
+            //         30.0 + ((game.tick_time as f32 / 5.0).cos().abs() * -10.0),
+            //         15.0,
+            //         15.0,
+            //     ),
+            //     Color::rgb(255, 0, 0).into_sdl(),
+            // );
 
-            GPUSubsystem::set_shape_blend_mode(sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_NORMAL);
-            for i in (0..10000).step_by(15) {
-                let thru = (i as f32 / 10000.0 * 255.0) as u8;
-                let thru2 = (((i % 1000) as f32 / 1000.0) * 255.0) as u8;
-                let timeshift = ((1.0 - ((i % 1000) as f32 / 1000.0)).powi(8) * 200.0) as i32;
+            // GPUSubsystem::set_shape_blend_mode(sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_NORMAL);
+            // for i in (0..10000).step_by(15) {
+            //     let thru = (i as f32 / 10000.0 * 255.0) as u8;
+            //     let thru2 = (((i % 1000) as f32 / 1000.0) * 255.0) as u8;
+            //     let timeshift = ((1.0 - ((i % 1000) as f32 / 1000.0)).powi(8) * 200.0) as i32;
 
-                let rect = GPURect::new(
-                    75.0 + (i as f32 % 1000.0)
-                        + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32
-                            - timeshift as f32)
-                            / 100.0)
-                            .sin()
-                            * 50.0),
-                    (i as f32 / 1000.0) * 100.0
-                        + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32
-                            - timeshift as f32)
-                            / 100.0)
-                            .cos()
-                            * 50.0),
-                    20.0,
-                    20.0,
-                );
-                target.rectangle_filled2(rect, Color::rgba(0, thru, 255 - thru, thru2).into_sdl());
-            }
+            //     let rect = GPURect::new(
+            //         75.0 + (i as f32 % 1000.0)
+            //             + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32
+            //                 - timeshift as f32)
+            //                 / 100.0)
+            //                 .sin()
+            //                 * 50.0),
+            //         (i as f32 / 1000.0) * 100.0
+            //             + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32
+            //                 - timeshift as f32)
+            //                 / 100.0)
+            //                 .cos()
+            //                 * 50.0),
+            //         20.0,
+            //         20.0,
+            //     );
+            //     target.rectangle_filled2(rect, Color::rgba(0, thru, 255 - thru, thru2).into_sdl());
+            // }
         }
 
         if let Some(w) = &mut game.world {
-            self.world_renderer.render(
-                w,
-                target,
-                &mut TransformStack::new(),
-                delta_time,
-                sdl,
-                self.fonts.as_ref().unwrap(),
-                &game.settings,
-                &self.shaders,
-                client,
-                partial_ticks,
-            );
+            // let pixel_operator2 = self.sdl.as_ref().unwrap()
+            //     .sdl_ttf
+            //     .load_font(
+            //         game.file_helper.asset_path("font/pixel_operator/PixelOperator.ttf"),
+            //         16,
+            //     )
+            //     .unwrap();
+            // let f = Fonts { pixel_operator: pixel_operator2 };
+
+            // self.world_renderer.render(
+            //     w,
+            //     target,
+            //     &mut TransformStack::new(),
+            //     delta_time,
+            //     self.sdl.as_ref().unwrap(),
+            //     &f,
+            //     &game.settings,
+            //     &self.shaders,
+            //     client,
+            //     partial_ticks,
+            // );
         }
     }
 }

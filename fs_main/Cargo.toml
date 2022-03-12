@@ -29,13 +29,8 @@ rapier2d = { version = "0.11", features = ["simd-stable"] }
 salva2d = { version = "0.7", features = ["rapier"] }
 specs = { version = "0.17", features = ["serde", "specs-derive"] }
 num_cpus = "1.13"
-
-[package.metadata.vcpkg]
-git = "https://github.com/microsoft/vcpkg"
-branch = "master"
-
-[package.metadata.vcpkg.target]
-x86_64-pc-windows-msvc = { triplet = "x64-windows-static-md" }
+glutin = "0.28"
+glium = "0.31"
 
 [build-dependencies]
 chrono = "0.4"

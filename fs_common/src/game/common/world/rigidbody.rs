@@ -1,3 +1,4 @@
+use glium::texture::SrgbTexture2d;
 use rapier2d::{
     na::{Isometry2, Point2, Vector2},
     prelude::{
@@ -6,7 +7,6 @@ use rapier2d::{
     },
 };
 use salva2d::{integrations::rapier::ColliderSampling, object::Boundary};
-use sdl_gpu::{GPUImage, GPURect, GPUSubsystem};
 
 use super::{
     material::MaterialInstance,
@@ -20,7 +20,7 @@ pub struct FSRigidBody {
     pub height: u16,
     pub pixels: Vec<MaterialInstance>,
     pub body: Option<RigidBodyHandle>,
-    pub image: Option<GPUImage>,
+    pub image: Option<SrgbTexture2d>,
 }
 
 impl FSRigidBody {
@@ -134,26 +134,26 @@ impl FSRigidBody {
     }
 
     pub fn update_image(&mut self) {
-        let mut img = GPUSubsystem::create_image(
-            self.width,
-            self.height,
-            sdl_gpu::sys::GPU_FormatEnum::GPU_FORMAT_RGBA,
-        );
-        img.set_image_filter(sdl_gpu::sys::GPU_FilterEnum::GPU_FILTER_NEAREST);
+        // let mut img = GPUSubsystem::create_image(
+        //     self.width,
+        //     self.height,
+        //     sdl_gpu::sys::GPU_FormatEnum::GPU_FORMAT_RGBA,
+        // );
+        // img.set_image_filter(sdl_gpu::sys::GPU_FilterEnum::GPU_FILTER_NEAREST);
 
-        let pixel_data: Vec<_> = self
-            .pixels
-            .iter()
-            .flat_map(|m| vec![m.color.r, m.color.g, m.color.b, m.color.a])
-            .collect();
+        // let pixel_data: Vec<_> = self
+        //     .pixels
+        //     .iter()
+        //     .flat_map(|m| vec![m.color.r, m.color.g, m.color.b, m.color.a])
+        //     .collect();
 
-        img.update_image_bytes(
-            None as Option<GPURect>,
-            &pixel_data,
-            (self.width * 4).into(),
-        );
+        // img.update_image_bytes(
+        //     None as Option<GPURect>,
+        //     &pixel_data,
+        //     (self.width * 4).into(),
+        // );
 
-        self.image = Some(img);
+        // self.image = Some(img);
     }
 
     pub fn make_bodies(

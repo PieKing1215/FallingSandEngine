@@ -1,5 +1,5 @@
+use glutin::event::{VirtualKeyCode, WindowEvent};
 use rapier2d::{na::Vector2, prelude::RigidBodyHandle};
-use sdl2::{event::Event, keyboard::Keycode};
 use specs::{Entities, WorldExt, WriteStorage};
 
 use fs_common::game::common::world::{
@@ -33,50 +33,50 @@ impl Client {
                 up: Box::new(MultiControl::new(
                     MultiControlMode::Or,
                     vec![
-                        Box::new(KeyControl::new(Keycode::W, KeyControlMode::Momentary)),
-                        Box::new(KeyControl::new(Keycode::Up, KeyControlMode::Momentary)),
+                        Box::new(KeyControl::new(VirtualKeyCode::W, KeyControlMode::Momentary)),
+                        Box::new(KeyControl::new(VirtualKeyCode::Up, KeyControlMode::Momentary)),
                     ],
                 )),
                 down: Box::new(MultiControl::new(
                     MultiControlMode::Or,
                     vec![
-                        Box::new(KeyControl::new(Keycode::S, KeyControlMode::Momentary)),
-                        Box::new(KeyControl::new(Keycode::Down, KeyControlMode::Momentary)),
+                        Box::new(KeyControl::new(VirtualKeyCode::S, KeyControlMode::Momentary)),
+                        Box::new(KeyControl::new(VirtualKeyCode::Down, KeyControlMode::Momentary)),
                     ],
                 )),
                 left: Box::new(MultiControl::new(
                     MultiControlMode::Or,
                     vec![
-                        Box::new(KeyControl::new(Keycode::A, KeyControlMode::Momentary)),
-                        Box::new(KeyControl::new(Keycode::Left, KeyControlMode::Momentary)),
+                        Box::new(KeyControl::new(VirtualKeyCode::A, KeyControlMode::Momentary)),
+                        Box::new(KeyControl::new(VirtualKeyCode::Left, KeyControlMode::Momentary)),
                     ],
                 )),
                 right: Box::new(MultiControl::new(
                     MultiControlMode::Or,
                     vec![
-                        Box::new(KeyControl::new(Keycode::D, KeyControlMode::Momentary)),
-                        Box::new(KeyControl::new(Keycode::Right, KeyControlMode::Momentary)),
+                        Box::new(KeyControl::new(VirtualKeyCode::D, KeyControlMode::Momentary)),
+                        Box::new(KeyControl::new(VirtualKeyCode::Right, KeyControlMode::Momentary)),
                     ],
                 )),
                 jump: Box::new(MultiControl::new(
                     MultiControlMode::Or,
                     vec![
-                        Box::new(KeyControl::new(Keycode::Space, KeyControlMode::Momentary)),
-                        Box::new(KeyControl::new(Keycode::C, KeyControlMode::Momentary)),
+                        Box::new(KeyControl::new(VirtualKeyCode::Space, KeyControlMode::Momentary)),
+                        Box::new(KeyControl::new(VirtualKeyCode::C, KeyControlMode::Momentary)),
                     ],
                 )),
-                free_fly: Box::new(KeyControl::new(Keycode::Kp1, KeyControlMode::Rising)),
+                free_fly: Box::new(KeyControl::new(VirtualKeyCode::Numpad1, KeyControlMode::Rising)),
                 launch: Box::new(MultiControl::new(
                     MultiControlMode::Or,
                     vec![
-                        Box::new(KeyControl::new(Keycode::LShift, KeyControlMode::Momentary)),
-                        Box::new(KeyControl::new(Keycode::X, KeyControlMode::Momentary)),
+                        Box::new(KeyControl::new(VirtualKeyCode::LShift, KeyControlMode::Momentary)),
+                        Box::new(KeyControl::new(VirtualKeyCode::X, KeyControlMode::Momentary)),
                     ],
                 )),
                 grapple: Box::new(MultiControl::new(
                     MultiControlMode::Or,
                     vec![Box::new(KeyControl::new(
-                        Keycode::Z,
+                        VirtualKeyCode::Z,
                         KeyControlMode::Momentary,
                     ))],
                 )),
@@ -723,8 +723,8 @@ impl Client {
         // }
     }
 
-    pub fn on_event(&mut self, event: &Event) -> bool {
-        self.controls.process(&InputEvent::SDL2Event(event));
+    pub fn on_event(&mut self, event: &WindowEvent) -> bool {
+        self.controls.process(&InputEvent::GlutinEvent(event));
         false
     }
 }

@@ -1,8 +1,8 @@
-use sdl2::keyboard::Keycode;
+use glutin::event::{WindowEvent, VirtualKeyCode, KeyboardInput, ElementState};
 
 #[derive(Debug)]
 pub enum InputEvent<'a> {
-    SDL2Event(&'a sdl2::event::Event),
+    GlutinEvent(&'a WindowEvent<'a>),
 }
 
 pub struct Controls {
@@ -63,7 +63,7 @@ pub enum KeyControlMode {
 }
 
 pub struct KeyControl {
-    pub key: Keycode,
+    pub key: VirtualKeyCode,
     pub mode: KeyControlMode,
 
     raw: bool,
@@ -72,7 +72,7 @@ pub struct KeyControl {
 }
 
 impl KeyControl {
-    pub fn new(key: Keycode, mode: KeyControlMode) -> Self {
+    pub fn new(key: VirtualKeyCode, mode: KeyControlMode) -> Self {
         Self {
             key,
             mode,
@@ -111,19 +111,12 @@ impl Control<bool> for KeyControl {
         // log::debug!("{:?}", event);
         #[allow(clippy::match_wildcard_for_single_variants)]
         match event {
-            InputEvent::SDL2Event(sdl2::event::Event::KeyDown {
-                keycode: Some(k), repeat, ..
+            InputEvent::GlutinEvent(glutin::event::WindowEvent::KeyboardInput {
+                input: KeyboardInput { scancode, state, virtual_keycode: Some(k), .. }, ..
             }) if *k == self.key => {
-                if !repeat || self.mode == KeyControlMode::Type {
-                    self.raw = true;
-                }
-            },
-            InputEvent::SDL2Event(sdl2::event::Event::KeyUp {
-                keycode: Some(k), repeat, ..
-            }) if *k == self.key => {
-                if !repeat || self.mode == KeyControlMode::Type {
-                    self.raw = false;
-                }
+                // if !repeat || self.mode == KeyControlMode::Type {
+                    self.raw = *state == ElementState::Pressed;
+                // }
             },
             _ => {},
         }

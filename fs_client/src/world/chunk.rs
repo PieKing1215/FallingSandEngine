@@ -1,7 +1,5 @@
 use std::convert::TryInto;
 
-use sdl_gpu::{GPUFilter, GPUFormat, GPUImage, GPURect, GPUSubsystem, GPUTarget};
-
 use fs_common::game::common::{
     world::{
         chunk_index,
@@ -11,8 +9,9 @@ use fs_common::game::common::{
     },
     Rect, Settings,
 };
+use glium::Frame;
 
-use crate::render::{ColorExt, Fonts, RectExt, Renderable, Sdl2Context, TransformStack};
+use crate::render::{Fonts, Renderable, TransformStack};
 
 pub struct ClientChunk {
     pub chunk_x: i32,
@@ -234,7 +233,7 @@ impl<'ch> Chunk for ClientChunk {
 }
 
 pub struct ChunkGraphics {
-    pub texture: Option<GPUImage>,
+    pub texture: Option<glium::texture::SrgbTexture2d>,
     pub pixel_data: [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4],
     pub dirty: bool,
     pub was_dirty: bool,
@@ -278,22 +277,22 @@ impl<'cg> ChunkGraphics {
     // #[profiling::function]
     pub fn update_texture(&mut self) {
         if self.dirty {
-            if self.texture.is_none() {
-                self.texture = Some(GPUSubsystem::create_image(
-                    CHUNK_SIZE,
-                    CHUNK_SIZE,
-                    GPUFormat::GPU_FORMAT_RGBA,
-                ));
-                self.texture
-                    .as_mut()
-                    .unwrap()
-                    .set_image_filter(GPUFilter::GPU_FILTER_NEAREST);
-            }
-            self.texture.as_mut().unwrap().update_image_bytes(
-                None as Option<GPURect>,
-                &self.pixel_data,
-                (CHUNK_SIZE * 4).into(),
-            );
+            // if self.texture.is_none() {
+            //     self.texture = Some(GPUSubsystem::create_image(
+            //         CHUNK_SIZE,
+            //         CHUNK_SIZE,
+            //         GPUFormat::GPU_FORMAT_RGBA,
+            //     ));
+            //     self.texture
+            //         .as_mut()
+            //         .unwrap()
+            //         .set_image_filter(GPUFilter::GPU_FILTER_NEAREST);
+            // }
+            // self.texture.as_mut().unwrap().update_image_bytes(
+            //     None as Option<GPURect>,
+            //     &self.pixel_data,
+            //     (CHUNK_SIZE * 4).into(),
+            // );
             self.dirty = false;
         }
     }
@@ -311,14 +310,13 @@ impl<'cg> ChunkGraphics {
 impl Renderable for ClientChunk {
     fn render(
         &self,
-        canvas: &mut GPUTarget,
+        target: &mut Frame,
         transform: &mut TransformStack,
-        sdl: &Sdl2Context,
         fonts: &Fonts,
         settings: &Settings,
     ) {
         self.graphics
-            .render(canvas, transform, sdl, fonts, settings);
+            .render(target, transform, fonts, settings);
 
         if settings.debug && settings.draw_chunk_collision == 1 {
             if let Some(f) = &self.mesh {
@@ -336,13 +334,13 @@ impl Renderable for ClientChunk {
                         for i in 1..pts.len() {
                             let (x1, y1) = transform.transform((pts[i - 1][0], pts[i - 1][1]));
                             let (x2, y2) = transform.transform((pts[i][0], pts[i][1]));
-                            canvas.line(
-                                x1 as f32,
-                                y1 as f32,
-                                x2 as f32,
-                                y2 as f32,
-                                colors[j % colors.len()].into_sdl(),
-                            );
+                            // canvas.line(
+                            //     x1 as f32,
+                            //     y1 as f32,
+                            //     x2 as f32,
+                            //     y2 as f32,
+                            //     colors[j % colors.len()].into_sdl(),
+                            // );
                         }
 
                         // draw individual points
@@ -369,13 +367,13 @@ impl Renderable for ClientChunk {
                         for i in 1..pts.len() {
                             let (x1, y1) = transform.transform((pts[i - 1][0], pts[i - 1][1]));
                             let (x2, y2) = transform.transform((pts[i][0], pts[i][1]));
-                            canvas.line(
-                                x1 as f32,
-                                y1 as f32,
-                                x2 as f32,
-                                y2 as f32,
-                                colors[j % colors.len()].into_sdl(),
-                            );
+                            // canvas.line(
+                            //     x1 as f32,
+                            //     y1 as f32,
+                            //     x2 as f32,
+                            //     y2 as f32,
+                            //     colors[j % colors.len()].into_sdl(),
+                            // );
                         }
                     });
                 });
@@ -388,11 +386,11 @@ impl Renderable for ClientChunk {
                         let (x2, y2) = transform.transform(tri.1);
                         let (x3, y3) = transform.transform(tri.2);
 
-                        let color = Color::rgba(32, 255, 255, 255).into_sdl();
+                        // let color = Color::rgba(32, 255, 255, 255).into_sdl();
 
-                        canvas.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, color);
-                        canvas.line(x2 as f32, y2 as f32, x3 as f32, y3 as f32, color);
-                        canvas.line(x3 as f32, y3 as f32, x1 as f32, y1 as f32, color);
+                        // canvas.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, color);
+                        // canvas.line(x2 as f32, y2 as f32, x3 as f32, y3 as f32, color);
+                        // canvas.line(x3 as f32, y3 as f32, x1 as f32, y1 as f32, color);
                     }
                 }
             }
@@ -403,9 +401,8 @@ impl Renderable for ClientChunk {
 impl Renderable for ChunkGraphics {
     fn render(
         &self,
-        target: &mut GPUTarget,
+        target: &mut Frame,
         transform: &mut TransformStack,
-        _sdl: &Sdl2Context,
         _fonts: &Fonts,
         _settings: &Settings,
     ) {
@@ -416,11 +413,11 @@ impl Renderable for ChunkGraphics {
             u32::from(CHUNK_SIZE),
         ));
 
-        if let Some(tex) = &self.texture {
-            tex.blit_rect(None, target, Some(chunk_rect.into_sdl()));
-        } else {
-            target.rectangle_filled2(chunk_rect.into_sdl(), Color::rgb(127, 0, 0).into_sdl());
-        }
+        // if let Some(tex) = &self.texture {
+        //     // tex.blit_rect(None, target, Some(chunk_rect.into_sdl()));
+        // } else {
+        //     // target.rectangle_filled2(chunk_rect.into_sdl(), Color::rgb(127, 0, 0).into_sdl());
+        // }
     }
 }
 

@@ -5,6 +5,8 @@ use std::{
 };
 
 use clap::ArgMatches;
+use glium::{Display, Surface};
+use glutin::{event_loop::EventLoop, window::Fullscreen};
 use log::{debug, error, info, warn};
 use rapier2d::{
     na::{Isometry2, Point2, Vector2},
@@ -14,13 +16,6 @@ use rapier2d::{
     },
 };
 use salva2d::{integrations::rapier::ColliderSampling, object::Boundary};
-use sdl2::{
-    event::{Event, WindowEvent},
-    keyboard::Keycode,
-    sys::SDL_WindowFlags,
-    video::{FullscreenType, SwapInterval},
-};
-use sdl_gpu::GPUSubsystem;
 use specs::{Builder, Join, ReadStorage, WorldExt, WriteStorage};
 use sysinfo::{Pid, ProcessExt, SystemExt};
 
@@ -45,7 +40,7 @@ use crate::{
 };
 
 use super::{
-    render::{Renderer, Sdl2Context},
+    render::{Renderer},
     world::ClientChunk,
     Client,
 };
@@ -65,10 +60,10 @@ impl ClientGame {
 
     #[profiling::function]
     pub fn run(
-        &mut self,
-        sdl: &Sdl2Context,
-        mut renderer: Option<&mut Renderer>,
-        args: &ArgMatches,
+        mut self,
+        mut renderer: Renderer,
+        args: ArgMatches,
+        event_loop: EventLoop<()>,
     ) {
         self.data.settings.debug = args.is_present("debug");
         if args.is_present("no-tick") {
@@ -98,20 +93,20 @@ impl ClientGame {
 
         // TODO: updating settings like this should be a fn
 
-        let si_des = if self.data.settings.vsync {
-            SwapInterval::VSync
-        } else {
-            SwapInterval::Immediate
-        };
+        // let si_des = if self.data.settings.vsync {
+        //     SwapInterval::VSync
+        // } else {
+        //     SwapInterval::Immediate
+        // };
 
-        sdl.sdl_video.gl_set_swap_interval(si_des).unwrap();
+        // renderer.sdl.as_ref().unwrap().sdl_video.gl_set_swap_interval(si_des).unwrap();
 
-        sdl2::hint::set_video_minimize_on_focus_loss(self.data.settings.minimize_on_lost_focus);
+        // sdl2::hint::set_video_minimize_on_focus_loss(self.data.settings.minimize_on_lost_focus);
 
         let mut prev_tick_time = std::time::Instant::now();
         let mut prev_tick_physics_time = std::time::Instant::now();
 
-        let mut event_pump = sdl.sdl.event_pump().unwrap();
+        // let mut event_pump = renderer.sdl.as_ref().unwrap().sdl.event_pump().unwrap();
 
         let mut shift_key = false;
 
@@ -127,310 +122,313 @@ impl ClientGame {
         let mut bytes_to_read: Option<u32> = None;
         let mut read_buffer: Option<Vec<u8>> = None;
 
-        'mainLoop: loop {
+        event_loop.run(move |event, _, control_flow| {
             profiling::scope!("loop");
-            for event in event_pump.poll_iter() {
-                profiling::scope!("event");
-                if let Some(r) = &mut renderer {
-                    r.imgui_sdl2.handle_event(&mut r.imgui, &event);
-                    // missing from official support
-                    // if r.imgui_sdl2.ignore_event(&event) {
-                    //     continue;
-                    // }
-                }
 
-                let client_consumed_event = self.client.on_event(&event);
+            let next_frame_time = std::time::Instant::now() +
+                std::time::Duration::from_millis(1);
+            *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
 
-                if !client_consumed_event {
-                    match event {
-                        Event::Quit { .. }
-                        | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => break 'mainLoop,
-                        Event::KeyDown { keycode: Some(Keycode::F11), .. } => {
-                            self.data.settings.fullscreen = !self.data.settings.fullscreen;
-                        },
-                        Event::KeyDown {
-                            keycode: Some(Keycode::RShift | Keycode::LShift), ..
-                        } => {
-                            shift_key = true;
-                        },
-                        Event::KeyUp {
-                            keycode: Some(Keycode::RShift | Keycode::LShift), ..
-                        } => {
-                            shift_key = false;
-                        },
-                        Event::MouseWheel { y, .. } => {
-                            if shift_key {
-                                let mut v = self.client.camera_scale + 0.1 * f64::from(y);
-                                if y > 0 {
-                                    v = v.ceil();
-                                } else {
-                                    v = v.floor();
-                                }
+            // for event in event_pump.poll_iter() {
+            //     profiling::scope!("event");
+            //     // renderer.imgui_sdl2.handle_event(&mut renderer.imgui, &event);
+            //     // missing from official support
+            //     // if r.imgui_sdl2.ignore_event(&event) {
+            //     //     continue;
+            //     // }
 
-                                v = v.clamp(1.0, 10.0);
-                                self.client.camera_scale = v;
-                            } else {
-                                self.client.camera_scale = (self.client.camera_scale
-                                    * (1.0 + 0.1 * f64::from(y)))
-                                .clamp(0.01, 10.0);
-                            }
-                        },
-                        Event::MouseButtonDown {
-                            mouse_btn: sdl2::mouse::MouseButton::Right,
-                            x,
-                            y,
-                            ..
-                        } => {
-                            if let Some(w) = &mut self.data.world {
-                                if let Some(ref r) = renderer {
-                                    let (position_storage, camera_storage) = w.ecs.system_data::<(
-                                        ReadStorage<Position>,
-                                        ReadStorage<Camera>,
-                                    )>(
-                                    );
+            //     let client_consumed_event = self.client.on_event(&event);
 
-                                    let camera_pos = (&position_storage, &camera_storage)
-                                        .join()
-                                        .find_map(|(p, _c)| Some(p));
+            //     if !client_consumed_event {
+            //         match event {
+            //             Event::Quit { .. }
+            //             | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => *control_flow = glutin::event_loop::ControlFlow::Exit,
+            //             Event::KeyDown { keycode: Some(Keycode::F11), .. } => {
+            //                 self.data.settings.fullscreen = !self.data.settings.fullscreen;
+            //             },
+            //             Event::KeyDown {
+            //                 keycode: Some(Keycode::RShift | Keycode::LShift), ..
+            //             } => {
+            //                 shift_key = true;
+            //             },
+            //             Event::KeyUp {
+            //                 keycode: Some(Keycode::RShift | Keycode::LShift), ..
+            //             } => {
+            //                 shift_key = false;
+            //             },
+            //             Event::MouseWheel { y, .. } => {
+            //                 if shift_key {
+            //                     let mut v = self.client.camera_scale + 0.1 * f64::from(y);
+            //                     if y > 0 {
+            //                         v = v.ceil();
+            //                     } else {
+            //                         v = v.floor();
+            //                     }
 
-                                    if let Some(camera_pos) = camera_pos {
-                                        let world_x = camera_pos.x
-                                            + (f64::from(x) - f64::from(r.window.size().0) / 2.0)
-                                                / self.client.camera_scale;
-                                        let world_y = camera_pos.y
-                                            + (f64::from(y) - f64::from(r.window.size().1) / 2.0)
-                                                / self.client.camera_scale;
-                                        // let (chunk_x, chunk_y) = w.chunk_handler.pixel_to_chunk_pos(world_x as i64, world_y as i64);
-                                        // w.chunk_handler.force_update_chunk(chunk_x, chunk_y);
+            //                     v = v.clamp(1.0, 10.0);
+            //                     self.client.camera_scale = v;
+            //                 } else {
+            //                     self.client.camera_scale = (self.client.camera_scale
+            //                         * (1.0 + 0.1 * f64::from(y)))
+            //                     .clamp(0.01, 10.0);
+            //                 }
+            //             },
+            //             Event::MouseButtonDown {
+            //                 mouse_btn: sdl2::mouse::MouseButton::Right,
+            //                 x,
+            //                 y,
+            //                 ..
+            //             } => {
+            //                 if let Some(w) = &mut self.data.world {
+            //                     let (position_storage, camera_storage) = w.ecs.system_data::<(
+            //                         ReadStorage<Position>,
+            //                         ReadStorage<Camera>,
+            //                     )>(
+            //                     );
 
-                                        let point = Point2::new(
-                                            world_x as f32 / PHYSICS_SCALE,
-                                            world_y as f32 / PHYSICS_SCALE,
-                                        );
+            //                     let camera_pos = (&position_storage, &camera_storage)
+            //                         .join()
+            //                         .find_map(|(p, _c)| Some(p));
 
-                                        let groups = InteractionGroups::all();
-                                        let filter = None;
-                                        let mut query_pipeline = QueryPipeline::new();
-                                        query_pipeline.update(
-                                            &w.physics.islands,
-                                            &w.physics.bodies,
-                                            &w.physics.colliders,
-                                        );
-                                        query_pipeline.intersections_with_point(
-                                            &w.physics.colliders, &point, groups, filter, |handle| {
-                                                let col = w.physics.colliders.get(handle).unwrap();
-                                                if let Some(rb_handle) = col.parent() {
-                                                    let rb = w.physics.bodies.get(rb_handle).unwrap();
-                                                    if rb.body_type() == RigidBodyType::Dynamic {
-                                                        let point = Vector2::new(
-                                                            world_x as f32 / PHYSICS_SCALE,
-                                                            world_y as f32 / PHYSICS_SCALE,
-                                                        );
-                                                        let new_rb = RigidBodyBuilder::new_kinematic_position_based()
-                                                            .translation(point).build();
+            //                     if let Some(camera_pos) = camera_pos {
+            //                         let world_x = camera_pos.x
+            //                             + (f64::from(x) - f64::from(renderer.display.gl_window().window().inner_size().width) / 2.0)
+            //                                 / self.client.camera_scale;
+            //                         let world_y = camera_pos.y
+            //                             + (f64::from(y) - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
+            //                                 / self.client.camera_scale;
+            //                         // let (chunk_x, chunk_y) = w.chunk_handler.pixel_to_chunk_pos(world_x as i64, world_y as i64);
+            //                         // w.chunk_handler.force_update_chunk(chunk_x, chunk_y);
 
-                                                        let local_point = rb.position().inverse_transform_point(&Point2::new(point.x, point.y));
+            //                         let point = Point2::new(
+            //                             world_x as f32 / PHYSICS_SCALE,
+            //                             world_y as f32 / PHYSICS_SCALE,
+            //                         );
 
-                                                        let mouse_h = w.physics.bodies.insert(new_rb);
+            //                         let groups = InteractionGroups::all();
+            //                         let filter = None;
+            //                         let mut query_pipeline = QueryPipeline::new();
+            //                         query_pipeline.update(
+            //                             &w.physics.islands,
+            //                             &w.physics.bodies,
+            //                             &w.physics.colliders,
+            //                         );
+            //                         query_pipeline.intersections_with_point(
+            //                             &w.physics.colliders, &point, groups, filter, |handle| {
+            //                                 let col = w.physics.colliders.get(handle).unwrap();
+            //                                 if let Some(rb_handle) = col.parent() {
+            //                                     let rb = w.physics.bodies.get(rb_handle).unwrap();
+            //                                     if rb.body_type() == RigidBodyType::Dynamic {
+            //                                         let point = Vector2::new(
+            //                                             world_x as f32 / PHYSICS_SCALE,
+            //                                             world_y as f32 / PHYSICS_SCALE,
+            //                                         );
+            //                                         let new_rb = RigidBodyBuilder::new_kinematic_position_based()
+            //                                             .translation(point).build();
 
-                                                        let joint = BallJoint::new(Point2::new(0.0, 0.0), local_point);
-                                                        w.physics.joints.insert(mouse_h, rb_handle, joint);
+            //                                         let local_point = rb.position().inverse_transform_point(&Point2::new(point.x, point.y));
 
-                                                        self.client.mouse_joint = Some((mouse_h, Vector2::new(0.0, 0.0)));
-                                                    }
-                                                }
+            //                                         let mouse_h = w.physics.bodies.insert(new_rb);
 
-                                                false
-                                            }
-                                        );
-                                    }
-                                }
-                            }
-                        },
-                        Event::MouseButtonUp {
-                            mouse_btn: sdl2::mouse::MouseButton::Right, ..
-                        } => {
-                            if let Some(w) = &mut self.data.world {
-                                if let Some((rb_h, linvel)) = self.client.mouse_joint.take() {
-                                    for j in w.physics.joints.joints_with(rb_h) {
-                                        w.physics
-                                            .bodies
-                                            .get_mut(j.1)
-                                            .unwrap()
-                                            .set_linvel(linvel, true);
-                                    }
-                                    w.physics.bodies.remove(
-                                        rb_h,
-                                        &mut w.physics.islands,
-                                        &mut w.physics.colliders,
-                                        &mut w.physics.joints,
-                                    );
-                                }
-                            }
-                        },
-                        Event::MouseMotion { xrel, yrel, mousestate, x, y, .. } => {
-                            if mousestate.left() {
-                                if let Some(w) = &mut self.data.world {
-                                    let (
-                                        mut position_storage,
-                                        camera_storage,
-                                    ) = w.ecs.system_data::<(
-                                        WriteStorage<Position>,
-                                        ReadStorage<Camera>,
-                                    )>();
+            //                                         let joint = BallJoint::new(Point2::new(0.0, 0.0), local_point);
+            //                                         w.physics.joints.insert(mouse_h, rb_handle, joint);
 
-                                    let camera_pos = (&mut position_storage, &camera_storage)
-                                        .join()
-                                        .find_map(|(p, _c)| Some(p));
+            //                                         self.client.mouse_joint = Some((mouse_h, Vector2::new(0.0, 0.0)));
+            //                                     }
+            //                                 }
 
-                                    if let Some(camera_pos) = camera_pos {
-                                        // this doesn't do anything if game.client_entity_id exists
-                                        //     since the renderer will snap the camera to the client entity
-                                        camera_pos.x -= f64::from(xrel) / self.client.camera_scale;
-                                        camera_pos.y -= f64::from(yrel) / self.client.camera_scale;
-                                    }
-                                }
-                            } else if mousestate.middle() {
-                                if let Some(w) = &mut self.data.world {
-                                    if let Some(ref r) = renderer {
-                                        let (
-                                            position_storage,
-                                            camera_storage,
-                                        ) = w.ecs.system_data::<(
-                                            ReadStorage<Position>,
-                                            ReadStorage<Camera>,
-                                        )>();
+            //                                 false
+            //                             }
+            //                         );
+            //                     }
+            //                 }
+            //             },
+            //             Event::MouseButtonUp {
+            //                 mouse_btn: sdl2::mouse::MouseButton::Right, ..
+            //             } => {
+            //                 if let Some(w) = &mut self.data.world {
+            //                     if let Some((rb_h, linvel)) = self.client.mouse_joint.take() {
+            //                         for j in w.physics.joints.joints_with(rb_h) {
+            //                             w.physics
+            //                                 .bodies
+            //                                 .get_mut(j.1)
+            //                                 .unwrap()
+            //                                 .set_linvel(linvel, true);
+            //                         }
+            //                         w.physics.bodies.remove(
+            //                             rb_h,
+            //                             &mut w.physics.islands,
+            //                             &mut w.physics.colliders,
+            //                             &mut w.physics.joints,
+            //                         );
+            //                     }
+            //                 }
+            //             },
+            //             Event::MouseMotion { xrel, yrel, mousestate, x, y, .. } => {
+            //                 if mousestate.left() {
+            //                     if let Some(w) = &mut self.data.world {
+            //                         let (
+            //                             mut position_storage,
+            //                             camera_storage,
+            //                         ) = w.ecs.system_data::<(
+            //                             WriteStorage<Position>,
+            //                             ReadStorage<Camera>,
+            //                         )>();
 
-                                        let camera_pos = (&position_storage, &camera_storage)
-                                            .join()
-                                            .find_map(|(p, _c)| Some(p));
+            //                         let camera_pos = (&mut position_storage, &camera_storage)
+            //                             .join()
+            //                             .find_map(|(p, _c)| Some(p));
 
-                                        if let Some(camera_pos) = camera_pos {
-                                            let world_x = camera_pos.x
-                                                + (f64::from(x)
-                                                    - f64::from(r.window.size().0) / 2.0)
-                                                    / self.client.camera_scale;
-                                            let world_y = camera_pos.y
-                                                + (f64::from(y)
-                                                    - f64::from(r.window.size().1) / 2.0)
-                                                    / self.client.camera_scale;
+            //                         if let Some(camera_pos) = camera_pos {
+            //                             // this doesn't do anything if game.client_entity_id exists
+            //                             //     since the renderer will snap the camera to the client entity
+            //                             camera_pos.x -= f64::from(xrel) / self.client.camera_scale;
+            //                             camera_pos.y -= f64::from(yrel) / self.client.camera_scale;
+            //                         }
+            //                     }
+            //                 } else if mousestate.middle() {
+            //                     if let Some(w) = &mut self.data.world {
+            //                         let (
+            //                             position_storage,
+            //                             camera_storage,
+            //                         ) = w.ecs.system_data::<(
+            //                             ReadStorage<Position>,
+            //                             ReadStorage<Camera>,
+            //                         )>();
 
-                                            for xx in -3..=3 {
-                                                for yy in -3..=3 {
-                                                    let _ = w.chunk_handler.set(
-                                                        world_x as i64 + xx,
-                                                        world_y as i64 + yy,
-                                                        MaterialInstance::air(),
-                                                    );
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            } else if mousestate.right() {
-                                if let Some(w) = &mut self.data.world {
-                                    if let Some(ref r) = renderer {
-                                        let (
-                                            position_storage,
-                                            camera_storage,
-                                        ) = w.ecs.system_data::<(
-                                            ReadStorage<Position>,
-                                            ReadStorage<Camera>,
-                                        )>();
+            //                         let camera_pos = (&position_storage, &camera_storage)
+            //                             .join()
+            //                             .find_map(|(p, _c)| Some(p));
 
-                                        let camera_pos = (&position_storage, &camera_storage)
-                                            .join()
-                                            .find_map(|(p, _c)| Some(p));
+            //                         if let Some(camera_pos) = camera_pos {
+            //                             let world_x = camera_pos.x
+            //                                 + (f64::from(x)
+            //                                     - f64::from(renderer.display.gl_window().window().inner_size().width) / 2.0)
+            //                                     / self.client.camera_scale;
+            //                             let world_y = camera_pos.y
+            //                                 + (f64::from(y)
+            //                                     - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
+            //                                     / self.client.camera_scale;
 
-                                        if let Some(camera_pos) = camera_pos {
-                                            let world_x = camera_pos.x
-                                                + (f64::from(x)
-                                                    - f64::from(r.window.size().0) / 2.0)
-                                                    / self.client.camera_scale;
-                                            let world_y = camera_pos.y
-                                                + (f64::from(y)
-                                                    - f64::from(r.window.size().1) / 2.0)
-                                                    / self.client.camera_scale;
+            //                             for xx in -3..=3 {
+            //                                 for yy in -3..=3 {
+            //                                     let _ = w.chunk_handler.set(
+            //                                         world_x as i64 + xx,
+            //                                         world_y as i64 + yy,
+            //                                         MaterialInstance::air(),
+            //                                     );
+            //                                 }
+            //                             }
+            //                         }
+            //                     }
+            //                 } else if mousestate.right() {
+            //                     if let Some(w) = &mut self.data.world {
+            //                         let (
+            //                             position_storage,
+            //                             camera_storage,
+            //                         ) = w.ecs.system_data::<(
+            //                             ReadStorage<Position>,
+            //                             ReadStorage<Camera>,
+            //                         )>();
 
-                                            if let Some((rb_h, vel)) = &mut self.client.mouse_joint
-                                            {
-                                                let rb = w.physics.bodies.get_mut(*rb_h).unwrap();
-                                                let prev_pos = *rb.translation();
-                                                rb.set_next_kinematic_translation(Vector2::new(
-                                                    world_x as f32 / PHYSICS_SCALE,
-                                                    world_y as f32 / PHYSICS_SCALE,
-                                                ));
-                                                *vel = Vector2::new(
-                                                    world_x as f32 / PHYSICS_SCALE - prev_pos.x,
-                                                    world_y as f32 / PHYSICS_SCALE - prev_pos.y,
-                                                );
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        Event::Window { win_event: WindowEvent::Resized(w, h), .. } => {
-                            #[allow(clippy::cast_sign_loss)]
-                            GPUSubsystem::set_window_resolution(w as u16, h as u16);
-                        },
-                        _ => {},
+            //                         let camera_pos = (&position_storage, &camera_storage)
+            //                             .join()
+            //                             .find_map(|(p, _c)| Some(p));
+
+            //                         if let Some(camera_pos) = camera_pos {
+            //                             let world_x = camera_pos.x
+            //                                 + (f64::from(x)
+            //                                     - f64::from(renderer.display.gl_window().window().inner_size().width) / 2.0)
+            //                                     / self.client.camera_scale;
+            //                             let world_y = camera_pos.y
+            //                                 + (f64::from(y)
+            //                                     - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
+            //                                     / self.client.camera_scale;
+
+            //                             if let Some((rb_h, vel)) = &mut self.client.mouse_joint
+            //                             {
+            //                                 let rb = w.physics.bodies.get_mut(*rb_h).unwrap();
+            //                                 let prev_pos = *rb.translation();
+            //                                 rb.set_next_kinematic_translation(Vector2::new(
+            //                                     world_x as f32 / PHYSICS_SCALE,
+            //                                     world_y as f32 / PHYSICS_SCALE,
+            //                                 ));
+            //                                 *vel = Vector2::new(
+            //                                     world_x as f32 / PHYSICS_SCALE - prev_pos.x,
+            //                                     world_y as f32 / PHYSICS_SCALE - prev_pos.y,
+            //                                 );
+            //                             }
+            //                         }
+            //                     }
+            //                 }
+            //             },
+            //             Event::Window { win_event: WindowEvent::Resized(w, h), .. } => {
+            //                 #[allow(clippy::cast_sign_loss)]
+            //                 GPUSubsystem::set_window_resolution(w as u16, h as u16);
+            //             },
+            //             _ => {},
+            //         }
+            //     }
+            // }
+
+
+            match event {
+                glutin::event::Event::WindowEvent { event, .. } => match event {
+                    glutin::event::WindowEvent::CloseRequested => {
+                        *control_flow = glutin::event_loop::ControlFlow::Exit;
+                        return;
+                    },
+                    glutin::event::WindowEvent::KeyboardInput { input, .. } => {
+
                     }
-                }
+                    _ => {},
+                },
+                glutin::event::Event::NewEvents(cause) => match cause {
+                    glutin::event::StartCause::ResumeTimeReached { .. } => (),
+                    glutin::event::StartCause::Init => (),
+                    _ => {},
+                },
+                _ => {},
             }
 
             let now = std::time::Instant::now();
             let delta = now.saturating_duration_since(last_frame);
             last_frame = now;
-            if let Some(r) = &mut renderer {
+            {
                 profiling::scope!("prep frame");
-                r.imgui_sdl2
-                    .prepare_frame(&mut r.imgui, &r.window, &event_pump);
+                // renderer.imgui_sdl2
+                //     .prepare_frame(&mut renderer.imgui, &renderer.window, &event_pump);
 
-                let delta_s =
-                    delta.as_secs() as f32 + delta.subsec_nanos() as f32 / 1_000_000_000.0;
-                r.imgui.io_mut().delta_time = delta_s;
+                // let delta_s =
+                //     delta.as_secs() as f32 + delta.subsec_nanos() as f32 / 1_000_000_000.0;
+                // renderer.imgui.io_mut().delta_time = delta_s;
             }
 
-            if let Some(r) = &mut renderer {
+            {
                 profiling::scope!("update window mode");
 
-                let fs = r.window.fullscreen_state();
+                let fs = renderer.display.gl_window().window().fullscreen();
 
                 let des_fs = match self.data.settings {
                     Settings { fullscreen, fullscreen_type, .. }
                         if fullscreen && fullscreen_type == 0 =>
                     {
-                        FullscreenType::Desktop
+                        Some(Fullscreen::Borderless(None))
                     },
                     Settings { fullscreen, fullscreen_type, .. }
                         if fullscreen && fullscreen_type != 0 =>
                     {
-                        FullscreenType::True
+                        let monitor = renderer.display.gl_window().window().current_monitor().unwrap();
+                        Some(Fullscreen::Exclusive(monitor.video_modes().find(|m| m.size() == monitor.size()).unwrap()))
                     },
-                    _ => FullscreenType::Off,
+                    _ => None,
                 };
 
                 if fs != des_fs {
                     profiling::scope!("fullscreen");
                     debug!("{:?}", des_fs);
 
-                    if des_fs == FullscreenType::True {
-                        r.window.set_fullscreen(FullscreenType::Off).unwrap();
-                        r.window.maximize();
-                    } else if des_fs == FullscreenType::Desktop {
-                        r.window.restore();
-                    }
-
-                    r.window.set_fullscreen(des_fs).unwrap();
-
-                    if des_fs == FullscreenType::Off {
-                        r.window.restore();
-                        GPUSubsystem::set_window_resolution(
-                            r.window.size().0 as u16,
-                            r.window.size().1 as u16,
-                        );
-                    }
+                    renderer.display.gl_window().window().set_fullscreen(des_fs);
                 }
             }
 
@@ -438,14 +436,9 @@ impl ClientGame {
 
             let mut can_tick = self.data.settings.tick;
 
-            if let Some(r) = &renderer {
-                let flags = r.window.window_flags();
-                can_tick = can_tick
-                    && !(self.data.settings.pause_on_lost_focus
-                        && renderer.is_some()
-                        && (flags & SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32)
-                            != SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32);
-            }
+            let has_focus = true; // TODO
+            can_tick = can_tick
+                && !(self.data.settings.pause_on_lost_focus && !has_focus);
 
             if do_tick_next && can_tick {
                 prev_tick_time = now;
@@ -455,7 +448,7 @@ impl ClientGame {
                 for act in self.client.main_menu.action_queue.drain(..) {
                     match act {
                         MainMenuAction::Quit => {
-                            break 'mainLoop;
+                            *control_flow = glutin::event_loop::ControlFlow::Exit;
                         },
                         MainMenuAction::LoadWorld(path) => {
                             let world_meta = World::<ClientChunk>::parse_file_meta(path.clone())
@@ -731,14 +724,9 @@ impl ClientGame {
 
             let mut can_tick = self.data.settings.tick_physics;
 
-            if let Some(r) = &renderer {
-                let flags = r.window.window_flags();
-                can_tick = can_tick
-                    && !(self.data.settings.pause_on_lost_focus
-                        && renderer.is_some()
-                        && (flags & SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32)
-                            != SDL_WindowFlags::SDL_WINDOW_INPUT_FOCUS as u32);
-            }
+            let has_focus = true; // TODO
+            can_tick = can_tick
+                && !(self.data.settings.pause_on_lost_focus && has_focus);
 
             if do_tick_physics_next && can_tick {
                 prev_tick_physics_time = now;
@@ -749,9 +737,7 @@ impl ClientGame {
                     self.data.fps_counter.tick_physics_times
                         [self.data.fps_counter.tick_physics_times.len() - 1] =
                         Instant::now().saturating_duration_since(st).as_nanos() as f32;
-                    if let Some(r) = &mut renderer {
-                        r.world_renderer.mark_liquid_dirty();
-                    }
+                    renderer.world_renderer.mark_liquid_dirty();
                 }
             }
             do_tick_physics_next = can_tick
@@ -766,14 +752,14 @@ impl ClientGame {
                 w.frame(delta); // this delta is more accurate than the one based on counter_last_frame
             }
 
-            if let Some(r) = &mut renderer {
+            {
                 profiling::scope!("rendering");
 
                 let partial_ticks = (now.saturating_duration_since(prev_tick_time).as_secs_f64()
                     / (1.0 / f64::from(self.data.settings.tick_speed)))
                 .clamp(0.0, 1.0);
                 let delta_time = Instant::now().saturating_duration_since(counter_last_frame);
-                self.render(r, sdl, delta_time.as_secs_f64(), partial_ticks);
+                self.render(&mut renderer, delta_time.as_secs_f64(), partial_ticks);
 
                 self.data.frame_count += 1;
                 self.data.fps_counter.frames += 1;
@@ -785,7 +771,7 @@ impl ClientGame {
                     self.data.fps_counter.display_value = self.data.fps_counter.frames;
                     self.data.fps_counter.frames = 0;
                     self.data.fps_counter.last_update = now;
-                    let set = r.window.set_title(
+                    renderer.display.gl_window().window().set_title(
                         format!(
                             "FallingSandRust ({} FPS) ({})",
                             self.data.fps_counter.display_value,
@@ -796,9 +782,6 @@ impl ClientGame {
                         )
                         .as_str(),
                     );
-                    if set.is_err() {
-                        error!("Failed to set window title.");
-                    }
 
                     sys.refresh_process(Pid::from(std::process::id() as usize));
                     if let Some(pc) = sys.process(Pid::from(std::process::id() as usize)) {
@@ -820,29 +803,27 @@ impl ClientGame {
             // sleep a bit if we aren't going to tick next frame
             if !do_tick_next && !self.data.settings.vsync {
                 profiling::scope!("sleep");
-                ::std::thread::sleep(Duration::new(0, 1_000_000)); // 1ms sleep so the computer doesn't explode
+                // ::std::thread::sleep(Duration::new(0, 1_000_000)); // 1ms sleep so the computer doesn't explode
             }
             counter_last_frame = Instant::now();
-        }
+        });
 
-        if let Some(w) = &mut self.data.world {
-            info!("Unload current world...");
-            w.save().expect("World save failed");
-            w.close().expect("World unload failed");
-        }
+        // if let Some(w) = &mut self.data.world {
+        //     info!("Unload current world...");
+        //     w.save().expect("World save failed");
+        //     w.close().expect("World unload failed");
+        // }
 
-        info!("Closing...");
+        // info!("Closing...");
     }
 
     pub fn render(
         &mut self,
         renderer: &mut Renderer,
-        sdl: &Sdl2Context,
         delta_time: f64,
         partial_ticks: f64,
     ) {
         renderer.render(
-            sdl,
             &mut self.data,
             &mut self.client,
             delta_time,
