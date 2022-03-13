@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use fs_common::game::common::{world::material::Color, Rect};
-use glium::{Frame, Surface, SwapBuffersError, Display, DrawParameters, IndexBuffer, PolygonMode, index::NoIndices, uniform, Program};
+use glium::{Frame, Surface, SwapBuffersError, Display, DrawParameters, IndexBuffer, PolygonMode, index::NoIndices, uniform, Program, Texture2d, texture::SrgbTexture2d};
 use glium_glyph::{GlyphBrush, glyph_brush::Section};
 use glutin::window::Window;
 
-use super::{TransformStack, vertex::{Vertex2, Vertex2C}, shaders::Shaders};
+use super::{TransformStack, vertex::{Vertex2, Vertex2C, Vertex2T}, shaders::Shaders};
 
 pub struct RenderTarget<'a, 'b> {
     pub frame: Frame,
@@ -170,5 +170,19 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
 
     pub fn draw_queued_text(&mut self) {
         self.glyph_brush.draw_queued(&self.display, &mut self.frame);
+    }
+
+    pub fn draw_texture(&mut self, rect: impl Into<Rect<f32>>, texture: &SrgbTexture2d, param: DrawParameters) {
+        let rect = rect.into();
+        let shape = rect.vertices().into_iter().zip([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]).map(|v| Vertex2T::from(v)).collect::<Vec<_>>();
+
+        let model_view = *self.transform.stack.last().unwrap();
+        let view: [[f32; 4]; 4] = model_view.into();
+
+        let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
+        let indices = IndexBuffer::new(&self.display, glium::index::PrimitiveType::TrianglesList, &[0_u8, 1, 2, 2, 3, 0]).unwrap();
+
+        self.frame.draw(&vertex_buffer, &indices, &self.shaders.texture, 
+            &uniform! { matrix: view, tex: texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest) }, &param).unwrap();
     }
 }

@@ -1,4 +1,5 @@
-use std::convert::TryInto;
+
+use std::{convert::TryInto, cell::RefCell};
 
 use fs_common::game::common::{
     world::{
@@ -9,7 +10,7 @@ use fs_common::game::common::{
     },
     Rect, Settings,
 };
-use glium::Frame;
+use glium::{Frame, texture::{RawImage2d, SrgbTexture2d}, DrawParameters, Blend};
 
 use crate::render::{Fonts, Renderable, TransformStack, drawing::RenderTarget};
 
@@ -34,7 +35,7 @@ impl<'ch> Chunk for ClientChunk {
             state: ChunkState::NotGenerated,
             pixels: None,
             graphics: Box::new(ChunkGraphics {
-                texture: None,
+                texture: RefCell::new(None),
                 pixel_data: [0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)],
                 dirty: true,
                 was_dirty: true,
@@ -233,7 +234,7 @@ impl<'ch> Chunk for ClientChunk {
 }
 
 pub struct ChunkGraphics {
-    pub texture: Option<glium::texture::SrgbTexture2d>,
+    pub texture: RefCell<Option<SrgbTexture2d>>,
     pub pixel_data: [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4],
     pub dirty: bool,
     pub was_dirty: bool,
@@ -277,22 +278,22 @@ impl<'cg> ChunkGraphics {
     // #[profiling::function]
     pub fn update_texture(&mut self) {
         if self.dirty {
+            if self.texture.borrow_mut().is_some() {
+                let image = glium::texture::RawImage2d::from_raw_rgba_reversed(&self.pixel_data, (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
+                
+                self.texture.borrow_mut().as_mut().unwrap().write(
+                    glium::Rect { left: 0, bottom: 0, width: CHUNK_SIZE.into(), height: CHUNK_SIZE.into() },
+                    image
+                );
+            }
             // if self.texture.is_none() {
-            //     self.texture = Some(GPUSubsystem::create_image(
-            //         CHUNK_SIZE,
-            //         CHUNK_SIZE,
-            //         GPUFormat::GPU_FORMAT_RGBA,
-            //     ));
-            //     self.texture
-            //         .as_mut()
-            //         .unwrap()
-            //         .set_image_filter(GPUFilter::GPU_FILTER_NEAREST);
+            //     let image = glium::texture::RawImage2d::from_raw_rgba_reversed(&self.pixel_data, (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
+            //     self.texture = Some(image);
+            //     // self.texture
+            //     //     .as_mut()
+            //     //     .unwrap()
+            //     //     .set_image_filter(GPUFilter::GPU_FILTER_NEAREST);
             // }
-            // self.texture.as_mut().unwrap().update_image_bytes(
-            //     None as Option<GPURect>,
-            //     &self.pixel_data,
-            //     (CHUNK_SIZE * 4).into(),
-            // );
             self.dirty = false;
         }
     }
@@ -401,13 +402,29 @@ impl Renderable for ChunkGraphics {
         target: &mut RenderTarget,
         _settings: &Settings,
     ) {
-        let chunk_rect = target.transform.transform_rect(Rect::new(
+        let chunk_rect = Rect::new(
             0,
             0,
             CHUNK_SIZE,
             CHUNK_SIZE,
-        ));
+        ).into_f32();
 
+        let mut borrow = self.texture.borrow_mut();
+        let tex = borrow.get_or_insert_with(|| {
+            let image = glium::texture::RawImage2d::from_raw_rgba_reversed(&self.pixel_data, (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
+            SrgbTexture2d::new(&target.display, image).unwrap()
+        });
+
+        target.draw_texture(
+            chunk_rect,
+            tex,
+            DrawParameters {
+                blend: Blend::alpha_blending(),
+                ..Default::default()
+            }
+        );
+        // texture.write(rect, data)
+        
         // if let Some(tex) = &self.texture {
         //     // tex.blit_rect(None, target, Some(chunk_rect.into_sdl()));
         // } else {

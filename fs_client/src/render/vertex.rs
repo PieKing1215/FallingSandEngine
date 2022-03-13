@@ -53,3 +53,9 @@ impl From<(Vertex2, Color)> for Vertex2C {
         Vertex2C { position: v.0.position, color: v.1.into() }
     }
 }
+
+impl From<(Vertex2, [f32; 2])> for Vertex2T {
+    fn from(v: (Vertex2, [f32; 2])) -> Self {
+        Vertex2T { position: v.0.position, tex_coord: v.1 }
+    }
+}
