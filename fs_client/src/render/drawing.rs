@@ -2,14 +2,17 @@ use std::sync::Arc;
 
 use fs_common::game::common::{world::material::Color, Rect};
 use glium::{Frame, Surface, SwapBuffersError, Display, DrawParameters, IndexBuffer, PolygonMode, index::NoIndices, uniform, Program};
+use glium_glyph::{GlyphBrush, glyph_brush::Section};
+use glutin::window::Window;
 
 use super::{TransformStack, vertex::{Vertex2, Vertex2C}, shaders::Shaders};
 
-pub struct RenderTarget {
+pub struct RenderTarget<'a, 'b> {
     pub frame: Frame,
     pub display: Display,
     pub transform: TransformStack,
-    pub shaders: Arc<Shaders>,
+    pub shaders: &'a Shaders,
+    glyph_brush: &'a mut GlyphBrush<'b, 'b>,
 }
 
 pub trait Vertices {
@@ -38,9 +41,9 @@ impl Vertices for Rect<f32> {
     }
 }
 
-impl RenderTarget {
+impl<'a, 'b> RenderTarget<'a, 'b> {
     #[must_use]
-    pub fn new(display: &mut Display, shaders: Arc<Shaders>) -> Self {
+    pub fn new(display: &mut Display, shaders: &'a Shaders, glyph_brush: &'a mut glium_glyph::GlyphBrush<'b, 'b>) -> Self {
         profiling::scope!("RenderTarget::new");
         
         Self {
@@ -48,7 +51,18 @@ impl RenderTarget {
             display: display.clone(),
             transform: TransformStack::new(),
             shaders,
+            glyph_brush,
         }
+    }
+
+    #[inline]
+    pub fn width(&self) -> u32 {
+        self.display.gl_window().window().inner_size().width
+    }
+
+    #[inline]
+    pub fn height(&self) -> u32 {
+        self.display.gl_window().window().inner_size().height
     }
 
     #[profiling::function]
@@ -148,5 +162,13 @@ impl RenderTarget {
             self.frame.draw(&vertex_buffer, &indices, &self.shaders.shader_vertex_colors, 
                 &uniform! { matrix: view }, &param).unwrap();
         }
+    }
+
+    pub fn queue_text(&mut self, section: Section) {
+        self.glyph_brush.queue(section);
+    }
+
+    pub fn draw_queued_text(&mut self) {
+        self.glyph_brush.draw_queued(&self.display, &mut self.frame);
     }
 }

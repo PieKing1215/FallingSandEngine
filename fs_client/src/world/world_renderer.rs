@@ -1,4 +1,4 @@
-use glium::{Frame, Display};
+use glium::{Frame, Display, DrawParameters, PolygonMode, Blend};
 use rapier2d::prelude::Shape;
 use specs::{prelude::ParallelIterator, rayon::slice::ParallelSlice, Join, ReadStorage, WorldExt};
 
@@ -52,9 +52,7 @@ impl WorldRenderer {
         &mut self,
         world: &mut World<ClientChunk>,
         target: &mut RenderTarget,
-        display: &mut Display,
         _delta_time: f64,
-        fonts: &Fonts,
         settings: &Settings,
         client: &mut Client,
         partial_ticks: f64,
@@ -96,14 +94,15 @@ impl WorldRenderer {
         drop(camera_storage);
 
         let camera_scale = client.camera_scale;
-
+        
         target.transform.push();
         target.transform.translate(
-            f64::from(display.gl_window().window().inner_size().width) / 2.0,
-            f64::from(display.gl_window().window().inner_size().height) / 2.0,
+            f64::from(target.width()) / 2.0,
+            f64::from(target.height()) / 2.0,
         );
         target.transform.scale(camera_scale, camera_scale);
         target.transform.translate(-camera_pos.x, -camera_pos.y);
+
 
         let screen_zone = world
             .chunk_handler
@@ -130,67 +129,102 @@ impl WorldRenderer {
                         CHUNK_SIZE,
                         CHUNK_SIZE,
                     );
-                    if (settings.debug && !settings.cull_chunks) || rc.intersects(&screen_zone) {
-                        target.transform.push();
-                        target.transform.translate(
-                            ch.chunk_x * i32::from(CHUNK_SIZE),
-                            ch.chunk_y * i32::from(CHUNK_SIZE),
-                        );
-                        ch.render(target, fonts, settings);
+
+                    target.transform.push();
+                    target.transform.translate(
+                        ch.chunk_x * i32::from(CHUNK_SIZE),
+                        ch.chunk_y * i32::from(CHUNK_SIZE),
+                    );
+
+                    if (settings.debug && !settings.cull_chunks) || target.transform.transform_rect(rc).intersects(&screen_zone) {
+                        ch.render(target, settings);
 
                         if settings.debug && settings.draw_chunk_dirty_rects {
                             if let Some(dr) = ch.dirty_rect {
-                                let rect = target.transform.transform_rect(dr);
-                                // target.rectangle_filled2(
-                                //     rect.into_sdl(),
-                                //     Color::rgba(255, 64, 64, 127).into_sdl(),
-                                // );
-                                // target.rectangle2(
-                                //     rect.into_sdl(),
-                                //     Color::rgba(255, 64, 64, 127).into_sdl(),
-                                // );
+                                let rect = dr.into_f32();
+                                target.rectangle(
+                                    rect,
+                                    Color::rgba(255, 64, 64, 127),
+                                    DrawParameters {
+                                        blend: Blend::alpha_blending(),
+                                        ..Default::default()
+                                    }
+                                );
+                                target.rectangle(
+                                    rect,
+                                    Color::rgba(255, 64, 64, 127),
+                                    DrawParameters {
+                                        polygon_mode: PolygonMode::Line,
+                                        line_width: Some(1.0),
+                                        blend: Blend::alpha_blending(),
+                                        ..Default::default()
+                                    }
+                                );
                             }
                             if ch.graphics.was_dirty {
-                                let rect = target.transform.transform_rect(Rect::new(
+                                let rect = Rect::new(
                                     0,
                                     0,
                                     CHUNK_SIZE,
                                     CHUNK_SIZE,
-                                ));
-                                // target.rectangle_filled2(
-                                //     rect.into_sdl(),
-                                //     Color::rgba(255, 255, 64, 127).into_sdl(),
-                                // );
-                                // target.rectangle2(
-                                //     rect.into_sdl(),
-                                //     Color::rgba(255, 255, 64, 127).into_sdl(),
-                                // );
+                                ).into_f32();
+                                target.rectangle(
+                                    rect,
+                                    Color::rgba(255, 255, 64, 127),
+                                    DrawParameters {
+                                        blend: Blend::alpha_blending(),
+                                        ..Default::default()
+                                    }
+                                );
+                                target.rectangle(
+                                    rect,
+                                    Color::rgba(255, 255, 64, 127),
+                                    DrawParameters {
+                                        polygon_mode: PolygonMode::Line,
+                                        line_width: Some(1.0),
+                                        blend: Blend::alpha_blending(),
+                                        ..Default::default()
+                                    }
+                                );
                             }
                         }
-
-                        target.transform.pop();
                     }
 
                     if settings.debug && settings.draw_chunk_state_overlay {
-                        let rect = target.transform.transform_rect(rc);
+                        let rect = rc;
 
                         let alpha: u8 = (settings.draw_chunk_state_overlay_alpha * 255.0) as u8;
-                        // let color = match ch.state {
-                        //     ChunkState::NotGenerated => Color::rgba(127, 127, 127, alpha),
-                        //     ChunkState::Generating(stage) => Color::rgba(
-                        //         64,
-                        //         (f32::from(stage)
-                        //             / f32::from(world.chunk_handler.generator.max_gen_stage())
-                        //             * 255.0) as u8,
-                        //         255,
-                        //         alpha,
-                        //     ),
-                        //     ChunkState::Cached => Color::rgba(255, 127, 64, alpha),
-                        //     ChunkState::Active => Color::rgba(64, 255, 64, alpha),
-                        // }
-                        // .into_sdl();
-                        // target.rectangle_filled2(rect.into_sdl(), color);
-                        // target.rectangle2(rect.into_sdl(), color);
+                        let color = match ch.state {
+                            ChunkState::NotGenerated => Color::rgba(127, 127, 127, alpha),
+                            ChunkState::Generating(stage) => Color::rgba(
+                                64,
+                                (f32::from(stage)
+                                    / f32::from(world.chunk_handler.generator.max_gen_stage())
+                                    * 255.0) as u8,
+                                255,
+                                alpha,
+                            ),
+                            ChunkState::Cached => Color::rgba(255, 127, 64, alpha),
+                            ChunkState::Active => Color::rgba(64, 255, 64, alpha),
+                        };
+                        target.rectangle(
+                            rect.into_f32(), 
+                            color,
+                            DrawParameters {
+                                blend: Blend::alpha_blending(),
+                                ..Default::default()
+                            }
+                        );
+                        target.rectangle(
+                            rect.into_f32(), 
+                            color,
+                            DrawParameters {
+                                polygon_mode: PolygonMode::Line,
+                                line_width: Some(1.0),
+                                blend: Blend::alpha_blending(),
+                                ..Default::default()
+                            }
+                        );
 
                         // let ind = world.chunk_handler.chunk_index(ch.chunk_x, ch.chunk_y);
                         // let ind = world.chunk_handler.chunk_update_order(ch.chunk_x, ch.chunk_y);
@@ -214,6 +248,8 @@ impl WorldRenderer {
                         // let txt_rec = Rect::new(rect.x + rect.w/2 - (txt_width as i32)/2, rect.y, txt_width, txt_height as u32);
                         // canvas.copy(&txt_tex, None, Some(txt_rec)).unwrap();
                     }
+
+                    target.transform.pop();
                 });
         }
 
@@ -349,15 +385,22 @@ impl WorldRenderer {
                         draw_shape(&**shape, 0.0, 0.0, 0.0, target, color);
                     }
                 } else if let Some(cuboid) = shape.as_cuboid() {
-                    let (x1, y1) =
-                        target.transform.transform((-cuboid.half_extents[0], -cuboid.half_extents[1]));
-                    let (x2, y2) =
-                        target.transform.transform((cuboid.half_extents[0], cuboid.half_extents[1]));
-                    // target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, color.into_sdl());
+                    let (x1, y1) = (-cuboid.half_extents[0], -cuboid.half_extents[1]);
+                    let (x2, y2) = (cuboid.half_extents[0], cuboid.half_extents[1]);
+                    target.rectangle(
+                        Rect::new(x1 as f32, y1 as f32, x2 as f32, y2 as f32), 
+                        color,
+                        DrawParameters {
+                            polygon_mode: PolygonMode::Line,
+                            line_width: Some(1.0),
+                            blend: Blend::alpha_blending(),
+                            ..Default::default()
+                        }
+                    );
                 } else if let Some(polyline) = shape.as_polyline() {
                     for seg in polyline.segments() {
-                        let (x1, y1) = target.transform.transform((seg.a[0], seg.a[1]));
-                        let (x2, y2) = target.transform.transform((seg.b[0], seg.b[1]));
+                        let (x1, y1) = (seg.a[0], seg.a[1]);
+                        let (x2, y2) = (seg.b[0], seg.b[1]);
                         // target.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, color.into_sdl());
                     }
                 } else if let Some(poly) = shape.as_convex_polygon() {
@@ -373,26 +416,34 @@ impl WorldRenderer {
                     // );
                 } else if let Some(trimesh) = shape.as_trimesh() {
                     for tri in trimesh.triangles() {
-                        let (x1, y1) = target.transform.transform((tri.a[0], tri.a[1]));
-                        let (x2, y2) = target.transform.transform((tri.b[0], tri.b[1]));
-                        let (x3, y3) = target.transform.transform((tri.c[0], tri.c[1]));
-                        // target.polygon(
-                        //     vec![
-                        //         x1 as f32, y1 as f32, x2 as f32, y2 as f32, x3 as f32, y3 as f32,
-                        //     ],
-                        //     color.into_sdl(),
-                        // );
+                        let (x1, y1) = (tri.a[0], tri.a[1]);
+                        let (x2, y2) = (tri.b[0], tri.b[1]);
+                        let (x3, y3) = (tri.c[0], tri.c[1]);
+                        target.triangle(
+                            (x1 as f32, y1 as f32), (x2 as f32, y2 as f32), (x3 as f32, y3 as f32),
+                            color,
+                            DrawParameters {
+                                polygon_mode: PolygonMode::Line,
+                                line_width: Some(1.0),
+                                blend: Blend::alpha_blending(),
+                                ..Default::default()
+                            }
+                        );
                     }
                 } else if let Some(tri) = shape.as_triangle() {
-                    let (x1, y1) = target.transform.transform((x + tri.a[0], y + tri.a[1]));
-                    let (x2, y2) = target.transform.transform((x + tri.b[0], y + tri.b[1]));
-                    let (x3, y3) = target.transform.transform((x + tri.c[0], y + tri.c[1]));
-                    // target.polygon(
-                    //     vec![
-                    //         x1 as f32, y1 as f32, x2 as f32, y2 as f32, x3 as f32, y3 as f32,
-                    //     ],
-                    //     color.into_sdl(),
-                    // );
+                    let (x1, y1) = (x + tri.a[0], y + tri.a[1]);
+                    let (x2, y2) = (x + tri.b[0], y + tri.b[1]);
+                    let (x3, y3) = (x + tri.c[0], y + tri.c[1]);
+                    target.triangle(
+                        (x1 as f32, y1 as f32), (x2 as f32, y2 as f32), (x3 as f32, y3 as f32),
+                        color,
+                        DrawParameters {
+                            polygon_mode: PolygonMode::Line,
+                            line_width: Some(1.0),
+                            blend: Blend::alpha_blending(),
+                            ..Default::default()
+                        }
+                    );
                 }
                 target.transform.pop();
             }
@@ -442,18 +493,24 @@ impl WorldRenderer {
                         target.transform.push();
                         target.transform.translate(aabb.center().x, aabb.center().y);
 
-                        let (x1, y1) =
-                            target.transform.transform((-aabb.half_extents()[0], -aabb.half_extents()[1]));
-                        let (x2, y2) =
-                            target.transform.transform((aabb.half_extents()[0], aabb.half_extents()[1]));
-                        // target.rectangle(
-                        //     x1 as f32,
-                        //     y1 as f32,
-                        //     x2 as f32,
-                        //     y2 as f32,
-                        //     Color::rgba(0xff, 0, 0xff, if b.is_sleeping() { 0x64 } else { 0xff })
-                        //         .into_sdl(),
-                        // );
+                        let (x1, y1) = (-aabb.half_extents()[0], -aabb.half_extents()[1]);
+                        let (x2, y2) = (aabb.half_extents()[0], aabb.half_extents()[1]);
+
+                        target.rectangle(
+                            Rect::new(
+                                x1 as f32,
+                                y1 as f32,
+                                x2 as f32,
+                                y2 as f32,
+                            ),
+                            Color::rgba(0xff, 0, 0xff, if b.is_sleeping() { 0x64 } else { 0xff }),
+                            DrawParameters {
+                                polygon_mode: PolygonMode::Line,
+                                line_width: Some(1.0),
+                                blend: Blend::alpha_blending(),
+                                ..Default::default()
+                            }
+                        );
 
                         target.transform.pop();
                     }
@@ -468,7 +525,7 @@ impl WorldRenderer {
             let particle_system = world.ecs.read_resource::<ParticleSystem>();
 
             // TODO: magic number, works well on my machine but probably different on others
-            let mut batches: Vec<Vec<f32>> = particle_system
+            let batches: Vec<Vec<(Rect<f32>, Color)>> = particle_system
                 .active
                 .par_chunks(2000)
                 .map(|chunk| {
@@ -480,35 +537,26 @@ impl WorldRenderer {
                         {
                             let lerp_x = part.pos.x + part.vel.x * partial_ticks;
                             let lerp_y = part.pos.y + part.vel.y * partial_ticks;
-                            let (x1, y1) = target.transform.transform((lerp_x - 0.5, lerp_y - 0.5));
-                            let (x2, y2) = target.transform.transform((lerp_x + 0.5, lerp_y + 0.5));
-                            let col = f32::from_le_bytes([
-                                part.material.color.r,
-                                part.material.color.g,
-                                part.material.color.b,
-                                part.material.color.a,
-                            ]);
+                            let (x1, y1) = (lerp_x - 0.5, lerp_y - 0.5);
+                            let (x2, y2) = (lerp_x + 0.5, lerp_y + 0.5);
 
-                            batch.extend([
-                                x1 as f32, y1 as f32, col, x2 as f32, y1 as f32, col, x2 as f32,
-                                y2 as f32, col, x1 as f32, y1 as f32, col, x2 as f32, y2 as f32,
-                                col, x1 as f32, y2 as f32, col,
-                            ]);
-                            // target.rectangle_filled(
-                            //     x1 as f32,
-                            //     y1 as f32,
-                            //     x2 as f32,
-                            //     y2 as f32,
-                            //     part.material.color,
-                            // );
+                            batch.push(
+                                (Rect::new(
+                                    x1 as f32,
+                                    y1 as f32,
+                                    x2 as f32,
+                                    y2 as f32
+                                ), part.material.color)
+                            );
                         }
                     }
                     batch
                 })
                 .collect();
-            for batch in &mut batches {
+            for batch in &batches {
                 // profiling::scope!("triangle_batch_raw_u8", format!("#verts = {}", batch.len() / 3).as_str());
                 // target.triangle_batch_raw_u8(batch);
+                target.rectangles_colored(batch, DrawParameters::default());
             }
         }
 
@@ -541,16 +589,24 @@ impl WorldRenderer {
                             target.transform.push();
                             target.transform.translate(x, y);
 
-                            let (x1, y1) = target.transform.transform((-1.0, -1.0));
-                            let (x2, y2) = target.transform.transform((1.0, 1.0));
+                            let (x1, y1) = (-1.0, -1.0);
+                            let (x2, y2) = (1.0, 1.0);
 
-                            // target.rectangle(
-                            //     x1 as f32,
-                            //     y1 as f32,
-                            //     x2 as f32,
-                            //     y2 as f32,
-                            //     Color::rgba(64, 255, 64, alpha).into_sdl(),
-                            // );
+                            target.rectangle(
+                                Rect::new(
+                                    x1 as f32,
+                                    y1 as f32,
+                                    x2 as f32,
+                                    y2 as f32,
+                                ),
+                                Color::rgba(64, 255, 64, alpha),
+                                DrawParameters {
+                                    polygon_mode: PolygonMode::Line,
+                                    line_width: Some(1.0),
+                                    blend: Blend::alpha_blending(),
+                                    ..Default::default()
+                                }
+                            );
 
                             if let Some(vel) = vel {
                                 let (vel_x1, vel_y1) = target.transform.transform((0.0, 0.0));
@@ -588,16 +644,24 @@ impl WorldRenderer {
                         target.transform.push();
                         target.transform.translate(x, y);
 
-                        let (x1, y1) = target.transform.transform((f64::from(hit.x1), f64::from(hit.y1)));
-                        let (x2, y2) = target.transform.transform((f64::from(hit.x2), f64::from(hit.y2)));
+                        let (x1, y1) = (f64::from(hit.x1), f64::from(hit.y1));
+                        let (x2, y2) = (f64::from(hit.x2), f64::from(hit.y2));
 
-                        // target.rectangle(
-                        //     x1 as f32,
-                        //     y1 as f32,
-                        //     x2 as f32,
-                        //     y2 as f32,
-                        //     Color::rgba(255, 64, 64, alpha).into_sdl(),
-                        // );
+                        target.rectangle(
+                            Rect::new(
+                                x1 as f32,
+                                y1 as f32,
+                                x2 as f32,
+                                y2 as f32,
+                            ),
+                            Color::rgba(255, 64, 64, alpha),
+                            DrawParameters {
+                                polygon_mode: PolygonMode::Line,
+                                line_width: Some(1.0),
+                                blend: Blend::alpha_blending(),
+                                ..Default::default()
+                            }
+                        );
 
                         target.transform.pop();
                     };
@@ -621,16 +685,24 @@ impl WorldRenderer {
                         target.transform.push();
                         target.transform.translate(x, y);
 
-                        let (x1, y1) = target.transform.transform((-1.0, -1.0));
-                        let (x2, y2) = target.transform.transform((1.0, 1.0));
+                        let (x1, y1) = (-1.0, -1.0);
+                        let (x2, y2) = (1.0, 1.0);
 
-                        // target.rectangle(
-                        //     x1 as f32,
-                        //     y1 as f32,
-                        //     x2 as f32,
-                        //     y2 as f32,
-                        //     Color::rgba(64, 255, 64, alpha).into_sdl(),
-                        // );
+                        target.rectangle(
+                            Rect::new(
+                                x1 as f32,
+                                y1 as f32,
+                                x2 as f32,
+                                y2 as f32,
+                            ),
+                            Color::rgba(64, 255, 64, alpha),
+                            DrawParameters {
+                                polygon_mode: PolygonMode::Line,
+                                line_width: Some(1.0),
+                                blend: Blend::alpha_blending(),
+                                ..Default::default()
+                            }
+                        );
 
                         let target_pos = at.get_target_pos(&position_storage);
                         if let Some(target_pos) = target_pos {
@@ -773,41 +845,56 @@ impl WorldRenderer {
                 for y in -10..10 {
                     let rc_x = x + (camera_pos.x / f64::from(CHUNK_SIZE)) as i32;
                     let rc_y = y + (camera_pos.y / f64::from(CHUNK_SIZE)) as i32;
-                    // let rc = Rect::new(
-                    //     rc_x * i32::from(CHUNK_SIZE),
-                    //     rc_y * i32::from(CHUNK_SIZE),
-                    //     CHUNK_SIZE,
-                    //     CHUNK_SIZE,
-                    // );
-                    // target.rectangle2(
-                    //     target.transform.transform_rect(rc).into_sdl(),
-                    //     Color::rgba(64, 64, 64, 127).into_sdl(),
-                    // );
+                    let rc = Rect::new(
+                        rc_x * i32::from(CHUNK_SIZE),
+                        rc_y * i32::from(CHUNK_SIZE),
+                        CHUNK_SIZE,
+                        CHUNK_SIZE,
+                    );
+
+                    target.rectangle(
+                        rc.into_f32(),
+                        Color::rgba(64, 64, 64, 127),
+                        DrawParameters {
+                            polygon_mode: PolygonMode::Line,
+                            line_width: Some(1.0),
+                            blend: Blend::alpha_blending(),
+                            ..Default::default()
+                        }
+                    );
                 }
             }
         }
 
         if settings.debug && settings.draw_origin {
             let len: f32 = 16.0;
-            let origin = target.transform.transform((0, 0));
-            // target.rectangle_filled2(
-            //     GPURect::new(
-            //         origin.0 as f32 - len - 2.0,
-            //         origin.1 as f32 - 1.0,
-            //         (len * 2.0 + 4.0) as f32,
-            //         3.0,
-            //     ),
-            //     Color::rgba(0, 0, 0, 127).into_sdl(),
-            // );
-            // target.rectangle_filled2(
-            //     GPURect::new(
-            //         origin.0 as f32 - 1.0,
-            //         origin.1 as f32 - len - 2.0,
-            //         3.0,
-            //         (len * 2.0 + 4.0) as f32,
-            //     ),
-            //     Color::rgba(0, 0, 0, 127).into_sdl(),
-            // );
+            target.rectangle(
+                Rect::new_wh(
+                    -len - 2.0,
+                    -1.0,
+                    (len * 2.0 + 4.0) as f32,
+                    3.0,
+                ),
+                Color::rgba(0, 0, 0, 127),
+                DrawParameters {
+                    blend: Blend::alpha_blending(),
+                    ..Default::default()
+                }
+            );
+            target.rectangle(
+                Rect::new_wh(
+                    -1.0,
+                    -len - 2.0,
+                    3.0,
+                    (len * 2.0 + 4.0) as f32,
+                ),
+                Color::rgba(0, 0, 0, 127),
+                DrawParameters {
+                    blend: Blend::alpha_blending(),
+                    ..Default::default()
+                }
+            );
+            target.rectangle(Rect::new_wh(0.0, 0.0, 2.0, 2.0), Color::WHITE, DrawParameters::default());
 
             // target.line(
             //     origin.0 as f32 - len,
@@ -826,22 +913,46 @@ impl WorldRenderer {
         }
 
         if settings.debug && settings.draw_load_zones {
-            // target.rectangle2(
-            //     target.transform.transform_rect(unload_zone).into_sdl(),
-            //     Color::rgba(255, 0, 0, 127).into_sdl(),
-            // );
-            // target.rectangle2(
-            //     target.transform.transform_rect(load_zone).into_sdl(),
-            //     Color::rgba(255, 127, 0, 127).into_sdl(),
-            // );
-            // target.rectangle2(
-            //     target.transform.transform_rect(active_zone).into_sdl(),
-            //     Color::rgba(255, 255, 0, 127).into_sdl(),
-            // );
-            // target.rectangle2(
-            //     target.transform.transform_rect(screen_zone).into_sdl(),
-            //     Color::rgba(0, 255, 0, 127).into_sdl(),
-            // );
+            target.rectangle(
+                unload_zone.into_f32(),
+                Color::rgba(255, 0, 0, 127),
+                DrawParameters {
+                    polygon_mode: PolygonMode::Line,
+                    line_width: Some(1.0),
+                    blend: Blend::alpha_blending(),
+                    ..Default::default()
+                }
+            );
+            target.rectangle(
+                load_zone.into_f32(),
+                Color::rgba(255, 127, 0, 127),
+                DrawParameters {
+                    polygon_mode: PolygonMode::Line,
+                    line_width: Some(1.0),
+                    blend: Blend::alpha_blending(),
+                    ..Default::default()
+                }
+            );
+            target.rectangle(
+                active_zone.into_f32(),
+                Color::rgba(255, 255, 0, 127),
+                DrawParameters {
+                    polygon_mode: PolygonMode::Line,
+                    line_width: Some(1.0),
+                    blend: Blend::alpha_blending(),
+                    ..Default::default()
+                }
+            );
+            target.rectangle(
+                screen_zone.into_f32(),
+                Color::rgba(0, 255, 0, 127),
+                DrawParameters {
+                    polygon_mode: PolygonMode::Line,
+                    line_width: Some(1.0),
+                    blend: Blend::alpha_blending(),
+                    ..Default::default()
+                }
+            );
         }
 
         target.transform.pop();

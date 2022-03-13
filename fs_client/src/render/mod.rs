@@ -2,10 +2,8 @@ mod renderer;
 pub mod drawing;
 pub mod vertex;
 pub mod shaders;
-use fs_common::game::common::{world::material::Color, Rect, Settings};
-use glium::Frame;
-use nalgebra::{Matrix4, Point2, Point3};
-use nalgebra_glm::TVec4;
+use fs_common::game::common::{Rect, Settings};
+use nalgebra::{Matrix4, Point3};
 pub use renderer::*;
 
 use self::drawing::RenderTarget;
@@ -29,7 +27,7 @@ impl TransformStack {
     }
 
     pub fn push(&mut self) {
-        self.stack.push(self.stack.last().unwrap().clone());
+        self.stack.push(*self.stack.last().unwrap());
     }
 
     pub fn pop(&mut self) {
@@ -81,7 +79,6 @@ impl TransformStack {
         let pos1 = self.transform_int((rect.x1 as f32, rect.y1 as f32));
         let pos2 = self.transform_int((rect.x2 as f32, rect.y2 as f32));
 
-        let t = self.stack.last().unwrap();
         Rect::new(
             pos1.0,
             pos1.1,
@@ -138,7 +135,6 @@ pub trait Renderable {
     fn render(
         &self,
         target: &mut RenderTarget,
-        fonts: &Fonts,
         settings: &Settings,
     );
 }

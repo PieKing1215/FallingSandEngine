@@ -24,7 +24,7 @@ pub static mut GIT_HASH: Option<&str> = None;
 pub struct Renderer<'a> {
     // pub fonts: Fonts,
     pub glyph_brush: GlyphBrush<'a, 'a>,
-    pub shaders: Arc<Shaders>,
+    pub shaders: Shaders,
     pub display: Display,
     pub world_renderer: WorldRenderer,
     pub imgui: imgui::Context,
@@ -38,7 +38,7 @@ pub struct Fonts {
     // pub pixel_operator: Font<'ttf, 'static>,
 }
 
-impl Renderer<'_> {
+impl<'a> Renderer<'a> {
     #[profiling::function]
     pub fn create(event_loop: &EventLoop<()>, file_helper: &FileHelper) -> Result<Self, String> {
         let wb = glutin::window::WindowBuilder::new()
@@ -73,7 +73,7 @@ impl Renderer<'_> {
         //     )?,
         // };
 
-        let shaders = Arc::new(Shaders::new(&display));
+        let shaders = Shaders::new(&display);
 
         let pixel_operator = fs::read(file_helper.asset_path("font/pixel_operator/PixelOperator.ttf")).unwrap();
         let fonts = vec![Font::from_bytes(pixel_operator).unwrap()];
@@ -101,45 +101,34 @@ impl Renderer<'_> {
         delta_time: f64,
         partial_ticks: f64,
     ) {
-        let mut target = RenderTarget::new(&mut self.display, self.shaders.clone());
+        let mut target = RenderTarget::new(&mut self.display, &self.shaders, &mut self.glyph_brush);
         target.clear(Color::BLACK);
 
-        self.render_internal(&mut target, game, client, delta_time, partial_ticks);
+        Self::render_internal(&mut self.world_renderer, &mut target, game, client, delta_time, partial_ticks);
 
         {
             profiling::scope!("version info");
 
-            self.glyph_brush.queue(Section {
+            target.queue_text(Section {
                 text: "Development Build",
-                screen_position: (4.0, self.display.gl_window().window().inner_size().height as f32 - 40.0),
+                screen_position: (4.0, target.height() as f32 - 40.0),
                 bounds: (150.0, 20.0),
                 color: Color::WHITE.into(),
                 ..Section::default()
             });
-            self.glyph_brush.queue(Section {
+            target.queue_text(Section {
                 text: format!(
                         "{} ({})",
                         unsafe { BUILD_DATETIME }.unwrap_or("???"),
                         unsafe { GIT_HASH }.unwrap_or("???")
                     )
                     .as_str(),
-                screen_position: (4.0, self.display.gl_window().window().inner_size().height as f32 - 20.0),
+                screen_position: (4.0, target.height() as f32 - 20.0),
                 bounds: (200.0, 20.0),
                 color: Color::WHITE.into(),
                 ..Section::default()
             });
-            self.glyph_brush.draw_queued(&target.display, &mut target.frame);
-
-            // img.blit_rect(
-            //     None,
-            //     target,
-            //     Some(GPURect::new(
-            //         4.0,
-            //         self.window.size().1 as f32 - 4.0 - 14.0,
-            //         *w as f32,
-            //         *h as f32,
-            //     )),
-            // );
+            target.draw_queued_text();
         }
 
         {
@@ -180,7 +169,7 @@ impl Renderer<'_> {
                 .size([300.0, 300.0], imgui::Condition::FirstUseEver)
                 .position_pivot([1.0, 1.0])
                 .position(
-                    [self.display.gl_window().window().inner_size().width as f32, self.display.gl_window().window().inner_size().height as f32],
+                    [target.width() as f32, target.height() as f32],
                     imgui::Condition::Always,
                 )
                 .flags(
@@ -280,7 +269,7 @@ impl Renderer<'_> {
 
     #[profiling::function]
     fn render_internal(
-        &mut self,
+        world_renderer: &mut WorldRenderer,
         target: &mut RenderTarget,
         game: &mut GameData<ClientChunk>,
         client: &mut Client,
@@ -288,12 +277,12 @@ impl Renderer<'_> {
         partial_ticks: f64,
     ) {
 
+        target.transform.push();
+        target.transform.translate(-1.0, 1.0);
+        target.transform.scale(2.0 / target.width() as f64, -2.0 / target.height() as f64);
+
         {
             profiling::scope!("test stuff");
-
-            target.transform.push();
-            target.transform.translate(-1.0, 1.0);
-            target.transform.scale(1.0 / target.display.gl_window().window().inner_size().width as f64, -1.0 / target.display.gl_window().window().inner_size().height as f64);
             target.rectangle(
                 Rect::new_wh(
                     40.0 + ((game.tick_time as f32 / 5.0).sin() * 20.0),
@@ -340,7 +329,6 @@ impl Renderer<'_> {
                     ..Default::default()
                 }
             );
-            target.transform.pop();
         }
 
         if let Some(w) = &mut game.world {
@@ -353,18 +341,16 @@ impl Renderer<'_> {
             //     .unwrap();
             // let f = Fonts { pixel_operator: pixel_operator2 };
 
-            // self.world_renderer.render(
-            //     w,
-            //     target,
-            //     &mut TransformStack::new(),
-            //     delta_time,
-            //     self.sdl.as_ref().unwrap(),
-            //     &f,
-            //     &game.settings,
-            //     &self.shaders,
-            //     client,
-            //     partial_ticks,
-            // );
+            world_renderer.render(
+                w,
+                target,
+                delta_time,
+                &game.settings,
+                client,
+                partial_ticks,
+            );
         }
+
+        target.transform.pop();
     }
 }

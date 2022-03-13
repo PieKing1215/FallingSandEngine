@@ -131,3 +131,9 @@ fn partial_min<T: PartialOrd>(a: T, b: T) -> T {
         b
     }
 }
+
+impl Rect<i32> {
+    pub fn into_f32(self) -> Rect<f32> {
+        Rect::new(self.x1 as f32, self.y1 as f32, self.x2 as f32, self.y2 as f32)
+    }
+}

@@ -311,11 +311,9 @@ impl Renderable for ClientChunk {
     fn render(
         &self,
         target: &mut RenderTarget,
-        fonts: &Fonts,
         settings: &Settings,
     ) {
-        self.graphics
-            .render(target, fonts, settings);
+        self.graphics.render(target, settings);
 
         if settings.debug && settings.draw_chunk_collision == 1 {
             if let Some(f) = &self.mesh {
@@ -401,7 +399,6 @@ impl Renderable for ChunkGraphics {
     fn render(
         &self,
         target: &mut RenderTarget,
-        _fonts: &Fonts,
         _settings: &Settings,
     ) {
         let chunk_rect = target.transform.transform_rect(Rect::new(
