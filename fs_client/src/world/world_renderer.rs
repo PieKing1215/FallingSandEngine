@@ -17,7 +17,7 @@ use fs_common::game::common::{
 };
 
 use crate::{
-    render::{Fonts, Renderable, Shaders, TransformStack},
+    render::{Fonts, Renderable, TransformStack, shaders::Shaders, drawing::RenderTarget},
     Client,
 };
 
@@ -51,13 +51,11 @@ impl WorldRenderer {
     pub fn render(
         &mut self,
         world: &mut World<ClientChunk>,
-        target: &mut Frame,
+        target: &mut RenderTarget,
         display: &mut Display,
-        transform: &mut TransformStack,
         _delta_time: f64,
         fonts: &Fonts,
         settings: &Settings,
-        _shaders: &Shaders,
         client: &mut Client,
         partial_ticks: f64,
     ) {
@@ -99,13 +97,13 @@ impl WorldRenderer {
 
         let camera_scale = client.camera_scale;
 
-        transform.push();
-        transform.translate(
+        target.transform.push();
+        target.transform.translate(
             f64::from(display.gl_window().window().inner_size().width) / 2.0,
             f64::from(display.gl_window().window().inner_size().height) / 2.0,
         );
-        transform.scale(camera_scale, camera_scale);
-        transform.translate(-camera_pos.x, -camera_pos.y);
+        target.transform.scale(camera_scale, camera_scale);
+        target.transform.translate(-camera_pos.x, -camera_pos.y);
 
         let screen_zone = world
             .chunk_handler
@@ -116,7 +114,7 @@ impl WorldRenderer {
 
         // let clip = canvas.clip_rect();
         // if game.settings.cull_chunks {
-        //     canvas.set_clip_rect(transform.transform_rect(screen_zone));
+        //     canvas.set_clip_rect(target.transform.transform_rect(screen_zone));
         // }
 
         {
@@ -129,20 +127,20 @@ impl WorldRenderer {
                     let rc = Rect::new(
                         ch.chunk_x * i32::from(CHUNK_SIZE),
                         ch.chunk_y * i32::from(CHUNK_SIZE),
-                        u32::from(CHUNK_SIZE),
-                        u32::from(CHUNK_SIZE),
+                        CHUNK_SIZE,
+                        CHUNK_SIZE,
                     );
                     if (settings.debug && !settings.cull_chunks) || rc.intersects(&screen_zone) {
-                        transform.push();
-                        transform.translate(
+                        target.transform.push();
+                        target.transform.translate(
                             ch.chunk_x * i32::from(CHUNK_SIZE),
                             ch.chunk_y * i32::from(CHUNK_SIZE),
                         );
-                        ch.render(target, transform, fonts, settings);
+                        ch.render(target, fonts, settings);
 
                         if settings.debug && settings.draw_chunk_dirty_rects {
                             if let Some(dr) = ch.dirty_rect {
-                                let rect = transform.transform_rect(dr);
+                                let rect = target.transform.transform_rect(dr);
                                 // target.rectangle_filled2(
                                 //     rect.into_sdl(),
                                 //     Color::rgba(255, 64, 64, 127).into_sdl(),
@@ -153,11 +151,11 @@ impl WorldRenderer {
                                 // );
                             }
                             if ch.graphics.was_dirty {
-                                let rect = transform.transform_rect(Rect::new(
+                                let rect = target.transform.transform_rect(Rect::new(
                                     0,
                                     0,
-                                    u32::from(CHUNK_SIZE),
-                                    u32::from(CHUNK_SIZE),
+                                    CHUNK_SIZE,
+                                    CHUNK_SIZE,
                                 ));
                                 // target.rectangle_filled2(
                                 //     rect.into_sdl(),
@@ -170,11 +168,11 @@ impl WorldRenderer {
                             }
                         }
 
-                        transform.pop();
+                        target.transform.pop();
                     }
 
                     if settings.debug && settings.draw_chunk_state_overlay {
-                        let rect = transform.transform_rect(rc);
+                        let rect = target.transform.transform_rect(rc);
 
                         let alpha: u8 = (settings.draw_chunk_state_overlay_alpha * 255.0) as u8;
                         // let color = match ch.state {
@@ -229,7 +227,7 @@ impl WorldRenderer {
 
             for (_handle, fluid) in world.physics.fluid_pipeline.liquid_world.fluids().iter() {
                 for (_idx, particle) in fluid.positions.iter().enumerate() {
-                    let (x, y) = transform.transform((
+                    let (x, y) = target.transform.transform((
                         particle.coords[0] * PHYSICS_SCALE,
                         particle.coords[1] * PHYSICS_SCALE,
                     ));
@@ -284,15 +282,15 @@ impl WorldRenderer {
         // self.liquid_image2.blit_rect(
         //     None,
         //     target,
-        //     Some(transform.transform_rect(screen_zone).into_sdl()),
+        //     Some(target.transform.transform_rect(screen_zone).into_sdl()),
         // );
 
         // draw solids
 
         {
             profiling::scope!("rigidbodies");
-            transform.push();
-            transform.scale(PHYSICS_SCALE, PHYSICS_SCALE);
+            target.transform.push();
+            target.transform.scale(PHYSICS_SCALE, PHYSICS_SCALE);
             for rb in &mut world.rigidbodies {
                 if rb.image.is_none() {
                     rb.update_image();
@@ -309,8 +307,8 @@ impl WorldRenderer {
 
                         // let mut rect = GPURect::new(pos.x, pos.y, width, height);
 
-                        // let (x1, y1) = transform.transform((rect.x, rect.y));
-                        // let (x2, y2) = transform.transform((rect.x + rect.w, rect.y + rect.h));
+                        // let (x1, y1) = target.transform.transform((rect.x, rect.y));
+                        // let (x2, y2) = target.transform.transform((rect.x + rect.w, rect.y + rect.h));
 
                         // rect = GPURect::new2(x1 as f32, y1 as f32, x2 as f32, y2 as f32);
 
@@ -326,41 +324,40 @@ impl WorldRenderer {
                     }
                 }
             }
-            transform.pop();
+            target.transform.pop();
         }
 
         // physics debug draw
 
         if settings.debug && settings.physics_dbg_draw {
             profiling::scope!("physics debug");
-            transform.push();
-            transform.scale(PHYSICS_SCALE, PHYSICS_SCALE);
+            target.transform.push();
+            target.transform.scale(PHYSICS_SCALE, PHYSICS_SCALE);
 
             fn draw_shape(
                 shape: &dyn Shape,
                 x: f32,
                 y: f32,
                 _angle: f32,
-                transform: &mut TransformStack,
-                target: &mut Frame,
+                target: &mut RenderTarget,
                 color: Color,
             ) {
-                transform.push();
-                transform.translate(x, y);
+                target.transform.push();
+                target.transform.translate(x, y);
                 if let Some(comp) = shape.as_compound() {
                     for (_iso, shape) in comp.shapes() {
-                        draw_shape(&**shape, 0.0, 0.0, 0.0, transform, target, color);
+                        draw_shape(&**shape, 0.0, 0.0, 0.0, target, color);
                     }
                 } else if let Some(cuboid) = shape.as_cuboid() {
                     let (x1, y1) =
-                        transform.transform((-cuboid.half_extents[0], -cuboid.half_extents[1]));
+                        target.transform.transform((-cuboid.half_extents[0], -cuboid.half_extents[1]));
                     let (x2, y2) =
-                        transform.transform((cuboid.half_extents[0], cuboid.half_extents[1]));
+                        target.transform.transform((cuboid.half_extents[0], cuboid.half_extents[1]));
                     // target.rectangle(x1 as f32, y1 as f32, x2 as f32, y2 as f32, color.into_sdl());
                 } else if let Some(polyline) = shape.as_polyline() {
                     for seg in polyline.segments() {
-                        let (x1, y1) = transform.transform((seg.a[0], seg.a[1]));
-                        let (x2, y2) = transform.transform((seg.b[0], seg.b[1]));
+                        let (x1, y1) = target.transform.transform((seg.a[0], seg.a[1]));
+                        let (x2, y2) = target.transform.transform((seg.b[0], seg.b[1]));
                         // target.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, color.into_sdl());
                     }
                 } else if let Some(poly) = shape.as_convex_polygon() {
@@ -368,7 +365,7 @@ impl WorldRenderer {
                     //     poly.points()
                     //         .iter()
                     //         .flat_map(|v| {
-                    //             let (x, y) = transform.transform((v[0], v[1]));
+                    //             let (x, y) = target.transform.transform((v[0], v[1]));
                     //             [x as f32, y as f32]
                     //         })
                     //         .collect(),
@@ -376,9 +373,9 @@ impl WorldRenderer {
                     // );
                 } else if let Some(trimesh) = shape.as_trimesh() {
                     for tri in trimesh.triangles() {
-                        let (x1, y1) = transform.transform((tri.a[0], tri.a[1]));
-                        let (x2, y2) = transform.transform((tri.b[0], tri.b[1]));
-                        let (x3, y3) = transform.transform((tri.c[0], tri.c[1]));
+                        let (x1, y1) = target.transform.transform((tri.a[0], tri.a[1]));
+                        let (x2, y2) = target.transform.transform((tri.b[0], tri.b[1]));
+                        let (x3, y3) = target.transform.transform((tri.c[0], tri.c[1]));
                         // target.polygon(
                         //     vec![
                         //         x1 as f32, y1 as f32, x2 as f32, y2 as f32, x3 as f32, y3 as f32,
@@ -387,9 +384,9 @@ impl WorldRenderer {
                         // );
                     }
                 } else if let Some(tri) = shape.as_triangle() {
-                    let (x1, y1) = transform.transform((x + tri.a[0], y + tri.a[1]));
-                    let (x2, y2) = transform.transform((x + tri.b[0], y + tri.b[1]));
-                    let (x3, y3) = transform.transform((x + tri.c[0], y + tri.c[1]));
+                    let (x1, y1) = target.transform.transform((x + tri.a[0], y + tri.a[1]));
+                    let (x2, y2) = target.transform.transform((x + tri.b[0], y + tri.b[1]));
+                    let (x3, y3) = target.transform.transform((x + tri.c[0], y + tri.c[1]));
                     // target.polygon(
                     //     vec![
                     //         x1 as f32, y1 as f32, x2 as f32, y2 as f32, x3 as f32, y3 as f32,
@@ -397,7 +394,7 @@ impl WorldRenderer {
                     //     color.into_sdl(),
                     // );
                 }
-                transform.pop();
+                target.transform.pop();
             }
 
             // TODO: physics_dbg_draw_joint
@@ -410,12 +407,12 @@ impl WorldRenderer {
                     b.position().translation.vector[1],
                 );
 
-                let (x, y) = transform.transform((rx, ry));
+                let (x, y) = target.transform.transform((rx, ry));
                 // target.circle(x as f32, y as f32, 3.0, Color::GREEN.into_sdl());
 
                 if settings.physics_dbg_draw_center_of_mass {
                     let com = b.mass_properties().world_com(b.position());
-                    let (x, y) = transform.transform((com.x, com.y));
+                    let (x, y) = target.transform.transform((com.x, com.y));
                     // target.circle(x as f32, y as f32, 2.0, Color::RED.into_sdl());
                 }
 
@@ -429,7 +426,6 @@ impl WorldRenderer {
                             rx,
                             ry,
                             b.rotation().angle(),
-                            transform,
                             target,
                             Color::rgba(
                                 0x00,
@@ -443,13 +439,13 @@ impl WorldRenderer {
                     if settings.physics_dbg_draw_aabb {
                         let aabb = col.compute_aabb();
 
-                        transform.push();
-                        transform.translate(aabb.center().x, aabb.center().y);
+                        target.transform.push();
+                        target.transform.translate(aabb.center().x, aabb.center().y);
 
                         let (x1, y1) =
-                            transform.transform((-aabb.half_extents()[0], -aabb.half_extents()[1]));
+                            target.transform.transform((-aabb.half_extents()[0], -aabb.half_extents()[1]));
                         let (x2, y2) =
-                            transform.transform((aabb.half_extents()[0], aabb.half_extents()[1]));
+                            target.transform.transform((aabb.half_extents()[0], aabb.half_extents()[1]));
                         // target.rectangle(
                         //     x1 as f32,
                         //     y1 as f32,
@@ -459,12 +455,12 @@ impl WorldRenderer {
                         //         .into_sdl(),
                         // );
 
-                        transform.pop();
+                        target.transform.pop();
                     }
                 }
             }
 
-            transform.pop();
+            target.transform.pop();
         }
 
         {
@@ -484,8 +480,8 @@ impl WorldRenderer {
                         {
                             let lerp_x = part.pos.x + part.vel.x * partial_ticks;
                             let lerp_y = part.pos.y + part.vel.y * partial_ticks;
-                            let (x1, y1) = transform.transform((lerp_x - 0.5, lerp_y - 0.5));
-                            let (x2, y2) = transform.transform((lerp_x + 0.5, lerp_y + 0.5));
+                            let (x1, y1) = target.transform.transform((lerp_x - 0.5, lerp_y - 0.5));
+                            let (x2, y2) = target.transform.transform((lerp_x + 0.5, lerp_y + 0.5));
                             let col = f32::from_le_bytes([
                                 part.material.color.r,
                                 part.material.color.g,
@@ -542,11 +538,11 @@ impl WorldRenderer {
                         Option<&PhysicsEntity>,
                     )| {
                         let mut draw = |x: f64, y: f64, alpha: u8| {
-                            transform.push();
-                            transform.translate(x, y);
+                            target.transform.push();
+                            target.transform.translate(x, y);
 
-                            let (x1, y1) = transform.transform((-1.0, -1.0));
-                            let (x2, y2) = transform.transform((1.0, 1.0));
+                            let (x1, y1) = target.transform.transform((-1.0, -1.0));
+                            let (x2, y2) = target.transform.transform((1.0, 1.0));
 
                             // target.rectangle(
                             //     x1 as f32,
@@ -557,8 +553,8 @@ impl WorldRenderer {
                             // );
 
                             if let Some(vel) = vel {
-                                let (vel_x1, vel_y1) = transform.transform((0.0, 0.0));
-                                let (vel_x2, vel_y2) = transform.transform((vel.x, vel.y));
+                                let (vel_x1, vel_y1) = target.transform.transform((0.0, 0.0));
+                                let (vel_x2, vel_y2) = target.transform.transform((vel.x, vel.y));
 
                                 // target.line(
                                 //     vel_x1 as f32,
@@ -569,7 +565,7 @@ impl WorldRenderer {
                                 // );
                             }
 
-                            transform.pop();
+                            target.transform.pop();
                         };
 
                         let lerp_x = pos.x + vel.map_or(0.0, |v| v.x) * partial_ticks;
@@ -589,11 +585,11 @@ impl WorldRenderer {
                 .join()
                 .for_each(|(pos, hit, vel)| {
                     let mut draw = |x: f64, y: f64, alpha: u8| {
-                        transform.push();
-                        transform.translate(x, y);
+                        target.transform.push();
+                        target.transform.translate(x, y);
 
-                        let (x1, y1) = transform.transform((f64::from(hit.x1), f64::from(hit.y1)));
-                        let (x2, y2) = transform.transform((f64::from(hit.x2), f64::from(hit.y2)));
+                        let (x1, y1) = target.transform.transform((f64::from(hit.x1), f64::from(hit.y1)));
+                        let (x2, y2) = target.transform.transform((f64::from(hit.x2), f64::from(hit.y2)));
 
                         // target.rectangle(
                         //     x1 as f32,
@@ -603,7 +599,7 @@ impl WorldRenderer {
                         //     Color::rgba(255, 64, 64, alpha).into_sdl(),
                         // );
 
-                        transform.pop();
+                        target.transform.pop();
                     };
 
                     let lerp_x = pos.x + vel.map_or(0.0, |v| v.x) * partial_ticks;
@@ -622,11 +618,11 @@ impl WorldRenderer {
                 .join()
                 .for_each(|(pos, vel, at)| {
                     let mut draw = |x: f64, y: f64, alpha: u8| {
-                        transform.push();
-                        transform.translate(x, y);
+                        target.transform.push();
+                        target.transform.translate(x, y);
 
-                        let (x1, y1) = transform.transform((-1.0, -1.0));
-                        let (x2, y2) = transform.transform((1.0, 1.0));
+                        let (x1, y1) = target.transform.transform((-1.0, -1.0));
+                        let (x2, y2) = target.transform.transform((1.0, 1.0));
 
                         // target.rectangle(
                         //     x1 as f32,
@@ -650,7 +646,7 @@ impl WorldRenderer {
                             // );
                         }
 
-                        transform.pop();
+                        target.transform.pop();
                     };
 
                     let lerp_x = pos.x + vel.map_or(0.0, |v| v.x) * partial_ticks;
@@ -687,11 +683,11 @@ impl WorldRenderer {
 
                             // target.set_line_thickness(2.0);
                             if pivots.is_empty() {
-                                let (x1, y1) = transform.transform((
+                                let (x1, y1) = target.transform.transform((
                                     player_pos.x + player_vel.x * partial_ticks,
                                     player_pos.y + player_vel.y * partial_ticks,
                                 ));
-                                let (x2, y2) = transform.transform((
+                                let (x2, y2) = target.transform.transform((
                                     grapple_pos.x + grapple_vel.x * partial_ticks,
                                     grapple_pos.y + grapple_vel.y * partial_ticks,
                                 ));
@@ -705,11 +701,11 @@ impl WorldRenderer {
                                 // );
                             } else {
                                 {
-                                    let (x1, y1) = transform.transform((
+                                    let (x1, y1) = target.transform.transform((
                                         grapple_pos.x + grapple_vel.x * partial_ticks,
                                         grapple_pos.y + grapple_vel.y * partial_ticks,
                                     ));
-                                    let (x2, y2) = transform.transform((pivots[0].x, pivots[0].y));
+                                    let (x2, y2) = target.transform.transform((pivots[0].x, pivots[0].y));
                                     // target.line(
                                     //     x1 as f32,
                                     //     y1 as f32,
@@ -723,8 +719,8 @@ impl WorldRenderer {
                                     for i in 1..pivots.len() {
                                         let p1 = &pivots[i - 1];
                                         let p2 = &pivots[i];
-                                        let (x1, y1) = transform.transform((p1.x, p1.y));
-                                        let (x2, y2) = transform.transform((p2.x, p2.y));
+                                        let (x1, y1) = target.transform.transform((p1.x, p1.y));
+                                        let (x2, y2) = target.transform.transform((p2.x, p2.y));
 
                                         // target.line(
                                         //     x1 as f32,
@@ -737,11 +733,11 @@ impl WorldRenderer {
                                 }
 
                                 {
-                                    let (x1, y1) = transform.transform((
+                                    let (x1, y1) = target.transform.transform((
                                         pivots[pivots.len() - 1].x,
                                         pivots[pivots.len() - 1].y,
                                     ));
-                                    let (x2, y2) = transform.transform((
+                                    let (x2, y2) = target.transform.transform((
                                         player_pos.x + player_vel.x * partial_ticks,
                                         player_pos.y + player_vel.y * partial_ticks,
                                     ));
@@ -777,14 +773,14 @@ impl WorldRenderer {
                 for y in -10..10 {
                     let rc_x = x + (camera_pos.x / f64::from(CHUNK_SIZE)) as i32;
                     let rc_y = y + (camera_pos.y / f64::from(CHUNK_SIZE)) as i32;
-                    let rc = Rect::new(
-                        rc_x * i32::from(CHUNK_SIZE),
-                        rc_y * i32::from(CHUNK_SIZE),
-                        u32::from(CHUNK_SIZE),
-                        u32::from(CHUNK_SIZE),
-                    );
+                    // let rc = Rect::new(
+                    //     rc_x * i32::from(CHUNK_SIZE),
+                    //     rc_y * i32::from(CHUNK_SIZE),
+                    //     CHUNK_SIZE,
+                    //     CHUNK_SIZE,
+                    // );
                     // target.rectangle2(
-                    //     transform.transform_rect(rc).into_sdl(),
+                    //     target.transform.transform_rect(rc).into_sdl(),
                     //     Color::rgba(64, 64, 64, 127).into_sdl(),
                     // );
                 }
@@ -793,7 +789,7 @@ impl WorldRenderer {
 
         if settings.debug && settings.draw_origin {
             let len: f32 = 16.0;
-            let origin = transform.transform((0, 0));
+            let origin = target.transform.transform((0, 0));
             // target.rectangle_filled2(
             //     GPURect::new(
             //         origin.0 as f32 - len - 2.0,
@@ -831,24 +827,24 @@ impl WorldRenderer {
 
         if settings.debug && settings.draw_load_zones {
             // target.rectangle2(
-            //     transform.transform_rect(unload_zone).into_sdl(),
+            //     target.transform.transform_rect(unload_zone).into_sdl(),
             //     Color::rgba(255, 0, 0, 127).into_sdl(),
             // );
             // target.rectangle2(
-            //     transform.transform_rect(load_zone).into_sdl(),
+            //     target.transform.transform_rect(load_zone).into_sdl(),
             //     Color::rgba(255, 127, 0, 127).into_sdl(),
             // );
             // target.rectangle2(
-            //     transform.transform_rect(active_zone).into_sdl(),
+            //     target.transform.transform_rect(active_zone).into_sdl(),
             //     Color::rgba(255, 255, 0, 127).into_sdl(),
             // );
             // target.rectangle2(
-            //     transform.transform_rect(screen_zone).into_sdl(),
+            //     target.transform.transform_rect(screen_zone).into_sdl(),
             //     Color::rgba(0, 255, 0, 127).into_sdl(),
             // );
         }
 
-        transform.pop();
+        target.transform.pop();
 
         // draw overlay
     }

@@ -12,86 +12,122 @@ mod file_helper;
 pub use file_helper::*;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct Rect {
-    pub x: i32,
-    pub y: i32,
-    pub w: u32,
-    pub h: u32,
+pub struct Rect<T> {
+    pub x1: T,
+    pub y1: T,
+    pub x2: T,
+    pub y2: T,
 }
 
-impl Rect {
+impl<T: Copy + std::ops::Add<Output = T> + std::cmp::PartialOrd + std::ops::Sub<Output = T>> Rect<T> {
     #[inline]
-    pub fn new(x: impl Into<i32>, y: impl Into<i32>, w: impl Into<u32>, h: impl Into<u32>) -> Self {
-        Self { x: x.into(), y: y.into(), w: w.into(), h: h.into() }
+    pub fn new(x1: impl Into<T>, y1: impl Into<T>, x2: impl Into<T>, y2: impl Into<T>) -> Self {
+        Self { x1: x1.into(), y1: y1.into(), x2: x2.into(), y2: y2.into() }
     }
 
     #[inline]
-    pub fn new_points(
-        x1: impl Into<i32>,
-        y1: impl Into<i32>,
-        x2: impl Into<i32>,
-        y2: impl Into<i32>,
+    pub fn new_wh(
+        x1: impl Into<T>,
+        y1: impl Into<T>,
+        w: impl Into<T>,
+        h: impl Into<T>,
     ) -> Self {
         let x1 = x1.into();
         let y1 = y1.into();
-        let x2 = x2.into();
-        let y2 = y2.into();
+        let x2 = x1 + w.into();
+        let y2 = y1 + h.into();
 
         Self {
-            x: x1.min(x2),
-            y: y1.min(y2),
-            w: (x1.max(x2) - x1.min(x2)) as u32,
-            h: (y1.max(y2) - y1.min(y2)) as u32,
+            x1,
+            y1,
+            x2,
+            y2,
         }
     }
 
-    pub const fn left(&self) -> i32 {
-        self.x
+    #[inline]
+    pub fn left(&self) -> T {
+        self.x1
     }
 
     #[allow(clippy::cast_possible_wrap)]
-    pub const fn right(&self) -> i32 {
-        self.x + self.w as i32
+    #[inline]
+    pub fn right(&self) -> T {
+        self.x2
     }
 
-    pub const fn top(&self) -> i32 {
-        self.y
+    #[inline]
+    pub fn top(&self) -> T {
+        self.y1
     }
 
     #[allow(clippy::cast_possible_wrap)]
-    pub const fn bottom(&self) -> i32 {
-        self.y + self.h as i32
+    #[inline]
+    pub fn bottom(&self) -> T {
+        self.y2
     }
 
-    pub fn range_lr(&self) -> Range<i32> {
+    #[inline]
+    pub fn width(&self) -> T {
+        self.x2 - self.x1
+    }
+
+    #[inline]
+    pub fn height(&self) -> T {
+        self.y2 - self.y1
+    }
+
+    #[inline]
+    pub fn range_lr(&self) -> Range<T> {
         self.left()..self.right()
     }
 
-    pub fn range_tb(&self) -> Range<i32> {
+    #[inline]
+    pub fn range_tb(&self) -> Range<T> {
         self.top()..self.bottom()
     }
 
-    pub const fn intersects(&self, other: &Self) -> bool {
+    #[inline]
+    pub fn intersects(&self, other: &Self) -> bool {
         !(self.bottom() < other.top()
             || self.top() > other.bottom()
             || self.right() < other.left()
             || self.left() > other.right())
     }
 
-    pub fn contains_point(&self, point: (impl Into<i32>, impl Into<i32>)) -> bool {
+    #[inline]
+    pub fn contains_point(&self, point: (impl Into<T>, impl Into<T>)) -> bool {
         let (x, y) = (point.0.into(), point.1.into());
         x >= self.left() && y >= self.top() && x <= self.right() && y <= self.bottom()
     }
 
     #[must_use]
     pub fn union(self, other: Self) -> Self {
-        let x = self.x.min(other.x);
-        let y = self.y.min(other.y);
+        let x1 = partial_min(self.x1, other.x1);
+        let y1 = partial_min(self.y1, other.y1);
+        let x2 = partial_max(self.x2, other.x2);
+        let y2 = partial_max(self.y2, other.y2);
         Self {
-            x,
-            y,
-            w: (self.right().max(other.right()) - x) as u32,
-            h: (self.bottom().max(other.bottom()) - y) as u32,
+            x1,
+            y1,
+            x2,
+            y2,
         }
+    }
+}
+
+fn partial_max<T: PartialOrd>(a: T, b: T) -> T {
+    if b > a {
+        b
+    } else {
+        a
+    }
+}
+
+fn partial_min<T: PartialOrd>(a: T, b: T) -> T {
+    if b > a {
+        a
+    } else {
+        b
     }
 }

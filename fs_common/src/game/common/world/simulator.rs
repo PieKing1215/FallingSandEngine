@@ -28,7 +28,7 @@ struct SimulationHelperChunk<'a> {
     pixels: [*mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]; 9],
     colors: [*mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]; 9],
     dirty: &'a mut [bool; 9],
-    dirty_rects: &'a mut [Option<Rect>; 9],
+    dirty_rects: &'a mut [Option<Rect<i32>>; 9],
     min_x: [u16; 9],
     min_y: [u16; 9],
     max_x: [u16; 9],
@@ -179,11 +179,11 @@ impl SimulationHelperChunk<'_> {
             if self.min_x[i] == CHUNK_SIZE + 1 {
                 self.dirty_rects[i] = None;
             } else {
-                self.dirty_rects[i] = Some(Rect::new(
+                self.dirty_rects[i] = Some(Rect::new_wh(
                     i32::from(self.min_x[i]),
                     i32::from(self.min_y[i]),
-                    u32::from(self.max_x[i] - self.min_x[i]) + 1,
-                    u32::from(self.max_y[i] - self.min_y[i]) + 1,
+                    self.max_x[i] - self.min_x[i] + 1,
+                    self.max_y[i] - self.min_y[i] + 1,
                 ));
             }
         }
@@ -339,7 +339,7 @@ impl Simulator {
         pixels_raw: [usize; 9],
         colors_raw: [usize; 9],
         dirty: &mut [bool; 9],
-        dirty_rects: &mut [Option<Rect>; 9],
+        dirty_rects: &mut [Option<Rect<i32>>; 9],
         particles: &mut Vec<Particle>,
     ) {
         const CENTER_CHUNK: usize = 4;

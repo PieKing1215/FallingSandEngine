@@ -11,7 +11,7 @@ use fs_common::game::common::{
 };
 use glium::Frame;
 
-use crate::render::{Fonts, Renderable, TransformStack};
+use crate::render::{Fonts, Renderable, TransformStack, drawing::RenderTarget};
 
 pub struct ClientChunk {
     pub chunk_x: i32,
@@ -19,7 +19,7 @@ pub struct ClientChunk {
     pub state: ChunkState,
     pub pixels: Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
     pub graphics: Box<ChunkGraphics>,
-    pub dirty_rect: Option<Rect>,
+    pub dirty_rect: Option<Rect<i32>>,
     pub rigidbody: Option<RigidBodyState>,
     pub mesh: Option<Vec<Vec<Vec<Vec<f64>>>>>,
     pub mesh_simplified: Option<Vec<Vec<Vec<Vec<f64>>>>>,
@@ -63,11 +63,11 @@ impl<'ch> Chunk for ClientChunk {
         self.state = state;
     }
 
-    fn get_dirty_rect(&self) -> Option<Rect> {
+    fn get_dirty_rect(&self) -> Option<Rect<i32>> {
         self.dirty_rect
     }
 
-    fn set_dirty_rect(&mut self, rect: Option<Rect>) {
+    fn set_dirty_rect(&mut self, rect: Option<Rect<i32>>) {
         self.dirty_rect = rect;
     }
 
@@ -107,8 +107,8 @@ impl<'ch> Chunk for ClientChunk {
                 self.dirty_rect = Some(Rect::new(
                     0,
                     0,
-                    u32::from(CHUNK_SIZE),
-                    u32::from(CHUNK_SIZE),
+                    CHUNK_SIZE,
+                    CHUNK_SIZE,
                 ));
 
                 return Ok(());
@@ -310,13 +310,12 @@ impl<'cg> ChunkGraphics {
 impl Renderable for ClientChunk {
     fn render(
         &self,
-        target: &mut Frame,
-        transform: &mut TransformStack,
+        target: &mut RenderTarget,
         fonts: &Fonts,
         settings: &Settings,
     ) {
         self.graphics
-            .render(target, transform, fonts, settings);
+            .render(target, fonts, settings);
 
         if settings.debug && settings.draw_chunk_collision == 1 {
             if let Some(f) = &self.mesh {
@@ -332,8 +331,8 @@ impl Renderable for ClientChunk {
                 f.iter().enumerate().for_each(|(j, f)| {
                     f.iter().enumerate().for_each(|(_k, pts)| {
                         for i in 1..pts.len() {
-                            let (x1, y1) = transform.transform((pts[i - 1][0], pts[i - 1][1]));
-                            let (x2, y2) = transform.transform((pts[i][0], pts[i][1]));
+                            let (x1, y1) = target.transform.transform((pts[i - 1][0], pts[i - 1][1]));
+                            let (x2, y2) = target.transform.transform((pts[i][0], pts[i][1]));
                             // canvas.line(
                             //     x1 as f32,
                             //     y1 as f32,
@@ -365,8 +364,8 @@ impl Renderable for ClientChunk {
                 f.iter().enumerate().for_each(|(j, f)| {
                     f.iter().enumerate().for_each(|(_k, pts)| {
                         for i in 1..pts.len() {
-                            let (x1, y1) = transform.transform((pts[i - 1][0], pts[i - 1][1]));
-                            let (x2, y2) = transform.transform((pts[i][0], pts[i][1]));
+                            let (x1, y1) = target.transform.transform((pts[i - 1][0], pts[i - 1][1]));
+                            let (x2, y2) = target.transform.transform((pts[i][0], pts[i][1]));
                             // canvas.line(
                             //     x1 as f32,
                             //     y1 as f32,
@@ -382,9 +381,9 @@ impl Renderable for ClientChunk {
             if let Some(t) = &self.tris {
                 for part in t {
                     for tri in part {
-                        let (x1, y1) = transform.transform(tri.0);
-                        let (x2, y2) = transform.transform(tri.1);
-                        let (x3, y3) = transform.transform(tri.2);
+                        let (x1, y1) = target.transform.transform(tri.0);
+                        let (x2, y2) = target.transform.transform(tri.1);
+                        let (x3, y3) = target.transform.transform(tri.2);
 
                         // let color = Color::rgba(32, 255, 255, 255).into_sdl();
 
@@ -401,16 +400,15 @@ impl Renderable for ClientChunk {
 impl Renderable for ChunkGraphics {
     fn render(
         &self,
-        target: &mut Frame,
-        transform: &mut TransformStack,
+        target: &mut RenderTarget,
         _fonts: &Fonts,
         _settings: &Settings,
     ) {
-        let chunk_rect = transform.transform_rect(Rect::new(
+        let chunk_rect = target.transform.transform_rect(Rect::new(
             0,
             0,
-            u32::from(CHUNK_SIZE),
-            u32::from(CHUNK_SIZE),
+            CHUNK_SIZE,
+            CHUNK_SIZE,
         ));
 
         // if let Some(tex) = &self.texture {

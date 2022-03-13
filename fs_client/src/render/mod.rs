@@ -1,7 +1,14 @@
 mod renderer;
+pub mod drawing;
+pub mod vertex;
+pub mod shaders;
 use fs_common::game::common::{world::material::Color, Rect, Settings};
 use glium::Frame;
+use nalgebra::{Matrix4, Point2, Point3};
+use nalgebra_glm::TVec4;
 pub use renderer::*;
+
+use self::drawing::RenderTarget;
 
 mod imgui;
 
@@ -11,18 +18,13 @@ mod imgui;
 
 #[derive(Clone)]
 pub struct TransformStack {
-    stack: Vec<Transform>,
+    stack: Vec<Matrix4<f32>>,
 }
 
 impl TransformStack {
     pub fn new() -> Self {
         TransformStack {
-            stack: vec![Transform {
-                translate_x: 0.0,
-                translate_y: 0.0,
-                scale_x: 1.0,
-                scale_y: 1.0,
-            }],
+            stack: vec![Matrix4::identity()],
         }
     }
 
@@ -35,80 +37,93 @@ impl TransformStack {
     }
 
     pub fn translate<T: Into<f64>>(&mut self, x: T, y: T) {
-        self.stack.last_mut().unwrap().translate_x += x.into();
-        self.stack.last_mut().unwrap().translate_y += y.into();
+        *self.stack.last_mut().unwrap() = nalgebra_glm::translate(self.stack.last_mut().unwrap(), &nalgebra_glm::vec3(x.into() as f32, y.into() as f32, 0.0));
     }
 
     pub fn scale<T: Into<f64>>(&mut self, x: T, y: T) {
-        let prev_x = self.stack.last_mut().unwrap().scale_x;
-        let prev_y = self.stack.last_mut().unwrap().scale_y;
+        *self.stack.last_mut().unwrap() = nalgebra_glm::scale(self.stack.last_mut().unwrap(), &nalgebra_glm::vec3(x.into() as f32, y.into() as f32, 0.0));
+        // let prev_x = self.stack.last_mut().unwrap().scale_x;
+        // let prev_y = self.stack.last_mut().unwrap().scale_y;
 
-        self.stack.last_mut().unwrap().scale_x *= x.into();
-        self.stack.last_mut().unwrap().scale_y *= y.into();
-        self.stack.last_mut().unwrap().translate_x /=
-            self.stack.last_mut().unwrap().scale_x / prev_x;
-        self.stack.last_mut().unwrap().translate_y /=
-            self.stack.last_mut().unwrap().scale_y / prev_y;
+        // self.stack.last_mut().unwrap().scale_x *= x.into();
+        // self.stack.last_mut().unwrap().scale_y *= y.into();
+        // self.stack.last_mut().unwrap().translate_x /=
+        //     self.stack.last_mut().unwrap().scale_x / prev_x;
+        // self.stack.last_mut().unwrap().translate_y /=
+        //     self.stack.last_mut().unwrap().scale_y / prev_y;
     }
 
     #[inline(always)]
-    pub fn transform<T: Into<f64>>(&self, point: (T, T)) -> (f64, f64) {
+    pub fn transform<T: Into<f64>>(&self, point: (T, T)) -> (f32, f32) {
         let t = self.stack.last().unwrap();
+        let v = t.transform_point(&Point3::new(point.0.into() as f32, point.1.into() as f32, 0.0));
+        
         (
-            (point.0.into() + t.translate_x) * t.scale_x,
-            (point.1.into() + t.translate_y) * t.scale_y,
+            v[0], v[1]
+            // (point.0.into() + t.translate_x) * t.scale_x,
+            // (point.1.into() + t.translate_y) * t.scale_y,
         )
     }
 
     #[inline(always)]
     pub fn transform_int<T: Into<f64>>(&self, point: (T, T)) -> (i32, i32) {
         let t = self.stack.last().unwrap();
+        let v = t.transform_point(&Point3::new(point.0.into() as f32, point.1.into() as f32, 0.0));
+        
         (
-            ((point.0.into() + t.translate_x) * t.scale_x) as i32,
-            ((point.1.into() + t.translate_y) * t.scale_y) as i32,
+            v[0] as i32, v[1] as i32
+            // (point.0.into() + t.translate_x) * t.scale_x,
+            // (point.1.into() + t.translate_y) * t.scale_y,
         )
     }
 
-    pub fn transform_rect(&self, rect: Rect) -> Rect {
-        let pos = self.transform_int((rect.x, rect.y));
+    pub fn transform_rect(&self, rect: Rect<i32>) -> Rect<i32> {
+        let pos1 = self.transform_int((rect.x1 as f32, rect.y1 as f32));
+        let pos2 = self.transform_int((rect.x2 as f32, rect.y2 as f32));
 
         let t = self.stack.last().unwrap();
         Rect::new(
-            pos.0,
-            pos.1,
-            (f64::from(rect.w) * t.scale_x).ceil() as u32,
-            (f64::from(rect.h) * t.scale_y).ceil() as u32,
+            pos1.0,
+            pos1.1,
+            pos2.0,
+            pos2.1,
         )
     }
 
     #[allow(dead_code)]
-    pub fn inv_transform<T: Into<f64>>(&self, point: (T, T)) -> (f64, f64) {
+    pub fn inv_transform<T: Into<f64>>(&self, point: (T, T)) -> (f32, f32) {
         let t = self.stack.last().unwrap();
+        let v = t.try_inverse().unwrap().transform_point(&Point3::new(point.0.into() as f32, point.1.into() as f32, 0.0));
+        
         (
-            point.0.into() / t.scale_x - t.translate_x,
-            point.1.into() / t.scale_y - t.translate_y,
+            v[0], v[1]
+            // point.0.into() / t.scale_x - t.translate_x,
+            // point.1.into() / t.scale_y - t.translate_y,
         )
     }
 
     #[allow(dead_code)]
     pub fn inv_transform_int<T: Into<f64>>(&self, point: (T, T)) -> (i32, i32) {
         let t = self.stack.last().unwrap();
+        let v = t.try_inverse().unwrap().transform_point(&Point3::new(point.0.into() as f32, point.1.into() as f32, 0.0));
+        
         (
-            (point.0.into() / t.scale_x - t.translate_x) as i32,
-            (point.1.into() / t.scale_y - t.translate_y) as i32,
+            v[0] as i32, v[1] as i32
+            // (point.0.into() / t.scale_x - t.translate_x) as i32,
+            // (point.1.into() / t.scale_y - t.translate_y) as i32,
         )
     }
 
     #[allow(dead_code)]
-    pub fn inv_transform_rect(&self, rect: Rect) -> Rect {
-        let pos = self.inv_transform_int((rect.x, rect.y));
+    pub fn inv_transform_rect(&self, rect: Rect<i32>) -> Rect<i32> {
+        let pos1 = self.inv_transform_int((rect.x1, rect.y1));
+        let pos2 = self.inv_transform_int((rect.x2, rect.y2));
 
-        let t = self.stack.last().unwrap();
         Rect::new(
-            pos.0,
-            pos.1,
-            (f64::from(rect.w) / t.scale_x) as u32,
-            (f64::from(rect.h) / t.scale_y) as u32,
+            pos1.0,
+            pos1.1,
+            pos2.0,
+            pos2.1,
         )
     }
 }
@@ -119,19 +134,10 @@ impl Default for TransformStack {
     }
 }
 
-#[derive(Clone)]
-struct Transform {
-    translate_x: f64,
-    translate_y: f64,
-    scale_x: f64,
-    scale_y: f64,
-}
-
 pub trait Renderable {
     fn render(
         &self,
-        target: &mut Frame,
-        transform: &mut TransformStack,
+        target: &mut RenderTarget,
         fonts: &Fonts,
         settings: &Settings,
     );

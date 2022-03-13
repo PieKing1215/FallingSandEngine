@@ -1,39 +1,39 @@
-use std::{cell::RefCell, fs};
+use std::{cell::RefCell, fs, sync::Arc};
 
 use fs_common::game::{
-    common::{world::material::Color, FileHelper},
+    common::{world::material::Color, FileHelper, Rect},
     GameData,
 };
-use glium::{Display, Surface, Frame};
+use glium::{Display, Surface, Frame, DrawParameters, PolygonMode, Blend};
 use glutin::{dpi::LogicalSize, event_loop::EventLoop};
 use imgui::WindowFlags;
-use imgui_glow_renderer::{versions::GlVersion, AutoRenderer};
+use imgui_winit_support::{WinitPlatform, HiDpiMode};
+
 use crate::{
     render::{imgui::DebugUI},
     world::{ClientChunk, WorldRenderer},
     Client,
 };
 
-use super::TransformStack;
+use super::{TransformStack, drawing::RenderTarget, shaders::Shaders};
 
 pub static mut BUILD_DATETIME: Option<&str> = None;
 pub static mut GIT_HASH: Option<&str> = None;
 
 pub struct Renderer {
     pub fonts: Option<Fonts>,
-    // pub shaders: Shaders,
+    pub shaders: Arc<Shaders>,
     pub display: Display,
     pub world_renderer: WorldRenderer,
+    pub imgui: imgui::Context,
+    pub imgui_platform: WinitPlatform,
+    pub imgui_renderer: imgui_glium_renderer::Renderer,
     // pub version_info_cache_1: Option<(u32, u32, GPUImage)>,
     // pub version_info_cache_2: Option<(u32, u32, GPUImage)>,
 }
 
 pub struct Fonts {
     // pub pixel_operator: Font<'ttf, 'static>,
-}
-
-pub struct Shaders {
-    // pub liquid_shader: Shader,
 }
 
 impl Renderer {
@@ -45,11 +45,19 @@ impl Renderer {
         let cb = glutin::ContextBuilder::new();
         let display = glium::Display::new(wb, cb, event_loop).unwrap();
 
-        // let mut imgui = imgui::Context::create();
-        // imgui.set_ini_filename(None);
+        let mut imgui = imgui::Context::create();
+        imgui.set_ini_filename(None);
 
-        // log::info!("glversion = {:?}", display.get_opengl_version());
-        // let imgui_renderer = imgui_glium_renderer::Renderer::init(&mut imgui, &display).unwrap();
+        let mut imgui_platform = WinitPlatform::init(&mut imgui);
+        {
+            let gl_window = display.gl_window();
+            let window = gl_window.window();
+    
+            imgui_platform.attach_window(imgui.io_mut(), window, HiDpiMode::Default);
+        }
+
+        log::info!("glversion = {:?}", display.get_opengl_version());
+        let imgui_renderer = imgui_glium_renderer::Renderer::init(&mut imgui, &display).unwrap();
         // let imgui_sdl2 = SdlPlatform::init(&mut imgui);
 
         // let shaders = Shaders {
@@ -63,11 +71,16 @@ impl Renderer {
         //     )?,
         // };
 
+        let shaders = Arc::new(Shaders::new(&display));
+
         Ok(Renderer {
             fonts: None,
-            // shaders,
+            shaders,
             display,
             world_renderer: WorldRenderer::new(),
+            imgui,
+            imgui_platform,
+            imgui_renderer,
             // version_info_cache_1: None,
             // version_info_cache_2: None,
         })
@@ -81,8 +94,8 @@ impl Renderer {
         delta_time: f64,
         partial_ticks: f64,
     ) {
-        let mut target = self.display.draw();
-        target.clear_color_srgb(0.0, 0.5, 1.0, 1.0);
+        let mut target = RenderTarget::new(&mut self.display, self.shaders.clone());
+        target.clear(Color::BLACK);
 
         self.render_internal(&mut target, game, client, delta_time, partial_ticks);
 
@@ -153,134 +166,135 @@ impl Renderer {
 
         {
             profiling::scope!("imgui");
-            // let ui = self.imgui.new_frame();
+            let ui = self.imgui.new_frame();
 
-            // // ui.show_demo_window(&mut true);
+            // ui.show_demo_window(&mut true);
 
-            // if game.settings.debug {
-            //     let last_vsync = game.settings.vsync;
-            //     let last_minimize_on_lost_focus = game.settings.minimize_on_lost_focus;
+            if game.settings.debug {
+                let last_vsync = game.settings.vsync;
+                let last_minimize_on_lost_focus = game.settings.minimize_on_lost_focus;
 
-            //     game.settings.debug_ui(ui);
+                game.settings.debug_ui(ui);
 
-            //     // TODO: this should be somewhere better
-            //     // maybe clone the Settings before each frame and at the end compare it?
+                // TODO: this should be somewhere better
+                // maybe clone the Settings before each frame and at the end compare it?
 
-            //     if game.settings.vsync != last_vsync {
-            //         let si_des = if game.settings.vsync {
-            //             SwapInterval::VSync
-            //         } else {
-            //             SwapInterval::Immediate
-            //         };
+                // if game.settings.vsync != last_vsync {
+                //     let si_des = if game.settings.vsync {
+                //         SwapInterval::VSync
+                //     } else {
+                //         SwapInterval::Immediate
+                //     };
 
-            //         self.sdl.as_ref().unwrap().sdl_video.gl_set_swap_interval(si_des).unwrap();
-            //     }
+                //     self.sdl.as_ref().unwrap().sdl_video.gl_set_swap_interval(si_des).unwrap();
+                // }
 
-            //     if last_minimize_on_lost_focus != game.settings.minimize_on_lost_focus {
-            //         sdl2::hint::set_video_minimize_on_focus_loss(
-            //             game.settings.minimize_on_lost_focus,
-            //         );
-            //     }
-            // }
+                // if last_minimize_on_lost_focus != game.settings.minimize_on_lost_focus {
+                //     sdl2::hint::set_video_minimize_on_focus_loss(
+                //         game.settings.minimize_on_lost_focus,
+                //     );
+                // }
+            }
 
-            // client.main_menu.render(ui, &game.file_helper);
+            client.main_menu.render(ui, &game.file_helper);
 
-            // ui.window("Stats")
-            //     .size([300.0, 300.0], imgui::Condition::FirstUseEver)
-            //     .position_pivot([1.0, 1.0])
-            //     .position(
-            //         [self.window.size().0 as f32, self.window.size().1 as f32],
-            //         imgui::Condition::Always,
-            //     )
-            //     .flags(
-            //         WindowFlags::ALWAYS_AUTO_RESIZE
-            //             | WindowFlags::NO_DECORATION
-            //             | WindowFlags::NO_MOUSE_INPUTS
-            //             | WindowFlags::NO_FOCUS_ON_APPEARING
-            //             | WindowFlags::NO_NAV,
-            //     )
-            //     .bg_alpha(0.25)
-            //     .resizable(false)
-            //     .build(|| {
-            //         ui.text(match game.process_stats.cpu_usage {
-            //             Some(c) => format!("CPU: {:.0}%", c),
-            //             None => "CPU: n/a".to_string(),
-            //         });
-            //         ui.same_line();
-            //         ui.text(match game.process_stats.memory {
-            //             Some(m) => format!(" mem: {:.1} MB", m as f32 / 1000.0),
-            //             None => " mem: n/a".to_string(),
-            //         });
+            ui.window("Stats")
+                .size([300.0, 300.0], imgui::Condition::FirstUseEver)
+                .position_pivot([1.0, 1.0])
+                .position(
+                    [self.display.gl_window().window().inner_size().width as f32, self.display.gl_window().window().inner_size().height as f32],
+                    imgui::Condition::Always,
+                )
+                .flags(
+                    WindowFlags::ALWAYS_AUTO_RESIZE
+                        | WindowFlags::NO_DECORATION
+                        | WindowFlags::NO_MOUSE_INPUTS
+                        | WindowFlags::NO_FOCUS_ON_APPEARING
+                        | WindowFlags::NO_NAV,
+                )
+                .bg_alpha(0.25)
+                .resizable(false)
+                .build(|| {
+                    ui.text(match game.process_stats.cpu_usage {
+                        Some(c) => format!("CPU: {:.0}%", c),
+                        None => "CPU: n/a".to_string(),
+                    });
+                    ui.same_line();
+                    ui.text(match game.process_stats.memory {
+                        Some(m) => format!(" mem: {:.1} MB", m as f32 / 1000.0),
+                        None => " mem: n/a".to_string(),
+                    });
 
-            //         let nums: Vec<&f32> = game
-            //             .fps_counter
-            //             .frame_times
-            //             .iter()
-            //             .filter(|n| **n != 0.0)
-            //             .collect();
-            //         let avg_mspf: f32 =
-            //             nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+                    let nums: Vec<&f32> = game
+                        .fps_counter
+                        .frame_times
+                        .iter()
+                        .filter(|n| **n != 0.0)
+                        .collect();
+                    let avg_mspf: f32 =
+                        nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-            //         ui.plot_lines("", &game.fps_counter.frame_times)
-            //             .graph_size([200.0, 50.0])
-            //             .scale_min(0.0)
-            //             .scale_max(50_000_000.0)
-            //             .overlay_text(format!(
-            //                 "mspf: {:.2} fps: {:.0}/{:.0}",
-            //                 avg_mspf,
-            //                 ui.io().framerate,
-            //                 1_000_000_000.0
-            //                     / game
-            //                         .fps_counter
-            //                         .frame_times
-            //                         .iter()
-            //                         .copied()
-            //                         .reduce(f32::max)
-            //                         .unwrap()
-            //             ))
-            //             .build();
+                    ui.plot_lines("", &game.fps_counter.frame_times)
+                        .graph_size([200.0, 50.0])
+                        .scale_min(0.0)
+                        .scale_max(50_000_000.0)
+                        .overlay_text(format!(
+                            "mspf: {:.2} fps: {:.0}/{:.0}",
+                            avg_mspf,
+                            ui.io().framerate,
+                            1_000_000_000.0
+                                / game
+                                    .fps_counter
+                                    .frame_times
+                                    .iter()
+                                    .copied()
+                                    .reduce(f32::max)
+                                    .unwrap()
+                        ))
+                        .build();
 
-            //         let nums: Vec<&f32> = game
-            //             .fps_counter
-            //             .tick_times
-            //             .iter()
-            //             .filter(|n| **n != 0.0)
-            //             .collect();
-            //         let avg_mspt: f32 =
-            //             nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+                    let nums: Vec<&f32> = game
+                        .fps_counter
+                        .tick_times
+                        .iter()
+                        .filter(|n| **n != 0.0)
+                        .collect();
+                    let avg_mspt: f32 =
+                        nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-            //         ui.plot_histogram("", &game.fps_counter.tick_times)
-            //             .graph_size([200.0, 50.0])
-            //             .scale_min(0.0)
-            //             .scale_max(100_000_000.0)
-            //             .overlay_text(format!("tick mspt: {:.2}", avg_mspt))
-            //             .build();
+                    ui.plot_histogram("", &game.fps_counter.tick_times)
+                        .graph_size([200.0, 50.0])
+                        .scale_min(0.0)
+                        .scale_max(100_000_000.0)
+                        .overlay_text(format!("tick mspt: {:.2}", avg_mspt))
+                        .build();
 
-            //         let nums: Vec<&f32> = game
-            //             .fps_counter
-            //             .tick_physics_times
-            //             .iter()
-            //             .filter(|n| **n != 0.0)
-            //             .collect();
-            //         let avg_mspt_physics: f32 =
-            //             nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+                    let nums: Vec<&f32> = game
+                        .fps_counter
+                        .tick_physics_times
+                        .iter()
+                        .filter(|n| **n != 0.0)
+                        .collect();
+                    let avg_mspt_physics: f32 =
+                        nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
 
-            //         ui.plot_histogram("", &game.fps_counter.tick_physics_times)
-            //             .graph_size([200.0, 50.0])
-            //             .scale_min(0.0)
-            //             .scale_max(100_000_000.0)
-            //             .overlay_text(format!("phys mspt: {:.2}", avg_mspt_physics))
-            //             .build();
-            //     });
+                    ui.plot_histogram("", &game.fps_counter.tick_physics_times)
+                        .graph_size([200.0, 50.0])
+                        .scale_min(0.0)
+                        .scale_max(100_000_000.0)
+                        .overlay_text(format!("phys mspt: {:.2}", avg_mspt_physics))
+                        .build();
+                });
 
-            // let draw_data = {
-            //     profiling::scope!("prepare_render");
-            //     self.imgui.render()
-            // };
-            // {
-            //     profiling::scope!("render");
-            //     self.imgui_renderer.render(draw_data).unwrap();
-            // }
+            let draw_data = {
+                profiling::scope!("prepare_render");
+                self.imgui_platform.prepare_render(ui, self.display.gl_window().window());
+                self.imgui.render()
+            };
+            {
+                profiling::scope!("render");
+                self.imgui_renderer.render(&mut target.frame, draw_data).unwrap();
+            }
         }
 
         target.finish().unwrap();
@@ -289,7 +303,7 @@ impl Renderer {
     #[profiling::function]
     fn render_internal(
         &mut self,
-        target: &mut Frame,
+        target: &mut RenderTarget,
         game: &mut GameData<ClientChunk>,
         client: &mut Client,
         delta_time: f64,
@@ -298,40 +312,57 @@ impl Renderer {
 
         {
             profiling::scope!("test stuff");
-            // target.rectangle2(
-            //     GPURect::new(
-            //         40.0 + ((game.tick_time as f32 / 5.0).sin() * 20.0),
-            //         30.0 + ((game.tick_time as f32 / 5.0).cos().abs() * -10.0),
-            //         15.0,
-            //         15.0,
-            //     ),
-            //     Color::rgb(255, 0, 0).into_sdl(),
-            // );
 
-            // GPUSubsystem::set_shape_blend_mode(sdl_gpu::sys::GPU_BlendPresetEnum::GPU_BLEND_NORMAL);
-            // for i in (0..10000).step_by(15) {
-            //     let thru = (i as f32 / 10000.0 * 255.0) as u8;
-            //     let thru2 = (((i % 1000) as f32 / 1000.0) * 255.0) as u8;
-            //     let timeshift = ((1.0 - ((i % 1000) as f32 / 1000.0)).powi(8) * 200.0) as i32;
+            target.transform.push();
+            target.transform.translate(-1.0, 1.0);
+            target.transform.scale(1.0 / target.display.gl_window().window().inner_size().width as f64, -1.0 / target.display.gl_window().window().inner_size().height as f64);
+            target.rectangle(
+                Rect::new_wh(
+                    40.0 + ((game.tick_time as f32 / 5.0).sin() * 20.0),
+                    30.0 + ((game.tick_time as f32 / 5.0).cos().abs() * -10.0),
+                    15.0,
+                    15.0,
+                ),
+                Color::rgb(255, 0, 0),
+                DrawParameters {
+                    polygon_mode: PolygonMode::Line,
+                    line_width: Some(1.0),
+                    ..Default::default()
+                }
+            );
 
-            //     let rect = GPURect::new(
-            //         75.0 + (i as f32 % 1000.0)
-            //             + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32
-            //                 - timeshift as f32)
-            //                 / 100.0)
-            //                 .sin()
-            //                 * 50.0),
-            //         (i as f32 / 1000.0) * 100.0
-            //             + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32
-            //                 - timeshift as f32)
-            //                 / 100.0)
-            //                 .cos()
-            //                 * 50.0),
-            //         20.0,
-            //         20.0,
-            //     );
-            //     target.rectangle_filled2(rect, Color::rgba(0, thru, 255 - thru, thru2).into_sdl());
-            // }
+            let rects = (0..10000).step_by(15).map(|i|{
+                let thru = (i as f32 / 10000.0 * 255.0) as u8;
+                let thru2 = (((i % 1000) as f32 / 1000.0) * 255.0) as u8;
+                let timeshift = ((1.0 - ((i % 1000) as f32 / 1000.0)).powi(8) * 200.0) as i32;
+
+                let color = Color::rgba(0, thru, 255 - thru, thru2);
+
+                (Rect::new_wh(
+                    75.0 + (i as f32 % 1000.0)
+                        + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32
+                            - timeshift as f32)
+                            / 100.0)
+                            .sin()
+                            * 50.0),
+                    (i as f32 / 1000.0) * 100.0
+                        + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32
+                            - timeshift as f32)
+                            / 100.0)
+                            .cos()
+                            * 50.0),
+                    20.0,
+                    20.0,
+                ), color)
+            }).collect::<Vec<_>>();
+            target.rectangles_colored(
+                &rects,
+                DrawParameters {
+                    blend: Blend::alpha_blending(),
+                    ..Default::default()
+                }
+            );
+            target.transform.pop();
         }
 
         if let Some(w) = &mut game.world {

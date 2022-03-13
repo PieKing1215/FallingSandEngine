@@ -17,10 +17,9 @@ fs_common = { path = "../fs_common" }
 log = "0.4"
 profiling = "1.0"
 clap = { version = "3.0", features = ["cargo"] }
-imgui = { git = "https://github.com/PieKing1215/imgui-rs.git", branch = "custom-edit" }
-imgui-glow-renderer = { git = "https://github.com/PieKing1215/imgui-rs.git", branch = "custom-edit" }
-imgui-glium-renderer = { git = "https://github.com/PieKing1215/imgui-rs.git", branch = "custom-edit" }
-glow = "0.10" # imgui-glow-renderer uses old version
+imgui = { git = "https://github.com/imgui-rs/imgui-rs.git" }
+imgui-glium-renderer = { git = "https://github.com/imgui-rs/imgui-rs.git" }
+imgui-winit-support = { git = "https://github.com/imgui-rs/imgui-rs.git" }
 specs = { version = "0.17", features = ["serde", "specs-derive"] }
 salva2d = { version = "0.7", features = ["rapier"] }
 rapier2d = { version = "0.11", features = ["simd-stable"] }
@@ -29,3 +28,5 @@ bincode = "1.3"
 glutin = "0.28"
 glium = "0.31"
 glium-glyph = "0.11"
+nalgebra = "0.30"
+nalgebra-glm = "0.16"

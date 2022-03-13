@@ -116,8 +116,8 @@ mod tests {
         let load = ch.get_load_zone(center);
         let unload = ch.get_unload_zone(center);
 
-        assert!(screen.w <= active.w && screen.h <= active.h);
-        assert!(active.w < load.w && active.h < load.h);
-        assert!(load.w < unload.w && load.h < unload.h);
+        assert!(screen.width() <= active.width() && screen.height() <= active.height());
+        assert!(active.width() < load.width() && active.height() < load.height());
+        assert!(load.width() < unload.width() && load.height() < unload.height());
     }
 }

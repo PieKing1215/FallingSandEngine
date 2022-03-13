@@ -373,439 +373,449 @@ impl ClientGame {
 
 
             match event {
-                glutin::event::Event::WindowEvent { event, .. } => match event {
+                glutin::event::Event::WindowEvent { event: ref w_event, .. } => match w_event {
                     glutin::event::WindowEvent::CloseRequested => {
                         *control_flow = glutin::event_loop::ControlFlow::Exit;
                         return;
                     },
-                    glutin::event::WindowEvent::KeyboardInput { input, .. } => {
-
-                    }
-                    _ => {},
+                    _ => {
+                        renderer.imgui_platform.handle_event(renderer.imgui.io_mut(), renderer.display.gl_window().window(), &event);
+                        match w_event {
+                            glutin::event::WindowEvent::KeyboardInput { input, .. } => {
+    
+                            },
+                            _ => {},
+                        }
+                    },
                 },
                 glutin::event::Event::NewEvents(cause) => match cause {
-                    glutin::event::StartCause::ResumeTimeReached { .. } => (),
+                    glutin::event::StartCause::ResumeTimeReached { .. } => {
+                        
+                    },
                     glutin::event::StartCause::Init => (),
                     _ => {},
                 },
-                _ => {},
-            }
-
-            let now = std::time::Instant::now();
-            let delta = now.saturating_duration_since(last_frame);
-            last_frame = now;
-            {
-                profiling::scope!("prep frame");
-                // renderer.imgui_sdl2
-                //     .prepare_frame(&mut renderer.imgui, &renderer.window, &event_pump);
-
-                // let delta_s =
-                //     delta.as_secs() as f32 + delta.subsec_nanos() as f32 / 1_000_000_000.0;
-                // renderer.imgui.io_mut().delta_time = delta_s;
-            }
-
-            {
-                profiling::scope!("update window mode");
-
-                let fs = renderer.display.gl_window().window().fullscreen();
-
-                let des_fs = match self.data.settings {
-                    Settings { fullscreen, fullscreen_type, .. }
-                        if fullscreen && fullscreen_type == 0 =>
+                glutin::event::Event::MainEventsCleared => {
+                    // println!("{event:?}");
+                    let now = std::time::Instant::now();
+                    let delta = now.saturating_duration_since(last_frame);
+                    last_frame = now;
                     {
-                        Some(Fullscreen::Borderless(None))
-                    },
-                    Settings { fullscreen, fullscreen_type, .. }
-                        if fullscreen && fullscreen_type != 0 =>
-                    {
-                        let monitor = renderer.display.gl_window().window().current_monitor().unwrap();
-                        Some(Fullscreen::Exclusive(monitor.video_modes().find(|m| m.size() == monitor.size()).unwrap()))
-                    },
-                    _ => None,
-                };
+                        profiling::scope!("prep frame");
+        
+                        renderer.imgui_platform.prepare_frame(renderer.imgui.io_mut(), renderer.display.gl_window().window()).unwrap();
 
-                if fs != des_fs {
-                    profiling::scope!("fullscreen");
-                    debug!("{:?}", des_fs);
-
-                    renderer.display.gl_window().window().set_fullscreen(des_fs);
-                }
-            }
-
-            // tick
-
-            let mut can_tick = self.data.settings.tick;
-
-            let has_focus = true; // TODO
-            can_tick = can_tick
-                && !(self.data.settings.pause_on_lost_focus && !has_focus);
-
-            if do_tick_next && can_tick {
-                prev_tick_time = now;
-                let st = Instant::now();
-                self.tick();
-
-                for act in self.client.main_menu.action_queue.drain(..) {
-                    match act {
-                        MainMenuAction::Quit => {
-                            *control_flow = glutin::event_loop::ControlFlow::Exit;
-                        },
-                        MainMenuAction::LoadWorld(path) => {
-                            let world_meta = World::<ClientChunk>::parse_file_meta(path.clone())
-                                .expect("Failed to parse file meta");
-                            if let Some(w) = &mut self.data.world {
-                                info!("Unload current world...");
-                                w.save().expect("World save failed");
-                                w.close().expect("World unload failed");
-                            }
-
-                            info!("Load world \"{}\"...", world_meta.name);
-                            self.data.world = Some(World::create(Some(
-                                path.parent()
-                                    .expect("World meta file has no parent directory ??")
-                                    .to_path_buf(),
-                            )));
-
-                            let rigid_body = RigidBodyBuilder::new_dynamic()
-                                .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
-                                .lock_rotations()
-                                .gravity_scale(0.0)
-                                .build();
-                            let handle = self
-                                .data
-                                .world
-                                .as_mut()
-                                .unwrap()
-                                .physics
-                                .bodies
-                                .insert(rigid_body);
-                            let collider = ColliderBuilder::cuboid(
-                                12.0 / PHYSICS_SCALE / 2.0,
-                                20.0 / PHYSICS_SCALE / 2.0,
-                            )
-                            .collision_groups(InteractionGroups::new(
-                                CollisionFlags::PLAYER.bits(),
-                                (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits(),
-                            ))
-                            .density(1.5)
-                            .friction(0.3)
-                            .build();
-                            let w = self.data.world.as_mut().unwrap();
-                            let co_handle = w.physics.colliders.insert_with_parent(
-                                collider,
-                                handle,
-                                &mut w.physics.bodies,
-                            );
-                            let bo_handle = self
-                                .data
-                                .world
-                                .as_mut()
-                                .unwrap()
-                                .physics
-                                .fluid_pipeline
-                                .liquid_world
-                                .add_boundary(Boundary::new(Vec::new()));
-                            self.data
-                                .world
-                                .as_mut()
-                                .unwrap()
-                                .physics
-                                .fluid_pipeline
-                                .coupling
-                                .register_coupling(
-                                    bo_handle,
-                                    co_handle,
-                                    ColliderSampling::DynamicContactSampling,
-                                );
-
-                            if let Some(w) = &mut self.data.world {
-                                let player = w
-                                    .ecs
-                                    .create_entity()
-                                    .with(Player { movement: PlayerMovementMode::Free })
-                                    .with(GameEntity)
-                                    .with(PhysicsEntity {
-                                        on_ground: false,
-                                        gravity: 0.1,
-                                        edge_clip_distance: 2.0,
-                                        collision: true,
-                                        collide_with_sand: true,
-                                    })
-                                    .with(Persistent)
-                                    .with(Position { x: 0.0, y: -20.0 })
-                                    .with(Velocity { x: 0.0, y: 0.0 })
-                                    .with(Hitbox { x1: -6.0, y1: -10.0, x2: 6.0, y2: 10.0 })
-                                    .with(Loader)
-                                    .with(RigidBodyComponent::of(handle))
-                                    .build();
-
-                                self.client.world =
-                                    Some(ClientWorld { local_entity: Some(player) });
-                            };
-                        },
+                        let delta_s =
+                            delta.as_secs() as f32 + delta.subsec_nanos() as f32 / 1_000_000_000.0;
+                        renderer.imgui.io_mut().delta_time = delta_s;
                     }
-                }
-
-                if let Some(stream) = &mut network {
-                    let start = Instant::now();
-
-                    // let mut n = 0;
-                    while Instant::now().saturating_duration_since(start).as_nanos() < 5_000_000 {
-                        if bytes_to_read.is_none() {
-                            let mut buf = [0; 4];
-                            if stream.read_exact(&mut buf).is_ok() {
-                                let size: u32 = bincode::deserialize(&buf).unwrap();
-                                // println!("[CLIENT] Incoming packet, size = {}.", size);
-
-                                bytes_to_read = Some(size);
-                                read_buffer = Some(Vec::with_capacity(size as usize));
+        
+                    {
+                        profiling::scope!("update window mode");
+        
+                        let fs = renderer.display.gl_window().window().fullscreen();
+        
+                        let des_fs = match self.data.settings {
+                            Settings { fullscreen, fullscreen_type, .. }
+                                if fullscreen && fullscreen_type == 0 =>
+                            {
+                                Some(Fullscreen::Borderless(None))
+                            },
+                            Settings { fullscreen, fullscreen_type, .. }
+                                if fullscreen && fullscreen_type != 0 =>
+                            {
+                                let monitor = renderer.display.gl_window().window().current_monitor().unwrap();
+                                Some(Fullscreen::Exclusive(monitor.video_modes().find(|m| m.size() == monitor.size()).unwrap()))
+                            },
+                            _ => None,
+                        };
+        
+                        if fs != des_fs && !(matches!(fs, Some(Fullscreen::Borderless(_))) && matches!(des_fs, Some(Fullscreen::Borderless(_)))) {
+                            profiling::scope!("fullscreen");
+                            debug!("Fullscreen change: {:?} -> {:?}", fs, des_fs);
+        
+                            renderer.display.gl_window().window().set_fullscreen(des_fs);
+                        }
+                    }
+        
+                    // tick
+        
+                    let mut can_tick = self.data.settings.tick;
+        
+                    let has_focus = true; // TODO
+                    can_tick = can_tick
+                        && !(self.data.settings.pause_on_lost_focus && !has_focus);
+        
+                    if do_tick_next && can_tick {
+                        prev_tick_time = now;
+                        let st = Instant::now();
+                        self.tick();
+        
+                        for act in self.client.main_menu.action_queue.drain(..) {
+                            match act {
+                                MainMenuAction::Quit => {
+                                    *control_flow = glutin::event_loop::ControlFlow::Exit;
+                                },
+                                MainMenuAction::LoadWorld(path) => {
+                                    let world_meta = World::<ClientChunk>::parse_file_meta(path.clone())
+                                        .expect("Failed to parse file meta");
+                                    if let Some(w) = &mut self.data.world {
+                                        info!("Unload current world...");
+                                        w.save().expect("World save failed");
+                                        w.close().expect("World unload failed");
+                                    }
+        
+                                    info!("Load world \"{}\"...", world_meta.name);
+                                    self.data.world = Some(World::create(Some(
+                                        path.parent()
+                                            .expect("World meta file has no parent directory ??")
+                                            .to_path_buf(),
+                                    )));
+        
+                                    let rigid_body = RigidBodyBuilder::new_dynamic()
+                                        .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
+                                        .lock_rotations()
+                                        .gravity_scale(0.0)
+                                        .build();
+                                    let handle = self
+                                        .data
+                                        .world
+                                        .as_mut()
+                                        .unwrap()
+                                        .physics
+                                        .bodies
+                                        .insert(rigid_body);
+                                    let collider = ColliderBuilder::cuboid(
+                                        12.0 / PHYSICS_SCALE / 2.0,
+                                        20.0 / PHYSICS_SCALE / 2.0,
+                                    )
+                                    .collision_groups(InteractionGroups::new(
+                                        CollisionFlags::PLAYER.bits(),
+                                        (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits(),
+                                    ))
+                                    .density(1.5)
+                                    .friction(0.3)
+                                    .build();
+                                    let w = self.data.world.as_mut().unwrap();
+                                    let co_handle = w.physics.colliders.insert_with_parent(
+                                        collider,
+                                        handle,
+                                        &mut w.physics.bodies,
+                                    );
+                                    let bo_handle = self
+                                        .data
+                                        .world
+                                        .as_mut()
+                                        .unwrap()
+                                        .physics
+                                        .fluid_pipeline
+                                        .liquid_world
+                                        .add_boundary(Boundary::new(Vec::new()));
+                                    self.data
+                                        .world
+                                        .as_mut()
+                                        .unwrap()
+                                        .physics
+                                        .fluid_pipeline
+                                        .coupling
+                                        .register_coupling(
+                                            bo_handle,
+                                            co_handle,
+                                            ColliderSampling::DynamicContactSampling,
+                                        );
+        
+                                    if let Some(w) = &mut self.data.world {
+                                        let player = w
+                                            .ecs
+                                            .create_entity()
+                                            .with(Player { movement: PlayerMovementMode::Free })
+                                            .with(GameEntity)
+                                            .with(PhysicsEntity {
+                                                on_ground: false,
+                                                gravity: 0.1,
+                                                edge_clip_distance: 2.0,
+                                                collision: true,
+                                                collide_with_sand: true,
+                                            })
+                                            .with(Persistent)
+                                            .with(Position { x: 0.0, y: -20.0 })
+                                            .with(Velocity { x: 0.0, y: 0.0 })
+                                            .with(Hitbox { x1: -6.0, y1: -10.0, x2: 6.0, y2: 10.0 })
+                                            .with(Loader)
+                                            .with(RigidBodyComponent::of(handle))
+                                            .build();
+        
+                                        self.client.world =
+                                            Some(ClientWorld { local_entity: Some(player) });
+                                    };
+                                },
                             }
                         }
-
-                        if let (Some(size), Some(buf)) = (bytes_to_read, &mut read_buffer) {
-                            // println!("[CLIENT] size = {}", size);
-                            if size == 0 {
-                                // trying_to_read = None;
-                                panic!("[CLIENT] Zero length packet.");
-                            } else {
-                                assert!(size <= 2_000_000, "[CLIENT] Almost tried to read packet that is too big ({} bytes)", size);
-
-                                // let mut buf = vec![0; size as usize];
-
-                                // println!("[CLIENT] read_to_end...");
-                                let prev_size = buf.len();
-                                match std::io::Read::by_ref(stream)
-                                    .take(u64::from(size))
-                                    .read_to_end(buf)
-                                {
-                                    // match stream.read_exact(&mut buf) {
-                                    Ok(read) => {
-                                        if read != size as usize {
-                                            warn!(
-                                                "[CLIENT] Couldn't read enough bytes! Read {}/{}.",
-                                                read, size
-                                            );
-                                        }
-
-                                        // println!("[CLIENT] Read {}/{} bytes", read, buf.len());
-
-                                        bytes_to_read = None;
-
-                                        // println!("[CLIENT] Read {} bytes.", buf.len());
-                                        match bincode::deserialize::<Packet>(buf) {
-                                            // match serde_json::from_slice::<Packet>(&buf) {
-                                            Ok(p) => {
-                                                // n += 1;
-                                                #[allow(unreachable_patterns)]
-                                                #[allow(clippy::match_same_arms)]
-                                                match p.packet_type {
-                                                    PacketType::SyncChunkPacket {
-                                                        chunk_x,
-                                                        chunk_y,
-                                                        pixels,
-                                                        colors,
-                                                    } => {
-                                                        if let Some(w) = &mut self.data.world {
-                                                            if let Err(e) = w.sync_chunk(
-                                                                chunk_x, chunk_y, pixels, colors,
-                                                            ) {
-                                                                warn!("[CLIENT] sync_chunk failed: {}", e);
-                                                            }
+        
+                        if let Some(stream) = &mut network {
+                            let start = Instant::now();
+        
+                            // let mut n = 0;
+                            while Instant::now().saturating_duration_since(start).as_nanos() < 5_000_000 {
+                                if bytes_to_read.is_none() {
+                                    let mut buf = [0; 4];
+                                    if stream.read_exact(&mut buf).is_ok() {
+                                        let size: u32 = bincode::deserialize(&buf).unwrap();
+                                        // println!("[CLIENT] Incoming packet, size = {}.", size);
+        
+                                        bytes_to_read = Some(size);
+                                        read_buffer = Some(Vec::with_capacity(size as usize));
+                                    }
+                                }
+        
+                                if let (Some(size), Some(buf)) = (bytes_to_read, &mut read_buffer) {
+                                    // println!("[CLIENT] size = {}", size);
+                                    if size == 0 {
+                                        // trying_to_read = None;
+                                        panic!("[CLIENT] Zero length packet.");
+                                    } else {
+                                        assert!(size <= 2_000_000, "[CLIENT] Almost tried to read packet that is too big ({} bytes)", size);
+        
+                                        // let mut buf = vec![0; size as usize];
+        
+                                        // println!("[CLIENT] read_to_end...");
+                                        let prev_size = buf.len();
+                                        match std::io::Read::by_ref(stream)
+                                            .take(u64::from(size))
+                                            .read_to_end(buf)
+                                        {
+                                            // match stream.read_exact(&mut buf) {
+                                            Ok(read) => {
+                                                if read != size as usize {
+                                                    warn!(
+                                                        "[CLIENT] Couldn't read enough bytes! Read {}/{}.",
+                                                        read, size
+                                                    );
+                                                }
+        
+                                                // println!("[CLIENT] Read {}/{} bytes", read, buf.len());
+        
+                                                bytes_to_read = None;
+        
+                                                // println!("[CLIENT] Read {} bytes.", buf.len());
+                                                match bincode::deserialize::<Packet>(buf) {
+                                                    // match serde_json::from_slice::<Packet>(&buf) {
+                                                    Ok(p) => {
+                                                        // n += 1;
+                                                        #[allow(unreachable_patterns)]
+                                                        #[allow(clippy::match_same_arms)]
+                                                        match p.packet_type {
+                                                            PacketType::SyncChunkPacket {
+                                                                chunk_x,
+                                                                chunk_y,
+                                                                pixels,
+                                                                colors,
+                                                            } => {
+                                                                if let Some(w) = &mut self.data.world {
+                                                                    if let Err(e) = w.sync_chunk(
+                                                                        chunk_x, chunk_y, pixels, colors,
+                                                                    ) {
+                                                                        warn!("[CLIENT] sync_chunk failed: {}", e);
+                                                                    }
+                                                                }
+                                                            },
+                                                            PacketType::SyncLiquidFunPacket {
+                                                                positions: _,
+                                                                velocities: _,
+                                                            } => {
+                                                                // TODO: reimplement for rapier/salva
+                                                                // println!("[CLIENT] Got SyncLiquidFunPacket");
+                                                                // if let Some(w) = &mut self.data.world {
+                                                                //     let mut particle_system = w
+                                                                //         .lqf_world
+                                                                //         .get_particle_system_list()
+                                                                //         .unwrap();
+        
+                                                                //     let particle_count = particle_system
+                                                                //         .get_particle_count()
+                                                                //         as usize;
+                                                                //     // let particle_colors: &[b2ParticleColor] = particle_system.get_color_buffer();
+                                                                //     let particle_positions: &mut [Vec2] =
+                                                                //         particle_system
+                                                                //             .get_position_buffer_mut();
+                                                                //     for i in 0..particle_count
+                                                                //         .min(positions.len())
+                                                                //     {
+                                                                //         let dx = positions[i].x
+                                                                //             - particle_positions[i].x;
+                                                                //         let dy = positions[i].y
+                                                                //             - particle_positions[i].y;
+        
+                                                                //         if dx.abs() > 1.0 || dy.abs() > 1.0
+                                                                //         {
+                                                                //             particle_positions[i].x += dx;
+                                                                //             particle_positions[i].y += dy;
+                                                                //         } else {
+                                                                //             particle_positions[i].x +=
+                                                                //                 dx / 2.0;
+                                                                //             particle_positions[i].y +=
+                                                                //                 dy / 2.0;
+                                                                //         }
+                                                                //     }
+        
+                                                                //     let particle_velocities: &mut [Vec2] =
+                                                                //         particle_system
+                                                                //             .get_velocity_buffer_mut();
+                                                                //     for i in 0..particle_count
+                                                                //         .min(positions.len())
+                                                                //     {
+                                                                //         particle_velocities[i].x =
+                                                                //             velocities[i].x;
+                                                                //         particle_velocities[i].y =
+                                                                //             velocities[i].y;
+                                                                //     }
+                                                                // }
+                                                            },
+                                                            _ => {},
                                                         }
                                                     },
-                                                    PacketType::SyncLiquidFunPacket {
-                                                        positions: _,
-                                                        velocities: _,
-                                                    } => {
-                                                        // TODO: reimplement for rapier/salva
-                                                        // println!("[CLIENT] Got SyncLiquidFunPacket");
-                                                        // if let Some(w) = &mut self.data.world {
-                                                        //     let mut particle_system = w
-                                                        //         .lqf_world
-                                                        //         .get_particle_system_list()
-                                                        //         .unwrap();
-
-                                                        //     let particle_count = particle_system
-                                                        //         .get_particle_count()
-                                                        //         as usize;
-                                                        //     // let particle_colors: &[b2ParticleColor] = particle_system.get_color_buffer();
-                                                        //     let particle_positions: &mut [Vec2] =
-                                                        //         particle_system
-                                                        //             .get_position_buffer_mut();
-                                                        //     for i in 0..particle_count
-                                                        //         .min(positions.len())
-                                                        //     {
-                                                        //         let dx = positions[i].x
-                                                        //             - particle_positions[i].x;
-                                                        //         let dy = positions[i].y
-                                                        //             - particle_positions[i].y;
-
-                                                        //         if dx.abs() > 1.0 || dy.abs() > 1.0
-                                                        //         {
-                                                        //             particle_positions[i].x += dx;
-                                                        //             particle_positions[i].y += dy;
-                                                        //         } else {
-                                                        //             particle_positions[i].x +=
-                                                        //                 dx / 2.0;
-                                                        //             particle_positions[i].y +=
-                                                        //                 dy / 2.0;
-                                                        //         }
-                                                        //     }
-
-                                                        //     let particle_velocities: &mut [Vec2] =
-                                                        //         particle_system
-                                                        //             .get_velocity_buffer_mut();
-                                                        //     for i in 0..particle_count
-                                                        //         .min(positions.len())
-                                                        //     {
-                                                        //         particle_velocities[i].x =
-                                                        //             velocities[i].x;
-                                                        //         particle_velocities[i].y =
-                                                        //             velocities[i].y;
-                                                        //     }
+                                                    Err(e) => {
+                                                        warn!(
+                                                            "[CLIENT] Failed to deserialize packet: {}",
+                                                            e
+                                                        );
+                                                        // println!("[CLIENT]     Raw: {:?}", buf);
+                                                        // let s = String::from_utf8(buf);
+                                                        // match s {
+                                                        //     Ok(st) => {
+                                                        //         // println!("[CLIENT]     Raw: {} <- raw", st)
+                                                        //         let mut file = std::fs::File::create("data.dat").expect("create failed");
+                                                        //         file.write_all(&st.into_bytes()).expect("write failed");
+                                                        //         panic!("[CLIENT] See data.dat");
+                                                        //     },
+                                                        //     Err(e) => {
+                                                        //         let index = e.utf8_error().valid_up_to();
+                                                        //         let len = e.utf8_error().error_len().unwrap();
+                                                        //         let sl = &e.as_bytes()[index .. index + len];
+        
+                                                        //         let mut file = std::fs::File::create("data.dat").expect("create failed");
+                                                        //         file.write_all(e.as_bytes()).expect("write failed");
+        
+                                                        //         panic!("[CLIENT] See data.dat: {} : {:?}", e, sl);
+                                                        //     },
                                                         // }
                                                     },
-                                                    _ => {},
-                                                }
+                                                };
+                                                // println!("[CLIENT] Recieved packet : {:?}", match p.packet_type {
+                                                //     PacketType::SyncChunkPacket{..} => "SyncChunkPacket",
+                                                //     _ => "???",
+                                                // });
                                             },
-                                            Err(e) => {
-                                                warn!(
-                                                    "[CLIENT] Failed to deserialize packet: {}",
-                                                    e
-                                                );
-                                                // println!("[CLIENT]     Raw: {:?}", buf);
-                                                // let s = String::from_utf8(buf);
-                                                // match s {
-                                                //     Ok(st) => {
-                                                //         // println!("[CLIENT]     Raw: {} <- raw", st)
-                                                //         let mut file = std::fs::File::create("data.dat").expect("create failed");
-                                                //         file.write_all(&st.into_bytes()).expect("write failed");
-                                                //         panic!("[CLIENT] See data.dat");
-                                                //     },
-                                                //     Err(e) => {
-                                                //         let index = e.utf8_error().valid_up_to();
-                                                //         let len = e.utf8_error().error_len().unwrap();
-                                                //         let sl = &e.as_bytes()[index .. index + len];
-
-                                                //         let mut file = std::fs::File::create("data.dat").expect("create failed");
-                                                //         file.write_all(e.as_bytes()).expect("write failed");
-
-                                                //         panic!("[CLIENT] See data.dat: {} : {:?}", e, sl);
-                                                //     },
-                                                // }
+                                            Err(_e) => {
+                                                let read = buf.len() - prev_size;
+                                                // println!("[CLIENT] read_to_end failed (but read {} bytes): {}", read, e);
+                                                bytes_to_read = Some(size - read as u32);
                                             },
-                                        };
-                                        // println!("[CLIENT] Recieved packet : {:?}", match p.packet_type {
-                                        //     PacketType::SyncChunkPacket{..} => "SyncChunkPacket",
-                                        //     _ => "???",
-                                        // });
-                                    },
-                                    Err(_e) => {
-                                        let read = buf.len() - prev_size;
-                                        // println!("[CLIENT] read_to_end failed (but read {} bytes): {}", read, e);
-                                        bytes_to_read = Some(size - read as u32);
-                                    },
+                                        }
+                                    }
                                 }
+                            }
+                            // println!("[CLIENT] Handled {} packets.", n);
+                        }
+        
+                        self.data.fps_counter.tick_times.rotate_left(1);
+                        self.data.fps_counter.tick_times[self.data.fps_counter.tick_times.len() - 1] =
+                            Instant::now().saturating_duration_since(st).as_nanos() as f32;
+                    }
+                    do_tick_next = can_tick
+                        && now.saturating_duration_since(prev_tick_time).as_nanos()
+                            > 1_000_000_000 / u128::from(self.data.settings.tick_speed); // intended is 30 ticks per second
+        
+                    // tick liquidfun
+        
+                    let mut can_tick = self.data.settings.tick_physics;
+        
+                    let has_focus = true; // TODO
+                    can_tick = can_tick
+                        && !(self.data.settings.pause_on_lost_focus && has_focus);
+        
+                    if do_tick_physics_next && can_tick {
+                        prev_tick_physics_time = now;
+                        if let Some(w) = &mut self.data.world {
+                            let st = Instant::now();
+                            w.tick_physics(&self.data.settings);
+                            self.data.fps_counter.tick_physics_times.rotate_left(1);
+                            self.data.fps_counter.tick_physics_times
+                                [self.data.fps_counter.tick_physics_times.len() - 1] =
+                                Instant::now().saturating_duration_since(st).as_nanos() as f32;
+                            renderer.world_renderer.mark_liquid_dirty();
+                        }
+                    }
+                    do_tick_physics_next = can_tick
+                        && now
+                            .saturating_duration_since(prev_tick_physics_time)
+                            .as_nanos()
+                            > 1_000_000_000 / u128::from(self.data.settings.tick_physics_speed); // intended is 60 ticks per second
+        
+                    // render
+        
+                    if let Some(w) = &mut self.data.world {
+                        w.frame(delta); // this delta is more accurate than the one based on counter_last_frame
+                    }
+        
+                    {
+                        profiling::scope!("rendering");
+        
+                        let partial_ticks = (now.saturating_duration_since(prev_tick_time).as_secs_f64()
+                            / (1.0 / f64::from(self.data.settings.tick_speed)))
+                        .clamp(0.0, 1.0);
+                        let delta_time = Instant::now().saturating_duration_since(counter_last_frame);
+
+                        self.render(&mut renderer, delta_time.as_secs_f64(), partial_ticks);
+        
+                        self.data.frame_count += 1;
+                        self.data.fps_counter.frames += 1;
+                        if now
+                            .saturating_duration_since(self.data.fps_counter.last_update)
+                            .as_millis()
+                            >= 1000
+                        {
+                            self.data.fps_counter.display_value = self.data.fps_counter.frames;
+                            self.data.fps_counter.frames = 0;
+                            self.data.fps_counter.last_update = now;
+                            renderer.display.gl_window().window().set_title(
+                                format!(
+                                    "FallingSandRust ({} FPS) ({})",
+                                    self.data.fps_counter.display_value,
+                                    self.data.world.as_ref().map_or_else(
+                                        || "unknown".to_owned(),
+                                        |w| format!("{:?}", w.net_mode)
+                                    )
+                                )
+                                .as_str(),
+                            );
+        
+                            sys.refresh_process(Pid::from(std::process::id() as usize));
+                            if let Some(pc) = sys.process(Pid::from(std::process::id() as usize)) {
+                                self.data.process_stats.cpu_usage =
+                                    Some(pc.cpu_usage() / sys.processors().len() as f32);
+                                self.data.process_stats.memory = Some(pc.memory());
                             }
                         }
                     }
-                    // println!("[CLIENT] Handled {} packets.", n);
-                }
-
-                self.data.fps_counter.tick_times.rotate_left(1);
-                self.data.fps_counter.tick_times[self.data.fps_counter.tick_times.len() - 1] =
-                    Instant::now().saturating_duration_since(st).as_nanos() as f32;
-            }
-            do_tick_next = can_tick
-                && now.saturating_duration_since(prev_tick_time).as_nanos()
-                    > 1_000_000_000 / u128::from(self.data.settings.tick_speed); // intended is 30 ticks per second
-
-            // tick liquidfun
-
-            let mut can_tick = self.data.settings.tick_physics;
-
-            let has_focus = true; // TODO
-            can_tick = can_tick
-                && !(self.data.settings.pause_on_lost_focus && has_focus);
-
-            if do_tick_physics_next && can_tick {
-                prev_tick_physics_time = now;
-                if let Some(w) = &mut self.data.world {
-                    let st = Instant::now();
-                    w.tick_physics(&self.data.settings);
-                    self.data.fps_counter.tick_physics_times.rotate_left(1);
-                    self.data.fps_counter.tick_physics_times
-                        [self.data.fps_counter.tick_physics_times.len() - 1] =
-                        Instant::now().saturating_duration_since(st).as_nanos() as f32;
-                    renderer.world_renderer.mark_liquid_dirty();
-                }
-            }
-            do_tick_physics_next = can_tick
-                && now
-                    .saturating_duration_since(prev_tick_physics_time)
-                    .as_nanos()
-                    > 1_000_000_000 / u128::from(self.data.settings.tick_physics_speed); // intended is 60 ticks per second
-
-            // render
-
-            if let Some(w) = &mut self.data.world {
-                w.frame(delta); // this delta is more accurate than the one based on counter_last_frame
-            }
-
-            {
-                profiling::scope!("rendering");
-
-                let partial_ticks = (now.saturating_duration_since(prev_tick_time).as_secs_f64()
-                    / (1.0 / f64::from(self.data.settings.tick_speed)))
-                .clamp(0.0, 1.0);
-                let delta_time = Instant::now().saturating_duration_since(counter_last_frame);
-                self.render(&mut renderer, delta_time.as_secs_f64(), partial_ticks);
-
-                self.data.frame_count += 1;
-                self.data.fps_counter.frames += 1;
-                if now
-                    .saturating_duration_since(self.data.fps_counter.last_update)
-                    .as_millis()
-                    >= 1000
-                {
-                    self.data.fps_counter.display_value = self.data.fps_counter.frames;
-                    self.data.fps_counter.frames = 0;
-                    self.data.fps_counter.last_update = now;
-                    renderer.display.gl_window().window().set_title(
-                        format!(
-                            "FallingSandRust ({} FPS) ({})",
-                            self.data.fps_counter.display_value,
-                            self.data.world.as_ref().map_or_else(
-                                || "unknown".to_owned(),
-                                |w| format!("{:?}", w.net_mode)
-                            )
-                        )
-                        .as_str(),
-                    );
-
-                    sys.refresh_process(Pid::from(std::process::id() as usize));
-                    if let Some(pc) = sys.process(Pid::from(std::process::id() as usize)) {
-                        self.data.process_stats.cpu_usage =
-                            Some(pc.cpu_usage() / sys.processors().len() as f32);
-                        self.data.process_stats.memory = Some(pc.memory());
+        
+                    let time_nano = Instant::now()
+                        .saturating_duration_since(counter_last_frame)
+                        .as_nanos();
+                    self.data.fps_counter.frame_times.rotate_left(1);
+                    self.data.fps_counter.frame_times[self.data.fps_counter.frame_times.len() - 1] =
+                        time_nano as f32;
+        
+                    profiling::finish_frame!();
+                    // sleep a bit if we aren't going to tick next frame
+                    if !do_tick_next && !self.data.settings.vsync {
+                        profiling::scope!("sleep");
+                        // ::std::thread::sleep(Duration::new(0, 1_000_000)); // 1ms sleep so the computer doesn't explode
                     }
+                    counter_last_frame = Instant::now();
                 }
+                _ => {},
             }
-
-            let time_nano = Instant::now()
-                .saturating_duration_since(counter_last_frame)
-                .as_nanos();
-            self.data.fps_counter.frame_times.rotate_left(1);
-            self.data.fps_counter.frame_times[self.data.fps_counter.frame_times.len() - 1] =
-                time_nano as f32;
-
-            profiling::finish_frame!();
-            // sleep a bit if we aren't going to tick next frame
-            if !do_tick_next && !self.data.settings.vsync {
-                profiling::scope!("sleep");
-                // ::std::thread::sleep(Duration::new(0, 1_000_000)); // 1ms sleep so the computer doesn't explode
-            }
-            counter_last_frame = Instant::now();
         });
 
         // if let Some(w) = &mut self.data.world {

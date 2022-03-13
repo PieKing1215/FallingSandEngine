@@ -22,10 +22,10 @@ impl DebugUI for Settings {
                     if self.draw_chunk_state_overlay {
                         ui.indent();
                         ui.set_next_item_width(80.0);
-                        Slider::new("alpha", 0.1, 1.0)
+                        ui.slider_config("alpha", 0.1, 1.0)
                             .display_format("%.1f")
                             .flags(SliderFlags::ALWAYS_CLAMP)
-                            .build(ui, &mut self.draw_chunk_state_overlay_alpha);
+                            .build(&mut self.draw_chunk_state_overlay_alpha);
                         ui.unindent();
                     }
                     ui.checkbox("draw_chunk_dirty_rects", &mut self.draw_chunk_dirty_rects);
@@ -74,9 +74,9 @@ impl DebugUI for Settings {
 
                     ui.indent();
                     ui.set_next_item_width(121.0);
-                    Slider::new("tick_speed", 1, 120)
+                    ui.slider_config("tick_speed", 1, 120)
                         .flags(SliderFlags::ALWAYS_CLAMP)
-                        .build(ui, &mut self.tick_speed);
+                        .build(&mut self.tick_speed);
                     ui.same_line();
                     if ui.small_button("reset##tick_speed") {
                         self.tick_speed = 30;
@@ -87,18 +87,18 @@ impl DebugUI for Settings {
 
                     ui.indent();
                     ui.set_next_item_width(121.0);
-                    Slider::new("tick_physics_speed", 1, 120)
+                    ui.slider_config("tick_physics_speed", 1, 120)
                         .flags(SliderFlags::ALWAYS_CLAMP)
-                        .build(ui, &mut self.tick_physics_speed);
+                        .build(&mut self.tick_physics_speed);
                     ui.same_line();
                     if ui.small_button("reset##tick_physics_speed") {
                         self.tick_physics_speed = 60;
                     }
 
                     ui.set_next_item_width(121.0);
-                    Slider::new("tick_physics_timestep", 0.01, 1.0)
+                    ui.slider_config("tick_physics_timestep", 0.01, 1.0)
                         .flags(SliderFlags::ALWAYS_CLAMP)
-                        .build(ui, &mut self.tick_physics_timestep);
+                        .build(&mut self.tick_physics_timestep);
                     ui.same_line();
                     if ui.small_button("reset##tick_physics_timestep") {
                         self.tick_physics_timestep = 1.0 / 45.0;

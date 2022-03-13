@@ -37,8 +37,8 @@ pub trait Chunk {
     fn get_state(&self) -> ChunkState;
     fn set_state(&mut self, state: ChunkState);
 
-    fn get_dirty_rect(&self) -> Option<Rect>;
-    fn set_dirty_rect(&mut self, rect: Option<Rect>);
+    fn get_dirty_rect(&self) -> Option<Rect<i32>>;
+    fn set_dirty_rect(&mut self, rect: Option<Rect<i32>>);
 
     fn set_pixels(&mut self, pixels: &[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]);
     fn get_pixels_mut(
@@ -118,11 +118,11 @@ pub trait ChunkHandlerGeneric {
     fn get(&self, x: i64, y: i64) -> Result<&MaterialInstance, String>;
     fn displace(&mut self, x: i64, y: i64, material: MaterialInstance) -> bool;
     fn force_update_chunk(&mut self, chunk_x: i32, chunk_y: i32);
-    fn get_zone(&self, center: (f64, f64), padding: u16) -> Rect;
-    fn get_screen_zone(&self, center: (f64, f64)) -> Rect;
-    fn get_active_zone(&self, center: (f64, f64)) -> Rect;
-    fn get_load_zone(&self, center: (f64, f64)) -> Rect;
-    fn get_unload_zone(&self, center: (f64, f64)) -> Rect;
+    fn get_zone(&self, center: (f64, f64), padding: u16) -> Rect<i32>;
+    fn get_screen_zone(&self, center: (f64, f64)) -> Rect<i32>;
+    fn get_active_zone(&self, center: (f64, f64)) -> Rect<i32>;
+    fn get_load_zone(&self, center: (f64, f64)) -> Rect<i32>;
+    fn get_unload_zone(&self, center: (f64, f64)) -> Rect<i32>;
 }
 
 #[derive(Serialize, Deserialize)]
@@ -160,19 +160,19 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
         let (loaders, positions) =
             world.system_data::<(ReadStorage<Loader>, ReadStorage<Position>)>();
 
-        let unload_zone: Vec<Rect> = (&loaders, &positions)
+        let unload_zone: Vec<Rect<i32>> = (&loaders, &positions)
             .join()
             .map(|(_, p)| self.get_unload_zone((p.x, p.y)))
             .collect();
-        let load_zone: Vec<Rect> = (&loaders, &positions)
+        let load_zone: Vec<Rect<i32>> = (&loaders, &positions)
             .join()
             .map(|(_, p)| self.get_load_zone((p.x, p.y)))
             .collect();
-        let active_zone: Vec<Rect> = (&loaders, &positions)
+        let active_zone: Vec<Rect<i32>> = (&loaders, &positions)
             .join()
             .map(|(_, p)| self.get_active_zone((p.x, p.y)))
             .collect();
-        let _screen_zone: Vec<Rect> = (&loaders, &positions)
+        let _screen_zone: Vec<Rect<i32>> = (&loaders, &positions)
             .join()
             .map(|(_, p)| self.get_screen_zone((p.x, p.y)))
             .collect();
@@ -211,11 +211,11 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                 let key = keys[i];
 
                 let state = self.loaded_chunks.get(&key).unwrap().get_state(); // copy
-                let rect = Rect::new(
+                let rect = Rect::new_wh(
                     self.loaded_chunks.get(&key).unwrap().get_chunk_x() * i32::from(CHUNK_SIZE),
                     self.loaded_chunks.get(&key).unwrap().get_chunk_y() * i32::from(CHUNK_SIZE),
-                    u32::from(CHUNK_SIZE),
-                    u32::from(CHUNK_SIZE),
+                    CHUNK_SIZE,
+                    CHUNK_SIZE,
                 );
 
                 match state {
@@ -269,11 +269,11 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                 self.loaded_chunks
                                     .get_mut(&key)
                                     .unwrap()
-                                    .set_dirty_rect(Some(Rect::new(
+                                    .set_dirty_rect(Some(Rect::new_wh(
                                         0,
                                         0,
-                                        u32::from(CHUNK_SIZE),
-                                        u32::from(CHUNK_SIZE),
+                                        CHUNK_SIZE,
+                                        CHUNK_SIZE,
                                     )));
                             }
                         }
@@ -341,11 +341,11 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                 let mut to_exec = vec![];
                 for (i, key) in keys.iter().enumerate() {
                     let state = self.loaded_chunks.get(key).unwrap().get_state(); // copy
-                    let rect = Rect::new(
+                    let rect = Rect::new_wh(
                         self.loaded_chunks.get(key).unwrap().get_chunk_x() * i32::from(CHUNK_SIZE),
                         self.loaded_chunks.get(key).unwrap().get_chunk_y() * i32::from(CHUNK_SIZE),
-                        u32::from(CHUNK_SIZE),
-                        u32::from(CHUNK_SIZE),
+                        CHUNK_SIZE,
+                        CHUNK_SIZE,
                     );
 
                     if state == ChunkState::NotGenerated {
@@ -527,11 +527,11 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                 for i in 0..keys.len() {
                     let key = keys[i];
                     let state = self.loaded_chunks.get(&key).unwrap().get_state(); // copy
-                    let rect = Rect::new(
+                    let rect = Rect::new_wh(
                         self.loaded_chunks.get(&key).unwrap().get_chunk_x() * i32::from(CHUNK_SIZE),
                         self.loaded_chunks.get(&key).unwrap().get_chunk_y() * i32::from(CHUNK_SIZE),
-                        u32::from(CHUNK_SIZE),
-                        u32::from(CHUNK_SIZE),
+                        CHUNK_SIZE,
+                        CHUNK_SIZE,
                     );
 
                     match state {
@@ -636,7 +636,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
             profiling::scope!("chunk simulate");
 
             let keys = self.loaded_chunks.keys().copied().collect::<Vec<u32>>();
-            let mut old_dirty_rects: HashMap<u32, Option<Rect>> =
+            let mut old_dirty_rects: HashMap<u32, Option<Rect<i32>>> =
                 HashMap::with_capacity(keys.len());
 
             for key in &keys {
@@ -877,7 +877,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                     let b: Vec<(
                         (i32, i32),
                         [bool; 9],
-                        [Option<Rect>; 9],
+                        [Option<Rect<i32>>; 9],
                         Vec<Particle>,
                     )> = {
                         profiling::scope!("par_iter");
@@ -1207,11 +1207,11 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
     fn force_update_chunk(&mut self, chunk_x: i32, chunk_y: i32) {
         if let Some(ch) = self.loaded_chunks.get_mut(&chunk_index(chunk_x, chunk_y)) {
-            ch.set_dirty_rect(Some(Rect::new(
+            ch.set_dirty_rect(Some(Rect::new_wh(
                 0,
                 0,
-                u32::from(CHUNK_SIZE),
-                u32::from(CHUNK_SIZE),
+                CHUNK_SIZE,
+                CHUNK_SIZE,
             )));
         }
     }
@@ -1239,34 +1239,34 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
     }
 
     #[profiling::function]
-    fn get_zone(&self, center: (f64, f64), padding: u16) -> Rect {
+    fn get_zone(&self, center: (f64, f64), padding: u16) -> Rect<i32> {
         let width = self.screen_size.0 + padding * 2;
         let height = self.screen_size.1 + padding * 2;
-        Rect::new(
+        Rect::new_wh(
             center.0 as i32 - i32::from(width / 2),
             center.1 as i32 - i32::from(height / 2),
-            u32::from(width),
-            u32::from(height),
+            width,
+            height,
         )
     }
 
     #[profiling::function]
-    fn get_screen_zone(&self, center: (f64, f64)) -> Rect {
+    fn get_screen_zone(&self, center: (f64, f64)) -> Rect<i32> {
         self.get_zone(center, 0)
     }
 
     #[profiling::function]
-    fn get_active_zone(&self, center: (f64, f64)) -> Rect {
+    fn get_active_zone(&self, center: (f64, f64)) -> Rect<i32> {
         self.get_zone(center, CHUNK_SIZE)
     }
 
     #[profiling::function]
-    fn get_load_zone(&self, center: (f64, f64)) -> Rect {
+    fn get_load_zone(&self, center: (f64, f64)) -> Rect<i32> {
         self.get_zone(center, CHUNK_SIZE * 5)
     }
 
     #[profiling::function]
-    fn get_unload_zone(&self, center: (f64, f64)) -> Rect {
+    fn get_unload_zone(&self, center: (f64, f64)) -> Rect<i32> {
         self.get_zone(center, CHUNK_SIZE * 10)
     }
 }

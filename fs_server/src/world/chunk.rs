@@ -12,7 +12,7 @@ pub struct ServerChunk {
     pub chunk_y: i32,
     pub state: ChunkState,
     pub pixels: Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
-    pub dirty_rect: Option<Rect>,
+    pub dirty_rect: Option<Rect<i32>>,
     pub pixel_data: [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4],
     pub dirty: bool,
     pub rigidbody: Option<RigidBodyState>,
@@ -50,11 +50,11 @@ impl<'ch> Chunk for ServerChunk {
         self.state = state;
     }
 
-    fn get_dirty_rect(&self) -> Option<Rect> {
+    fn get_dirty_rect(&self) -> Option<Rect<i32>> {
         self.dirty_rect
     }
 
-    fn set_dirty_rect(&mut self, rect: Option<Rect>) {
+    fn set_dirty_rect(&mut self, rect: Option<Rect<i32>>) {
         self.dirty_rect = rect;
     }
 
@@ -75,8 +75,8 @@ impl<'ch> Chunk for ServerChunk {
                 self.dirty_rect = Some(Rect::new(
                     0,
                     0,
-                    u32::from(CHUNK_SIZE),
-                    u32::from(CHUNK_SIZE),
+                    CHUNK_SIZE,
+                    CHUNK_SIZE,
                 ));
 
                 return Ok(());

@@ -56,6 +56,28 @@ impl Color {
         Self::rgba(r, g, b, u8::MAX)
     }
 
+    #[inline]
+    #[must_use]
+    pub fn with_a(self, a: impl IntoColorNum) -> Self {
+        Self::rgba_const(self.r, self.g, self.b, a.col_num())
+    }
+
+    pub fn r_f32(&self) -> f32 {
+        self.r as f32 / u8::MAX as f32
+    }
+
+    pub fn g_f32(&self) -> f32 {
+        self.g as f32 / u8::MAX as f32
+    }
+
+    pub fn b_f32(&self) -> f32 {
+        self.b as f32 / u8::MAX as f32
+    }
+
+    pub fn a_f32(&self) -> f32 {
+        self.a as f32 / u8::MAX as f32
+    }
+
     pub const BLACK: Color = Color::rgb_const(0, 0, 0);
     pub const WHITE: Color = Color::rgb_const(0xff, 0xff, 0xff);
     pub const GRAY: Color = Color::rgb_const(0x7f, 0x7f, 0x7f);
@@ -74,6 +96,29 @@ impl Color {
     pub const VIOLET: Color = Color::rgb_const(0x7f, 0, 0xff);
     pub const SPRING_GREEN: Color = Color::rgb_const(0, 0xff, 0x7f);
     pub const AZURE: Color = Color::rgb_const(0, 0x7f, 0xff);
+}
+
+impl From<Color> for [f32; 4] {
+    fn from(color: Color) -> [f32; 4] {
+        [color.r_f32(), color.g_f32(), color.b_f32(), color.a_f32()]
+    }
+}
+
+impl From<Color> for (f32, f32, f32, f32) {
+    fn from(color: Color) -> (f32, f32, f32, f32) {
+        (color.r_f32(), color.g_f32(), color.b_f32(), color.a_f32())
+    }
+}
+impl From<Color> for [f32; 3] {
+    fn from(color: Color) -> [f32; 3] {
+        [color.r_f32(), color.g_f32(), color.b_f32()]
+    }
+}
+
+impl From<Color> for (f32, f32, f32) {
+    fn from(color: Color) -> (f32, f32, f32) {
+        (color.r_f32(), color.g_f32(), color.b_f32())
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Serialize, Deserialize, Debug)]
