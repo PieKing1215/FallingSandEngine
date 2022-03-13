@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use fs_common::game::common::{world::material::Color, Rect};
-use glium::{Frame, Surface, SwapBuffersError, Display, DrawParameters, IndexBuffer, PolygonMode, index::NoIndices, uniform, Program, Texture2d, texture::SrgbTexture2d};
+use fs_common::game::common::{world::{material::Color, particle::Particle}, Rect};
+use glium::{Frame, Surface, SwapBuffersError, Display, DrawParameters, IndexBuffer, PolygonMode, index::NoIndices, uniform, Program, Texture2d, texture::SrgbTexture2d, implement_vertex};
 use glium_glyph::{GlyphBrush, glyph_brush::Section};
 use glutin::window::Window;
 
@@ -184,5 +184,38 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
 
         self.frame.draw(&vertex_buffer, &indices, &self.shaders.texture, 
             &uniform! { matrix: view, tex: texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest) }, &param).unwrap();
+    }
+
+    pub fn draw_particles(&mut self, parts: &[Particle]) {
+        let model_view = *self.transform.stack.last().unwrap();
+        let view: [[f32; 4]; 4] = model_view.into();
+
+        let per_instance = {
+            profiling::scope!("a");
+            #[derive(Copy, Clone)]
+            struct Attr {
+                p_pos: (f32, f32),
+                color: [f32; 4],
+            }
+    
+            implement_vertex!(Attr, p_pos, color);
+    
+            let data = parts.iter().map(|p| {
+                Attr {
+                    p_pos: (p.pos.x as f32, p.pos.y as f32),
+                    color: p.material.color.into(),
+                }
+            }).collect::<Vec<_>>();
+    
+            glium::vertex::VertexBuffer::immutable(&self.display, &data).unwrap()
+        };
+
+        let shape = Rect::<f32>::new(-0.5, -0.5, 0.5, 0.5).vertices();
+        let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
+        let indices = IndexBuffer::new(&self.display, glium::index::PrimitiveType::TrianglesList, &[0_u8, 1, 2, 2, 3, 0]).unwrap();
+
+        self.frame.draw((&vertex_buffer, per_instance.per_instance().unwrap()),
+                    &indices, &self.shaders.particle, &uniform! { matrix: view },
+                    &DrawParameters::default()).unwrap();
     }
 }

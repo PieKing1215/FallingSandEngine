@@ -523,41 +523,7 @@ impl WorldRenderer {
         {
             profiling::scope!("particles");
             let particle_system = world.ecs.read_resource::<ParticleSystem>();
-
-            // TODO: magic number, works well on my machine but probably different on others
-            let batches: Vec<Vec<(Rect<f32>, Color)>> = particle_system
-                .active
-                .par_chunks(2000)
-                .map(|chunk| {
-                    let mut batch = Vec::new();
-                    for part in chunk {
-                        #[allow(clippy::cast_lossless)]
-                        if screen_zone.contains_point((part.pos.x as i32, part.pos.y as i32))
-                            || !settings.cull_chunks
-                        {
-                            let lerp_x = part.pos.x + part.vel.x * partial_ticks;
-                            let lerp_y = part.pos.y + part.vel.y * partial_ticks;
-                            let (x1, y1) = (lerp_x - 0.5, lerp_y - 0.5);
-                            let (x2, y2) = (lerp_x + 0.5, lerp_y + 0.5);
-
-                            batch.push(
-                                (Rect::new(
-                                    x1 as f32,
-                                    y1 as f32,
-                                    x2 as f32,
-                                    y2 as f32
-                                ), part.material.color)
-                            );
-                        }
-                    }
-                    batch
-                })
-                .collect();
-            for batch in &batches {
-                // profiling::scope!("triangle_batch_raw_u8", format!("#verts = {}", batch.len() / 3).as_str());
-                // target.triangle_batch_raw_u8(batch);
-                target.rectangles_colored(batch, DrawParameters::default());
-            }
+            target.draw_particles(&particle_system.active);
         }
 
         {
