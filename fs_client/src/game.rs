@@ -61,7 +61,7 @@ impl ClientGame {
     #[profiling::function]
     pub fn run(
         mut self,
-        mut renderer: Renderer,
+        mut renderer: Renderer<'static>,
         args: ArgMatches,
         event_loop: EventLoop<()>,
     ) {

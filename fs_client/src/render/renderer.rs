@@ -5,6 +5,7 @@ use fs_common::game::{
     GameData,
 };
 use glium::{Display, Surface, Frame, DrawParameters, PolygonMode, Blend};
+use glium_glyph::{glyph_brush::{rusttype::Font, Section}, GlyphBrush};
 use glutin::{dpi::LogicalSize, event_loop::EventLoop};
 use imgui::WindowFlags;
 use imgui_winit_support::{WinitPlatform, HiDpiMode};
@@ -20,8 +21,9 @@ use super::{TransformStack, drawing::RenderTarget, shaders::Shaders};
 pub static mut BUILD_DATETIME: Option<&str> = None;
 pub static mut GIT_HASH: Option<&str> = None;
 
-pub struct Renderer {
-    pub fonts: Option<Fonts>,
+pub struct Renderer<'a> {
+    // pub fonts: Fonts,
+    pub glyph_brush: GlyphBrush<'a, 'a>,
     pub shaders: Arc<Shaders>,
     pub display: Display,
     pub world_renderer: WorldRenderer,
@@ -36,7 +38,7 @@ pub struct Fonts {
     // pub pixel_operator: Font<'ttf, 'static>,
 }
 
-impl Renderer {
+impl Renderer<'_> {
     #[profiling::function]
     pub fn create(event_loop: &EventLoop<()>, file_helper: &FileHelper) -> Result<Self, String> {
         let wb = glutin::window::WindowBuilder::new()
@@ -73,8 +75,13 @@ impl Renderer {
 
         let shaders = Arc::new(Shaders::new(&display));
 
+        let pixel_operator = fs::read(file_helper.asset_path("font/pixel_operator/PixelOperator.ttf")).unwrap();
+        let fonts = vec![Font::from_bytes(pixel_operator).unwrap()];
+
+        let glyph_brush = GlyphBrush::new(&display, fonts);
+
         Ok(Renderer {
-            fonts: None,
+            glyph_brush,
             shaders,
             display,
             world_renderer: WorldRenderer::new(),
@@ -102,55 +109,26 @@ impl Renderer {
         {
             profiling::scope!("version info");
 
-            // let (w, h, img) = self.version_info_cache_1.get_or_insert_with(|| {
-
-            //     let pixel_operator2 = self.sdl.as_ref().unwrap()
-            //         .sdl_ttf
-            //         .load_font(
-            //             game.file_helper.asset_path("font/pixel_operator/PixelOperator.ttf"),
-            //             16,
-            //         )
-            //         .unwrap();
-
-            //     let surf = pixel_operator2
-            //         .render("Development Build")
-            //         .solid((0xff, 0xff, 0xff))
-            //         .unwrap();
-            //     (surf.width(), surf.height(), GPUImage::from_surface(&surf))
-            // });
-
-            // img.blit_rect(
-            //     None,
-            //     target,
-            //     Some(GPURect::new(
-            //         4.0,
-            //         self.window.size().1 as f32 - 4.0 - 14.0 * 2.0,
-            //         *w as f32,
-            //         *h as f32,
-            //     )),
-            // );
-
-            // let (w, h, img) = self.version_info_cache_2.get_or_insert_with(|| {
-            //     let pixel_operator2 = self.sdl.as_ref().unwrap()
-            //         .sdl_ttf
-            //         .load_font(
-            //             game.file_helper.asset_path("font/pixel_operator/PixelOperator.ttf"),
-            //             16,
-            //         )
-            //         .unwrap();
-            //     let surf = pixel_operator2
-            //         .render(
-            //             format!(
-            //                 "{} ({})",
-            //                 unsafe { BUILD_DATETIME }.unwrap_or("???"),
-            //                 unsafe { GIT_HASH }.unwrap_or("???")
-            //             )
-            //             .as_str(),
-            //         )
-            //         .solid((0xff, 0xff, 0xff))
-            //         .unwrap();
-            //     (surf.width(), surf.height(), GPUImage::from_surface(&surf))
-            // });
+            self.glyph_brush.queue(Section {
+                text: "Development Build",
+                screen_position: (4.0, self.display.gl_window().window().inner_size().height as f32 - 40.0),
+                bounds: (150.0, 20.0),
+                color: Color::WHITE.into(),
+                ..Section::default()
+            });
+            self.glyph_brush.queue(Section {
+                text: format!(
+                        "{} ({})",
+                        unsafe { BUILD_DATETIME }.unwrap_or("???"),
+                        unsafe { GIT_HASH }.unwrap_or("???")
+                    )
+                    .as_str(),
+                screen_position: (4.0, self.display.gl_window().window().inner_size().height as f32 - 20.0),
+                bounds: (200.0, 20.0),
+                color: Color::WHITE.into(),
+                ..Section::default()
+            });
+            self.glyph_brush.draw_queued(&target.display, &mut target.frame);
 
             // img.blit_rect(
             //     None,

@@ -27,6 +27,6 @@ sysinfo = "0.23" # TODO: should be optional in the future
 bincode = "1.3"
 glutin = "0.28"
 glium = "0.31"
-glium-glyph = "0.11"
+glium-glyph = { git = "https://github.com/est31/glium-glyph.git" }
 nalgebra = "0.30"
 nalgebra-glm = "0.16"
