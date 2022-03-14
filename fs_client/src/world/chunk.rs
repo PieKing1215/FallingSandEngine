@@ -279,21 +279,13 @@ impl<'cg> ChunkGraphics {
     pub fn update_texture(&mut self) {
         if self.dirty {
             if self.texture.is_some() {
-                let image = glium::texture::RawImage2d::from_raw_rgba_reversed(&self.pixel_data, (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
+                let image = glium::texture::RawImage2d::from_raw_rgba((&self.pixel_data).to_vec(), (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
                 
                 self.texture.as_mut().unwrap().write(
                     glium::Rect { left: 0, bottom: 0, width: CHUNK_SIZE.into(), height: CHUNK_SIZE.into() },
                     image
                 );
             }
-            // if self.texture.is_none() {
-            //     let image = glium::texture::RawImage2d::from_raw_rgba_reversed(&self.pixel_data, (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
-            //     self.texture = Some(image);
-            //     // self.texture
-            //     //     .as_mut()
-            //     //     .unwrap()
-            //     //     .set_image_filter(GPUFilter::GPU_FILTER_NEAREST);
-            // }
             self.dirty = false;
         }
     }
@@ -410,19 +402,24 @@ impl ChunkGraphics {
             CHUNK_SIZE,
         ).into_f32();
 
-        let tex = self.texture.get_or_insert_with(|| {
-            let image = glium::texture::RawImage2d::from_raw_rgba_reversed(&self.pixel_data, (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
-            SrgbTexture2d::new(&target.display, image).unwrap()
-        });
+        if self.texture.is_none() {
+            let image = glium::texture::RawImage2d::from_raw_rgba((&self.pixel_data).to_vec(), (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
+            self.texture = Some(SrgbTexture2d::new(&target.display, image).unwrap());
+        }
 
-        target.draw_texture(
-            chunk_rect,
-            tex,
-            DrawParameters {
-                blend: Blend::alpha_blending(),
-                ..Default::default()
-            }
-        );
+        // let tex = self.texture.get_or_insert_with(|| {
+        //     let image = glium::texture::RawImage2d::from_raw_rgba((&self.pixel_data).to_vec(), (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
+        //     SrgbTexture2d::new(&target.display, image).unwrap()
+        // });
+
+        // target.draw_texture(
+        //     chunk_rect,
+        //     tex,
+        //     DrawParameters {
+        //         blend: Blend::alpha_blending(),
+        //         ..Default::default()
+        //     }
+        // );
         // texture.write(rect, data)
         
         // if let Some(tex) = &self.texture {

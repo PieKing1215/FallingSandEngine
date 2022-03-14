@@ -1,4 +1,4 @@
-use glium::{Frame, Display, DrawParameters, PolygonMode, Blend, texture::SrgbTexture2dArray};
+use glium::{Frame, Display, DrawParameters, PolygonMode, Blend, texture::{SrgbTexture2dArray, MipmapsOption}};
 use rapier2d::prelude::Shape;
 use specs::{prelude::ParallelIterator, rayon::slice::ParallelSlice, Join, ReadStorage, WorldExt};
 
@@ -253,35 +253,51 @@ impl WorldRenderer {
                 });
         }
 
-        // {
-        //     profiling::scope!("chunks2");
-        //     let texs = world
-        //         .chunk_handler
-        //         .loaded_chunks
-        //         .iter()
-        //         .filter_map(|(_i, ch)| {
-        //             let rc = Rect::new(
-        //                 ch.chunk_x * i32::from(CHUNK_SIZE),
-        //                 ch.chunk_y * i32::from(CHUNK_SIZE),
-        //                 CHUNK_SIZE,
-        //                 CHUNK_SIZE,
-        //             );
+        {
+            profiling::scope!("chunks2");
+            let texs = world
+                .chunk_handler
+                .loaded_chunks
+                .iter()
+                .filter_map(|(_i, ch)| {
+                    let rc = Rect::new(
+                        ch.chunk_x * i32::from(CHUNK_SIZE),
+                        ch.chunk_y * i32::from(CHUNK_SIZE),
+                        CHUNK_SIZE,
+                        CHUNK_SIZE,
+                    );
 
-        //             target.transform.push();
-        //             target.transform.translate(
-        //                 ch.chunk_x * i32::from(CHUNK_SIZE),
-        //                 ch.chunk_y * i32::from(CHUNK_SIZE),
-        //             );
+                    target.transform.push();
+                    target.transform.translate(
+                        ch.chunk_x * i32::from(CHUNK_SIZE),
+                        ch.chunk_y * i32::from(CHUNK_SIZE),
+                    );
 
-        //             if (settings.debug && !settings.cull_chunks) || target.transform.transform_rect(rc).intersects(&screen_zone) {
-        //                 // ch.render(target, settings);
-        //                 ch.graphics.texture
-        //             } else {
-        //                 None
-        //             }
-        //         }).collect::<Vec<_>>();
-        //     let ta = SrgbTexture2dArray::new(&target.display, texs);
-        // }
+                    if (settings.debug && !settings.cull_chunks) || target.transform.transform_rect(rc).intersects(&screen_zone) {
+                        target.transform.pop();
+                        
+                        // ch.render(target, settings);
+                        // ch.graphics.texture
+                        // let image = glium::texture::RawImage2d::from_raw_rgba((&ch.graphics.pixel_data).to_vec(), (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
+                        // Some(((ch.chunk_x as f32 * f32::from(CHUNK_SIZE), ch.chunk_y as f32 * f32::from(CHUNK_SIZE)), image))
+                        ch.graphics.texture.as_ref().map(|t| ((ch.chunk_x as f32 * f32::from(CHUNK_SIZE), ch.chunk_y as f32 * f32::from(CHUNK_SIZE)), t))
+                    } else {
+                        target.transform.pop();
+                        None
+                    }
+                }).collect::<Vec<_>>();
+
+            target.draw_chunks_2(texs);
+
+            // if !texs.0.is_empty() {
+            //     profiling::scope!("draw");
+            //     let ta = {
+            //         profiling::scope!("SrgbTexture2dArray::with_mipmaps");
+            //         SrgbTexture2dArray::with_mipmaps(&target.display, texs.1, MipmapsOption::NoMipmap).unwrap()
+            //     };
+            //     target.draw_chunks(&texs.0, &ta);
+            // }
+        }
 
         // draw liquids
 
