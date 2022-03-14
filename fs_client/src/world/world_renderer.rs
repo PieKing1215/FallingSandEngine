@@ -569,7 +569,7 @@ impl WorldRenderer {
         {
             profiling::scope!("particles");
             let particle_system = world.ecs.read_resource::<ParticleSystem>();
-            target.draw_particles(&particle_system.active);
+            target.draw_particles(&particle_system.active, partial_ticks as f32);
         }
 
         {

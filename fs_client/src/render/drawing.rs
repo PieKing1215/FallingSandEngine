@@ -204,7 +204,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
             &uniform! { matrix: view, tex: texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest) }, &param).unwrap();
     }
 
-    pub fn draw_particles(&mut self, parts: &[Particle]) {
+    pub fn draw_particles(&mut self, parts: &[Particle], partial_ticks: f32) {
         let model_view = *self.transform.stack.last().unwrap();
         let view: [[f32; 4]; 4] = model_view.into();
 
@@ -220,7 +220,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
     
             let data = parts.iter().map(|p| {
                 Attr {
-                    p_pos: (p.pos.x as f32, p.pos.y as f32),
+                    p_pos: (p.pos.x as f32 + p.vel.x as f32 * partial_ticks, p.pos.y as f32 + p.vel.y as f32 * partial_ticks),
                     color: p.material.color.into(),
                 }
             }).collect::<Vec<_>>();
