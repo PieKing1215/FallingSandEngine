@@ -6,6 +6,7 @@ pub struct Shaders {
     pub basic_shader: glium::Program,
     pub shader_vertex_colors: glium::Program,
     pub texture: glium::Program,
+    pub texture_array: glium::Program,
     pub particle: glium::Program,
 }
 
@@ -106,6 +107,40 @@ impl Shaders {
             #version 140
 
             in vec2 position;
+            in vec2 tex_coord;
+            in float tex_layer;
+            out vec2 tex_c;
+            out float frag_tex_layer;
+
+            uniform mat4 matrix;
+
+            void main() {
+                tex_c = tex_coord;
+                frag_tex_layer = tex_layer; 
+                gl_Position = matrix * vec4(position, 0.0, 1.0);
+            }
+        "#;
+
+        let fragment_shader_src = r#"
+            #version 140
+
+            in vec2 tex_c;
+            out vec4 color;
+            in float frag_tex_layer;
+
+            uniform sampler2DArray tex;
+
+            void main() {
+                color = texture(tex, vec3(tex_c, frag_tex_layer));
+            }
+        "#;
+
+        let texture_array = glium::Program::from_source(display, vertex_shader_src, fragment_shader_src, None).unwrap();
+
+        let vertex_shader_src = r#"
+            #version 140
+
+            in vec2 position;
             in vec2 p_pos;
             in vec4 color;
 
@@ -136,6 +171,7 @@ impl Shaders {
             basic_shader,
             shader_vertex_colors,
             texture,
+            texture_array,
             particle,
         }
     }

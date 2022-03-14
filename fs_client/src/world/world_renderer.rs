@@ -1,4 +1,4 @@
-use glium::{Frame, Display, DrawParameters, PolygonMode, Blend};
+use glium::{Frame, Display, DrawParameters, PolygonMode, Blend, texture::SrgbTexture2dArray};
 use rapier2d::prelude::Shape;
 use specs::{prelude::ParallelIterator, rayon::slice::ParallelSlice, Join, ReadStorage, WorldExt};
 
@@ -121,7 +121,7 @@ impl WorldRenderer {
             world
                 .chunk_handler
                 .loaded_chunks
-                .iter()
+                .iter_mut()
                 .for_each(|(_i, ch)| {
                     let rc = Rect::new(
                         ch.chunk_x * i32::from(CHUNK_SIZE),
@@ -252,6 +252,36 @@ impl WorldRenderer {
                     target.transform.pop();
                 });
         }
+
+        // {
+        //     profiling::scope!("chunks2");
+        //     let texs = world
+        //         .chunk_handler
+        //         .loaded_chunks
+        //         .iter()
+        //         .filter_map(|(_i, ch)| {
+        //             let rc = Rect::new(
+        //                 ch.chunk_x * i32::from(CHUNK_SIZE),
+        //                 ch.chunk_y * i32::from(CHUNK_SIZE),
+        //                 CHUNK_SIZE,
+        //                 CHUNK_SIZE,
+        //             );
+
+        //             target.transform.push();
+        //             target.transform.translate(
+        //                 ch.chunk_x * i32::from(CHUNK_SIZE),
+        //                 ch.chunk_y * i32::from(CHUNK_SIZE),
+        //             );
+
+        //             if (settings.debug && !settings.cull_chunks) || target.transform.transform_rect(rc).intersects(&screen_zone) {
+        //                 // ch.render(target, settings);
+        //                 ch.graphics.texture
+        //             } else {
+        //                 None
+        //             }
+        //         }).collect::<Vec<_>>();
+        //     let ta = SrgbTexture2dArray::new(&target.display, texs);
+        // }
 
         // draw liquids
 

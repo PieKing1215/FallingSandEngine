@@ -35,6 +35,21 @@ impl From<((f32, f32), (f32, f32))> for Vertex2T {
 }
 
 #[derive(Copy, Clone)]
+pub struct Vertex2TA {
+    pub position: [f32; 2],
+    pub tex_coord: [f32; 2],
+    pub tex_layer: f32,
+}
+
+glium::implement_vertex!(Vertex2TA, position, tex_coord, tex_layer);
+
+impl From<((f32, f32), (f32, f32), f32)> for Vertex2TA {
+    fn from(v: ((f32, f32), (f32, f32), f32)) -> Self {
+        Self { position: [v.0.0, v.0.1], tex_coord: [v.1.0, v.1.1], tex_layer: v.2 }
+    }
+}
+
+#[derive(Copy, Clone)]
 pub struct Vertex2C {
     pub position: [f32; 2],
     pub color: [f32; 4],

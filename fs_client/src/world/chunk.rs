@@ -35,7 +35,7 @@ impl<'ch> Chunk for ClientChunk {
             state: ChunkState::NotGenerated,
             pixels: None,
             graphics: Box::new(ChunkGraphics {
-                texture: RefCell::new(None),
+                texture: None,
                 pixel_data: [0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)],
                 dirty: true,
                 was_dirty: true,
@@ -234,7 +234,7 @@ impl<'ch> Chunk for ClientChunk {
 }
 
 pub struct ChunkGraphics {
-    pub texture: RefCell<Option<SrgbTexture2d>>,
+    pub texture: Option<SrgbTexture2d>,
     pub pixel_data: [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4],
     pub dirty: bool,
     pub was_dirty: bool,
@@ -278,10 +278,10 @@ impl<'cg> ChunkGraphics {
     // #[profiling::function]
     pub fn update_texture(&mut self) {
         if self.dirty {
-            if self.texture.borrow_mut().is_some() {
+            if self.texture.is_some() {
                 let image = glium::texture::RawImage2d::from_raw_rgba_reversed(&self.pixel_data, (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
                 
-                self.texture.borrow_mut().as_mut().unwrap().write(
+                self.texture.as_mut().unwrap().write(
                     glium::Rect { left: 0, bottom: 0, width: CHUNK_SIZE.into(), height: CHUNK_SIZE.into() },
                     image
                 );
@@ -308,9 +308,9 @@ impl<'cg> ChunkGraphics {
     }
 }
 
-impl Renderable for ClientChunk {
-    fn render(
-        &self,
+impl ClientChunk {
+    pub fn render(
+        &mut self,
         target: &mut RenderTarget,
         settings: &Settings,
     ) {
@@ -396,9 +396,10 @@ impl Renderable for ClientChunk {
     }
 }
 
-impl Renderable for ChunkGraphics {
-    fn render(
-        &self,
+impl ChunkGraphics {
+    #[profiling::function]
+    pub fn render(
+        &mut self,
         target: &mut RenderTarget,
         _settings: &Settings,
     ) {
@@ -409,8 +410,7 @@ impl Renderable for ChunkGraphics {
             CHUNK_SIZE,
         ).into_f32();
 
-        let mut borrow = self.texture.borrow_mut();
-        let tex = borrow.get_or_insert_with(|| {
+        let tex = self.texture.get_or_insert_with(|| {
             let image = glium::texture::RawImage2d::from_raw_rgba_reversed(&self.pixel_data, (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
             SrgbTexture2d::new(&target.display, image).unwrap()
         });
