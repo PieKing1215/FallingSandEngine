@@ -3,7 +3,7 @@ pub mod drawing;
 pub mod vertex;
 pub mod shaders;
 use fs_common::game::common::{Rect, Settings};
-use nalgebra::{Matrix4, Point3};
+use nalgebra::{Matrix4, Point3, Vector3};
 pub use renderer::*;
 
 use self::drawing::RenderTarget;
@@ -49,6 +49,10 @@ impl TransformStack {
         //     self.stack.last_mut().unwrap().scale_x / prev_x;
         // self.stack.last_mut().unwrap().translate_y /=
         //     self.stack.last_mut().unwrap().scale_y / prev_y;
+    }
+
+    pub fn rotate<T: Into<f64>>(&mut self, angle: T) {
+        *self.stack.last_mut().unwrap() = nalgebra_glm::rotate(self.stack.last_mut().unwrap(), angle.into() as f32, &Vector3::new(0.0, 0.0, 1.0));
     }
 
     #[inline(always)]

@@ -420,12 +420,13 @@ impl WorldRenderer {
                 shape: &dyn Shape,
                 x: f32,
                 y: f32,
-                _angle: f32,
+                angle: f32,
                 target: &mut RenderTarget,
                 color: Color,
             ) {
                 target.transform.push();
                 target.transform.translate(x, y);
+                target.transform.rotate(angle);
                 if let Some(comp) = shape.as_compound() {
                     for (_iso, shape) in comp.shapes() {
                         draw_shape(&**shape, 0.0, 0.0, 0.0, target, color);
