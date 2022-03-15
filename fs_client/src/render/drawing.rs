@@ -76,6 +76,21 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
         self.frame.finish()
     }
 
+    pub fn line(&mut self, p1: impl Into<Vertex2>, p2: impl Into<Vertex2>, color: Color, param: DrawParameters) {
+        
+        let p1 = p1.into();
+        let p2 = p2.into();
+        let shape = vec![p1, p2];
+
+        let model_view = *self.transform.stack.last().unwrap();
+        let view: [[f32; 4]; 4] = model_view.into();
+
+        let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
+        let indices = glium::index::NoIndices(glium::index::PrimitiveType::LinesList);
+
+        self.frame.draw(&vertex_buffer, &indices, &self.shaders.basic_shader, &uniform! { matrix: view, col: [color.r_f32(), color.g_f32(), color.b_f32(), color.a_f32()] }, &param).unwrap();
+    }
+
     pub fn triangle(&mut self, p1: impl Into<Vertex2>, p2: impl Into<Vertex2>, p3: impl Into<Vertex2>, color: Color, param: DrawParameters) {
         
         let p1 = p1.into();

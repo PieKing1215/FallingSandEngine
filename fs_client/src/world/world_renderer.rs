@@ -505,14 +505,20 @@ impl WorldRenderer {
                     b.position().translation.vector[1],
                 );
 
-                let (x, y) = target.transform.transform((rx, ry));
+                target.transform.push();
+                target.transform.translate(rx, ry);
+                target.transform.rotate(b.rotation().angle());
+                // target.line((0.0, 0.0), (0.5, 0.0), Color::BLUE, DrawParameters::default());
+                // target.line((0.0, 0.0), (0.0, 0.5), Color::RED, DrawParameters::default());
                 // target.circle(x as f32, y as f32, 3.0, Color::GREEN.into_sdl());
 
                 if settings.physics_dbg_draw_center_of_mass {
-                    let com = b.mass_properties().world_com(b.position());
-                    let (x, y) = target.transform.transform((com.x, com.y));
+                    let com = b.mass_properties().local_com;
+                    target.line((com.x, com.y), (com.x + 0.5, com.y), Color::BLUE, DrawParameters::default());
+                    target.line((com.x, com.y), (com.x, com.y + 0.5), Color::RED, DrawParameters::default());
                     // target.circle(x as f32, y as f32, 2.0, Color::RED.into_sdl());
                 }
+                target.transform.pop();
 
                 for c in b.colliders() {
                     let col = world.physics.colliders.get(*c).unwrap();
