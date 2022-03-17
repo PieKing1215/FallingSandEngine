@@ -928,7 +928,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                             }
 
                             if i != 4 && dirty_rects[4].is_some() {
-                                let neighbor_rect = Rect::new(
+                                let neighbor_rect = Rect::new_wh(
                                     if rel_ch_x == -1 { CHUNK_SIZE / 2 } else { 0 },
                                     if rel_ch_y == -1 { CHUNK_SIZE / 2 } else { 0 },
                                     if rel_ch_x == 0 {
@@ -942,7 +942,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                         CHUNK_SIZE / 2
                                     },
                                 );
-                                // let neighbor_rect = Rect::new(0, 0, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
+                                // let neighbor_rect = Rect::new_wh(0, 0, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
                                 let mut r = self
                                     .loaded_chunks
                                     .get_mut(&chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y))

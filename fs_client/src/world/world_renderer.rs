@@ -123,7 +123,7 @@ impl WorldRenderer {
                 .loaded_chunks
                 .iter_mut()
                 .for_each(|(_i, ch)| {
-                    let rc = Rect::new(
+                    let rc = Rect::new_wh(
                         ch.chunk_x * i32::from(CHUNK_SIZE),
                         ch.chunk_y * i32::from(CHUNK_SIZE),
                         CHUNK_SIZE,
@@ -162,7 +162,7 @@ impl WorldRenderer {
                                 );
                             }
                             if ch.graphics.was_dirty {
-                                let rect = Rect::new(
+                                let rect = Rect::new_wh(
                                     0,
                                     0,
                                     CHUNK_SIZE,
@@ -260,7 +260,7 @@ impl WorldRenderer {
                 .loaded_chunks
                 .iter()
                 .filter_map(|(_i, ch)| {
-                    let rc = Rect::new(
+                    let rc = Rect::new_wh(
                         ch.chunk_x * i32::from(CHUNK_SIZE),
                         ch.chunk_y * i32::from(CHUNK_SIZE),
                         CHUNK_SIZE,
@@ -413,7 +413,7 @@ impl WorldRenderer {
                         target.transform.rotate(body.rotation().angle());
 
                         target.draw_texture_flipped(
-                            Rect::new(0.0, 0.0, rb.width as f32 / PHYSICS_SCALE, rb.height as f32 / PHYSICS_SCALE), 
+                            Rect::new_wh(0.0, 0.0, rb.width as f32 / PHYSICS_SCALE, rb.height as f32 / PHYSICS_SCALE), 
                             img, 
                             DrawParameters {
                                 blend: Blend::alpha_blending(),
@@ -883,7 +883,7 @@ impl WorldRenderer {
                 for y in -10..10 {
                     let rc_x = x + (camera_pos.x / f64::from(CHUNK_SIZE)) as i32;
                     let rc_y = y + (camera_pos.y / f64::from(CHUNK_SIZE)) as i32;
-                    let rc = Rect::new(
+                    let rc = Rect::new_wh(
                         rc_x * i32::from(CHUNK_SIZE),
                         rc_y * i32::from(CHUNK_SIZE),
                         CHUNK_SIZE,

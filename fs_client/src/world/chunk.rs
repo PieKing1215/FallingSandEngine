@@ -105,7 +105,7 @@ impl<'ch> Chunk for ClientChunk {
                 self.graphics
                     .set(x, y, unsafe { px.get_unchecked_mut(i) }.color)?;
 
-                self.dirty_rect = Some(Rect::new(
+                self.dirty_rect = Some(Rect::new_wh(
                     0,
                     0,
                     CHUNK_SIZE,
@@ -395,7 +395,7 @@ impl ChunkGraphics {
         target: &mut RenderTarget,
         _settings: &Settings,
     ) {
-        let chunk_rect = Rect::new(
+        let chunk_rect = Rect::new_wh(
             0,
             0,
             CHUNK_SIZE,

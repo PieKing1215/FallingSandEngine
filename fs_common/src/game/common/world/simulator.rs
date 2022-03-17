@@ -399,8 +399,8 @@ impl Simulator {
             {
                 profiling::scope!("loop");
                 if rng.bool() {
-                    for y in my_dirty_rect.range_lr().rev() {
-                        for x in my_dirty_rect.range_tb() {
+                    for y in my_dirty_rect.range_tb().rev() {
+                        for x in my_dirty_rect.range_lr() {
                             let cur = helper.get_pixel_local_unchecked(x, y);
 
                             if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper, &rng) {
@@ -410,8 +410,8 @@ impl Simulator {
                         }
                     }
                 } else {
-                    for y in my_dirty_rect.range_lr().rev() {
-                        for x in my_dirty_rect.range_tb().rev() {
+                    for y in my_dirty_rect.range_tb().rev() {
+                        for x in my_dirty_rect.range_lr().rev() {
                             let cur = helper.get_pixel_local_unchecked(x, y);
 
                             if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper, &rng) {
