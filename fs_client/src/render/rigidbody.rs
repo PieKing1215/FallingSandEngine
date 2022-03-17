@@ -1,5 +1,5 @@
 use fs_common::game::common::world::rigidbody::FSRigidBody;
-use glium::texture::SrgbTexture2d;
+use glium::texture::Texture2d;
 
 use super::drawing::RenderTarget;
 
@@ -20,7 +20,7 @@ impl FSRigidBodyExt for FSRigidBody {
             let image = glium::texture::RawImage2d::from_raw_rgba((&pixel_data).to_vec(), (self.width.into(), self.height.into()));
 
             if self.image.is_none() {
-                self.image = Some(SrgbTexture2d::new(&target.display, image).unwrap());
+                self.image = Some(Texture2d::new(&target.display, image).unwrap());
             } else {
                 self.image.as_mut().unwrap().write(
                     glium::Rect { left: 0, bottom: 0, width: self.width.into(), height: self.height.into() },

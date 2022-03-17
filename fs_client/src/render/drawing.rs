@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use fs_common::game::common::{world::{material::Color, particle::Particle, CHUNK_SIZE}, Rect};
-use glium::{Frame, Surface, SwapBuffersError, Display, DrawParameters, IndexBuffer, PolygonMode, index::NoIndices, uniform, Program, Texture2d, texture::{SrgbTexture2d, SrgbTexture2dArray}, implement_vertex, Blend};
+use glium::{Frame, Surface, SwapBuffersError, Display, DrawParameters, IndexBuffer, PolygonMode, index::NoIndices, uniform, Program, Texture2d, texture::{Texture2dArray}, implement_vertex, Blend};
 use glium_glyph::{GlyphBrush, glyph_brush::Section};
 use glutin::window::Window;
 
@@ -190,7 +190,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
     }
 
     #[profiling::function]
-    pub fn draw_texture(&mut self, rect: impl Into<Rect<f32>>, texture: &SrgbTexture2d, param: DrawParameters) {
+    pub fn draw_texture(&mut self, rect: impl Into<Rect<f32>>, texture: &Texture2d, param: DrawParameters) {
         let rect = rect.into();
         let shape = rect.vertices().into_iter().zip([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]).map(Vertex2T::from).collect::<Vec<_>>();
 
@@ -208,7 +208,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
     }
 
     #[profiling::function]
-    pub fn draw_texture_flipped(&mut self, rect: impl Into<Rect<f32>>, texture: &SrgbTexture2d, param: DrawParameters) {
+    pub fn draw_texture_flipped(&mut self, rect: impl Into<Rect<f32>>, texture: &Texture2d, param: DrawParameters) {
         let rect = rect.into();
         let shape = rect.vertices().into_iter().zip([[0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]]).map(Vertex2T::from).collect::<Vec<_>>();
 
@@ -226,7 +226,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
     }
 
     #[profiling::function]
-    pub fn draw_textures(&mut self, rects: &[Rect<f32>], texture: &SrgbTexture2dArray, param: DrawParameters) {
+    pub fn draw_textures(&mut self, rects: &[Rect<f32>], texture: &Texture2dArray, param: DrawParameters) {
         let shape = rects.iter().flat_map(|rect| rect.vertices().into_iter().zip([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]).enumerate().map(|(layer, (v, t))| Vertex2TA::from(((v.position[0], v.position[1]), (t[0], t[1]), layer as f32)))).collect::<Vec<_>>();
 
         let model_view = *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
@@ -272,7 +272,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
                     &DrawParameters::default()).unwrap();
     }
 
-    pub fn draw_chunks(&mut self, chunks: &[(f32, f32)], texture_array: &SrgbTexture2dArray) {
+    pub fn draw_chunks(&mut self, chunks: &[(f32, f32)], texture_array: &Texture2dArray) {
         let model_view = *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
         let view: [[f32; 4]; 4] = model_view.into();
 
@@ -308,7 +308,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
         }
     }
 
-    pub fn draw_chunks_2(&mut self, chunks: Vec<((f32, f32), &SrgbTexture2d)>) {
+    pub fn draw_chunks_2(&mut self, chunks: Vec<((f32, f32), &Texture2d)>) {
         let model_view = *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
         let view: [[f32; 4]; 4] = model_view.into();
         

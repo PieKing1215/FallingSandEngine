@@ -10,7 +10,7 @@ use fs_common::game::common::{
     },
     Rect, Settings,
 };
-use glium::{Frame, texture::{RawImage2d, SrgbTexture2d}, DrawParameters, Blend};
+use glium::{Frame, texture::{RawImage2d, Texture2d}, DrawParameters, Blend};
 
 use crate::render::{Fonts, Renderable, TransformStack, drawing::RenderTarget};
 
@@ -234,7 +234,7 @@ impl<'ch> Chunk for ClientChunk {
 }
 
 pub struct ChunkGraphics {
-    pub texture: Option<SrgbTexture2d>,
+    pub texture: Option<Texture2d>,
     pub pixel_data: [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4],
     pub dirty: bool,
     pub was_dirty: bool,
@@ -404,12 +404,12 @@ impl ChunkGraphics {
 
         if self.texture.is_none() {
             let image = glium::texture::RawImage2d::from_raw_rgba((&self.pixel_data).to_vec(), (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
-            self.texture = Some(SrgbTexture2d::new(&target.display, image).unwrap());
+            self.texture = Some(Texture2d::new(&target.display, image).unwrap());
         }
 
         // let tex = self.texture.get_or_insert_with(|| {
         //     let image = glium::texture::RawImage2d::from_raw_rgba((&self.pixel_data).to_vec(), (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
-        //     SrgbTexture2d::new(&target.display, image).unwrap()
+        //     Texture2d::new(&target.display, image).unwrap()
         // });
 
         // target.draw_texture(

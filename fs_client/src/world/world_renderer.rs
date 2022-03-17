@@ -1,4 +1,4 @@
-use glium::{Frame, Display, DrawParameters, PolygonMode, Blend, texture::{SrgbTexture2dArray, MipmapsOption}};
+use glium::{Frame, Display, DrawParameters, PolygonMode, Blend, texture::{Texture2dArray, MipmapsOption}};
 use rapier2d::prelude::Shape;
 use specs::{prelude::ParallelIterator, rayon::slice::ParallelSlice, Join, ReadStorage, WorldExt};
 
@@ -292,8 +292,8 @@ impl WorldRenderer {
             // if !texs.0.is_empty() {
             //     profiling::scope!("draw");
             //     let ta = {
-            //         profiling::scope!("SrgbTexture2dArray::with_mipmaps");
-            //         SrgbTexture2dArray::with_mipmaps(&target.display, texs.1, MipmapsOption::NoMipmap).unwrap()
+            //         profiling::scope!("Texture2dArray::with_mipmaps");
+            //         Texture2dArray::with_mipmaps(&target.display, texs.1, MipmapsOption::NoMipmap).unwrap()
             //     };
             //     target.draw_chunks(&texs.0, &ta);
             // }

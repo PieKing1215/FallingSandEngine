@@ -1,4 +1,4 @@
-use glium::texture::SrgbTexture2d;
+use glium::texture::Texture2d;
 use rapier2d::{
     na::{Isometry2, Point2, Vector2},
     prelude::{
@@ -20,7 +20,7 @@ pub struct FSRigidBody {
     pub height: u16,
     pub pixels: Vec<MaterialInstance>,
     pub body: Option<RigidBodyHandle>,
-    pub image: Option<SrgbTexture2d>,
+    pub image: Option<Texture2d>,
     pub image_dirty: bool,
 }
 
