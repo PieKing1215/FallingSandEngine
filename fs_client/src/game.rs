@@ -6,7 +6,7 @@ use std::{
 
 use clap::ArgMatches;
 use glium::{Display, Surface};
-use glutin::{event_loop::EventLoop, window::Fullscreen};
+use glutin::{event_loop::EventLoop, window::Fullscreen, event::{KeyboardInput, VirtualKeyCode, ElementState}, dpi::PhysicalPosition};
 use log::{debug, error, info, warn};
 use rapier2d::{
     na::{Isometry2, Point2, Vector2},
@@ -131,48 +131,10 @@ impl ClientGame {
 
             // for event in event_pump.poll_iter() {
             //     profiling::scope!("event");
-            //     // renderer.imgui_sdl2.handle_event(&mut renderer.imgui, &event);
-            //     // missing from official support
-            //     // if r.imgui_sdl2.ignore_event(&event) {
-            //     //     continue;
-            //     // }
-
             //     let client_consumed_event = self.client.on_event(&event);
 
             //     if !client_consumed_event {
             //         match event {
-            //             Event::Quit { .. }
-            //             | Event::KeyDown { keycode: Some(Keycode::Escape), .. } => *control_flow = glutin::event_loop::ControlFlow::Exit,
-            //             Event::KeyDown { keycode: Some(Keycode::F11), .. } => {
-            //                 self.data.settings.fullscreen = !self.data.settings.fullscreen;
-            //             },
-            //             Event::KeyDown {
-            //                 keycode: Some(Keycode::RShift | Keycode::LShift), ..
-            //             } => {
-            //                 shift_key = true;
-            //             },
-            //             Event::KeyUp {
-            //                 keycode: Some(Keycode::RShift | Keycode::LShift), ..
-            //             } => {
-            //                 shift_key = false;
-            //             },
-            //             Event::MouseWheel { y, .. } => {
-            //                 if shift_key {
-            //                     let mut v = self.client.camera_scale + 0.1 * f64::from(y);
-            //                     if y > 0 {
-            //                         v = v.ceil();
-            //                     } else {
-            //                         v = v.floor();
-            //                     }
-
-            //                     v = v.clamp(1.0, 10.0);
-            //                     self.client.camera_scale = v;
-            //                 } else {
-            //                     self.client.camera_scale = (self.client.camera_scale
-            //                         * (1.0 + 0.1 * f64::from(y)))
-            //                     .clamp(0.01, 10.0);
-            //                 }
-            //             },
             //             Event::MouseButtonDown {
             //                 mouse_btn: sdl2::mouse::MouseButton::Right,
             //                 x,
@@ -380,10 +342,50 @@ impl ClientGame {
                     },
                     _ => {
                         renderer.imgui_platform.handle_event(renderer.imgui.io_mut(), renderer.display.gl_window().window(), &event);
+                        let client_consumed_event = self.client.on_event(&w_event);
+
                         match w_event {
                             glutin::event::WindowEvent::KeyboardInput { input, .. } => {
-    
+                                match input {
+                                    KeyboardInput { virtual_keycode: Some(VirtualKeyCode::Escape), state: ElementState::Pressed, .. } => {
+                                        *control_flow = glutin::event_loop::ControlFlow::Exit;
+                                    }
+                                    KeyboardInput { virtual_keycode: Some(VirtualKeyCode::F11), state: ElementState::Pressed, .. } => {
+                                        self.data.settings.fullscreen = !self.data.settings.fullscreen;
+                                    }
+                                    KeyboardInput { virtual_keycode: Some(VirtualKeyCode::LShift | VirtualKeyCode::RShift), state: ElementState::Pressed, .. } => {
+                                        shift_key = true
+                                    }
+                                    KeyboardInput { virtual_keycode: Some(VirtualKeyCode::LShift | VirtualKeyCode::RShift), state: ElementState::Released, .. } => {
+                                        shift_key = false
+                                    }
+                                    _ => {}
+                                }
                             },
+                            glutin::event::WindowEvent::MouseWheel { delta, .. } => {
+                                // TODO: test this
+                                let y = match delta {
+                                    glutin::event::MouseScrollDelta::LineDelta(_x, y) => y.signum() as i32,
+                                    glutin::event::MouseScrollDelta::PixelDelta(PhysicalPosition { x: _, y }) => y.signum() as i32,
+                                };
+
+                                if shift_key {
+                                    let mut v = self.client.camera_scale + 0.1 * f64::from(y);
+                                    if y > 0 {
+                                        v = v.ceil();
+                                    } else {
+                                        v = v.floor();
+                                    }
+
+                                    v = v.clamp(1.0, 10.0);
+                                    self.client.camera_scale = v;
+                                } else {
+                                    self.client.camera_scale = (self.client.camera_scale
+                                        * (1.0 + 0.1 * f64::from(y)))
+                                    .clamp(0.01, 10.0);
+                                }
+
+                            }
                             _ => {},
                         }
                     },
