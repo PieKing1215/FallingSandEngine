@@ -1,4 +1,4 @@
-use glium::Display;
+use glium::{Display, program::ProgramCreationInput};
 
 
 pub struct Shaders {
@@ -13,6 +13,8 @@ pub struct Shaders {
 
 impl Shaders {
     pub fn new(display: &Display) -> Self {
+
+        // TODO: disable gamma correction on all of these
 
         let vertex_shader_src = r#"
             #version 140
@@ -170,7 +172,17 @@ impl Shaders {
             }
         "#;
 
-        let particle = glium::Program::from_source(display, vertex_shader_src, fragment_shader_src, None).unwrap();
+        let particle = glium::Program::new(display, ProgramCreationInput::SourceCode {
+            vertex_shader: vertex_shader_src,
+            tessellation_control_shader: None,
+            tessellation_evaluation_shader: None,
+            geometry_shader: None,
+            fragment_shader: fragment_shader_src,
+            transform_feedback_varyings: None,
+            outputs_srgb: true,
+            uses_point_size: false,
+        }).unwrap();
+        // let particle = glium::Program::from_source(display, vertex_shader_src, fragment_shader_src, None).unwrap();
 
         let vertex_shader_src = r#"
             #version 140
