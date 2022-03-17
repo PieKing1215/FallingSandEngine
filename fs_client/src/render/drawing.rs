@@ -206,6 +206,24 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
     }
 
     #[profiling::function]
+    pub fn draw_texture_flipped(&mut self, rect: impl Into<Rect<f32>>, texture: &SrgbTexture2d, param: DrawParameters) {
+        let rect = rect.into();
+        let shape = rect.vertices().into_iter().zip([[0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]]).map(Vertex2T::from).collect::<Vec<_>>();
+
+        let model_view = *self.transform.stack.last().unwrap();
+        let view: [[f32; 4]; 4] = model_view.into();
+
+        let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
+        let indices = IndexBuffer::new(&self.display, glium::index::PrimitiveType::TriangleStrip, &[1_u16, 2, 0, 3]).unwrap();
+
+        {
+            profiling::scope!("draw");
+            self.frame.draw(&vertex_buffer, &indices, &self.shaders.texture, 
+            &uniform! { matrix: view, tex: texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest) }, &param).unwrap();
+        }
+    }
+
+    #[profiling::function]
     pub fn draw_textures(&mut self, rects: &[Rect<f32>], texture: &SrgbTexture2dArray, param: DrawParameters) {
         let shape = rects.iter().flat_map(|rect| rect.vertices().into_iter().zip([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]).enumerate().map(|(layer, (v, t))| Vertex2TA::from(((v.position[0], v.position[1]), (t[0], t[1]), layer as f32)))).collect::<Vec<_>>();
 

@@ -143,6 +143,31 @@ impl<'w, C: Chunk> World<C> {
             w.rigidbodies.append(&mut r);
         }
 
+        // asymmetric
+        let pixels: Vec<_> = (0..40 * 40)
+            .map(|i| {
+                let x: i32 = i % 40;
+                let y: i32 = i / 40;
+                if (y <= 5) || ((x-y).abs() <= 5) {
+                    MaterialInstance {
+                        material_id: TEST_MATERIAL.id,
+                        physics: PhysicsType::Solid,
+                        color: Color::rgb(
+                            64,
+                            if (x + y) % 4 >= 2 { 191 } else { 64 },
+                            if (x + y) % 4 > 2 { 64 } else { 191 },
+                        ),
+                    }
+                } else {
+                    MaterialInstance::air()
+                }
+            })
+            .collect();
+
+        if let Ok(mut r) = FSRigidBody::make_bodies(&pixels, 40, 40, &mut w.physics, (-0.0, -10.0)) {
+            w.rigidbodies.append(&mut r);
+        }
+
         // add another rigidbody
 
         let pixels: Vec<_> = (0..40 * 40)

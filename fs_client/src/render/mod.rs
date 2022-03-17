@@ -2,6 +2,7 @@ mod renderer;
 pub mod drawing;
 pub mod vertex;
 pub mod shaders;
+pub mod rigidbody;
 use fs_common::game::common::{Rect, Settings};
 use nalgebra::{Matrix4, Point3, Vector3};
 pub use renderer::*;

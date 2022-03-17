@@ -21,6 +21,7 @@ pub struct FSRigidBody {
     pub pixels: Vec<MaterialInstance>,
     pub body: Option<RigidBodyHandle>,
     pub image: Option<SrgbTexture2d>,
+    pub image_dirty: bool,
 }
 
 impl FSRigidBody {
@@ -33,7 +34,7 @@ impl FSRigidBody {
             return Err(format!("RigidBody::from_pixels incorrect Vec size: pixels.len() = {}, width = {}, height = {}", pixels.len(), width, height));
         }
 
-        Ok(Self { width, height, pixels, body: None, image: None })
+        Ok(Self { width, height, pixels, body: None, image: None, image_dirty: true })
     }
 
     pub fn from_tris(
@@ -122,6 +123,7 @@ impl FSRigidBody {
             pixels,
             body: Some(rb_handle),
             image: None,
+            image_dirty: true,
         })
     }
 
@@ -131,29 +133,6 @@ impl FSRigidBody {
 
     pub fn get_body_mut<'a>(&self, physics: &'a mut Physics) -> Option<&'a mut RigidBody> {
         self.body.and_then(|b| physics.bodies.get_mut(b))
-    }
-
-    pub fn update_image(&mut self) {
-        // let mut img = GPUSubsystem::create_image(
-        //     self.width,
-        //     self.height,
-        //     sdl_gpu::sys::GPU_FormatEnum::GPU_FORMAT_RGBA,
-        // );
-        // img.set_image_filter(sdl_gpu::sys::GPU_FilterEnum::GPU_FILTER_NEAREST);
-
-        // let pixel_data: Vec<_> = self
-        //     .pixels
-        //     .iter()
-        //     .flat_map(|m| vec![m.color.r, m.color.g, m.color.b, m.color.a])
-        //     .collect();
-
-        // img.update_image_bytes(
-        //     None as Option<GPURect>,
-        //     &pixel_data,
-        //     (self.width * 4).into(),
-        // );
-
-        // self.image = Some(img);
     }
 
     pub fn make_bodies(

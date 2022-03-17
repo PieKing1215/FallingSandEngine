@@ -477,7 +477,6 @@ impl Simulator {
                         if let Some(mat) = res {
                             helper.rigidbodies[i].pixels[(rb_x + rb_y * rb_w) as usize] = mat;
                             dirty[i] = true;
-
                             if (cur.physics == PhysicsType::Solid
                                 && mat.physics != PhysicsType::Solid)
                                 || (cur.physics != PhysicsType::Solid
@@ -496,7 +495,7 @@ impl Simulator {
         for i in 0..rigidbodies.len() {
             if dirty[i] && !needs_remesh[i] {
                 // don't bother updating the image if it's going to be destroyed anyway
-                rigidbodies[i].update_image();
+                rigidbodies[i].image_dirty = true;
             }
         }
 

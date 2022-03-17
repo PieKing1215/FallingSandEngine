@@ -17,7 +17,7 @@ use fs_common::game::common::{
 };
 
 use crate::{
-    render::{Fonts, Renderable, TransformStack, shaders::Shaders, drawing::RenderTarget},
+    render::{Fonts, Renderable, TransformStack, shaders::Shaders, drawing::RenderTarget, rigidbody::FSRigidBodyExt},
     Client,
 };
 
@@ -374,9 +374,7 @@ impl WorldRenderer {
             target.transform.push();
             target.transform.scale(PHYSICS_SCALE, PHYSICS_SCALE);
             for rb in &mut world.rigidbodies {
-                if rb.image.is_none() {
-                    rb.update_image();
-                }
+                rb.update_image(target);
 
                 if let Some(body) = rb.get_body(&world.physics) {
                     if let Some(img) = &rb.image {
@@ -385,6 +383,11 @@ impl WorldRenderer {
                         let (width, height) = (
                             f32::from(rb.width) / PHYSICS_SCALE,
                             f32::from(rb.height) / PHYSICS_SCALE,
+                        );
+
+                        let (rx, ry) = (
+                            body.position().translation.vector[0],
+                            body.position().translation.vector[1],
                         );
 
                         // let mut rect = GPURect::new(pos.x, pos.y, width, height);
@@ -403,6 +406,22 @@ impl WorldRenderer {
                         //     0.0,
                         //     0,
                         // );
+
+
+                        target.transform.push();
+                        target.transform.translate(rx, ry);
+                        target.transform.rotate(body.rotation().angle());
+
+                        target.draw_texture_flipped(
+                            Rect::new(0.0, 0.0, rb.width as f32 / PHYSICS_SCALE, rb.height as f32 / PHYSICS_SCALE), 
+                            img, 
+                            DrawParameters {
+                                blend: Blend::alpha_blending(),
+                                ..DrawParameters::default()
+                            }
+                        );
+
+                        target.transform.pop();
                     }
                 }
             }
