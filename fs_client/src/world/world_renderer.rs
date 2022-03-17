@@ -136,7 +136,7 @@ impl WorldRenderer {
                         ch.chunk_y * i32::from(CHUNK_SIZE),
                     );
 
-                    if (settings.debug && !settings.cull_chunks) || target.transform.transform_rect(rc).intersects(&screen_zone) {
+                    if (settings.debug && !settings.cull_chunks) || rc.intersects(&screen_zone) {
                         ch.render(target, settings);
 
                         if settings.debug && settings.draw_chunk_dirty_rects {
@@ -273,7 +273,7 @@ impl WorldRenderer {
                         ch.chunk_y * i32::from(CHUNK_SIZE),
                     );
 
-                    if (settings.debug && !settings.cull_chunks) || target.transform.transform_rect(rc).intersects(&screen_zone) {
+                    if (settings.debug && !settings.cull_chunks) || rc.intersects(&screen_zone) {
                         target.transform.pop();
                         
                         // ch.render(target, settings);

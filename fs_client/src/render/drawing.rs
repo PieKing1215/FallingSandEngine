@@ -11,6 +11,7 @@ pub struct RenderTarget<'a, 'b> {
     pub frame: Frame,
     pub display: Display,
     pub transform: TransformStack,
+    pub base_transform: TransformStack,
     pub shaders: &'a Shaders,
     glyph_brush: &'a mut GlyphBrush<'b, 'b>,
 }
@@ -50,6 +51,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
             frame: display.draw(),
             display: display.clone(),
             transform: TransformStack::new(),
+            base_transform: TransformStack::new(),
             shaders,
             glyph_brush,
         }
@@ -82,7 +84,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
         let p2 = p2.into();
         let shape = vec![p1, p2];
 
-        let model_view = *self.transform.stack.last().unwrap();
+        let model_view = *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
         let view: [[f32; 4]; 4] = model_view.into();
 
         let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
@@ -98,7 +100,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
         let p3 = p3.into();
         let shape = vec![p1, p2, p3];
 
-        let model_view = *self.transform.stack.last().unwrap();
+        let model_view = *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
         let view: [[f32; 4]; 4] = model_view.into();
 
         let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
@@ -111,7 +113,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
         let rect = rect.into();
         let shape = rect.vertices();
 
-        let model_view = *self.transform.stack.last().unwrap();
+        let model_view = *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
         let view: [[f32; 4]; 4] = model_view.into();
 
         if param.polygon_mode == PolygonMode::Line {
@@ -132,7 +134,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
     pub fn rectangles(&mut self, rects: &[Rect<f32>], color: Color, param: DrawParameters) {
         let shape = rects.iter().flat_map(|rect| rect.vertices()).collect::<Vec<_>>();
 
-        let model_view = *self.transform.stack.last().unwrap();
+        let model_view = *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
         let view: [[f32; 4]; 4] = model_view.into();
 
         if param.polygon_mode == PolygonMode::Line {
@@ -157,7 +159,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
     pub fn rectangles_colored(&mut self, rects: &[(Rect<f32>, Color)], param: DrawParameters) {
         let shape = rects.iter().copied().flat_map(|(rect, color)| rect.vertices().into_iter().map(move |v| Vertex2C::from((v, color)))).collect::<Vec<_>>();
 
-        let model_view = *self.transform.stack.last().unwrap();
+        let model_view = *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
         let view: [[f32; 4]; 4] = model_view.into();
 
         if param.polygon_mode == PolygonMode::Line {
@@ -192,7 +194,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
         let rect = rect.into();
         let shape = rect.vertices().into_iter().zip([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]).map(Vertex2T::from).collect::<Vec<_>>();
 
-        let model_view = *self.transform.stack.last().unwrap();
+        let model_view = *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
         let view: [[f32; 4]; 4] = model_view.into();
 
         let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
@@ -210,7 +212,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
         let rect = rect.into();
         let shape = rect.vertices().into_iter().zip([[0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]]).map(Vertex2T::from).collect::<Vec<_>>();
 
-        let model_view = *self.transform.stack.last().unwrap();
+        let model_view = *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
         let view: [[f32; 4]; 4] = model_view.into();
 
         let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
@@ -227,7 +229,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
     pub fn draw_textures(&mut self, rects: &[Rect<f32>], texture: &SrgbTexture2dArray, param: DrawParameters) {
         let shape = rects.iter().flat_map(|rect| rect.vertices().into_iter().zip([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]).enumerate().map(|(layer, (v, t))| Vertex2TA::from(((v.position[0], v.position[1]), (t[0], t[1]), layer as f32)))).collect::<Vec<_>>();
 
-        let model_view = *self.transform.stack.last().unwrap();
+        let model_view = *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
         let view: [[f32; 4]; 4] = model_view.into();
 
         let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
@@ -238,7 +240,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
     }
 
     pub fn draw_particles(&mut self, parts: &[Particle], partial_ticks: f32) {
-        let model_view = *self.transform.stack.last().unwrap();
+        let model_view = *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
         let view: [[f32; 4]; 4] = model_view.into();
 
         let per_instance = {
@@ -271,7 +273,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
     }
 
     pub fn draw_chunks(&mut self, chunks: &[(f32, f32)], texture_array: &SrgbTexture2dArray) {
-        let model_view = *self.transform.stack.last().unwrap();
+        let model_view = *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
         let view: [[f32; 4]; 4] = model_view.into();
 
         let per_instance = {
@@ -307,7 +309,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
     }
 
     pub fn draw_chunks_2(&mut self, chunks: Vec<((f32, f32), &SrgbTexture2d)>) {
-        let model_view = *self.transform.stack.last().unwrap();
+        let model_view = *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
         let view: [[f32; 4]; 4] = model_view.into();
         
         let shape = Rect::<f32>::new(0.0, 0.0, CHUNK_SIZE as f32, CHUNK_SIZE as f32).vertices().into_iter().zip([[0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]]).map(Vertex2T::from).collect::<Vec<_>>();

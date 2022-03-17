@@ -277,9 +277,9 @@ impl<'a> Renderer<'a> {
         partial_ticks: f64,
     ) {
 
-        target.transform.push();
-        target.transform.translate(-1.0, 1.0);
-        target.transform.scale(2.0 / target.width() as f64, -2.0 / target.height() as f64);
+        target.base_transform.push();
+        target.base_transform.translate(-1.0, 1.0);
+        target.base_transform.scale(2.0 / target.width() as f64, -2.0 / target.height() as f64);
 
         {
             profiling::scope!("test stuff");
@@ -351,6 +351,6 @@ impl<'a> Renderer<'a> {
             );
         }
 
-        target.transform.pop();
+        target.base_transform.pop();
     }
 }
