@@ -117,7 +117,55 @@ impl WorldRenderer {
         // }
 
         {
-            profiling::scope!("chunks");
+            profiling::scope!("chunks2");
+            let texs = world
+                .chunk_handler
+                .loaded_chunks
+                .iter_mut()
+                .filter_map(|(_i, ch)| {
+                    let rc = Rect::new_wh(
+                        ch.chunk_x * i32::from(CHUNK_SIZE),
+                        ch.chunk_y * i32::from(CHUNK_SIZE),
+                        CHUNK_SIZE,
+                        CHUNK_SIZE,
+                    );
+
+                    target.transform.push();
+                    target.transform.translate(
+                        ch.chunk_x * i32::from(CHUNK_SIZE),
+                        ch.chunk_y * i32::from(CHUNK_SIZE),
+                    );
+
+                    if (settings.debug && !settings.cull_chunks) || rc.intersects(&screen_zone) {
+                        ch.prep_render(target, settings);
+
+                        target.transform.pop();
+                        
+                        // ch.render(target, settings);
+                        // ch.graphics.texture
+                        // let image = glium::texture::RawImage2d::from_raw_rgba((&ch.graphics.pixel_data).to_vec(), (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
+                        // Some(((ch.chunk_x as f32 * f32::from(CHUNK_SIZE), ch.chunk_y as f32 * f32::from(CHUNK_SIZE)), image))
+                        ch.graphics.texture.as_ref().map(|t| ((ch.chunk_x as f32 * f32::from(CHUNK_SIZE), ch.chunk_y as f32 * f32::from(CHUNK_SIZE)), t))
+                    } else {
+                        target.transform.pop();
+                        None
+                    }
+                }).collect::<Vec<_>>();
+
+            target.draw_chunks_2(texs);
+
+            // if !texs.0.is_empty() {
+            //     profiling::scope!("draw");
+            //     let ta = {
+            //         profiling::scope!("Texture2dArray::with_mipmaps");
+            //         Texture2dArray::with_mipmaps(&target.display, texs.1, MipmapsOption::NoMipmap).unwrap()
+            //     };
+            //     target.draw_chunks(&texs.0, &ta);
+            // }
+        }
+
+        {
+            profiling::scope!("chunks overlay");
             world
                 .chunk_handler
                 .loaded_chunks
@@ -191,7 +239,12 @@ impl WorldRenderer {
                     }
 
                     if settings.debug && settings.draw_chunk_state_overlay {
-                        let rect = rc;
+                        let rect = Rect::new_wh(
+                            0,
+                            0,
+                            CHUNK_SIZE,
+                            CHUNK_SIZE,
+                        );
 
                         let alpha: u8 = (settings.draw_chunk_state_overlay_alpha * 255.0) as u8;
                         let color = match ch.state {
@@ -251,52 +304,6 @@ impl WorldRenderer {
 
                     target.transform.pop();
                 });
-        }
-
-        {
-            profiling::scope!("chunks2");
-            let texs = world
-                .chunk_handler
-                .loaded_chunks
-                .iter()
-                .filter_map(|(_i, ch)| {
-                    let rc = Rect::new_wh(
-                        ch.chunk_x * i32::from(CHUNK_SIZE),
-                        ch.chunk_y * i32::from(CHUNK_SIZE),
-                        CHUNK_SIZE,
-                        CHUNK_SIZE,
-                    );
-
-                    target.transform.push();
-                    target.transform.translate(
-                        ch.chunk_x * i32::from(CHUNK_SIZE),
-                        ch.chunk_y * i32::from(CHUNK_SIZE),
-                    );
-
-                    if (settings.debug && !settings.cull_chunks) || rc.intersects(&screen_zone) {
-                        target.transform.pop();
-                        
-                        // ch.render(target, settings);
-                        // ch.graphics.texture
-                        // let image = glium::texture::RawImage2d::from_raw_rgba((&ch.graphics.pixel_data).to_vec(), (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
-                        // Some(((ch.chunk_x as f32 * f32::from(CHUNK_SIZE), ch.chunk_y as f32 * f32::from(CHUNK_SIZE)), image))
-                        ch.graphics.texture.as_ref().map(|t| ((ch.chunk_x as f32 * f32::from(CHUNK_SIZE), ch.chunk_y as f32 * f32::from(CHUNK_SIZE)), t))
-                    } else {
-                        target.transform.pop();
-                        None
-                    }
-                }).collect::<Vec<_>>();
-
-            target.draw_chunks_2(texs);
-
-            // if !texs.0.is_empty() {
-            //     profiling::scope!("draw");
-            //     let ta = {
-            //         profiling::scope!("Texture2dArray::with_mipmaps");
-            //         Texture2dArray::with_mipmaps(&target.display, texs.1, MipmapsOption::NoMipmap).unwrap()
-            //     };
-            //     target.draw_chunks(&texs.0, &ta);
-            // }
         }
 
         // draw liquids

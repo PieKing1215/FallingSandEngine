@@ -10,7 +10,7 @@ use fs_common::game::common::{
     },
     Rect, Settings,
 };
-use glium::{Frame, texture::{RawImage2d, Texture2d}, DrawParameters, Blend};
+use glium::{Frame, texture::{RawImage2d, Texture2d}, DrawParameters, Blend, PolygonMode};
 
 use crate::render::{Fonts, Renderable, TransformStack, drawing::RenderTarget};
 
@@ -301,12 +301,19 @@ impl<'cg> ChunkGraphics {
 }
 
 impl ClientChunk {
-    pub fn render(
+    pub fn prep_render(
         &mut self,
         target: &mut RenderTarget,
         settings: &Settings,
     ) {
         self.graphics.render(target, settings);
+    }
+
+    pub fn render(
+        &mut self,
+        target: &mut RenderTarget,
+        settings: &Settings,
+    ) {
 
         if settings.debug && settings.draw_chunk_collision == 1 {
             if let Some(f) = &self.mesh {
@@ -322,15 +329,19 @@ impl ClientChunk {
                 f.iter().enumerate().for_each(|(j, f)| {
                     f.iter().enumerate().for_each(|(_k, pts)| {
                         for i in 1..pts.len() {
-                            let (x1, y1) = target.transform.transform((pts[i - 1][0], pts[i - 1][1]));
-                            let (x2, y2) = target.transform.transform((pts[i][0], pts[i][1]));
-                            // canvas.line(
-                            //     x1 as f32,
-                            //     y1 as f32,
-                            //     x2 as f32,
-                            //     y2 as f32,
-                            //     colors[j % colors.len()].into_sdl(),
-                            // );
+                            let (x1, y1) = (pts[i - 1][0], pts[i - 1][1]);
+                            let (x2, y2) = (pts[i][0], pts[i][1]);
+                            target.line(
+                                (x1 as f32, y1 as f32),
+                                (x2 as f32, y2 as f32),
+                                colors[j % colors.len()],
+                                DrawParameters {
+                                    polygon_mode: PolygonMode::Line,
+                                    line_width: Some(1.0),
+                                    blend: Blend::alpha_blending(),
+                                    ..Default::default()
+                                }
+                            );
                         }
 
                         // draw individual points
@@ -355,15 +366,19 @@ impl ClientChunk {
                 f.iter().enumerate().for_each(|(j, f)| {
                     f.iter().enumerate().for_each(|(_k, pts)| {
                         for i in 1..pts.len() {
-                            let (x1, y1) = target.transform.transform((pts[i - 1][0], pts[i - 1][1]));
-                            let (x2, y2) = target.transform.transform((pts[i][0], pts[i][1]));
-                            // canvas.line(
-                            //     x1 as f32,
-                            //     y1 as f32,
-                            //     x2 as f32,
-                            //     y2 as f32,
-                            //     colors[j % colors.len()].into_sdl(),
-                            // );
+                            let (x1, y1) = (pts[i - 1][0], pts[i - 1][1]);
+                            let (x2, y2) = (pts[i][0], pts[i][1]);
+                            target.line(
+                                (x1 as f32, y1 as f32),
+                                (x2 as f32, y2 as f32),
+                                colors[j % colors.len()],
+                                DrawParameters {
+                                    polygon_mode: PolygonMode::Line,
+                                    line_width: Some(1.0),
+                                    blend: Blend::alpha_blending(),
+                                    ..Default::default()
+                                }
+                            );
                         }
                     });
                 });
@@ -372,15 +387,24 @@ impl ClientChunk {
             if let Some(t) = &self.tris {
                 for part in t {
                     for tri in part {
-                        let (x1, y1) = target.transform.transform(tri.0);
-                        let (x2, y2) = target.transform.transform(tri.1);
-                        let (x3, y3) = target.transform.transform(tri.2);
+                        let (x1, y1) = tri.0;
+                        let (x2, y2) = tri.1;
+                        let (x3, y3) = tri.2;
 
-                        // let color = Color::rgba(32, 255, 255, 255).into_sdl();
+                        let color = Color::rgba(32, 255, 255, 255);
 
-                        // canvas.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, color);
-                        // canvas.line(x2 as f32, y2 as f32, x3 as f32, y3 as f32, color);
-                        // canvas.line(x3 as f32, y3 as f32, x1 as f32, y1 as f32, color);
+                        target.triangle(
+                            (x1 as f32, y1 as f32),
+                            (x2 as f32, y2 as f32),
+                            (x3 as f32, y3 as f32),
+                            color,
+                            DrawParameters {
+                                polygon_mode: PolygonMode::Line,
+                                line_width: Some(1.0),
+                                blend: Blend::alpha_blending(),
+                                ..Default::default()
+                            }
+                        );
                     }
                 }
             }
