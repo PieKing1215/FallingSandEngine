@@ -378,35 +378,11 @@ impl WorldRenderer {
 
                 if let Some(body) = rb.get_body(&world.physics) {
                     if let Some(img) = &rb.image {
-                        let pos = body.translation();
-
-                        let (width, height) = (
-                            f32::from(rb.width) / PHYSICS_SCALE,
-                            f32::from(rb.height) / PHYSICS_SCALE,
-                        );
 
                         let (rx, ry) = (
                             body.position().translation.vector[0],
                             body.position().translation.vector[1],
                         );
-
-                        // let mut rect = GPURect::new(pos.x, pos.y, width, height);
-
-                        // let (x1, y1) = target.transform.transform((rect.x, rect.y));
-                        // let (x2, y2) = target.transform.transform((rect.x + rect.w, rect.y + rect.h));
-
-                        // rect = GPURect::new2(x1 as f32, y1 as f32, x2 as f32, y2 as f32);
-
-                        // img.blit_rect_x(
-                        //     None,
-                        //     target,
-                        //     Some(rect),
-                        //     body.rotation().angle().to_degrees(),
-                        //     0.0,
-                        //     0.0,
-                        //     0,
-                        // );
-
 
                         target.transform.push();
                         target.transform.translate(rx, ry);
@@ -414,7 +390,7 @@ impl WorldRenderer {
 
                         target.draw_texture_flipped(
                             Rect::new_wh(0.0, 0.0, rb.width as f32 / PHYSICS_SCALE, rb.height as f32 / PHYSICS_SCALE), 
-                            img, 
+                            img,
                             DrawParameters {
                                 blend: Blend::alpha_blending(),
                                 ..DrawParameters::default()
@@ -467,7 +443,15 @@ impl WorldRenderer {
                     for seg in polyline.segments() {
                         let (x1, y1) = (seg.a[0], seg.a[1]);
                         let (x2, y2) = (seg.b[0], seg.b[1]);
-                        // target.line(x1 as f32, y1 as f32, x2 as f32, y2 as f32, color.into_sdl());
+                        target.line(
+                            (x1 as f32, y1 as f32), 
+                            (x2 as f32, y2 as f32), 
+                            color,
+                            DrawParameters {
+                                blend: Blend::alpha_blending(),
+                                ..DrawParameters::default()
+                            }
+                        );
                     }
                 } else if let Some(poly) = shape.as_convex_polygon() {
                     // target.polygon(
@@ -650,13 +634,17 @@ impl WorldRenderer {
                                 let (vel_x1, vel_y1) = target.transform.transform((0.0, 0.0));
                                 let (vel_x2, vel_y2) = target.transform.transform((vel.x, vel.y));
 
-                                // target.line(
-                                //     vel_x1 as f32,
-                                //     vel_y1 as f32,
-                                //     vel_x2 as f32,
-                                //     vel_y2 as f32,
-                                //     Color::rgba(64, 255, 64, alpha).into_sdl(),
-                                // );
+                                target.line(
+                                    (vel_x1 as f32, vel_y1 as f32),
+                                    (vel_x2 as f32, vel_y2 as f32),
+                                    Color::rgba(64, 255, 64, alpha),
+                                    DrawParameters {
+                                        polygon_mode: PolygonMode::Line,
+                                        line_width: Some(1.0),
+                                        blend: Blend::alpha_blending(),
+                                        ..Default::default()
+                                    }
+                                );
                             }
 
                             target.transform.pop();
@@ -747,13 +735,17 @@ impl WorldRenderer {
                             let (line_x1, line_y1) = (0.0, 0.0);
                             let (line_x2, line_y2) = (target_pos.x - x, target_pos.y - y);
 
-                            // target.line(
-                            //     line_x1 as f32,
-                            //     line_y1 as f32,
-                            //     line_x2 as f32,
-                            //     line_y2 as f32,
-                            //     Color::rgba(255, 255, 64, alpha / 2).into_sdl(),
-                            // );
+                            target.line(
+                                (line_x1 as f32, line_y1 as f32),
+                                (line_x2 as f32, line_y2 as f32),
+                                Color::rgba(255, 255, 64, alpha / 2),
+                                DrawParameters {
+                                    polygon_mode: PolygonMode::Line,
+                                    line_width: Some(1.0),
+                                    blend: Blend::alpha_blending(),
+                                    ..Default::default()
+                                }
+                            );
                         }
 
                         target.transform.pop();
@@ -793,71 +785,87 @@ impl WorldRenderer {
 
                             // target.set_line_thickness(2.0);
                             if pivots.is_empty() {
-                                let (x1, y1) = target.transform.transform((
+                                let (x1, y1) = (
                                     player_pos.x + player_vel.x * partial_ticks,
                                     player_pos.y + player_vel.y * partial_ticks,
-                                ));
-                                let (x2, y2) = target.transform.transform((
+                                );
+                                let (x2, y2) = (
                                     grapple_pos.x + grapple_vel.x * partial_ticks,
                                     grapple_pos.y + grapple_vel.y * partial_ticks,
-                                ));
+                                );
 
-                                // target.line(
-                                //     x1 as f32,
-                                //     y1 as f32,
-                                //     x2 as f32,
-                                //     y2 as f32,
-                                //     Color::rgba(191, 191, 191, 255).into_sdl(),
-                                // );
+                                target.line(
+                                    (x1 as f32,y1 as f32),
+                                    (x2 as f32, y2 as f32),
+                                    Color::rgba(191, 191, 191, 255),
+                                    DrawParameters {
+                                        polygon_mode: PolygonMode::Line,
+                                        line_width: Some(client.camera_scale as f32),
+                                        blend: Blend::alpha_blending(),
+                                        ..Default::default()
+                                    }
+                                );
                             } else {
                                 {
-                                    let (x1, y1) = target.transform.transform((
+                                    let (x1, y1) = (
                                         grapple_pos.x + grapple_vel.x * partial_ticks,
                                         grapple_pos.y + grapple_vel.y * partial_ticks,
-                                    ));
-                                    let (x2, y2) = target.transform.transform((pivots[0].x, pivots[0].y));
-                                    // target.line(
-                                    //     x1 as f32,
-                                    //     y1 as f32,
-                                    //     x2 as f32,
-                                    //     y2 as f32,
-                                    //     Color::rgba(191, 191, 191, 255).into_sdl(),
-                                    // );
+                                    );
+                                    let (x2, y2) =(pivots[0].x, pivots[0].y);
+                                    target.line(
+                                        (x1 as f32, y1 as f32),
+                                        (x2 as f32, y2 as f32),
+                                        Color::rgba(191, 191, 191, 255),
+                                        DrawParameters {
+                                            polygon_mode: PolygonMode::Line,
+                                            line_width: Some(client.camera_scale as f32),
+                                            blend: Blend::alpha_blending(),
+                                            ..Default::default()
+                                        }
+                                    );
                                 }
 
                                 if pivots.len() > 1 {
                                     for i in 1..pivots.len() {
                                         let p1 = &pivots[i - 1];
                                         let p2 = &pivots[i];
-                                        let (x1, y1) = target.transform.transform((p1.x, p1.y));
-                                        let (x2, y2) = target.transform.transform((p2.x, p2.y));
+                                        let (x1, y1) = (p1.x, p1.y);
+                                        let (x2, y2) = (p2.x, p2.y);
 
-                                        // target.line(
-                                        //     x1 as f32,
-                                        //     y1 as f32,
-                                        //     x2 as f32,
-                                        //     y2 as f32,
-                                        //     Color::rgba(191, 191, 191, 255).into_sdl(),
-                                        // );
+                                        target.line(
+                                            (x1 as f32, y1 as f32),
+                                            (x2 as f32, y2 as f32),
+                                            Color::rgba(191, 191, 191, 255),
+                                            DrawParameters {
+                                                polygon_mode: PolygonMode::Line,
+                                                line_width: Some(client.camera_scale as f32),
+                                                blend: Blend::alpha_blending(),
+                                                ..Default::default()
+                                            }
+                                        );
                                     }
                                 }
 
                                 {
-                                    let (x1, y1) = target.transform.transform((
+                                    let (x1, y1) = (
                                         pivots[pivots.len() - 1].x,
                                         pivots[pivots.len() - 1].y,
-                                    ));
-                                    let (x2, y2) = target.transform.transform((
+                                    );
+                                    let (x2, y2) = (
                                         player_pos.x + player_vel.x * partial_ticks,
                                         player_pos.y + player_vel.y * partial_ticks,
-                                    ));
-                                    // target.line(
-                                    //     x1 as f32,
-                                    //     y1 as f32,
-                                    //     x2 as f32,
-                                    //     y2 as f32,
-                                    //     Color::rgba(191, 191, 191, 255).into_sdl(),
-                                    // );
+                                    );
+                                    target.line(
+                                        (x1 as f32, y1 as f32),
+                                        (x2 as f32, y2 as f32),
+                                        Color::rgba(191, 191, 191, 255),
+                                        DrawParameters {
+                                            polygon_mode: PolygonMode::Line,
+                                            line_width: Some(client.camera_scale as f32),
+                                            blend: Blend::alpha_blending(),
+                                            ..Default::default()
+                                        }
+                                    );
                                 }
                             }
                             // target.set_line_thickness(1.0);
