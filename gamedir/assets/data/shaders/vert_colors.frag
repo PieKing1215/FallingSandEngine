@@ -5,5 +5,5 @@ in vec4 frag_col;
 out vec4 color;
 
 void main() {
-	color = frag_col;
+    color = frag_col;
 }

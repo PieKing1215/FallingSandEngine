@@ -1,10 +1,12 @@
-use glium::{Display, program::ProgramCreationInput};
+use std::fs;
+
+use fs_common::game::common::FileHelper;
+use glium::{Display, program::{ProgramCreationInput, ProgramChooserCreationError}};
 
 
 pub struct Shaders {
-    // pub liquid_shader: Shader,
-    pub basic_shader: glium::Program,
-    pub shader_vertex_colors: glium::Program,
+    pub common: glium::Program,
+    pub vertex_colors: glium::Program,
     pub texture: glium::Program,
     pub texture_array: glium::Program,
     pub particle: glium::Program,
@@ -12,217 +14,42 @@ pub struct Shaders {
 }
 
 impl Shaders {
-    pub fn new(display: &Display) -> Self {
+    pub fn new(display: &Display, file_helper: &FileHelper) -> Self {
+
+        let helper = Helper {
+            file_helper,
+            display,
+        };
+        
+        Self {
+            common:        helper.from_files(140, "data/shaders/common.vert", "data/shaders/common.frag").unwrap(),
+            vertex_colors: helper.from_files(140, "data/shaders/vert_colors.vert", "data/shaders/vert_colors.frag").unwrap(),
+            texture:       helper.from_files(140, "data/shaders/textured.vert", "data/shaders/textured.frag").unwrap(),
+            texture_array: helper.from_files(140, "data/shaders/texture_array.vert", "data/shaders/texture_array.frag").unwrap(),
+            particle:      helper.from_files(140, "data/shaders/particles.vert", "data/shaders/particles.frag").unwrap(),
+            chunk:         helper.from_files(140, "data/shaders/chunk.vert", "data/shaders/chunk.frag").unwrap(),
+        }
+    }
+}
+
+struct Helper<'a> {
+    file_helper: &'a FileHelper,
+    display: &'a Display,
+}
+
+impl Helper<'_> {
+    fn from_files(&self, version: u32, vert: &str, frag: &str) -> Result<glium::Program, ProgramChooserCreationError> {
         use glium::program;
 
-        let basic_shader = program!(display,
-            140 => {
+        let vert = fs::read_to_string(self.file_helper.asset_path(vert)).unwrap();
+        let frag = fs::read_to_string(self.file_helper.asset_path(frag)).unwrap();
+
+        program!(self.display,
+            version => {
                 outputs_srgb: true,
-                vertex: r#"
-                    #version 140
-        
-                    in vec2 position;
-        
-                    out vec4 frag_col;
-        
-                    uniform vec4 col;
-                    uniform mat4 matrix;
-        
-                    void main() {
-                        frag_col = col;
-                        gl_Position = matrix * vec4(position, 0.0, 1.0);
-                    }
-                "#,
-                fragment: r#"
-                    #version 140
-                    
-                    in vec4 frag_col;
-        
-                    out vec4 color;
-        
-                    void main() {
-                        color = frag_col;
-                    }
-                "#,
+                vertex: vert.as_str(),
+                fragment: frag.as_str(),
             }
-        ).unwrap();
-
-        let shader_vertex_colors = program!(display,
-            140 => {
-                outputs_srgb: true,
-                vertex: r#"
-                    #version 140
-
-                    in vec2 position;
-                    in vec4 color;
-        
-                    out vec4 frag_col;
-        
-                    uniform mat4 matrix;
-        
-                    void main() {
-                        frag_col = color;
-                        gl_Position = matrix * vec4(position, 0.0, 1.0);
-                    }
-                "#,
-                fragment: r#"
-                    #version 140
-                
-                    in vec4 frag_col;
-        
-                    out vec4 color;
-        
-                    void main() {
-                        color = frag_col;
-                    }
-                "#,
-            }
-        ).unwrap();
-
-        let texture = program!(display,
-            140 => {
-                outputs_srgb: true,
-                vertex: r#"
-                    #version 140
-
-                    in vec2 position;
-                    in vec2 tex_coord;
-                    out vec2 tex_c;
-        
-                    uniform mat4 matrix;
-        
-                    void main() {
-                        tex_c = tex_coord;
-                        gl_Position = matrix * vec4(position, 0.0, 1.0);
-                    }
-                "#,
-                fragment: r#"
-                    #version 140
-
-                    in vec2 tex_c;
-                    out vec4 color;
-        
-                    uniform sampler2D tex;
-        
-                    void main() {
-                        color = texture(tex, tex_c);
-                    }
-                "#,
-            }
-        ).unwrap();
-
-        let texture_array = program!(display,
-            140 => {
-                outputs_srgb: true,
-                vertex: r#"
-                    #version 140
-
-                    in vec2 position;
-                    in vec2 tex_coord;
-        
-                    // instance
-                    in vec2 c_pos;
-                    in float tex_layer;
-        
-                    out vec2 tex_c;
-                    out float frag_tex_layer;
-        
-                    uniform mat4 matrix;
-        
-                    void main() {
-                        tex_c = tex_coord;
-                        frag_tex_layer = tex_layer; 
-                        gl_Position = matrix * vec4(position + c_pos, 0.0, 1.0);
-                    }
-                "#,
-                fragment: r#"
-                    #version 140
-
-                    in vec2 tex_c;
-                    out vec4 color;
-                    in float frag_tex_layer;
-        
-                    uniform sampler2DArray tex;
-        
-                    void main() {
-                        color = texture(tex, vec3(tex_c, frag_tex_layer));
-                    }
-                "#,
-            }
-        ).unwrap();
-
-        let particle = program!(display,
-            140 => {
-                outputs_srgb: true,
-                vertex: r#"
-                    #version 140
-
-                    in vec2 position;
-                    in vec2 p_pos;
-                    in vec4 color;
-        
-                    out vec4 frag_col;
-        
-                    uniform mat4 matrix;
-        
-                    void main() {
-                        frag_col = color;
-                        gl_Position = matrix * vec4(position + p_pos, 0.0, 1.0);
-                    }
-                "#,
-                fragment: r#"
-                    #version 140
-
-                    in vec4 frag_col;
-                    out vec4 color;
-        
-                    void main() {
-                        color = frag_col;
-                    }
-                "#,
-            }
-        ).unwrap();
-
-        let chunk = program!(display,
-            140 => {
-                outputs_srgb: true,
-                vertex: r#"
-                    #version 140
-
-                    in vec2 position;
-                    in vec2 tex_coord;
-                    out vec2 tex_c;
-        
-                    uniform mat4 matrix;
-                    uniform vec2 c_pos;
-        
-                    void main() {
-                        tex_c = tex_coord;
-                        gl_Position = matrix * vec4(position + c_pos, 0.0, 1.0);
-                    }
-                "#,
-                fragment: r#"
-                    #version 140
-
-                    in vec2 tex_c;
-                    out vec4 color;
-        
-                    uniform sampler2D tex;
-        
-                    void main() {
-                        color = texture(tex, tex_c);
-                    }
-                "#,
-            }
-        ).unwrap();
-
-        Self {
-            basic_shader,
-            shader_vertex_colors,
-            texture,
-            texture_array,
-            particle,
-            chunk,
-        }
+        )
     }
 }

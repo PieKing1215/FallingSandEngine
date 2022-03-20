@@ -73,7 +73,7 @@ impl<'a> Renderer<'a> {
         //     )?,
         // };
 
-        let shaders = Shaders::new(&display);
+        let shaders = Shaders::new(&display, file_helper);
 
         let pixel_operator = fs::read(file_helper.asset_path("font/pixel_operator/PixelOperator.ttf")).unwrap();
         let fonts = vec![Font::from_bytes(pixel_operator).unwrap()];

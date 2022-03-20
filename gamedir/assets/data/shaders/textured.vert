@@ -1,13 +1,12 @@
 #version 140
 
 in vec2 position;
+in vec2 tex_coord;
+out vec2 tex_c;
 
-out vec4 frag_col;
-
-uniform vec4 col;
 uniform mat4 matrix;
 
 void main() {
-	frag_col = col;
+	tex_c = tex_coord;
 	gl_Position = matrix * vec4(position, 0.0, 1.0);
 }
