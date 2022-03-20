@@ -6,7 +6,7 @@ use std::{
 
 use clap::ArgMatches;
 use glium::{Display, Surface};
-use glutin::{event_loop::EventLoop, window::Fullscreen, event::{KeyboardInput, VirtualKeyCode, ElementState}, dpi::PhysicalPosition};
+use glutin::{event_loop::EventLoop, window::Fullscreen, event::{KeyboardInput, VirtualKeyCode, ElementState, MouseButton}, dpi::PhysicalPosition};
 use log::{debug, error, info, warn};
 use rapier2d::{
     na::{Isometry2, Point2, Vector2},
@@ -122,217 +122,18 @@ impl ClientGame {
         let mut bytes_to_read: Option<u32> = None;
         let mut read_buffer: Option<Vec<u8>> = None;
 
+        let mut cursor_pos: PhysicalPosition<f64> = PhysicalPosition::new(0.0, 0.0);
+
+        let mut left_mouse_down = false;
+        let mut right_mouse_down = false;
+        let mut middle_mouse_down = false;
+
         event_loop.run(move |event, _, control_flow| {
             profiling::scope!("loop");
 
             let next_frame_time = std::time::Instant::now() +
                 std::time::Duration::from_millis(1);
             *control_flow = glutin::event_loop::ControlFlow::WaitUntil(next_frame_time);
-
-            // for event in event_pump.poll_iter() {
-            //     profiling::scope!("event");
-            //     let client_consumed_event = self.client.on_event(&event);
-
-            //     if !client_consumed_event {
-            //         match event {
-            //             Event::MouseButtonDown {
-            //                 mouse_btn: sdl2::mouse::MouseButton::Right,
-            //                 x,
-            //                 y,
-            //                 ..
-            //             } => {
-            //                 if let Some(w) = &mut self.data.world {
-            //                     let (position_storage, camera_storage) = w.ecs.system_data::<(
-            //                         ReadStorage<Position>,
-            //                         ReadStorage<Camera>,
-            //                     )>(
-            //                     );
-
-            //                     let camera_pos = (&position_storage, &camera_storage)
-            //                         .join()
-            //                         .find_map(|(p, _c)| Some(p));
-
-            //                     if let Some(camera_pos) = camera_pos {
-            //                         let world_x = camera_pos.x
-            //                             + (f64::from(x) - f64::from(renderer.display.gl_window().window().inner_size().width) / 2.0)
-            //                                 / self.client.camera_scale;
-            //                         let world_y = camera_pos.y
-            //                             + (f64::from(y) - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
-            //                                 / self.client.camera_scale;
-            //                         // let (chunk_x, chunk_y) = w.chunk_handler.pixel_to_chunk_pos(world_x as i64, world_y as i64);
-            //                         // w.chunk_handler.force_update_chunk(chunk_x, chunk_y);
-
-            //                         let point = Point2::new(
-            //                             world_x as f32 / PHYSICS_SCALE,
-            //                             world_y as f32 / PHYSICS_SCALE,
-            //                         );
-
-            //                         let groups = InteractionGroups::all();
-            //                         let filter = None;
-            //                         let mut query_pipeline = QueryPipeline::new();
-            //                         query_pipeline.update(
-            //                             &w.physics.islands,
-            //                             &w.physics.bodies,
-            //                             &w.physics.colliders,
-            //                         );
-            //                         query_pipeline.intersections_with_point(
-            //                             &w.physics.colliders, &point, groups, filter, |handle| {
-            //                                 let col = w.physics.colliders.get(handle).unwrap();
-            //                                 if let Some(rb_handle) = col.parent() {
-            //                                     let rb = w.physics.bodies.get(rb_handle).unwrap();
-            //                                     if rb.body_type() == RigidBodyType::Dynamic {
-            //                                         let point = Vector2::new(
-            //                                             world_x as f32 / PHYSICS_SCALE,
-            //                                             world_y as f32 / PHYSICS_SCALE,
-            //                                         );
-            //                                         let new_rb = RigidBodyBuilder::new_kinematic_position_based()
-            //                                             .translation(point).build();
-
-            //                                         let local_point = rb.position().inverse_transform_point(&Point2::new(point.x, point.y));
-
-            //                                         let mouse_h = w.physics.bodies.insert(new_rb);
-
-            //                                         let joint = BallJoint::new(Point2::new(0.0, 0.0), local_point);
-            //                                         w.physics.joints.insert(mouse_h, rb_handle, joint);
-
-            //                                         self.client.mouse_joint = Some((mouse_h, Vector2::new(0.0, 0.0)));
-            //                                     }
-            //                                 }
-
-            //                                 false
-            //                             }
-            //                         );
-            //                     }
-            //                 }
-            //             },
-            //             Event::MouseButtonUp {
-            //                 mouse_btn: sdl2::mouse::MouseButton::Right, ..
-            //             } => {
-            //                 if let Some(w) = &mut self.data.world {
-            //                     if let Some((rb_h, linvel)) = self.client.mouse_joint.take() {
-            //                         for j in w.physics.joints.joints_with(rb_h) {
-            //                             w.physics
-            //                                 .bodies
-            //                                 .get_mut(j.1)
-            //                                 .unwrap()
-            //                                 .set_linvel(linvel, true);
-            //                         }
-            //                         w.physics.bodies.remove(
-            //                             rb_h,
-            //                             &mut w.physics.islands,
-            //                             &mut w.physics.colliders,
-            //                             &mut w.physics.joints,
-            //                         );
-            //                     }
-            //                 }
-            //             },
-            //             Event::MouseMotion { xrel, yrel, mousestate, x, y, .. } => {
-            //                 if mousestate.left() {
-            //                     if let Some(w) = &mut self.data.world {
-            //                         let (
-            //                             mut position_storage,
-            //                             camera_storage,
-            //                         ) = w.ecs.system_data::<(
-            //                             WriteStorage<Position>,
-            //                             ReadStorage<Camera>,
-            //                         )>();
-
-            //                         let camera_pos = (&mut position_storage, &camera_storage)
-            //                             .join()
-            //                             .find_map(|(p, _c)| Some(p));
-
-            //                         if let Some(camera_pos) = camera_pos {
-            //                             // this doesn't do anything if game.client_entity_id exists
-            //                             //     since the renderer will snap the camera to the client entity
-            //                             camera_pos.x -= f64::from(xrel) / self.client.camera_scale;
-            //                             camera_pos.y -= f64::from(yrel) / self.client.camera_scale;
-            //                         }
-            //                     }
-            //                 } else if mousestate.middle() {
-            //                     if let Some(w) = &mut self.data.world {
-            //                         let (
-            //                             position_storage,
-            //                             camera_storage,
-            //                         ) = w.ecs.system_data::<(
-            //                             ReadStorage<Position>,
-            //                             ReadStorage<Camera>,
-            //                         )>();
-
-            //                         let camera_pos = (&position_storage, &camera_storage)
-            //                             .join()
-            //                             .find_map(|(p, _c)| Some(p));
-
-            //                         if let Some(camera_pos) = camera_pos {
-            //                             let world_x = camera_pos.x
-            //                                 + (f64::from(x)
-            //                                     - f64::from(renderer.display.gl_window().window().inner_size().width) / 2.0)
-            //                                     / self.client.camera_scale;
-            //                             let world_y = camera_pos.y
-            //                                 + (f64::from(y)
-            //                                     - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
-            //                                     / self.client.camera_scale;
-
-            //                             for xx in -3..=3 {
-            //                                 for yy in -3..=3 {
-            //                                     let _ = w.chunk_handler.set(
-            //                                         world_x as i64 + xx,
-            //                                         world_y as i64 + yy,
-            //                                         MaterialInstance::air(),
-            //                                     );
-            //                                 }
-            //                             }
-            //                         }
-            //                     }
-            //                 } else if mousestate.right() {
-            //                     if let Some(w) = &mut self.data.world {
-            //                         let (
-            //                             position_storage,
-            //                             camera_storage,
-            //                         ) = w.ecs.system_data::<(
-            //                             ReadStorage<Position>,
-            //                             ReadStorage<Camera>,
-            //                         )>();
-
-            //                         let camera_pos = (&position_storage, &camera_storage)
-            //                             .join()
-            //                             .find_map(|(p, _c)| Some(p));
-
-            //                         if let Some(camera_pos) = camera_pos {
-            //                             let world_x = camera_pos.x
-            //                                 + (f64::from(x)
-            //                                     - f64::from(renderer.display.gl_window().window().inner_size().width) / 2.0)
-            //                                     / self.client.camera_scale;
-            //                             let world_y = camera_pos.y
-            //                                 + (f64::from(y)
-            //                                     - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
-            //                                     / self.client.camera_scale;
-
-            //                             if let Some((rb_h, vel)) = &mut self.client.mouse_joint
-            //                             {
-            //                                 let rb = w.physics.bodies.get_mut(*rb_h).unwrap();
-            //                                 let prev_pos = *rb.translation();
-            //                                 rb.set_next_kinematic_translation(Vector2::new(
-            //                                     world_x as f32 / PHYSICS_SCALE,
-            //                                     world_y as f32 / PHYSICS_SCALE,
-            //                                 ));
-            //                                 *vel = Vector2::new(
-            //                                     world_x as f32 / PHYSICS_SCALE - prev_pos.x,
-            //                                     world_y as f32 / PHYSICS_SCALE - prev_pos.y,
-            //                                 );
-            //                             }
-            //                         }
-            //                     }
-            //                 }
-            //             },
-            //             Event::Window { win_event: WindowEvent::Resized(w, h), .. } => {
-            //                 #[allow(clippy::cast_sign_loss)]
-            //                 GPUSubsystem::set_window_resolution(w as u16, h as u16);
-            //             },
-            //             _ => {},
-            //         }
-            //     }
-            // }
-
 
             match event {
                 glutin::event::Event::WindowEvent { event: ref w_event, .. } => match w_event {
@@ -362,6 +163,108 @@ impl ClientGame {
                                     _ => {}
                                 }
                             },
+                            glutin::event::WindowEvent::CursorMoved { position, .. } => {
+                                let (dx, dy) = (position.x - cursor_pos.x, position.y - cursor_pos.y);
+                                cursor_pos = *position;
+
+                                if left_mouse_down {
+                                    if let Some(w) = &mut self.data.world {
+                                        let (
+                                            mut position_storage,
+                                            camera_storage,
+                                        ) = w.ecs.system_data::<(
+                                            WriteStorage<Position>,
+                                            ReadStorage<Camera>,
+                                        )>();
+    
+                                        let camera_pos = (&mut position_storage, &camera_storage)
+                                            .join()
+                                            .find_map(|(p, _c)| Some(p));
+    
+                                        if let Some(camera_pos) = camera_pos {
+                                            // this doesn't do anything if game.client_entity_id exists
+                                            //     since the renderer will snap the camera to the client entity
+                                            camera_pos.x -= dx / self.client.camera_scale;
+                                            camera_pos.y -= dy / self.client.camera_scale;
+                                        }
+                                    }
+                                } else if middle_mouse_down {
+                                    if let Some(w) = &mut self.data.world {
+                                        let (
+                                            position_storage,
+                                            camera_storage,
+                                        ) = w.ecs.system_data::<(
+                                            ReadStorage<Position>,
+                                            ReadStorage<Camera>,
+                                        )>();
+    
+                                        let camera_pos = (&position_storage, &camera_storage)
+                                            .join()
+                                            .find_map(|(p, _c)| Some(p));
+    
+                                        if let Some(camera_pos) = camera_pos {
+                                            let world_x = camera_pos.x
+                                                + (cursor_pos.x
+                                                    - f64::from(renderer.display.gl_window().window().inner_size().width) / 2.0)
+                                                    / self.client.camera_scale;
+                                            let world_y = camera_pos.y
+                                                + (cursor_pos.y
+                                                    - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
+                                                    / self.client.camera_scale;
+    
+                                            for xx in -3..=3 {
+                                                for yy in -3..=3 {
+                                                    let _ = w.chunk_handler.set(
+                                                        world_x as i64 + xx,
+                                                        world_y as i64 + yy,
+                                                        MaterialInstance::air(),
+                                                    );
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else if right_mouse_down {
+                                    if let Some(w) = &mut self.data.world {
+                                        let (
+                                            position_storage,
+                                            camera_storage,
+                                        ) = w.ecs.system_data::<(
+                                            ReadStorage<Position>,
+                                            ReadStorage<Camera>,
+                                        )>();
+    
+                                        let camera_pos = (&position_storage, &camera_storage)
+                                            .join()
+                                            .find_map(|(p, _c)| Some(p));
+    
+                                        if let Some(camera_pos) = camera_pos {
+                                            let world_x = camera_pos.x
+                                                + (cursor_pos.x
+                                                    - f64::from(renderer.display.gl_window().window().inner_size().width) / 2.0)
+                                                    / self.client.camera_scale;
+                                            let world_y = camera_pos.y
+                                                + (cursor_pos.y
+                                                    - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
+                                                    / self.client.camera_scale;
+    
+                                            if let Some((rb_h, vel)) = &mut self.client.mouse_joint
+                                            {
+                                                let rb = w.physics.bodies.get_mut(*rb_h).unwrap();
+                                                let prev_pos = *rb.translation();
+                                                rb.set_next_kinematic_translation(Vector2::new(
+                                                    world_x as f32 / PHYSICS_SCALE,
+                                                    world_y as f32 / PHYSICS_SCALE,
+                                                ));
+                                                *vel = Vector2::new(
+                                                    world_x as f32 / PHYSICS_SCALE - prev_pos.x,
+                                                    world_y as f32 / PHYSICS_SCALE - prev_pos.y,
+                                                );
+                                            }
+                                        }
+                                    }
+                                }
+
+                            },
                             glutin::event::WindowEvent::MouseWheel { delta, .. } => {
                                 // TODO: test this
                                 let y = match delta {
@@ -385,7 +288,100 @@ impl ClientGame {
                                     .clamp(0.01, 10.0);
                                 }
 
-                            }
+                            },
+                            glutin::event::WindowEvent::MouseInput { state, button, .. } => {
+
+                                match button {
+                                    MouseButton::Left => left_mouse_down = *state == ElementState::Pressed,
+                                    MouseButton::Right => right_mouse_down = *state == ElementState::Pressed,
+                                    MouseButton::Middle => middle_mouse_down = *state == ElementState::Pressed,
+                                    _ => {},
+                                };
+
+                                if *button == MouseButton::Right && *state == ElementState::Pressed {
+                                    if let Some(w) = &mut self.data.world {
+                                        let (position_storage, camera_storage) = w.ecs.system_data::<(
+                                            ReadStorage<Position>,
+                                            ReadStorage<Camera>,
+                                        )>(
+                                        );
+
+                                        let camera_pos = (&position_storage, &camera_storage)
+                                            .join()
+                                            .find_map(|(p, _c)| Some(p));
+
+                                        if let Some(camera_pos) = camera_pos {
+                                            let world_x = camera_pos.x
+                                                + (f64::from(cursor_pos.x) - f64::from(renderer.display.gl_window().window().inner_size().width) / 2.0)
+                                                    / self.client.camera_scale;
+                                            let world_y = camera_pos.y
+                                                + (f64::from(cursor_pos.y) - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
+                                                    / self.client.camera_scale;
+                                            // let (chunk_x, chunk_y) = w.chunk_handler.pixel_to_chunk_pos(world_x as i64, world_y as i64);
+                                            // w.chunk_handler.force_update_chunk(chunk_x, chunk_y);
+
+                                            let point = Point2::new(
+                                                world_x as f32 / PHYSICS_SCALE,
+                                                world_y as f32 / PHYSICS_SCALE,
+                                            );
+
+                                            let groups = InteractionGroups::all();
+                                            let filter = None;
+                                            let mut query_pipeline = QueryPipeline::new();
+                                            query_pipeline.update(
+                                                &w.physics.islands,
+                                                &w.physics.bodies,
+                                                &w.physics.colliders,
+                                            );
+                                            query_pipeline.intersections_with_point(
+                                                &w.physics.colliders, &point, groups, filter, |handle| {
+                                                    let col = w.physics.colliders.get(handle).unwrap();
+                                                    if let Some(rb_handle) = col.parent() {
+                                                        let rb = w.physics.bodies.get(rb_handle).unwrap();
+                                                        if rb.body_type() == RigidBodyType::Dynamic {
+                                                            let point = Vector2::new(
+                                                                world_x as f32 / PHYSICS_SCALE,
+                                                                world_y as f32 / PHYSICS_SCALE,
+                                                            );
+                                                            let new_rb = RigidBodyBuilder::new_kinematic_position_based()
+                                                                .translation(point).build();
+
+                                                            let local_point = rb.position().inverse_transform_point(&Point2::new(point.x, point.y));
+
+                                                            let mouse_h = w.physics.bodies.insert(new_rb);
+
+                                                            let joint = BallJoint::new(Point2::new(0.0, 0.0), local_point);
+                                                            w.physics.joints.insert(mouse_h, rb_handle, joint);
+
+                                                            self.client.mouse_joint = Some((mouse_h, Vector2::new(0.0, 0.0)));
+                                                        }
+                                                    }
+
+                                                    false
+                                                }
+                                            );
+                                        }
+                                    }
+                                } else if *button == MouseButton::Right && *state == ElementState::Released {
+                                    if let Some(w) = &mut self.data.world { 
+                                        if let Some((rb_h, linvel)) = self.client.mouse_joint.take() {
+                                            for j in w.physics.joints.joints_with(rb_h) {
+                                                w.physics
+                                                    .bodies
+                                                    .get_mut(j.1)
+                                                    .unwrap()
+                                                    .set_linvel(linvel, true);
+                                            }
+                                            w.physics.bodies.remove(
+                                                rb_h,
+                                                &mut w.physics.islands,
+                                                &mut w.physics.colliders,
+                                                &mut w.physics.joints,
+                                            );
+                                        }
+                                    }
+                                }
+                            },
                             _ => {},
                         }
                     },
