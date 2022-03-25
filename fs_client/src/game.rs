@@ -179,11 +179,11 @@ impl ClientGame {
                                             WriteStorage<Position>,
                                             ReadStorage<Camera>,
                                         )>();
-                                        
+
                                         let camera_pos = (&mut position_storage, &camera_storage)
                                             .join()
                                             .find_map(|(p, _c)| Some(p));
-                                        
+
                                         if let Some(camera_pos) = camera_pos {
                                             // this doesn't do anything if game.client_entity_id exists
                                             //     since the renderer will snap the camera to the client entity
@@ -200,11 +200,11 @@ impl ClientGame {
                                             ReadStorage<Position>,
                                             ReadStorage<Camera>,
                                         )>();
-    
+
                                         let camera_pos = (&position_storage, &camera_storage)
                                             .join()
                                             .find_map(|(p, _c)| Some(p));
-    
+
                                         if let Some(camera_pos) = camera_pos {
                                             let world_x = camera_pos.x
                                                 + (cursor_pos.x
@@ -214,7 +214,7 @@ impl ClientGame {
                                                 + (cursor_pos.y
                                                     - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
                                                     / self.client.camera_scale;
-    
+
                                             for xx in -3..=3 {
                                                 for yy in -3..=3 {
                                                     let _ = w.chunk_handler.set(
@@ -235,11 +235,11 @@ impl ClientGame {
                                             ReadStorage<Position>,
                                             ReadStorage<Camera>,
                                         )>();
-    
+
                                         let camera_pos = (&position_storage, &camera_storage)
                                             .join()
                                             .find_map(|(p, _c)| Some(p));
-    
+
                                         if let Some(camera_pos) = camera_pos {
                                             let world_x = camera_pos.x
                                                 + (cursor_pos.x
@@ -249,7 +249,7 @@ impl ClientGame {
                                                 + (cursor_pos.y
                                                     - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
                                                     / self.client.camera_scale;
-    
+
                                             if let Some((rb_h, vel)) = &mut self.client.mouse_joint
                                             {
                                                 let rb = w.physics.bodies.get_mut(*rb_h).unwrap();
@@ -366,7 +366,7 @@ impl ClientGame {
                                         }
                                     }
                                 } else if *button == MouseButton::Right && *state == ElementState::Released {
-                                    if let Some(w) = &mut self.data.world { 
+                                    if let Some(w) = &mut self.data.world {
                                         if let Some((rb_h, linvel)) = self.client.mouse_joint.take() {
                                             for j in w.physics.joints.joints_with(rb_h) {
                                                 w.physics
@@ -391,7 +391,7 @@ impl ClientGame {
                 },
                 glutin::event::Event::NewEvents(cause) => match cause {
                     glutin::event::StartCause::ResumeTimeReached { .. } => {
-                        
+
                     },
                     glutin::event::StartCause::Init => (),
                     _ => {},
@@ -403,19 +403,19 @@ impl ClientGame {
                     last_frame = now;
                     {
                         profiling::scope!("prep frame");
-        
+
                         renderer.imgui_platform.prepare_frame(renderer.imgui.io_mut(), renderer.display.gl_window().window()).unwrap();
 
                         let delta_s =
                             delta.as_secs() as f32 + delta.subsec_nanos() as f32 / 1_000_000_000.0;
                         renderer.imgui.io_mut().delta_time = delta_s;
                     }
-        
+
                     {
                         profiling::scope!("update window mode");
-        
+
                         let fs = renderer.display.gl_window().window().fullscreen();
-        
+
                         let des_fs = match self.data.settings {
                             Settings { fullscreen, fullscreen_type, .. }
                                 if fullscreen && fullscreen_type == 0 =>
@@ -430,27 +430,27 @@ impl ClientGame {
                             },
                             _ => None,
                         };
-        
+
                         if fs != des_fs && !(matches!(fs, Some(Fullscreen::Borderless(_))) && matches!(des_fs, Some(Fullscreen::Borderless(_)))) {
                             profiling::scope!("fullscreen");
                             debug!("Fullscreen change: {:?} -> {:?}", fs, des_fs);
-        
+
                             renderer.display.gl_window().window().set_fullscreen(des_fs);
                         }
                     }
-        
+
                     // tick
-        
+
                     let mut can_tick = self.data.settings.tick;
-        
+
                     let has_focus = true; // TODO
                     can_tick = can_tick && (has_focus || !self.data.settings.pause_on_lost_focus);
-        
+
                     if do_tick_next && can_tick {
                         prev_tick_time = now;
                         let st = Instant::now();
                         self.tick();
-        
+
                         for act in self.client.main_menu.action_queue.drain(..) {
                             match act {
                                 MainMenuAction::Quit => {
@@ -464,14 +464,14 @@ impl ClientGame {
                                         w.save().expect("World save failed");
                                         w.close().expect("World unload failed");
                                     }
-        
+
                                     info!("Load world \"{}\"...", world_meta.name);
                                     self.data.world = Some(World::create(Some(
                                         path.parent()
                                             .expect("World meta file has no parent directory ??")
                                             .to_path_buf(),
                                     )));
-        
+
                                     let rigid_body = RigidBodyBuilder::new_dynamic()
                                         .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
                                         .lock_rotations()
@@ -523,7 +523,7 @@ impl ClientGame {
                                             co_handle,
                                             ColliderSampling::DynamicContactSampling,
                                         );
-        
+
                                     if let Some(w) = &mut self.data.world {
                                         let player = w
                                             .ecs
@@ -544,17 +544,17 @@ impl ClientGame {
                                             .with(Loader)
                                             .with(RigidBodyComponent::of(handle))
                                             .build();
-        
+
                                         self.client.world =
                                             Some(ClientWorld { local_entity: Some(player) });
                                     };
                                 },
                             }
                         }
-        
+
                         if let Some(stream) = &mut network {
                             let start = Instant::now();
-        
+
                             // let mut n = 0;
                             while Instant::now().saturating_duration_since(start).as_nanos() < 5_000_000 {
                                 if bytes_to_read.is_none() {
@@ -562,12 +562,12 @@ impl ClientGame {
                                     if stream.read_exact(&mut buf).is_ok() {
                                         let size: u32 = bincode::deserialize(&buf).unwrap();
                                         // println!("[CLIENT] Incoming packet, size = {}.", size);
-                                        
+
                                         bytes_to_read = Some(size);
                                         read_buffer = Some(Vec::with_capacity(size as usize));
                                     }
                                 }
-                                
+
                                 if let (Some(size), Some(buf)) = (bytes_to_read, &mut read_buffer) {
                                     // println!("[CLIENT] size = {}", size);
                                     if size == 0 {
@@ -575,9 +575,9 @@ impl ClientGame {
                                         panic!("[CLIENT] Zero length packet.");
                                     } else {
                                         assert!(size <= 2_000_000, "[CLIENT] Almost tried to read packet that is too big ({} bytes)", size);
-                                        
+
                                         // let mut buf = vec![0; size as usize];
-                                        
+
                                         // println!("[CLIENT] read_to_end...");
                                         let prev_size = buf.len();
                                         match std::io::Read::by_ref(stream)
@@ -592,11 +592,11 @@ impl ClientGame {
                                                         read, size
                                                     );
                                                 }
-                                                
+
                                                 // println!("[CLIENT] Read {}/{} bytes", read, buf.len());
-                                                
+
                                                 bytes_to_read = None;
-                                                
+
                                                 // println!("[CLIENT] Read {} bytes.", buf.len());
                                                 match bincode::deserialize::<Packet>(buf) {
                                                     // match serde_json::from_slice::<Packet>(&buf) {
@@ -630,7 +630,7 @@ impl ClientGame {
                                                                 //         .lqf_world
                                                                 //         .get_particle_system_list()
                                                                 //         .unwrap();
-                                                                
+
                                                                 //     let particle_count = particle_system
                                                                 //         .get_particle_count()
                                                                 //         as usize;
@@ -645,7 +645,7 @@ impl ClientGame {
                                                                 //             - particle_positions[i].x;
                                                                 //         let dy = positions[i].y
                                                                 //             - particle_positions[i].y;
-                                                                
+
                                                                 //         if dx.abs() > 1.0 || dy.abs() > 1.0
                                                                 //         {
                                                                 //             particle_positions[i].x += dx;
@@ -657,7 +657,7 @@ impl ClientGame {
                                                                 //                 dy / 2.0;
                                                                 //         }
                                                                 //     }
-                                                                
+
                                                                 //     let particle_velocities: &mut [Vec2] =
                                                                 //         particle_system
                                                                 //             .get_velocity_buffer_mut();
@@ -692,10 +692,10 @@ impl ClientGame {
                                                         //         let index = e.utf8_error().valid_up_to();
                                                         //         let len = e.utf8_error().error_len().unwrap();
                                                         //         let sl = &e.as_bytes()[index .. index + len];
-        
+
                                                         //         let mut file = std::fs::File::create("data.dat").expect("create failed");
                                                         //         file.write_all(e.as_bytes()).expect("write failed");
-        
+
                                                         //         panic!("[CLIENT] See data.dat: {} : {:?}", e, sl);
                                                         //     },
                                                         // }
@@ -717,7 +717,7 @@ impl ClientGame {
                             }
                             // println!("[CLIENT] Handled {} packets.", n);
                         }
-                        
+
                         self.data.fps_counter.tick_times.rotate_left(1);
                         self.data.fps_counter.tick_times[self.data.fps_counter.tick_times.len() - 1] =
                             Instant::now().saturating_duration_since(st).as_nanos() as f32;
@@ -725,14 +725,14 @@ impl ClientGame {
                     do_tick_next = can_tick
                         && now.saturating_duration_since(prev_tick_time).as_nanos()
                             > 1_000_000_000 / u128::from(self.data.settings.tick_speed); // intended is 30 ticks per second
-                    
+
                     // tick liquidfun
-                    
+
                     let mut can_tick = self.data.settings.tick_physics;
-                    
+
                     let has_focus = true; // TODO
                     can_tick = can_tick && !(self.data.settings.pause_on_lost_focus && has_focus);
-                    
+
                     if do_tick_physics_next && can_tick {
                         prev_tick_physics_time = now;
                         if let Some(w) = &mut self.data.world {
@@ -750,23 +750,23 @@ impl ClientGame {
                             .saturating_duration_since(prev_tick_physics_time)
                             .as_nanos()
                             > 1_000_000_000 / u128::from(self.data.settings.tick_physics_speed); // intended is 60 ticks per second
-        
+
                     // render
-        
+
                     if let Some(w) = &mut self.data.world {
                         w.frame(delta); // this delta is more accurate than the one based on counter_last_frame
                     }
-        
+
                     {
                         profiling::scope!("rendering");
-        
+
                         let partial_ticks = (now.saturating_duration_since(prev_tick_time).as_secs_f64()
                             / (1.0 / f64::from(self.data.settings.tick_speed)))
                         .clamp(0.0, 1.0);
                         let delta_time = Instant::now().saturating_duration_since(counter_last_frame);
 
                         self.render(&mut renderer, delta_time.as_secs_f64(), partial_ticks);
-        
+
                         self.data.frame_count += 1;
                         self.data.fps_counter.frames += 1;
                         if now
@@ -788,7 +788,7 @@ impl ClientGame {
                                 )
                                 .as_str(),
                             );
-        
+
                             sys.refresh_process(Pid::from(std::process::id() as usize));
                             if let Some(pc) = sys.process(Pid::from(std::process::id() as usize)) {
                                 self.data.process_stats.cpu_usage =
