@@ -1,4 +1,4 @@
-use glium::{DrawParameters, PolygonMode, Blend};
+use glium::{Blend, DrawParameters, PolygonMode};
 use rapier2d::prelude::Shape;
 use specs::{Join, ReadStorage, WorldExt};
 
@@ -39,7 +39,9 @@ impl WorldRenderer {
         //     GPUSubsystem::create_image(1920 / 2, 1080 / 2, GPUFormat::GPU_FORMAT_RGBA);
         // liquid_image2.set_image_filter(GPUFilter::GPU_FILTER_NEAREST);
 
-        Self { /*liquid_image, liquid_image2,*/ physics_dirty: false }
+        Self {
+            /*liquid_image, liquid_image2,*/ physics_dirty: false,
+        }
     }
 
     #[allow(clippy::unused_self)]
@@ -94,7 +96,7 @@ impl WorldRenderer {
         drop(camera_storage);
 
         let camera_scale = client.camera_scale;
-        
+
         target.transform.push();
         target.transform.translate(
             f64::from(target.width()) / 2.0,
@@ -102,7 +104,6 @@ impl WorldRenderer {
         );
         target.transform.scale(camera_scale, camera_scale);
         target.transform.translate(-camera_pos.x, -camera_pos.y);
-
 
         let screen_zone = world
             .chunk_handler
@@ -140,17 +141,26 @@ impl WorldRenderer {
                         ch.prep_render(target, settings);
 
                         target.transform.pop();
-                        
+
                         // ch.render(target, settings);
                         // ch.graphics.texture
                         // let image = glium::texture::RawImage2d::from_raw_rgba((&ch.graphics.pixel_data).to_vec(), (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
                         // Some(((ch.chunk_x as f32 * f32::from(CHUNK_SIZE), ch.chunk_y as f32 * f32::from(CHUNK_SIZE)), image))
-                        ch.graphics.texture.as_ref().map(|t| ((ch.chunk_x as f32 * f32::from(CHUNK_SIZE), ch.chunk_y as f32 * f32::from(CHUNK_SIZE)), t))
+                        ch.graphics.texture.as_ref().map(|t| {
+                            (
+                                (
+                                    ch.chunk_x as f32 * f32::from(CHUNK_SIZE),
+                                    ch.chunk_y as f32 * f32::from(CHUNK_SIZE),
+                                ),
+                                t,
+                            )
+                        })
                     } else {
                         target.transform.pop();
                         None
                     }
-                }).collect::<Vec<_>>();
+                })
+                .collect::<Vec<_>>();
 
             target.draw_chunks_2(texs);
 
@@ -196,7 +206,7 @@ impl WorldRenderer {
                                     DrawParameters {
                                         blend: Blend::alpha_blending(),
                                         ..Default::default()
-                                    }
+                                    },
                                 );
                                 target.rectangle(
                                     rect,
@@ -206,23 +216,18 @@ impl WorldRenderer {
                                         line_width: Some(1.0),
                                         blend: Blend::alpha_blending(),
                                         ..Default::default()
-                                    }
+                                    },
                                 );
                             }
                             if ch.graphics.was_dirty {
-                                let rect = Rect::new_wh(
-                                    0,
-                                    0,
-                                    CHUNK_SIZE,
-                                    CHUNK_SIZE,
-                                ).into_f32();
+                                let rect = Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE).into_f32();
                                 target.rectangle(
                                     rect,
                                     Color::rgba(255, 255, 64, 127),
                                     DrawParameters {
                                         blend: Blend::alpha_blending(),
                                         ..Default::default()
-                                    }
+                                    },
                                 );
                                 target.rectangle(
                                     rect,
@@ -232,19 +237,14 @@ impl WorldRenderer {
                                         line_width: Some(1.0),
                                         blend: Blend::alpha_blending(),
                                         ..Default::default()
-                                    }
+                                    },
                                 );
                             }
                         }
                     }
 
                     if settings.debug && settings.draw_chunk_state_overlay {
-                        let rect = Rect::new_wh(
-                            0,
-                            0,
-                            CHUNK_SIZE,
-                            CHUNK_SIZE,
-                        );
+                        let rect = Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE);
 
                         let alpha: u8 = (settings.draw_chunk_state_overlay_alpha * 255.0) as u8;
                         let color = match ch.state {
@@ -261,22 +261,22 @@ impl WorldRenderer {
                             ChunkState::Active => Color::rgba(64, 255, 64, alpha),
                         };
                         target.rectangle(
-                            rect.into_f32(), 
+                            rect.into_f32(),
                             color,
                             DrawParameters {
                                 blend: Blend::alpha_blending(),
                                 ..Default::default()
-                            }
+                            },
                         );
                         target.rectangle(
-                            rect.into_f32(), 
+                            rect.into_f32(),
                             color,
                             DrawParameters {
                                 polygon_mode: PolygonMode::Line,
                                 line_width: Some(1.0),
                                 blend: Blend::alpha_blending(),
                                 ..Default::default()
-                            }
+                            },
                         );
 
                         // let ind = world.chunk_handler.chunk_index(ch.chunk_x, ch.chunk_y);
@@ -385,7 +385,6 @@ impl WorldRenderer {
 
                 if let Some(body) = rb.get_body(&world.physics) {
                     if let Some(img) = &rb.image {
-
                         let (rx, ry) = (
                             body.position().translation.vector[0],
                             body.position().translation.vector[1],
@@ -396,12 +395,17 @@ impl WorldRenderer {
                         target.transform.rotate(body.rotation().angle());
 
                         target.draw_texture_flipped(
-                            Rect::new_wh(0.0, 0.0, rb.width as f32 / PHYSICS_SCALE, rb.height as f32 / PHYSICS_SCALE), 
+                            Rect::new_wh(
+                                0.0,
+                                0.0,
+                                rb.width as f32 / PHYSICS_SCALE,
+                                rb.height as f32 / PHYSICS_SCALE,
+                            ),
                             img,
                             DrawParameters {
                                 blend: Blend::alpha_blending(),
                                 ..DrawParameters::default()
-                            }
+                            },
                         );
 
                         target.transform.pop();
@@ -437,27 +441,27 @@ impl WorldRenderer {
                     let (x1, y1) = (-cuboid.half_extents[0], -cuboid.half_extents[1]);
                     let (x2, y2) = (cuboid.half_extents[0], cuboid.half_extents[1]);
                     target.rectangle(
-                        Rect::new(x1 as f32, y1 as f32, x2 as f32, y2 as f32), 
+                        Rect::new(x1 as f32, y1 as f32, x2 as f32, y2 as f32),
                         color,
                         DrawParameters {
                             polygon_mode: PolygonMode::Line,
                             line_width: Some(1.0),
                             blend: Blend::alpha_blending(),
                             ..Default::default()
-                        }
+                        },
                     );
                 } else if let Some(polyline) = shape.as_polyline() {
                     for seg in polyline.segments() {
                         let (x1, y1) = (seg.a[0], seg.a[1]);
                         let (x2, y2) = (seg.b[0], seg.b[1]);
                         target.line(
-                            (x1 as f32, y1 as f32), 
-                            (x2 as f32, y2 as f32), 
+                            (x1 as f32, y1 as f32),
+                            (x2 as f32, y2 as f32),
                             color,
                             DrawParameters {
                                 blend: Blend::alpha_blending(),
                                 ..DrawParameters::default()
-                            }
+                            },
                         );
                     }
                 } else if let Some(_poly) = shape.as_convex_polygon() {
@@ -477,14 +481,16 @@ impl WorldRenderer {
                         let (x2, y2) = (tri.b[0], tri.b[1]);
                         let (x3, y3) = (tri.c[0], tri.c[1]);
                         target.triangle(
-                            (x1 as f32, y1 as f32), (x2 as f32, y2 as f32), (x3 as f32, y3 as f32),
+                            (x1 as f32, y1 as f32),
+                            (x2 as f32, y2 as f32),
+                            (x3 as f32, y3 as f32),
                             color,
                             DrawParameters {
                                 polygon_mode: PolygonMode::Line,
                                 line_width: Some(1.0),
                                 blend: Blend::alpha_blending(),
                                 ..Default::default()
-                            }
+                            },
                         );
                     }
                 } else if let Some(tri) = shape.as_triangle() {
@@ -492,14 +498,16 @@ impl WorldRenderer {
                     let (x2, y2) = (x + tri.b[0], y + tri.b[1]);
                     let (x3, y3) = (x + tri.c[0], y + tri.c[1]);
                     target.triangle(
-                        (x1 as f32, y1 as f32), (x2 as f32, y2 as f32), (x3 as f32, y3 as f32),
+                        (x1 as f32, y1 as f32),
+                        (x2 as f32, y2 as f32),
+                        (x3 as f32, y3 as f32),
                         color,
                         DrawParameters {
                             polygon_mode: PolygonMode::Line,
                             line_width: Some(1.0),
                             blend: Blend::alpha_blending(),
                             ..Default::default()
-                        }
+                        },
                     );
                 }
                 target.transform.pop();
@@ -524,8 +532,18 @@ impl WorldRenderer {
 
                 if settings.physics_dbg_draw_center_of_mass {
                     let com = b.mass_properties().local_com;
-                    target.line((com.x, com.y), (com.x + 0.5, com.y), Color::BLUE, DrawParameters::default());
-                    target.line((com.x, com.y), (com.x, com.y + 0.5), Color::RED, DrawParameters::default());
+                    target.line(
+                        (com.x, com.y),
+                        (com.x + 0.5, com.y),
+                        Color::BLUE,
+                        DrawParameters::default(),
+                    );
+                    target.line(
+                        (com.x, com.y),
+                        (com.x, com.y + 0.5),
+                        Color::RED,
+                        DrawParameters::default(),
+                    );
                     // target.circle(x as f32, y as f32, 2.0, Color::RED.into_sdl());
                 }
                 target.transform.pop();
@@ -560,19 +578,14 @@ impl WorldRenderer {
                         let (x2, y2) = (aabb.half_extents()[0], aabb.half_extents()[1]);
 
                         target.rectangle(
-                            Rect::new(
-                                x1 as f32,
-                                y1 as f32,
-                                x2 as f32,
-                                y2 as f32,
-                            ),
+                            Rect::new(x1 as f32, y1 as f32, x2 as f32, y2 as f32),
                             Color::rgba(0xff, 0, 0xff, if b.is_sleeping() { 0x64 } else { 0xff }),
                             DrawParameters {
                                 polygon_mode: PolygonMode::Line,
                                 line_width: Some(1.0),
                                 blend: Blend::alpha_blending(),
                                 ..Default::default()
-                            }
+                            },
                         );
 
                         target.transform.pop();
@@ -622,19 +635,14 @@ impl WorldRenderer {
                             let (x2, y2) = (1.0, 1.0);
 
                             target.rectangle(
-                                Rect::new(
-                                    x1 as f32,
-                                    y1 as f32,
-                                    x2 as f32,
-                                    y2 as f32,
-                                ),
+                                Rect::new(x1 as f32, y1 as f32, x2 as f32, y2 as f32),
                                 Color::rgba(64, 255, 64, alpha),
                                 DrawParameters {
                                     polygon_mode: PolygonMode::Line,
                                     line_width: Some(1.0),
                                     blend: Blend::alpha_blending(),
                                     ..Default::default()
-                                }
+                                },
                             );
 
                             if let Some(vel) = vel {
@@ -650,7 +658,7 @@ impl WorldRenderer {
                                         line_width: Some(1.0),
                                         blend: Blend::alpha_blending(),
                                         ..Default::default()
-                                    }
+                                    },
                                 );
                             }
 
@@ -681,19 +689,14 @@ impl WorldRenderer {
                         let (x2, y2) = (f64::from(hit.x2), f64::from(hit.y2));
 
                         target.rectangle(
-                            Rect::new(
-                                x1 as f32,
-                                y1 as f32,
-                                x2 as f32,
-                                y2 as f32,
-                            ),
+                            Rect::new(x1 as f32, y1 as f32, x2 as f32, y2 as f32),
                             Color::rgba(255, 64, 64, alpha),
                             DrawParameters {
                                 polygon_mode: PolygonMode::Line,
                                 line_width: Some(1.0),
                                 blend: Blend::alpha_blending(),
                                 ..Default::default()
-                            }
+                            },
                         );
 
                         target.transform.pop();
@@ -722,19 +725,14 @@ impl WorldRenderer {
                         let (x2, y2) = (1.0, 1.0);
 
                         target.rectangle(
-                            Rect::new(
-                                x1 as f32,
-                                y1 as f32,
-                                x2 as f32,
-                                y2 as f32,
-                            ),
+                            Rect::new(x1 as f32, y1 as f32, x2 as f32, y2 as f32),
                             Color::rgba(64, 255, 64, alpha),
                             DrawParameters {
                                 polygon_mode: PolygonMode::Line,
                                 line_width: Some(1.0),
                                 blend: Blend::alpha_blending(),
                                 ..Default::default()
-                            }
+                            },
                         );
 
                         let target_pos = at.get_target_pos(&position_storage);
@@ -751,7 +749,7 @@ impl WorldRenderer {
                                     line_width: Some(1.0),
                                     blend: Blend::alpha_blending(),
                                     ..Default::default()
-                                }
+                                },
                             );
                         }
 
@@ -802,7 +800,7 @@ impl WorldRenderer {
                                 );
 
                                 target.line(
-                                    (x1 as f32,y1 as f32),
+                                    (x1 as f32, y1 as f32),
                                     (x2 as f32, y2 as f32),
                                     Color::rgba(191, 191, 191, 255),
                                     DrawParameters {
@@ -810,7 +808,7 @@ impl WorldRenderer {
                                         line_width: Some(client.camera_scale as f32),
                                         blend: Blend::alpha_blending(),
                                         ..Default::default()
-                                    }
+                                    },
                                 );
                             } else {
                                 {
@@ -818,7 +816,7 @@ impl WorldRenderer {
                                         grapple_pos.x + grapple_vel.x * partial_ticks,
                                         grapple_pos.y + grapple_vel.y * partial_ticks,
                                     );
-                                    let (x2, y2) =(pivots[0].x, pivots[0].y);
+                                    let (x2, y2) = (pivots[0].x, pivots[0].y);
                                     target.line(
                                         (x1 as f32, y1 as f32),
                                         (x2 as f32, y2 as f32),
@@ -828,7 +826,7 @@ impl WorldRenderer {
                                             line_width: Some(client.camera_scale as f32),
                                             blend: Blend::alpha_blending(),
                                             ..Default::default()
-                                        }
+                                        },
                                     );
                                 }
 
@@ -848,16 +846,14 @@ impl WorldRenderer {
                                                 line_width: Some(client.camera_scale as f32),
                                                 blend: Blend::alpha_blending(),
                                                 ..Default::default()
-                                            }
+                                            },
                                         );
                                     }
                                 }
 
                                 {
-                                    let (x1, y1) = (
-                                        pivots[pivots.len() - 1].x,
-                                        pivots[pivots.len() - 1].y,
-                                    );
+                                    let (x1, y1) =
+                                        (pivots[pivots.len() - 1].x, pivots[pivots.len() - 1].y);
                                     let (x2, y2) = (
                                         player_pos.x + player_vel.x * partial_ticks,
                                         player_pos.y + player_vel.y * partial_ticks,
@@ -871,7 +867,7 @@ impl WorldRenderer {
                                             line_width: Some(client.camera_scale as f32),
                                             blend: Blend::alpha_blending(),
                                             ..Default::default()
-                                        }
+                                        },
                                     );
                                 }
                             }
@@ -913,7 +909,7 @@ impl WorldRenderer {
                             line_width: Some(1.0),
                             blend: Blend::alpha_blending(),
                             ..Default::default()
-                        }
+                        },
                     );
                 }
             }
@@ -922,32 +918,26 @@ impl WorldRenderer {
         if settings.debug && settings.draw_origin {
             let len: f32 = 16.0;
             target.rectangle(
-                Rect::new_wh(
-                    -len - 2.0,
-                    -1.0,
-                    (len * 2.0 + 4.0) as f32,
-                    3.0,
-                ),
+                Rect::new_wh(-len - 2.0, -1.0, (len * 2.0 + 4.0) as f32, 3.0),
                 Color::rgba(0, 0, 0, 127),
                 DrawParameters {
                     blend: Blend::alpha_blending(),
                     ..Default::default()
-                }
+                },
             );
             target.rectangle(
-                Rect::new_wh(
-                    -1.0,
-                    -len - 2.0,
-                    3.0,
-                    (len * 2.0 + 4.0) as f32,
-                ),
+                Rect::new_wh(-1.0, -len - 2.0, 3.0, (len * 2.0 + 4.0) as f32),
                 Color::rgba(0, 0, 0, 127),
                 DrawParameters {
                     blend: Blend::alpha_blending(),
                     ..Default::default()
-                }
+                },
             );
-            target.rectangle(Rect::new_wh(0.0, 0.0, 2.0, 2.0), Color::WHITE, DrawParameters::default());
+            target.rectangle(
+                Rect::new_wh(0.0, 0.0, 2.0, 2.0),
+                Color::WHITE,
+                DrawParameters::default(),
+            );
 
             // target.line(
             //     origin.0 as f32 - len,
@@ -974,7 +964,7 @@ impl WorldRenderer {
                     line_width: Some(1.0),
                     blend: Blend::alpha_blending(),
                     ..Default::default()
-                }
+                },
             );
             target.rectangle(
                 load_zone.into_f32(),
@@ -984,7 +974,7 @@ impl WorldRenderer {
                     line_width: Some(1.0),
                     blend: Blend::alpha_blending(),
                     ..Default::default()
-                }
+                },
             );
             target.rectangle(
                 active_zone.into_f32(),
@@ -994,7 +984,7 @@ impl WorldRenderer {
                     line_width: Some(1.0),
                     blend: Blend::alpha_blending(),
                     ..Default::default()
-                }
+                },
             );
             target.rectangle(
                 screen_zone.into_f32(),
@@ -1004,7 +994,7 @@ impl WorldRenderer {
                     line_width: Some(1.0),
                     blend: Blend::alpha_blending(),
                     ..Default::default()
-                }
+                },
             );
         }
 

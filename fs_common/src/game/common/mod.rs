@@ -19,30 +19,27 @@ pub struct Rect<T> {
     pub y2: T,
 }
 
-impl<T: Copy + std::ops::Add<Output = T> + std::cmp::PartialOrd + std::ops::Sub<Output = T>> Rect<T> {
+impl<T: Copy + std::ops::Add<Output = T> + std::cmp::PartialOrd + std::ops::Sub<Output = T>>
+    Rect<T>
+{
     #[inline]
     pub fn new(x1: impl Into<T>, y1: impl Into<T>, x2: impl Into<T>, y2: impl Into<T>) -> Self {
-        Self { x1: x1.into(), y1: y1.into(), x2: x2.into(), y2: y2.into() }
+        Self {
+            x1: x1.into(),
+            y1: y1.into(),
+            x2: x2.into(),
+            y2: y2.into(),
+        }
     }
 
     #[inline]
-    pub fn new_wh(
-        x1: impl Into<T>,
-        y1: impl Into<T>,
-        w: impl Into<T>,
-        h: impl Into<T>,
-    ) -> Self {
+    pub fn new_wh(x1: impl Into<T>, y1: impl Into<T>, w: impl Into<T>, h: impl Into<T>) -> Self {
         let x1 = x1.into();
         let y1 = y1.into();
         let x2 = x1 + w.into();
         let y2 = y1 + h.into();
 
-        Self {
-            x1,
-            y1,
-            x2,
-            y2,
-        }
+        Self { x1, y1, x2, y2 }
     }
 
     #[inline]
@@ -107,12 +104,7 @@ impl<T: Copy + std::ops::Add<Output = T> + std::cmp::PartialOrd + std::ops::Sub<
         let y1 = partial_min(self.y1, other.y1);
         let x2 = partial_max(self.x2, other.x2);
         let y2 = partial_max(self.y2, other.y2);
-        Self {
-            x1,
-            y1,
-            x2,
-            y2,
-        }
+        Self { x1, y1, x2, y2 }
     }
 }
 
@@ -134,6 +126,11 @@ fn partial_min<T: PartialOrd>(a: T, b: T) -> T {
 
 impl Rect<i32> {
     pub fn into_f32(self) -> Rect<f32> {
-        Rect::new(self.x1 as f32, self.y1 as f32, self.x2 as f32, self.y2 as f32)
+        Rect::new(
+            self.x1 as f32,
+            self.y1 as f32,
+            self.x2 as f32,
+            self.y2 as f32,
+        )
     }
 }

@@ -34,7 +34,14 @@ impl FSRigidBody {
             return Err(format!("RigidBody::from_pixels incorrect Vec size: pixels.len() = {}, width = {}, height = {}", pixels.len(), width, height));
         }
 
-        Ok(Self { width, height, pixels, body: None, image: None, image_dirty: true })
+        Ok(Self {
+            width,
+            height,
+            pixels,
+            body: None,
+            image: None,
+            image_dirty: true,
+        })
     }
 
     pub fn from_tris(

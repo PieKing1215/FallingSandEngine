@@ -270,10 +270,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                     .get_mut(&key)
                                     .unwrap()
                                     .set_dirty_rect(Some(Rect::new_wh(
-                                        0,
-                                        0,
-                                        CHUNK_SIZE,
-                                        CHUNK_SIZE,
+                                        0, 0, CHUNK_SIZE, CHUNK_SIZE,
                                     )));
                             }
                         }
@@ -1207,12 +1204,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
     fn force_update_chunk(&mut self, chunk_x: i32, chunk_y: i32) {
         if let Some(ch) = self.loaded_chunks.get_mut(&chunk_index(chunk_x, chunk_y)) {
-            ch.set_dirty_rect(Some(Rect::new_wh(
-                0,
-                0,
-                CHUNK_SIZE,
-                CHUNK_SIZE,
-            )));
+            ch.set_dirty_rect(Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE)));
         }
     }
 

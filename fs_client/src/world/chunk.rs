@@ -1,4 +1,3 @@
-
 use std::convert::TryInto;
 
 use fs_common::game::common::{
@@ -10,7 +9,7 @@ use fs_common::game::common::{
     },
     Rect, Settings,
 };
-use glium::{texture::Texture2d, DrawParameters, Blend, PolygonMode};
+use glium::{texture::Texture2d, Blend, DrawParameters, PolygonMode};
 
 use crate::render::drawing::RenderTarget;
 
@@ -105,12 +104,7 @@ impl<'ch> Chunk for ClientChunk {
                 self.graphics
                     .set(x, y, unsafe { px.get_unchecked_mut(i) }.color)?;
 
-                self.dirty_rect = Some(Rect::new_wh(
-                    0,
-                    0,
-                    CHUNK_SIZE,
-                    CHUNK_SIZE,
-                ));
+                self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
 
                 return Ok(());
             }
@@ -279,11 +273,19 @@ impl<'cg> ChunkGraphics {
     pub fn update_texture(&mut self) {
         if self.dirty {
             if self.texture.is_some() {
-                let image = glium::texture::RawImage2d::from_raw_rgba((&self.pixel_data).to_vec(), (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
-                
+                let image = glium::texture::RawImage2d::from_raw_rgba(
+                    (&self.pixel_data).to_vec(),
+                    (CHUNK_SIZE.into(), CHUNK_SIZE.into()),
+                );
+
                 self.texture.as_mut().unwrap().write(
-                    glium::Rect { left: 0, bottom: 0, width: CHUNK_SIZE.into(), height: CHUNK_SIZE.into() },
-                    image
+                    glium::Rect {
+                        left: 0,
+                        bottom: 0,
+                        width: CHUNK_SIZE.into(),
+                        height: CHUNK_SIZE.into(),
+                    },
+                    image,
                 );
             }
             self.dirty = false;
@@ -301,20 +303,11 @@ impl<'cg> ChunkGraphics {
 }
 
 impl ClientChunk {
-    pub fn prep_render(
-        &mut self,
-        target: &mut RenderTarget,
-        settings: &Settings,
-    ) {
+    pub fn prep_render(&mut self, target: &mut RenderTarget, settings: &Settings) {
         self.graphics.render(target, settings);
     }
 
-    pub fn render(
-        &mut self,
-        target: &mut RenderTarget,
-        settings: &Settings,
-    ) {
-
+    pub fn render(&mut self, target: &mut RenderTarget, settings: &Settings) {
         if settings.debug && settings.draw_chunk_collision == 1 {
             if let Some(f) = &self.mesh {
                 let colors = vec![
@@ -340,7 +333,7 @@ impl ClientChunk {
                                     line_width: Some(1.0),
                                     blend: Blend::alpha_blending(),
                                     ..Default::default()
-                                }
+                                },
                             );
                         }
 
@@ -377,7 +370,7 @@ impl ClientChunk {
                                     line_width: Some(1.0),
                                     blend: Blend::alpha_blending(),
                                     ..Default::default()
-                                }
+                                },
                             );
                         }
                     });
@@ -403,7 +396,7 @@ impl ClientChunk {
                                 line_width: Some(1.0),
                                 blend: Blend::alpha_blending(),
                                 ..Default::default()
-                            }
+                            },
                         );
                     }
                 }
@@ -414,13 +407,12 @@ impl ClientChunk {
 
 impl ChunkGraphics {
     #[profiling::function]
-    pub fn render(
-        &mut self,
-        target: &mut RenderTarget,
-        _settings: &Settings,
-    ) {
+    pub fn render(&mut self, target: &mut RenderTarget, _settings: &Settings) {
         if self.texture.is_none() {
-            let image = glium::texture::RawImage2d::from_raw_rgba((&self.pixel_data).to_vec(), (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
+            let image = glium::texture::RawImage2d::from_raw_rgba(
+                (&self.pixel_data).to_vec(),
+                (CHUNK_SIZE.into(), CHUNK_SIZE.into()),
+            );
             self.texture = Some(Texture2d::new(&target.display, image).unwrap());
         }
     }

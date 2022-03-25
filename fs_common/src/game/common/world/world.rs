@@ -148,7 +148,7 @@ impl<'w, C: Chunk> World<C> {
             .map(|i| {
                 let x: i32 = i % 40;
                 let y: i32 = i / 40;
-                if (y <= 5) || ((x-y).abs() <= 5) {
+                if (y <= 5) || ((x - y).abs() <= 5) {
                     MaterialInstance {
                         material_id: TEST_MATERIAL.id,
                         physics: PhysicsType::Solid,
@@ -164,7 +164,8 @@ impl<'w, C: Chunk> World<C> {
             })
             .collect();
 
-        if let Ok(mut r) = FSRigidBody::make_bodies(&pixels, 40, 40, &mut w.physics, (-0.0, -10.0)) {
+        if let Ok(mut r) = FSRigidBody::make_bodies(&pixels, 40, 40, &mut w.physics, (-0.0, -10.0))
+        {
             w.rigidbodies.append(&mut r);
         }
 

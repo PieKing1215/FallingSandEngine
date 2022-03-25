@@ -4,11 +4,14 @@ use fs_common::game::{
     common::{world::material::Color, FileHelper, Rect},
     GameData,
 };
-use glium::{Display, DrawParameters, PolygonMode, Blend};
-use glium_glyph::{glyph_brush::{rusttype::Font, Section}, GlyphBrush};
+use glium::{Blend, Display, DrawParameters, PolygonMode};
+use glium_glyph::{
+    glyph_brush::{rusttype::Font, Section},
+    GlyphBrush,
+};
 use glutin::{dpi::LogicalSize, event_loop::EventLoop};
 use imgui::WindowFlags;
-use imgui_winit_support::{WinitPlatform, HiDpiMode};
+use imgui_winit_support::{HiDpiMode, WinitPlatform};
 
 use crate::{
     render::imgui::DebugUI,
@@ -54,7 +57,7 @@ impl<'a> Renderer<'a> {
         {
             let gl_window = display.gl_window();
             let window = gl_window.window();
-    
+
             imgui_platform.attach_window(imgui.io_mut(), window, HiDpiMode::Default);
         }
 
@@ -75,7 +78,8 @@ impl<'a> Renderer<'a> {
 
         let shaders = Shaders::new(&display, file_helper);
 
-        let pixel_operator = fs::read(file_helper.asset_path("font/pixel_operator/PixelOperator.ttf")).unwrap();
+        let pixel_operator =
+            fs::read(file_helper.asset_path("font/pixel_operator/PixelOperator.ttf")).unwrap();
         let fonts = vec![Font::from_bytes(pixel_operator).unwrap()];
 
         let glyph_brush = GlyphBrush::new(&display, fonts);
@@ -104,7 +108,14 @@ impl<'a> Renderer<'a> {
         let mut target = RenderTarget::new(&mut self.display, &self.shaders, &mut self.glyph_brush);
         target.clear(Color::BLACK);
 
-        Self::render_internal(&mut self.world_renderer, &mut target, game, client, delta_time, partial_ticks);
+        Self::render_internal(
+            &mut self.world_renderer,
+            &mut target,
+            game,
+            client,
+            delta_time,
+            partial_ticks,
+        );
 
         {
             profiling::scope!("version info");
@@ -118,11 +129,11 @@ impl<'a> Renderer<'a> {
             });
             target.queue_text(Section {
                 text: format!(
-                        "{} ({})",
-                        unsafe { BUILD_DATETIME }.unwrap_or("???"),
-                        unsafe { GIT_HASH }.unwrap_or("???")
-                    )
-                    .as_str(),
+                    "{} ({})",
+                    unsafe { BUILD_DATETIME }.unwrap_or("???"),
+                    unsafe { GIT_HASH }.unwrap_or("???")
+                )
+                .as_str(),
                 screen_position: (4.0, target.height() as f32 - 20.0),
                 bounds: (200.0, 20.0),
                 color: Color::WHITE.into(),
@@ -256,12 +267,15 @@ impl<'a> Renderer<'a> {
 
             let draw_data = {
                 profiling::scope!("prepare_render");
-                self.imgui_platform.prepare_render(ui, self.display.gl_window().window());
+                self.imgui_platform
+                    .prepare_render(ui, self.display.gl_window().window());
                 self.imgui.render()
             };
             {
                 profiling::scope!("render");
-                self.imgui_renderer.render(&mut target.frame, draw_data).unwrap();
+                self.imgui_renderer
+                    .render(&mut target.frame, draw_data)
+                    .unwrap();
             }
         }
 
@@ -277,10 +291,11 @@ impl<'a> Renderer<'a> {
         delta_time: f64,
         partial_ticks: f64,
     ) {
-
         target.base_transform.push();
         target.base_transform.translate(-1.0, 1.0);
-        target.base_transform.scale(2.0 / target.width() as f64, -2.0 / target.height() as f64);
+        target
+            .base_transform
+            .scale(2.0 / target.width() as f64, -2.0 / target.height() as f64);
 
         {
             profiling::scope!("test stuff");
@@ -296,39 +311,45 @@ impl<'a> Renderer<'a> {
                     polygon_mode: PolygonMode::Line,
                     line_width: Some(1.0),
                     ..Default::default()
-                }
+                },
             );
 
-            let rects = (0..10000).step_by(15).map(|i|{
-                let thru = (i as f32 / 10000.0 * 255.0) as u8;
-                let thru2 = (((i % 1000) as f32 / 1000.0) * 255.0) as u8;
-                let timeshift = ((1.0 - ((i % 1000) as f32 / 1000.0)).powi(8) * 200.0) as i32;
+            let rects = (0..10000)
+                .step_by(15)
+                .map(|i| {
+                    let thru = (i as f32 / 10000.0 * 255.0) as u8;
+                    let thru2 = (((i % 1000) as f32 / 1000.0) * 255.0) as u8;
+                    let timeshift = ((1.0 - ((i % 1000) as f32 / 1000.0)).powi(8) * 200.0) as i32;
 
-                let color = Color::rgba(0, thru, 255 - thru, thru2);
+                    let color = Color::rgba(0, thru, 255 - thru, thru2);
 
-                (Rect::new_wh(
-                    75.0 + (i as f32 % 1000.0)
-                        + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32
-                            - timeshift as f32)
-                            / 100.0)
-                            .sin()
-                            * 50.0),
-                    (i as f32 / 1000.0) * 100.0
-                        + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32
-                            - timeshift as f32)
-                            / 100.0)
-                            .cos()
-                            * 50.0),
-                    20.0,
-                    20.0,
-                ), color)
-            }).collect::<Vec<_>>();
+                    (
+                        Rect::new_wh(
+                            75.0 + (i as f32 % 1000.0)
+                                + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32
+                                    - timeshift as f32)
+                                    / 100.0)
+                                    .sin()
+                                    * 50.0),
+                            (i as f32 / 1000.0) * 100.0
+                                + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32
+                                    - timeshift as f32)
+                                    / 100.0)
+                                    .cos()
+                                    * 50.0),
+                            20.0,
+                            20.0,
+                        ),
+                        color,
+                    )
+                })
+                .collect::<Vec<_>>();
             target.rectangles_colored(
                 &rects,
                 DrawParameters {
                     blend: Blend::alpha_blending(),
                     ..Default::default()
-                }
+                },
             );
         }
 
@@ -342,14 +363,7 @@ impl<'a> Renderer<'a> {
             //     .unwrap();
             // let f = Fonts { pixel_operator: pixel_operator2 };
 
-            world_renderer.render(
-                w,
-                target,
-                delta_time,
-                &game.settings,
-                client,
-                partial_ticks,
-            );
+            world_renderer.render(w, target, delta_time, &game.settings, client, partial_ticks);
         }
 
         target.base_transform.pop();

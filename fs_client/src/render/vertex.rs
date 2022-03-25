@@ -1,6 +1,5 @@
 use fs_common::game::common::world::material::Color;
 
-
 #[derive(Copy, Clone)]
 pub struct Vertex2 {
     pub position: [f32; 2],
@@ -30,7 +29,10 @@ glium::implement_vertex!(Vertex2T, position, tex_coord);
 
 impl From<((f32, f32), (f32, f32))> for Vertex2T {
     fn from(v: ((f32, f32), (f32, f32))) -> Self {
-        Vertex2T { position: [v.0.0, v.0.1], tex_coord: [v.1.0, v.1.1] }
+        Vertex2T {
+            position: [v.0 .0, v.0 .1],
+            tex_coord: [v.1 .0, v.1 .1],
+        }
     }
 }
 
@@ -45,7 +47,11 @@ glium::implement_vertex!(Vertex2TA, position, tex_coord, tex_layer);
 
 impl From<((f32, f32), (f32, f32), f32)> for Vertex2TA {
     fn from(v: ((f32, f32), (f32, f32), f32)) -> Self {
-        Self { position: [v.0.0, v.0.1], tex_coord: [v.1.0, v.1.1], tex_layer: v.2 }
+        Self {
+            position: [v.0 .0, v.0 .1],
+            tex_coord: [v.1 .0, v.1 .1],
+            tex_layer: v.2,
+        }
     }
 }
 
@@ -59,7 +65,7 @@ glium::implement_vertex!(Vertex2C, position, color);
 
 impl From<((f32, f32), Color)> for Vertex2C {
     fn from(v: ((f32, f32), Color)) -> Self {
-        Vertex2C { position: [v.0.0, v.0.1], color: v.1.into() }
+        Vertex2C { position: [v.0 .0, v.0 .1], color: v.1.into() }
     }
 }
 

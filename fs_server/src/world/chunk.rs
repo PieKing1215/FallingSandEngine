@@ -72,12 +72,7 @@ impl<'ch> Chunk for ServerChunk {
                 let i = (x + y * CHUNK_SIZE) as usize;
                 px[i] = mat;
 
-                self.dirty_rect = Some(Rect::new_wh(
-                    0,
-                    0,
-                    CHUNK_SIZE,
-                    CHUNK_SIZE,
-                ));
+                self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
 
                 return Ok(());
             }

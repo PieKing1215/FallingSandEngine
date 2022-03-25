@@ -2,11 +2,7 @@ use std::{fs::File, str::FromStr, thread};
 
 use backtrace::Backtrace;
 use clap::{crate_authors, crate_name, crate_version, Arg, Command};
-use fs_client::{
-    render::Renderer,
-    world::ClientWorld,
-    ClientGame,
-};
+use fs_client::{render::Renderer, world::ClientWorld, ClientGame};
 use fs_common::game::common::{
     world::{
         entity::{GameEntity, Hitbox, Persistent, PhysicsEntity, Player, PlayerMovementMode},

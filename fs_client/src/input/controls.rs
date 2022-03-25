@@ -1,4 +1,4 @@
-use glutin::event::{WindowEvent, VirtualKeyCode, KeyboardInput, ElementState};
+use glutin::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent};
 
 #[derive(Debug)]
 pub enum InputEvent<'a> {
@@ -112,10 +112,11 @@ impl Control<bool> for KeyControl {
         #[allow(clippy::match_wildcard_for_single_variants)]
         match event {
             InputEvent::GlutinEvent(glutin::event::WindowEvent::KeyboardInput {
-                input: KeyboardInput { state, virtual_keycode: Some(k), .. }, ..
+                input: KeyboardInput { state, virtual_keycode: Some(k), .. },
+                ..
             }) if *k == self.key => {
                 // if !repeat || self.mode == KeyControlMode::Type {
-                    self.raw = *state == ElementState::Pressed;
+                self.raw = *state == ElementState::Pressed;
                 // }
             },
             _ => {},

@@ -5,7 +5,12 @@ use std::{
 };
 
 use clap::ArgMatches;
-use glutin::{event_loop::EventLoop, window::Fullscreen, event::{KeyboardInput, VirtualKeyCode, ElementState, MouseButton}, dpi::PhysicalPosition};
+use glutin::{
+    dpi::PhysicalPosition,
+    event::{ElementState, KeyboardInput, MouseButton, VirtualKeyCode},
+    event_loop::EventLoop,
+    window::Fullscreen,
+};
 use log::{debug, error, info, warn};
 use rapier2d::{
     na::{Isometry2, Point2, Vector2},
@@ -38,11 +43,7 @@ use crate::{
     world::{ClientWorld, ClientWorldExt},
 };
 
-use super::{
-    render::{Renderer},
-    world::ClientChunk,
-    Client,
-};
+use super::{render::Renderer, world::ClientChunk, Client};
 
 pub struct ClientGame {
     pub data: GameData<ClientChunk>,
@@ -178,11 +179,11 @@ impl ClientGame {
                                             WriteStorage<Position>,
                                             ReadStorage<Camera>,
                                         )>();
-    
+                                        
                                         let camera_pos = (&mut position_storage, &camera_storage)
                                             .join()
                                             .find_map(|(p, _c)| Some(p));
-    
+                                        
                                         if let Some(camera_pos) = camera_pos {
                                             // this doesn't do anything if game.client_entity_id exists
                                             //     since the renderer will snap the camera to the client entity
@@ -561,12 +562,12 @@ impl ClientGame {
                                     if stream.read_exact(&mut buf).is_ok() {
                                         let size: u32 = bincode::deserialize(&buf).unwrap();
                                         // println!("[CLIENT] Incoming packet, size = {}.", size);
-        
+                                        
                                         bytes_to_read = Some(size);
                                         read_buffer = Some(Vec::with_capacity(size as usize));
                                     }
                                 }
-        
+                                
                                 if let (Some(size), Some(buf)) = (bytes_to_read, &mut read_buffer) {
                                     // println!("[CLIENT] size = {}", size);
                                     if size == 0 {
@@ -574,9 +575,9 @@ impl ClientGame {
                                         panic!("[CLIENT] Zero length packet.");
                                     } else {
                                         assert!(size <= 2_000_000, "[CLIENT] Almost tried to read packet that is too big ({} bytes)", size);
-        
+                                        
                                         // let mut buf = vec![0; size as usize];
-        
+                                        
                                         // println!("[CLIENT] read_to_end...");
                                         let prev_size = buf.len();
                                         match std::io::Read::by_ref(stream)
@@ -591,11 +592,11 @@ impl ClientGame {
                                                         read, size
                                                     );
                                                 }
-        
+                                                
                                                 // println!("[CLIENT] Read {}/{} bytes", read, buf.len());
-        
+                                                
                                                 bytes_to_read = None;
-        
+                                                
                                                 // println!("[CLIENT] Read {} bytes.", buf.len());
                                                 match bincode::deserialize::<Packet>(buf) {
                                                     // match serde_json::from_slice::<Packet>(&buf) {
@@ -629,7 +630,7 @@ impl ClientGame {
                                                                 //         .lqf_world
                                                                 //         .get_particle_system_list()
                                                                 //         .unwrap();
-        
+                                                                
                                                                 //     let particle_count = particle_system
                                                                 //         .get_particle_count()
                                                                 //         as usize;
@@ -644,7 +645,7 @@ impl ClientGame {
                                                                 //             - particle_positions[i].x;
                                                                 //         let dy = positions[i].y
                                                                 //             - particle_positions[i].y;
-        
+                                                                
                                                                 //         if dx.abs() > 1.0 || dy.abs() > 1.0
                                                                 //         {
                                                                 //             particle_positions[i].x += dx;
@@ -656,7 +657,7 @@ impl ClientGame {
                                                                 //                 dy / 2.0;
                                                                 //         }
                                                                 //     }
-        
+                                                                
                                                                 //     let particle_velocities: &mut [Vec2] =
                                                                 //         particle_system
                                                                 //             .get_velocity_buffer_mut();
@@ -716,7 +717,7 @@ impl ClientGame {
                             }
                             // println!("[CLIENT] Handled {} packets.", n);
                         }
-        
+                        
                         self.data.fps_counter.tick_times.rotate_left(1);
                         self.data.fps_counter.tick_times[self.data.fps_counter.tick_times.len() - 1] =
                             Instant::now().saturating_duration_since(st).as_nanos() as f32;
@@ -724,15 +725,14 @@ impl ClientGame {
                     do_tick_next = can_tick
                         && now.saturating_duration_since(prev_tick_time).as_nanos()
                             > 1_000_000_000 / u128::from(self.data.settings.tick_speed); // intended is 30 ticks per second
-        
+                    
                     // tick liquidfun
-        
+                    
                     let mut can_tick = self.data.settings.tick_physics;
-        
+                    
                     let has_focus = true; // TODO
-                    can_tick = can_tick
-                        && !(self.data.settings.pause_on_lost_focus && has_focus);
-        
+                    can_tick = can_tick && !(self.data.settings.pause_on_lost_focus && has_focus);
+                    
                     if do_tick_physics_next && can_tick {
                         prev_tick_physics_time = now;
                         if let Some(w) = &mut self.data.world {
@@ -797,15 +797,16 @@ impl ClientGame {
                             }
                         }
                     }
-        
+
                     let time_nano = Instant::now()
                         .saturating_duration_since(counter_last_frame)
                         .as_nanos();
+
                     self.data.fps_counter.frame_times.rotate_left(1);
-                    self.data.fps_counter.frame_times[self.data.fps_counter.frame_times.len() - 1] =
-                        time_nano as f32;
-        
+                    self.data.fps_counter.frame_times[self.data.fps_counter.frame_times.len() - 1] = time_nano as f32;
+
                     profiling::finish_frame!();
+
                     // sleep a bit if we aren't going to tick next frame
                     if !do_tick_next && !self.data.settings.vsync {
                         profiling::scope!("sleep");
@@ -826,18 +827,8 @@ impl ClientGame {
         // info!("Closing...");
     }
 
-    pub fn render(
-        &mut self,
-        renderer: &mut Renderer,
-        delta_time: f64,
-        partial_ticks: f64,
-    ) {
-        renderer.render(
-            &mut self.data,
-            &mut self.client,
-            delta_time,
-            partial_ticks,
-        );
+    pub fn render(&mut self, renderer: &mut Renderer, delta_time: f64, partial_ticks: f64) {
+        renderer.render(&mut self.data, &mut self.client, delta_time, partial_ticks);
     }
 
     #[profiling::function]
