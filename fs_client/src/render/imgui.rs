@@ -1,5 +1,5 @@
 use fs_common::game::common::Settings;
-use imgui::{Slider, SliderFlags, WindowFlags};
+use imgui::{SliderFlags, WindowFlags};
 
 pub trait DebugUI {
     fn debug_ui(&mut self, ui: &imgui::Ui);

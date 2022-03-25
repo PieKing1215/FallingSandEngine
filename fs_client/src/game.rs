@@ -1,11 +1,10 @@
 use std::{
     io::{BufReader, Read},
     net::TcpStream,
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use clap::ArgMatches;
-use glium::{Display, Surface};
 use glutin::{event_loop::EventLoop, window::Fullscreen, event::{KeyboardInput, VirtualKeyCode, ElementState, MouseButton}, dpi::PhysicalPosition};
 use log::{debug, error, info, warn};
 use rapier2d::{
@@ -139,11 +138,14 @@ impl ClientGame {
                 glutin::event::Event::WindowEvent { event: ref w_event, .. } => match w_event {
                     glutin::event::WindowEvent::CloseRequested => {
                         *control_flow = glutin::event_loop::ControlFlow::Exit;
-                        return;
                     },
                     _ => {
                         renderer.imgui_platform.handle_event(renderer.imgui.io_mut(), renderer.display.gl_window().window(), &event);
-                        let client_consumed_event = self.client.on_event(&w_event);
+                        let client_consumed_event = self.client.on_event(w_event);
+
+                        if client_consumed_event {
+                            return;
+                        }
 
                         match w_event {
                             glutin::event::WindowEvent::KeyboardInput { input, .. } => {
@@ -312,10 +314,10 @@ impl ClientGame {
 
                                         if let Some(camera_pos) = camera_pos {
                                             let world_x = camera_pos.x
-                                                + (f64::from(cursor_pos.x) - f64::from(renderer.display.gl_window().window().inner_size().width) / 2.0)
+                                                + (cursor_pos.x - f64::from(renderer.display.gl_window().window().inner_size().width) / 2.0)
                                                     / self.client.camera_scale;
                                             let world_y = camera_pos.y
-                                                + (f64::from(cursor_pos.y) - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
+                                                + (cursor_pos.y - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
                                                     / self.client.camera_scale;
                                             // let (chunk_x, chunk_y) = w.chunk_handler.pixel_to_chunk_pos(world_x as i64, world_y as i64);
                                             // w.chunk_handler.force_update_chunk(chunk_x, chunk_y);
@@ -441,8 +443,7 @@ impl ClientGame {
                     let mut can_tick = self.data.settings.tick;
         
                     let has_focus = true; // TODO
-                    can_tick = can_tick
-                        && !(self.data.settings.pause_on_lost_focus && !has_focus);
+                    can_tick = can_tick && (has_focus || !self.data.settings.pause_on_lost_focus);
         
                     if do_tick_next && can_tick {
                         prev_tick_time = now;

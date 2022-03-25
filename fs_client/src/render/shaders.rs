@@ -1,7 +1,7 @@
 use std::fs;
 
 use fs_common::game::common::FileHelper;
-use glium::{Display, program::{ProgramCreationInput, ProgramChooserCreationError}};
+use glium::{Display, program::ProgramChooserCreationError};
 
 
 pub struct Shaders {

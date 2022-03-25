@@ -3,7 +3,7 @@ use std::{fs::File, str::FromStr, thread};
 use backtrace::Backtrace;
 use clap::{crate_authors, crate_name, crate_version, Arg, Command};
 use fs_client::{
-    render::{Fonts, Renderer},
+    render::Renderer,
     world::ClientWorld,
     ClientGame,
 };
@@ -17,7 +17,6 @@ use fs_common::game::common::{
     FileHelper,
 };
 use fs_server::ServerGame;
-use glium::Surface;
 use log::{error, info, LevelFilter};
 use rapier2d::{
     na::{Isometry2, Vector2},

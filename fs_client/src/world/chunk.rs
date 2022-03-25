@@ -1,5 +1,5 @@
 
-use std::{convert::TryInto, cell::RefCell};
+use std::convert::TryInto;
 
 use fs_common::game::common::{
     world::{
@@ -10,9 +10,9 @@ use fs_common::game::common::{
     },
     Rect, Settings,
 };
-use glium::{Frame, texture::{RawImage2d, Texture2d}, DrawParameters, Blend, PolygonMode};
+use glium::{texture::Texture2d, DrawParameters, Blend, PolygonMode};
 
-use crate::render::{Fonts, Renderable, TransformStack, drawing::RenderTarget};
+use crate::render::drawing::RenderTarget;
 
 pub struct ClientChunk {
     pub chunk_x: i32,
@@ -419,38 +419,10 @@ impl ChunkGraphics {
         target: &mut RenderTarget,
         _settings: &Settings,
     ) {
-        let chunk_rect = Rect::new_wh(
-            0,
-            0,
-            CHUNK_SIZE,
-            CHUNK_SIZE,
-        ).into_f32();
-
         if self.texture.is_none() {
             let image = glium::texture::RawImage2d::from_raw_rgba((&self.pixel_data).to_vec(), (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
             self.texture = Some(Texture2d::new(&target.display, image).unwrap());
         }
-
-        // let tex = self.texture.get_or_insert_with(|| {
-        //     let image = glium::texture::RawImage2d::from_raw_rgba((&self.pixel_data).to_vec(), (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
-        //     Texture2d::new(&target.display, image).unwrap()
-        // });
-
-        // target.draw_texture(
-        //     chunk_rect,
-        //     tex,
-        //     DrawParameters {
-        //         blend: Blend::alpha_blending(),
-        //         ..Default::default()
-        //     }
-        // );
-        // texture.write(rect, data)
-        
-        // if let Some(tex) = &self.texture {
-        //     // tex.blit_rect(None, target, Some(chunk_rect.into_sdl()));
-        // } else {
-        //     // target.rectangle_filled2(chunk_rect.into_sdl(), Color::rgb(127, 0, 0).into_sdl());
-        // }
     }
 }
 

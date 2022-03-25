@@ -1,9 +1,8 @@
-use std::sync::Arc;
+
 
 use fs_common::game::common::{world::{material::Color, particle::Particle, CHUNK_SIZE}, Rect};
-use glium::{Frame, Surface, SwapBuffersError, Display, DrawParameters, IndexBuffer, PolygonMode, index::NoIndices, uniform, Program, Texture2d, texture::{Texture2dArray}, implement_vertex, Blend};
+use glium::{Frame, Surface, SwapBuffersError, Display, DrawParameters, IndexBuffer, PolygonMode, index::NoIndices, uniform, Texture2d, texture::{Texture2dArray}, implement_vertex, Blend};
 use glium_glyph::{GlyphBrush, glyph_brush::Section};
-use glutin::window::Window;
 
 use super::{TransformStack, vertex::{Vertex2, Vertex2C, Vertex2T, Vertex2TA}, shaders::Shaders};
 

@@ -1,22 +1,22 @@
-use std::{cell::RefCell, fs, sync::Arc};
+use std::fs;
 
 use fs_common::game::{
     common::{world::material::Color, FileHelper, Rect},
     GameData,
 };
-use glium::{Display, Surface, Frame, DrawParameters, PolygonMode, Blend};
+use glium::{Display, DrawParameters, PolygonMode, Blend};
 use glium_glyph::{glyph_brush::{rusttype::Font, Section}, GlyphBrush};
 use glutin::{dpi::LogicalSize, event_loop::EventLoop};
 use imgui::WindowFlags;
 use imgui_winit_support::{WinitPlatform, HiDpiMode};
 
 use crate::{
-    render::{imgui::DebugUI},
+    render::imgui::DebugUI,
     world::{ClientChunk, WorldRenderer},
     Client,
 };
 
-use super::{TransformStack, drawing::RenderTarget, shaders::Shaders};
+use super::{drawing::RenderTarget, shaders::Shaders};
 
 pub static mut BUILD_DATETIME: Option<&str> = None;
 pub static mut GIT_HASH: Option<&str> = None;
@@ -138,8 +138,9 @@ impl<'a> Renderer<'a> {
             // ui.show_demo_window(&mut true);
 
             if game.settings.debug {
-                let last_vsync = game.settings.vsync;
-                let last_minimize_on_lost_focus = game.settings.minimize_on_lost_focus;
+                // TODO: reimplement vsync for glutin
+                // let last_vsync = game.settings.vsync;
+                // let last_minimize_on_lost_focus = game.settings.minimize_on_lost_focus;
 
                 game.settings.debug_ui(ui);
 

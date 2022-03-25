@@ -63,19 +63,19 @@ impl Color {
     }
 
     pub fn r_f32(&self) -> f32 {
-        self.r as f32 / u8::MAX as f32
+        f32::from(self.r) / f32::from(u8::MAX)
     }
 
     pub fn g_f32(&self) -> f32 {
-        self.g as f32 / u8::MAX as f32
+        f32::from(self.g) / f32::from(u8::MAX)
     }
 
     pub fn b_f32(&self) -> f32 {
-        self.b as f32 / u8::MAX as f32
+        f32::from(self.b) / f32::from(u8::MAX)
     }
 
     pub fn a_f32(&self) -> f32 {
-        self.a as f32 / u8::MAX as f32
+        f32::from(self.a) / f32::from(u8::MAX)
     }
 
     pub const BLACK: Color = Color::rgb_const(0, 0, 0);

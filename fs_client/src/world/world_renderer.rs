@@ -1,6 +1,6 @@
-use glium::{Frame, Display, DrawParameters, PolygonMode, Blend, texture::{Texture2dArray, MipmapsOption}};
+use glium::{DrawParameters, PolygonMode, Blend};
 use rapier2d::prelude::Shape;
-use specs::{prelude::ParallelIterator, rayon::slice::ParallelSlice, Join, ReadStorage, WorldExt};
+use specs::{Join, ReadStorage, WorldExt};
 
 use fs_common::game::common::{
     world::{
@@ -17,7 +17,7 @@ use fs_common::game::common::{
 };
 
 use crate::{
-    render::{Fonts, Renderable, TransformStack, shaders::Shaders, drawing::RenderTarget, rigidbody::FSRigidBodyExt},
+    render::{drawing::RenderTarget, rigidbody::FSRigidBodyExt},
     Client,
 };
 
@@ -314,15 +314,15 @@ impl WorldRenderer {
             // let mut liquid_target = self.liquid_image.get_target();
             // liquid_target.clear();
 
-            for (_handle, fluid) in world.physics.fluid_pipeline.liquid_world.fluids().iter() {
-                for (_idx, particle) in fluid.positions.iter().enumerate() {
-                    let (x, y) = target.transform.transform((
-                        particle.coords[0] * PHYSICS_SCALE,
-                        particle.coords[1] * PHYSICS_SCALE,
-                    ));
-                    // target.circle_filled(x as f32, y as f32, 2.0, Color::CYAN.into_sdl());
-                }
-            }
+            // for (_handle, fluid) in world.physics.fluid_pipeline.liquid_world.fluids().iter() {
+            //     for (_idx, particle) in fluid.positions.iter().enumerate() {
+            //         let (x, y) = target.transform.transform((
+            //             particle.coords[0] * PHYSICS_SCALE,
+            //             particle.coords[1] * PHYSICS_SCALE,
+            //         ));
+            //         // target.circle_filled(x as f32, y as f32, 2.0, Color::CYAN.into_sdl());
+            //     }
+            // }
 
             // if let Some(particle_system) = world.lqf_world.get_particle_system_list() {
             //     let particle_count = particle_system.get_particle_count();
@@ -460,7 +460,7 @@ impl WorldRenderer {
                             }
                         );
                     }
-                } else if let Some(poly) = shape.as_convex_polygon() {
+                } else if let Some(_poly) = shape.as_convex_polygon() {
                     // target.polygon(
                     //     poly.points()
                     //         .iter()
