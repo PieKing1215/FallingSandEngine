@@ -12,7 +12,7 @@ env:
 jobs:
   build:
     runs-on: windows-latest
-
+    
     steps:
     - uses: actions/checkout@v2
     - uses: benjlevesque/short-sha@v1.2
@@ -32,11 +32,11 @@ jobs:
       
     - name: Build and package
       run: sh package.sh
-  
+
     - name: Run UPX
-      uses: svenstaro/upx-action@v2
+      uses: crazy-max/ghaction-upx@v1
       with:
-        file: package/fs_main.exe
+        files: package/fs_main.exe
       
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v3.0.0

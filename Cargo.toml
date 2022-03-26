@@ -12,3 +12,8 @@ opt-level = 1
 
 [profile.release]
 incremental = true
+
+[profile.release-lto]
+inherits = "release"
+incremental = false
+lto = true
