@@ -1,8 +1,5 @@
 use super::world::material::MaterialInstance;
 use serde::{Deserialize, Serialize};
-use serde_big_array::big_array;
-
-big_array! { BigArray; }
 
 #[derive(Serialize, Deserialize)]
 pub struct Packet {
