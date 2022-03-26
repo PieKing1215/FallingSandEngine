@@ -32,6 +32,11 @@ jobs:
       
     - name: Build and package
       run: sh package.sh
+  
+    - name: Run UPX
+      uses: svenstaro/upx-action@v2
+      with:
+        file: package/fs_main.exe
       
     - name: Upload a Build Artifact
       uses: actions/upload-artifact@v3.0.0
