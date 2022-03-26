@@ -11,13 +11,15 @@ env:
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v2
     - uses: benjlevesque/short-sha@v1.2
       id: short-sha
+    
+    - name: Install cargo-lichking
+      run: cargo install cargo-lichking
     
     - name: Build
       run: cargo build --verbose
@@ -33,3 +35,31 @@ jobs:
       with:
         name: "fss-${{ steps.short-sha.outputs.sha }}"
         path: package/
+  
+  steam-publish:
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - uses: benjlevesque/short-sha@v1.2
+      id: short-sha
+      
+    - name: Download a Build Artifact
+      uses: actions/download-artifact@v3.0.0
+      with:
+        name: "fss-${{ steps.short-sha.outputs.sha }}"
+        path: package/
+        
+    - name: Steam Deploy
+      uses: game-ci/steam-deploy@v1.1.0
+      with:
+        username: ${{ secrets.STEAM_USERNAME }}
+        password: ${{ secrets.STEAM_PASSWORD }}
+        configVdf: ${{ secrets.STEAM_CONFIG_VDF}}
+        ssfnFileName: ${{ secrets.STEAM_SSFN_FILE_NAME }}
+        ssfnFileContents: ${{ secrets.STEAM_SSFN_FILE_CONTENTS }}
+        appId: 1284340
+        buildDescription: "nightly-${{ steps.short-sha.outputs.sha }}"
+        rootPath: package
+        depot1Path: .
+        releaseBranch: nightly
