@@ -17,9 +17,12 @@ jobs:
     - uses: actions/checkout@v2
     - uses: benjlevesque/short-sha@v1.2
       id: short-sha
+    - uses: Swatinem/rust-cache@v1.3.0
     
     - name: Install cargo-lichking
-      run: cargo install cargo-lichking
+      uses: baptiste0928/cargo-install@v1.2.0
+      with:
+        crate: cargo-lichking
     
     - name: Build
       run: cargo build --verbose
