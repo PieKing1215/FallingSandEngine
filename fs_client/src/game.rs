@@ -21,7 +21,7 @@ use rapier2d::{
 };
 use salva2d::{integrations::rapier::ColliderSampling, object::Boundary};
 use specs::{Builder, Join, ReadStorage, WorldExt, WriteStorage};
-use sysinfo::{Pid, ProcessExt, SystemExt};
+use sysinfo::{ProcessExt, SystemExt};
 
 use fs_common::game::{
     common::{
