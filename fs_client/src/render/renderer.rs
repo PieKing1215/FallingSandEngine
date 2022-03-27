@@ -1,5 +1,6 @@
 use std::fs;
 
+use egui::{Align2, WidgetText, RichText, plot::HLine};
 use fs_common::game::{
     common::{world::material::Color, FileHelper, Rect},
     GameData,
@@ -10,11 +11,9 @@ use glium_glyph::{
     GlyphBrush,
 };
 use glutin::{dpi::LogicalSize, event_loop::EventLoop};
-use imgui::WindowFlags;
-use imgui_winit_support::{HiDpiMode, WinitPlatform};
 
 use crate::{
-    render::imgui::DebugUI,
+    render::egui::DebugUI,
     world::{ClientChunk, WorldRenderer},
     Client,
 };
@@ -30,9 +29,7 @@ pub struct Renderer<'a> {
     pub shaders: Shaders,
     pub display: Display,
     pub world_renderer: WorldRenderer,
-    pub imgui: imgui::Context,
-    pub imgui_platform: WinitPlatform,
-    pub imgui_renderer: imgui_glium_renderer::Renderer,
+    pub egui_glium: egui_glium::EguiGlium,
     // pub version_info_cache_1: Option<(u32, u32, GPUImage)>,
     // pub version_info_cache_2: Option<(u32, u32, GPUImage)>,
 }
@@ -50,31 +47,9 @@ impl<'a> Renderer<'a> {
         let cb = glutin::ContextBuilder::new();
         let display = glium::Display::new(wb, cb, event_loop).unwrap();
 
-        let mut imgui = imgui::Context::create();
-        imgui.set_ini_filename(None);
-
-        let mut imgui_platform = WinitPlatform::init(&mut imgui);
-        {
-            let gl_window = display.gl_window();
-            let window = gl_window.window();
-
-            imgui_platform.attach_window(imgui.io_mut(), window, HiDpiMode::Default);
-        }
+        let egui_glium = egui_glium::EguiGlium::new(&display);
 
         log::info!("glversion = {:?}", display.get_opengl_version());
-        let imgui_renderer = imgui_glium_renderer::Renderer::init(&mut imgui, &display).unwrap();
-        // let imgui_sdl2 = SdlPlatform::init(&mut imgui);
-
-        // let shaders = Shaders {
-        //     liquid_shader: Shader::load_shader_program(
-        //         fs::read_to_string(file_helper.asset_path("data/shaders/common.vert"))
-        //             .map_err(|e| e.to_string())?
-        //             .as_str(),
-        //         fs::read_to_string(file_helper.asset_path("data/shaders/liquid.frag"))
-        //             .map_err(|e| e.to_string())?
-        //             .as_str(),
-        //     )?,
-        // };
 
         let shaders = Shaders::new(&display, file_helper);
 
@@ -89,9 +64,7 @@ impl<'a> Renderer<'a> {
             shaders,
             display,
             world_renderer: WorldRenderer::new(),
-            imgui,
-            imgui_platform,
-            imgui_renderer,
+            egui_glium,
             // version_info_cache_1: None,
             // version_info_cache_2: None,
         })
@@ -143,139 +116,167 @@ impl<'a> Renderer<'a> {
         }
 
         {
-            profiling::scope!("imgui");
-            let ui = self.imgui.new_frame();
+            profiling::scope!("egui");
 
-            // ui.show_demo_window(&mut true);
+            self.egui_glium.run(&self.display, |egui_ctx| {
+                if game.settings.debug {
+                    // TODO: reimplement vsync for glutin
+                    // let last_vsync = game.settings.vsync;
+                    // let last_minimize_on_lost_focus = game.settings.minimize_on_lost_focus;
 
-            if game.settings.debug {
-                // TODO: reimplement vsync for glutin
-                // let last_vsync = game.settings.vsync;
-                // let last_minimize_on_lost_focus = game.settings.minimize_on_lost_focus;
+                    game.settings.debug_ui(egui_ctx);
 
-                game.settings.debug_ui(ui);
+                    // TODO: this should be somewhere better
+                    // maybe clone the Settings before each frame and at the end compare it?
 
-                // TODO: this should be somewhere better
-                // maybe clone the Settings before each frame and at the end compare it?
+                    // if game.settings.vsync != last_vsync {
+                    //     let si_des = if game.settings.vsync {
+                    //         SwapInterval::VSync
+                    //     } else {
+                    //         SwapInterval::Immediate
+                    //     };
 
-                // if game.settings.vsync != last_vsync {
-                //     let si_des = if game.settings.vsync {
-                //         SwapInterval::VSync
-                //     } else {
-                //         SwapInterval::Immediate
-                //     };
+                    //     self.sdl.as_ref().unwrap().sdl_video.gl_set_swap_interval(si_des).unwrap();
+                    // }
 
-                //     self.sdl.as_ref().unwrap().sdl_video.gl_set_swap_interval(si_des).unwrap();
-                // }
+                    // if last_minimize_on_lost_focus != game.settings.minimize_on_lost_focus {
+                    //     sdl2::hint::set_video_minimize_on_focus_loss(
+                    //         game.settings.minimize_on_lost_focus,
+                    //     );
+                    // }
+                }
 
-                // if last_minimize_on_lost_focus != game.settings.minimize_on_lost_focus {
-                //     sdl2::hint::set_video_minimize_on_focus_loss(
-                //         game.settings.minimize_on_lost_focus,
-                //     );
-                // }
-            }
-
-            client.main_menu.render(ui, &game.file_helper);
-
-            ui.window("Stats")
-                .size([300.0, 300.0], imgui::Condition::FirstUseEver)
-                .position_pivot([1.0, 1.0])
-                .position(
-                    [target.width() as f32, target.height() as f32],
-                    imgui::Condition::Always,
-                )
-                .flags(
-                    WindowFlags::ALWAYS_AUTO_RESIZE
-                        | WindowFlags::NO_DECORATION
-                        | WindowFlags::NO_MOUSE_INPUTS
-                        | WindowFlags::NO_FOCUS_ON_APPEARING
-                        | WindowFlags::NO_NAV,
-                )
-                .bg_alpha(0.25)
-                .resizable(false)
-                .build(|| {
-                    ui.text(match game.process_stats.cpu_usage {
+                egui::Window::new("stats")
+                .title_bar(false)
+                .anchor(Align2::RIGHT_BOTTOM, [0.0, 0.0])
+                .default_pos([target.width() as f32, target.height() as f32])
+                .default_width(200.0)
+                .show(egui_ctx, |ui| {
+                    let a = match game.process_stats.cpu_usage {
                         Some(c) => format!("CPU: {:.0}%", c),
                         None => "CPU: n/a".to_string(),
-                    });
-                    ui.same_line();
-                    ui.text(match game.process_stats.memory {
+                    };
+                    let b = match game.process_stats.memory {
                         Some(m) => format!(" mem: {:.1} MB", m as f32 / 1000.0),
                         None => " mem: n/a".to_string(),
-                    });
+                    };
 
-                    let nums: Vec<&f32> = game
+                    let text = format!("{a} {b}");
+
+                    ui.label(text);
+
+                    let nums: Vec<f32> = game
                         .fps_counter
                         .frame_times
                         .iter()
                         .filter(|n| **n != 0.0)
+                        .map(|f| *f / 1_000_000.0)
                         .collect();
                     let avg_mspf: f32 =
-                        nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+                        nums.iter().sum::<f32>() / nums.len() as f32;
 
-                    ui.plot_lines("", &game.fps_counter.frame_times)
-                        .graph_size([200.0, 50.0])
-                        .scale_min(0.0)
-                        .scale_max(50_000_000.0)
-                        .overlay_text(format!(
-                            "mspf: {:.2} fps: {:.0}/{:.0}",
-                            avg_mspf,
-                            ui.io().framerate,
-                            1_000_000_000.0
-                                / game
-                                    .fps_counter
-                                    .frame_times
-                                    .iter()
-                                    .copied()
-                                    .reduce(f32::max)
-                                    .unwrap()
-                        ))
-                        .build();
+                    let chart = egui::plot::BarChart::new(nums.iter().enumerate().map(|(i, v)| egui::plot::Bar::new(i as f64, *v as f64)).collect());
+                    
+                    egui::plot::Plot::new("frame_times")
+                    .view_aspect(3.0)
+                    .allow_drag(false)
+                    .allow_zoom(false)
+                    .allow_boxed_zoom(false)
+                    .show_axes([false, true])
+                    .include_y(50.0)
+                    .show(ui, |plot_ui| {
+                        plot_ui.text(
+                            egui::plot::Text::new(
+                                egui::plot::Value::new(nums.len() as f32 / 2.0, 45.0),
+                            WidgetText::RichText(RichText::new(
+                                format!(
+                                    "mspf: {:.2} fps: {:.0}/{:.0}",
+                                    avg_mspf,
+                                    1000.0 / avg_mspf,
+                                    1_000_000_000.0
+                                        / game
+                                            .fps_counter
+                                            .frame_times
+                                            .iter()
+                                            .copied()
+                                            .reduce(f32::max)
+                                            .unwrap()
+                                )
+                            ).size(14.0))
+                        ));
+                        plot_ui.hline(HLine::new(1000.0 / 144.0).name("144"));
+                        plot_ui.hline(HLine::new(1000.0 / 60.0).name("60"));
+                        plot_ui.hline(HLine::new(1000.0 / 30.0).name("30"));
+                        plot_ui.bar_chart(chart);
+                    });
 
-                    let nums: Vec<&f32> = game
+                    let nums: Vec<f32> = game
                         .fps_counter
                         .tick_times
                         .iter()
                         .filter(|n| **n != 0.0)
+                        .map(|f| *f / 1_000_000.0)
                         .collect();
                     let avg_mspt: f32 =
-                        nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+                        nums.iter().sum::<f32>() / nums.len() as f32;
 
-                    ui.plot_histogram("", &game.fps_counter.tick_times)
-                        .graph_size([200.0, 50.0])
-                        .scale_min(0.0)
-                        .scale_max(100_000_000.0)
-                        .overlay_text(format!("tick mspt: {:.2}", avg_mspt))
-                        .build();
-
-                    let nums: Vec<&f32> = game
+                    let chart = egui::plot::BarChart::new(nums.iter().enumerate().map(|(i, v)| egui::plot::Bar::new(i as f64, *v as f64)).collect());
+                    
+                    egui::plot::Plot::new("tick_mspt")
+                    .view_aspect(3.0)
+                    .allow_drag(false)
+                    .allow_zoom(false)
+                    .allow_boxed_zoom(false)
+                    .show_axes([false, true])
+                    .include_y(30.0)
+                    .show(ui, |plot_ui| {
+                        plot_ui.text(
+                            egui::plot::Text::new(
+                                egui::plot::Value::new(nums.len() as f32 / 2.0, 27.0),
+                            WidgetText::RichText(RichText::new(
+                                format!("tick mspt: {:.2}", avg_mspt)
+                            ).size(14.0))
+                        ));
+                        plot_ui.bar_chart(chart)
+                    });
+                    
+                    let nums: Vec<f32> = game
                         .fps_counter
                         .tick_physics_times
                         .iter()
                         .filter(|n| **n != 0.0)
+                        .map(|f| *f / 1_000_000.0)
                         .collect();
                     let avg_mspt_physics: f32 =
-                        nums.iter().map(|f| *f / 1_000_000.0).sum::<f32>() / nums.len() as f32;
+                        nums.iter().sum::<f32>() / nums.len() as f32;
 
-                    ui.plot_histogram("", &game.fps_counter.tick_physics_times)
-                        .graph_size([200.0, 50.0])
-                        .scale_min(0.0)
-                        .scale_max(100_000_000.0)
-                        .overlay_text(format!("phys mspt: {:.2}", avg_mspt_physics))
-                        .build();
+                    let chart = egui::plot::BarChart::new(nums.iter().enumerate().map(|(i, v)| egui::plot::Bar::new(i as f64, *v as f64)).collect());
+                    
+                    egui::plot::Plot::new("phys_mspt")
+                    .view_aspect(3.0)
+                    .allow_drag(false)
+                    .allow_zoom(false)
+                    .allow_boxed_zoom(false)
+                    .show_axes([false, true])
+                    .include_y(10.0)
+                    .show(ui, |plot_ui| {
+                        plot_ui.text(
+                            egui::plot::Text::new(
+                                egui::plot::Value::new(nums.len() as f32 / 2.0, 9.0),
+                            WidgetText::RichText(RichText::new(
+                                format!("phys mspt: {:.2}", avg_mspt_physics)
+                            ).size(14.0))
+                        ));
+                        plot_ui.bar_chart(chart)
+                    });
                 });
 
-            let draw_data = {
-                profiling::scope!("prepare_render");
-                self.imgui_platform
-                    .prepare_render(ui, self.display.gl_window().window());
-                self.imgui.render()
-            };
+                client.main_menu.render(egui_ctx, &game.file_helper);
+            });
+                
             {
-                profiling::scope!("render");
-                self.imgui_renderer
-                    .render(&mut target.frame, draw_data)
-                    .unwrap();
+                profiling::scope!("egui_glium::paint");
+                self.egui_glium.paint(&self.display, &mut target.frame);
             }
         }
 

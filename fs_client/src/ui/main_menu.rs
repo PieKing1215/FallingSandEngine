@@ -1,7 +1,5 @@
 use std::path::PathBuf;
 
-use imgui::WindowFlags;
-
 use fs_common::game::{
     self,
     common::{
@@ -32,28 +30,32 @@ pub enum MainMenuAction {
 impl MainMenu {
     fn draw_worlds(
         tree: &WorldTreeNode<PathBuf, (PathBuf, WorldMeta)>,
-        ui: &imgui::Ui,
+        ui: &mut egui::Ui,
     ) -> Option<PathBuf> {
         match tree {
             WorldTreeNode::Folder(p, ch) => {
                 // TODO: actually implement collapsing
-                if !ui.button_with_size(
+                if !ui.button(
                     p.file_name()
-                        .map_or_else(|| "..", |o| o.to_str().unwrap_or("!! NON UTF-8 !!")),
-                    [200.0, 20.0],
-                ) {
-                    ui.indent();
-                    for tr in ch {
-                        let res = Self::draw_worlds(tr, ui);
-                        if res.is_some() {
-                            return res;
+                        .map_or_else(|| "..", |o| o.to_str().unwrap_or("!! NON UTF-8 !!"))
+                ).clicked() {
+                    let res = ui.indent("a", |ui| {
+                        for tr in ch {
+                            let res = Self::draw_worlds(tr, ui);
+                            if res.is_some() {
+                                return res;
+                            }
                         }
+                        None
+                    }).inner;
+
+                    if res.is_some() {
+                        return res;
                     }
-                    ui.unindent();
                 }
             },
             WorldTreeNode::World((p, m)) => {
-                if ui.button_with_size(
+                if ui.button(
                     format!(
                         "{}\n{} - {}",
                         m.name,
@@ -62,9 +64,8 @@ impl MainMenu {
                             .file_name()
                             .map_or_else(|| "..", |o| o.to_str().unwrap_or("!! NON UTF-8 !!")),
                         m.last_played_time
-                    ),
-                    [300.0, 40.0],
-                ) {
+                    )
+                ).clicked() {
                     return Some(p.clone());
                 }
             },
@@ -72,17 +73,15 @@ impl MainMenu {
         None
     }
 
-    pub fn render(&mut self, ui: &imgui::Ui, file_helper: &FileHelper) {
-        ui.window("Main Menu")
-            .size([300.0, 600.0], imgui::Condition::FirstUseEver)
-            .flags(WindowFlags::ALWAYS_AUTO_RESIZE)
-            .resizable(false)
-            .position([400.0, 200.0], imgui::Condition::FirstUseEver)
-            .build(|| {
-                let mut new_state = None;
+    pub fn render(&mut self, egui_ctx: &egui::Context, file_helper: &FileHelper) {
+
+        egui::Window::new("Main Menu")
+        .resizable(false)
+        .show(egui_ctx, |ui| {
+            let mut new_state = None;
                 match &self.state {
                     MainMenuState::Main => {
-                        if ui.button_with_size("Singleplayer", [100.0, 50.0]) {
+                        if ui.button("Singleplayer").clicked() {
                             let worlds = game::common::world::World::<ClientChunk>::find_files(
                                 file_helper.game_path("saves/"),
                             )
@@ -97,12 +96,12 @@ impl MainMenu {
 
                             new_state = Some(MainMenuState::WorldSelect { context: metas });
                         }
-                        if ui.button_with_size("Quit", [100.0, 50.0]) {
+                        if ui.button("Quit").clicked() {
                             self.action_queue.push(MainMenuAction::Quit);
                         }
                     },
                     MainMenuState::WorldSelect { context } => {
-                        if ui.button_with_size("Back", [50.0, 20.0]) {
+                        if ui.button("Back").clicked() {
                             new_state = Some(MainMenuState::Main);
                         }
                         if let Some(choice) = Self::draw_worlds(context, ui) {
@@ -115,6 +114,6 @@ impl MainMenu {
                 if let Some(new_state) = new_state {
                     self.state = new_state;
                 }
-            });
+        });
     }
 }

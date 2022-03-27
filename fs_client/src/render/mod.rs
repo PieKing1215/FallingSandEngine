@@ -9,7 +9,7 @@ pub use renderer::*;
 
 use self::drawing::RenderTarget;
 
-mod imgui;
+mod egui;
 
 // use sdl_gpu::GPUTarget;
 

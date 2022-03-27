@@ -141,10 +141,11 @@ impl ClientGame {
                         *control_flow = glutin::event_loop::ControlFlow::Exit;
                     },
                     _ => {
-                        renderer.imgui_platform.handle_event(renderer.imgui.io_mut(), renderer.display.gl_window().window(), &event);
-                        let client_consumed_event = self.client.on_event(w_event);
+                        if renderer.egui_glium.on_event(w_event) {
+                            return;
+                        }
 
-                        if client_consumed_event {
+                        if self.client.on_event(w_event) {
                             return;
                         }
 
@@ -401,15 +402,6 @@ impl ClientGame {
                     let now = std::time::Instant::now();
                     let delta = now.saturating_duration_since(last_frame);
                     last_frame = now;
-                    {
-                        profiling::scope!("prep frame");
-
-                        renderer.imgui_platform.prepare_frame(renderer.imgui.io_mut(), renderer.display.gl_window().window()).unwrap();
-
-                        let delta_s =
-                            delta.as_secs() as f32 + delta.subsec_nanos() as f32 / 1_000_000_000.0;
-                        renderer.imgui.io_mut().delta_time = delta_s;
-                    }
 
                     {
                         profiling::scope!("update window mode");
