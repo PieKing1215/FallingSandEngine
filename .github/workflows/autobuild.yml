@@ -45,6 +45,7 @@ jobs:
         path: package/
   
   steam-publish:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     needs: build
     
