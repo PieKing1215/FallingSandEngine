@@ -1,6 +1,6 @@
 use std::fs;
 
-use egui::{Align2, WidgetText, RichText, plot::HLine};
+use egui::{plot::HLine, Align2, RichText, WidgetText};
 use fs_common::game::{
     common::{world::material::Color, FileHelper, Rect},
     GameData,
@@ -147,133 +147,148 @@ impl<'a> Renderer<'a> {
                 }
 
                 egui::Window::new("stats")
-                .title_bar(false)
-                .anchor(Align2::RIGHT_BOTTOM, [0.0, 0.0])
-                .default_pos([target.width() as f32, target.height() as f32])
-                .default_width(200.0)
-                .show(egui_ctx, |ui| {
-                    let a = match game.process_stats.cpu_usage {
-                        Some(c) => format!("CPU: {:.0}%", c),
-                        None => "CPU: n/a".to_string(),
-                    };
-                    let b = match game.process_stats.memory {
-                        Some(m) => format!(" mem: {:.1} MB", m as f32 / 1000.0),
-                        None => " mem: n/a".to_string(),
-                    };
+                    .title_bar(false)
+                    .anchor(Align2::RIGHT_BOTTOM, [0.0, 0.0])
+                    .default_pos([target.width() as f32, target.height() as f32])
+                    .default_width(200.0)
+                    .show(egui_ctx, |ui| {
+                        let a = match game.process_stats.cpu_usage {
+                            Some(c) => format!("CPU: {:.0}%", c),
+                            None => "CPU: n/a".to_string(),
+                        };
+                        let b = match game.process_stats.memory {
+                            Some(m) => format!(" mem: {:.1} MB", m as f32 / 1000.0),
+                            None => " mem: n/a".to_string(),
+                        };
 
-                    let text = format!("{a} {b}");
+                        let text = format!("{a} {b}");
 
-                    ui.label(text);
+                        ui.label(text);
 
-                    let nums: Vec<f32> = game
-                        .fps_counter
-                        .frame_times
-                        .iter()
-                        .filter(|n| **n != 0.0)
-                        .map(|f| *f / 1_000_000.0)
-                        .collect();
-                    let avg_mspf: f32 =
-                        nums.iter().sum::<f32>() / nums.len() as f32;
+                        let nums: Vec<f32> = game
+                            .fps_counter
+                            .frame_times
+                            .iter()
+                            .filter(|n| **n != 0.0)
+                            .map(|f| *f / 1_000_000.0)
+                            .collect();
+                        let avg_mspf: f32 = nums.iter().sum::<f32>() / nums.len() as f32;
 
-                    let chart = egui::plot::BarChart::new(nums.iter().enumerate().map(|(i, v)| egui::plot::Bar::new(i as f64, *v as f64)).collect());
-                    
-                    egui::plot::Plot::new("frame_times")
-                    .view_aspect(3.0)
-                    .allow_drag(false)
-                    .allow_zoom(false)
-                    .allow_boxed_zoom(false)
-                    .show_axes([false, true])
-                    .include_y(50.0)
-                    .show(ui, |plot_ui| {
-                        plot_ui.text(
-                            egui::plot::Text::new(
-                                egui::plot::Value::new(nums.len() as f32 / 2.0, 45.0),
-                            WidgetText::RichText(RichText::new(
-                                format!(
-                                    "mspf: {:.2} fps: {:.0}/{:.0}",
-                                    avg_mspf,
-                                    1000.0 / avg_mspf,
-                                    1_000_000_000.0
-                                        / game
-                                            .fps_counter
-                                            .frame_times
-                                            .iter()
-                                            .copied()
-                                            .reduce(f32::max)
-                                            .unwrap()
-                                )
-                            ).size(14.0))
-                        ));
-                        plot_ui.hline(HLine::new(1000.0 / 144.0).name("144"));
-                        plot_ui.hline(HLine::new(1000.0 / 60.0).name("60"));
-                        plot_ui.hline(HLine::new(1000.0 / 30.0).name("30"));
-                        plot_ui.bar_chart(chart);
+                        let chart = egui::plot::BarChart::new(
+                            nums.iter()
+                                .enumerate()
+                                .map(|(i, v)| egui::plot::Bar::new(i as f64, *v as f64))
+                                .collect(),
+                        );
+
+                        egui::plot::Plot::new("frame_times")
+                            .view_aspect(3.0)
+                            .allow_drag(false)
+                            .allow_zoom(false)
+                            .allow_boxed_zoom(false)
+                            .show_axes([false, true])
+                            .include_y(50.0)
+                            .show(ui, |plot_ui| {
+                                plot_ui.text(egui::plot::Text::new(
+                                    egui::plot::Value::new(nums.len() as f32 / 2.0, 45.0),
+                                    WidgetText::RichText(
+                                        RichText::new(format!(
+                                            "mspf: {:.2} fps: {:.0}/{:.0}",
+                                            avg_mspf,
+                                            1000.0 / avg_mspf,
+                                            1_000_000_000.0
+                                                / game
+                                                    .fps_counter
+                                                    .frame_times
+                                                    .iter()
+                                                    .copied()
+                                                    .reduce(f32::max)
+                                                    .unwrap()
+                                        ))
+                                        .size(14.0),
+                                    ),
+                                ));
+                                plot_ui.hline(HLine::new(1000.0 / 144.0).name("144"));
+                                plot_ui.hline(HLine::new(1000.0 / 60.0).name("60"));
+                                plot_ui.hline(HLine::new(1000.0 / 30.0).name("30"));
+                                plot_ui.bar_chart(chart);
+                            });
+
+                        let nums: Vec<f32> = game
+                            .fps_counter
+                            .tick_times
+                            .iter()
+                            .filter(|n| **n != 0.0)
+                            .map(|f| *f / 1_000_000.0)
+                            .collect();
+                        let avg_mspt: f32 = nums.iter().sum::<f32>() / nums.len() as f32;
+
+                        let chart = egui::plot::BarChart::new(
+                            nums.iter()
+                                .enumerate()
+                                .map(|(i, v)| egui::plot::Bar::new(i as f64, *v as f64))
+                                .collect(),
+                        );
+
+                        egui::plot::Plot::new("tick_mspt")
+                            .view_aspect(3.0)
+                            .allow_drag(false)
+                            .allow_zoom(false)
+                            .allow_boxed_zoom(false)
+                            .show_axes([false, true])
+                            .include_y(30.0)
+                            .show(ui, |plot_ui| {
+                                plot_ui.text(egui::plot::Text::new(
+                                    egui::plot::Value::new(nums.len() as f32 / 2.0, 27.0),
+                                    WidgetText::RichText(
+                                        RichText::new(format!("tick mspt: {:.2}", avg_mspt))
+                                            .size(14.0),
+                                    ),
+                                ));
+                                plot_ui.bar_chart(chart)
+                            });
+
+                        let nums: Vec<f32> = game
+                            .fps_counter
+                            .tick_physics_times
+                            .iter()
+                            .filter(|n| **n != 0.0)
+                            .map(|f| *f / 1_000_000.0)
+                            .collect();
+                        let avg_mspt_physics: f32 = nums.iter().sum::<f32>() / nums.len() as f32;
+
+                        let chart = egui::plot::BarChart::new(
+                            nums.iter()
+                                .enumerate()
+                                .map(|(i, v)| egui::plot::Bar::new(i as f64, *v as f64))
+                                .collect(),
+                        );
+
+                        egui::plot::Plot::new("phys_mspt")
+                            .view_aspect(3.0)
+                            .allow_drag(false)
+                            .allow_zoom(false)
+                            .allow_boxed_zoom(false)
+                            .show_axes([false, true])
+                            .include_y(10.0)
+                            .show(ui, |plot_ui| {
+                                plot_ui.text(egui::plot::Text::new(
+                                    egui::plot::Value::new(nums.len() as f32 / 2.0, 9.0),
+                                    WidgetText::RichText(
+                                        RichText::new(format!(
+                                            "phys mspt: {:.2}",
+                                            avg_mspt_physics
+                                        ))
+                                        .size(14.0),
+                                    ),
+                                ));
+                                plot_ui.bar_chart(chart)
+                            });
                     });
-
-                    let nums: Vec<f32> = game
-                        .fps_counter
-                        .tick_times
-                        .iter()
-                        .filter(|n| **n != 0.0)
-                        .map(|f| *f / 1_000_000.0)
-                        .collect();
-                    let avg_mspt: f32 =
-                        nums.iter().sum::<f32>() / nums.len() as f32;
-
-                    let chart = egui::plot::BarChart::new(nums.iter().enumerate().map(|(i, v)| egui::plot::Bar::new(i as f64, *v as f64)).collect());
-                    
-                    egui::plot::Plot::new("tick_mspt")
-                    .view_aspect(3.0)
-                    .allow_drag(false)
-                    .allow_zoom(false)
-                    .allow_boxed_zoom(false)
-                    .show_axes([false, true])
-                    .include_y(30.0)
-                    .show(ui, |plot_ui| {
-                        plot_ui.text(
-                            egui::plot::Text::new(
-                                egui::plot::Value::new(nums.len() as f32 / 2.0, 27.0),
-                            WidgetText::RichText(RichText::new(
-                                format!("tick mspt: {:.2}", avg_mspt)
-                            ).size(14.0))
-                        ));
-                        plot_ui.bar_chart(chart)
-                    });
-                    
-                    let nums: Vec<f32> = game
-                        .fps_counter
-                        .tick_physics_times
-                        .iter()
-                        .filter(|n| **n != 0.0)
-                        .map(|f| *f / 1_000_000.0)
-                        .collect();
-                    let avg_mspt_physics: f32 =
-                        nums.iter().sum::<f32>() / nums.len() as f32;
-
-                    let chart = egui::plot::BarChart::new(nums.iter().enumerate().map(|(i, v)| egui::plot::Bar::new(i as f64, *v as f64)).collect());
-                    
-                    egui::plot::Plot::new("phys_mspt")
-                    .view_aspect(3.0)
-                    .allow_drag(false)
-                    .allow_zoom(false)
-                    .allow_boxed_zoom(false)
-                    .show_axes([false, true])
-                    .include_y(10.0)
-                    .show(ui, |plot_ui| {
-                        plot_ui.text(
-                            egui::plot::Text::new(
-                                egui::plot::Value::new(nums.len() as f32 / 2.0, 9.0),
-                            WidgetText::RichText(RichText::new(
-                                format!("phys mspt: {:.2}", avg_mspt_physics)
-                            ).size(14.0))
-                        ));
-                        plot_ui.bar_chart(chart)
-                    });
-                });
 
                 client.main_menu.render(egui_ctx, &game.file_helper);
             });
-                
+
             {
                 profiling::scope!("egui_glium::paint");
                 self.egui_glium.paint(&self.display, &mut target.frame);

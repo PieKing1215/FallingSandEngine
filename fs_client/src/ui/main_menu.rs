@@ -35,19 +35,24 @@ impl MainMenu {
         match tree {
             WorldTreeNode::Folder(p, ch) => {
                 // TODO: actually implement collapsing
-                if !ui.button(
-                    p.file_name()
-                        .map_or_else(|| "..", |o| o.to_str().unwrap_or("!! NON UTF-8 !!"))
-                ).clicked() {
-                    let res = ui.indent("a", |ui| {
-                        for tr in ch {
-                            let res = Self::draw_worlds(tr, ui);
-                            if res.is_some() {
-                                return res;
+                if !ui
+                    .button(
+                        p.file_name()
+                            .map_or_else(|| "..", |o| o.to_str().unwrap_or("!! NON UTF-8 !!")),
+                    )
+                    .clicked()
+                {
+                    let res = ui
+                        .indent("a", |ui| {
+                            for tr in ch {
+                                let res = Self::draw_worlds(tr, ui);
+                                if res.is_some() {
+                                    return res;
+                                }
                             }
-                        }
-                        None
-                    }).inner;
+                            None
+                        })
+                        .inner;
 
                     if res.is_some() {
                         return res;
@@ -55,8 +60,8 @@ impl MainMenu {
                 }
             },
             WorldTreeNode::World((p, m)) => {
-                if ui.button(
-                    format!(
+                if ui
+                    .button(format!(
                         "{}\n{} - {}",
                         m.name,
                         p.parent()
@@ -64,8 +69,9 @@ impl MainMenu {
                             .file_name()
                             .map_or_else(|| "..", |o| o.to_str().unwrap_or("!! NON UTF-8 !!")),
                         m.last_played_time
-                    )
-                ).clicked() {
+                    ))
+                    .clicked()
+                {
                     return Some(p.clone());
                 }
             },
@@ -74,11 +80,10 @@ impl MainMenu {
     }
 
     pub fn render(&mut self, egui_ctx: &egui::Context, file_helper: &FileHelper) {
-
         egui::Window::new("Main Menu")
-        .resizable(false)
-        .show(egui_ctx, |ui| {
-            let mut new_state = None;
+            .resizable(false)
+            .show(egui_ctx, |ui| {
+                let mut new_state = None;
                 match &self.state {
                     MainMenuState::Main => {
                         if ui.button("Singleplayer").clicked() {
@@ -114,6 +119,6 @@ impl MainMenu {
                 if let Some(new_state) = new_state {
                     self.state = new_state;
                 }
-        });
+            });
     }
 }
