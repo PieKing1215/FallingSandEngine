@@ -42,10 +42,3 @@ earcutr = "0.2"
 
 [features]
 profile = ["profiling/profile-with-tracy"]
-
-[dev-dependencies]
-criterion = "0.3"
-
-# [[bench]]
-# name = "benchmark"
-# harness = false

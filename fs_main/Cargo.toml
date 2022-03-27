@@ -11,8 +11,6 @@ categories = ["game-engines", "games"]
 edition = "2021"
 build = "src/build.rs"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 fs_common = { path = "../fs_common" }
 fs_client = { path = "../fs_client" }
