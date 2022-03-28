@@ -2,7 +2,7 @@ use std::fs;
 
 use egui::{plot::HLine, Align2, RichText, WidgetText};
 use fs_common::game::{
-    common::{world::material::Color, FileHelper, Rect},
+    common::{world::{material::Color, Velocity, Position}, FileHelper, Rect},
     GameData,
 };
 use glium::{Blend, Display, DrawParameters, PolygonMode};
@@ -11,6 +11,7 @@ use glium_glyph::{
     GlyphBrush,
 };
 use glutin::{dpi::LogicalSize, event_loop::EventLoop};
+use specs::{ReadStorage};
 
 use crate::{
     render::egui::DebugUI,
@@ -124,7 +125,35 @@ impl<'a> Renderer<'a> {
                     // let last_vsync = game.settings.vsync;
                     // let last_minimize_on_lost_focus = game.settings.minimize_on_lost_focus;
 
-                    game.settings.debug_ui(egui_ctx);
+                    
+                    egui::Window::new("Debug").show(egui_ctx, |ui| {
+                        if let Some(w) = &client.world {
+                            if let Some(eid) = w.local_entity {
+                                if let Some(world) = &game.world {
+                                    let (
+                                        velocity_storage,
+                                        position_storage,
+                                    ) = world.ecs.system_data::<(
+                                        ReadStorage<Velocity>,
+                                        ReadStorage<Position>,
+                                    )>();
+
+                                    let pos = position_storage
+                                        .get(eid)
+                                        .expect("Missing Position component on local_entity");
+
+                                    let vel = velocity_storage
+                                        .get(eid)
+                                        .expect("Missing Velocity component on local_entity");
+
+                                    ui.label(format!("({:.2}, {:.2})", pos.x, pos.y));
+                                    ui.label(format!("({:.2}, {:.2})", vel.x, vel.y));
+                                }
+                            }
+                        }
+
+                        game.settings.debug_ui(ui);
+                    });
 
                     // TODO: this should be somewhere better
                     // maybe clone the Settings before each frame and at the end compare it?
