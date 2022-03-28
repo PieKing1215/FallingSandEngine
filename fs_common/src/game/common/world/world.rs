@@ -20,7 +20,7 @@ use super::{
         CollisionDetector, GameEntity, Hitbox, Persistent, PhysicsEntity, Player,
         UpdatePhysicsEntities,
     },
-    gen::{TestGenerator, TEST_GENERATOR},
+    gen::{TestGenerator, TEST_GENERATOR, biome_test::BiomeTestGenerator},
     material::{Color, MaterialInstance, PhysicsType, AIR, TEST_MATERIAL},
     particle::{Particle, ParticleSystem, UpdateParticles},
     physics::Physics,
@@ -39,7 +39,7 @@ pub enum WorldNetworkMode {
 pub struct World<C: Chunk> {
     pub ecs: specs::World,
     pub path: Option<PathBuf>,
-    pub chunk_handler: ChunkHandler<TestGenerator, C>,
+    pub chunk_handler: ChunkHandler<C>,
     pub net_mode: WorldNetworkMode,
     pub rigidbodies: Vec<FSRigidBody>,
     pub physics: Physics,
@@ -110,7 +110,7 @@ impl<'w, C: Chunk> World<C> {
 
         let mut w = World {
             ecs,
-            chunk_handler: ChunkHandler::new(TEST_GENERATOR, path.clone()),
+            chunk_handler: ChunkHandler::new(BiomeTestGenerator, path.clone()),
             path,
             net_mode: WorldNetworkMode::Local,
             rigidbodies: Vec::new(),

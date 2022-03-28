@@ -8,7 +8,7 @@ use super::WorldGenerator;
 
 pub static TEST_GENERATOR: TestGenerator = TestGenerator {};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct TestGenerator {}
 
 impl WorldGenerator for TestGenerator {

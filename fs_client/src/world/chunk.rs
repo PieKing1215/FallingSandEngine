@@ -428,8 +428,8 @@ pub trait ClientChunkHandlerExt {
     ) -> Result<(), String>;
 }
 
-impl<T: WorldGenerator + Copy + Send + Sync + 'static> ClientChunkHandlerExt
-    for ChunkHandler<T, ClientChunk>
+impl ClientChunkHandlerExt
+    for ChunkHandler<ClientChunk>
 {
     fn sync_chunk(
         &mut self,

@@ -1,4 +1,6 @@
 mod test;
+pub mod biome_test;
+pub mod biome;
 
 use std::usize;
 
@@ -6,7 +8,7 @@ pub use test::*;
 
 use super::{material::MaterialInstance, CHUNK_SIZE};
 
-pub trait WorldGenerator {
+pub trait WorldGenerator: Send + Sync + std::fmt::Debug {
     #[allow(clippy::cast_lossless)]
     fn generate(
         &self,

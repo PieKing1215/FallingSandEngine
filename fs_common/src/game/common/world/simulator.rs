@@ -224,16 +224,14 @@ impl SimulationHelper for SimulationHelperChunk<'_> {
     }
 }
 
-struct SimulationHelperRigidBody<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> {
-    chunk_handler: &'a mut ChunkHandler<T, C>,
+struct SimulationHelperRigidBody<'a, C: Chunk> {
+    chunk_handler: &'a mut ChunkHandler<C>,
     rigidbodies: &'a mut Vec<FSRigidBody>,
     particles: &'a mut Vec<Particle>,
     physics: &'a mut Physics,
 }
 
-impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> SimulationHelper
-    for SimulationHelperRigidBody<'_, T, C>
-{
+impl<C: Chunk> SimulationHelper for SimulationHelperRigidBody<'_, C> {
     unsafe fn get_pixel_local(&self, x: i32, y: i32) -> MaterialInstance {
         let world_mat = self.chunk_handler.get(i64::from(x), i64::from(y)); // TODO: consider changing the args to i64
         if let Ok(m) = world_mat {
@@ -430,8 +428,8 @@ impl Simulator {
     #[allow(clippy::unnecessary_unwrap)]
     #[allow(clippy::needless_range_loop)]
     #[profiling::function]
-    pub fn simulate_rigidbodies<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk>(
-        chunk_handler: &mut ChunkHandler<T, C>,
+    pub fn simulate_rigidbodies<C: Chunk>(
+        chunk_handler: &mut ChunkHandler<C>,
         rigidbodies: &mut Vec<FSRigidBody>,
         physics: &mut Physics,
         particles: &mut Vec<Particle>,

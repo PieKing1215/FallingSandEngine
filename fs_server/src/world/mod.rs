@@ -18,8 +18,8 @@ mod tests {
 
     #[test]
     fn chunk_loading() {
-        let mut ch: ChunkHandler<TestGenerator, ServerChunk> =
-            ChunkHandler::<_, ServerChunk>::new(TestGenerator {}, None);
+        let mut ch: ChunkHandler<ServerChunk> =
+            ChunkHandler::<ServerChunk>::new(TestGenerator {}, None);
 
         assert_eq!(ch.load_queue.len(), 0);
         assert_eq!(ch.loaded_chunks.len(), 0);
@@ -107,8 +107,8 @@ mod tests {
 
     #[test]
     fn zones() {
-        let ch: ChunkHandler<TestGenerator, ServerChunk> =
-            ChunkHandler::<_, ServerChunk>::new(TestGenerator {}, None);
+        let ch: ChunkHandler<ServerChunk> =
+            ChunkHandler::<ServerChunk>::new(TestGenerator {}, None);
 
         let center = (12.3, -42.2);
         let screen = ch.get_screen_zone(center);

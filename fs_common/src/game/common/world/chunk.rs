@@ -76,21 +76,21 @@ pub enum ChunkState {
 }
 
 #[derive(Debug)]
-pub struct ChunkHandler<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> {
+pub struct ChunkHandler<C: Chunk> {
     pub loaded_chunks: HashMap<u32, C, BuildHasherDefault<PassThroughHasherU32>>,
     pub load_queue: Vec<(i32, i32)>,
     /** The size of the "presentable" area (not necessarily the current window size) */
     pub screen_size: (u16, u16),
-    pub generator: T,
+    pub generator: Box<dyn WorldGenerator>,
     pub path: Option<PathBuf>,
 }
 
-unsafe impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> Send
-    for ChunkHandler<T, C>
+unsafe impl<C: Chunk> Send
+    for ChunkHandler<C>
 {
 }
-unsafe impl<T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> Sync
-    for ChunkHandler<T, C>
+unsafe impl<C: Chunk> Sync
+    for ChunkHandler<C>
 {
 }
 
@@ -131,9 +131,7 @@ struct ChunkSaveFormat {
     colors: Vec<u8>,
 }
 
-impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandlerGeneric
-    for ChunkHandler<T, C>
-{
+impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
     #[profiling::function]
     fn update_chunk_graphics(&mut self) {
         let keys = self.loaded_chunks.keys().copied().collect::<Vec<u32>>();
@@ -474,7 +472,6 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
 
                     let b = {
                         profiling::scope!("gen");
-                        let gen = self.generator;
                         let futs2: Vec<_> = to_exec
                             .into_par_iter()
                             .map(|e| {
@@ -492,7 +489,7 @@ impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandle
                                     [0; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize],
                                 );
 
-                                gen.generate(e.1, e.2, 2, &mut pixels, &mut colors); // TODO: non constant seed
+                                self.generator.generate(e.1, e.2, 2, &mut pixels, &mut colors); // TODO: non constant seed
                                                                                      // println!("{}", e.0);
                                 (e.0, pixels, colors)
                             })
@@ -1280,14 +1277,14 @@ impl std::hash::Hasher for PassThroughHasherU32 {
     }
 }
 
-impl<'a, T: WorldGenerator + Copy + Send + Sync + 'static, C: Chunk> ChunkHandler<T, C> {
+impl<'a, C: Chunk> ChunkHandler<C> {
     #[profiling::function]
-    pub fn new(generator: T, path: Option<PathBuf>) -> Self {
+    pub fn new(generator: impl WorldGenerator + 'static, path: Option<PathBuf>) -> Self {
         ChunkHandler {
             loaded_chunks: HashMap::<u32, C, BuildHasherDefault<PassThroughHasherU32>>::default(),
             load_queue: vec![],
             screen_size: (1920 / 2, 1080 / 2),
-            generator,
+            generator: Box::new(generator),
             path,
         }
     }
