@@ -3,7 +3,6 @@ use std::convert::TryInto;
 use fs_common::game::common::{
     world::{
         chunk_index,
-        gen::WorldGenerator,
         material::{Color, MaterialInstance},
         mesh, Chunk, ChunkHandler, ChunkState, RigidBodyState, CHUNK_SIZE,
     },

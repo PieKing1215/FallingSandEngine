@@ -20,7 +20,7 @@ use super::{
         CollisionDetector, GameEntity, Hitbox, Persistent, PhysicsEntity, Player,
         UpdatePhysicsEntities,
     },
-    gen::{TestGenerator, TEST_GENERATOR, biome_test::BiomeTestGenerator},
+    gen::biome_test::BiomeTestGenerator,
     material::{Color, MaterialInstance, PhysicsType, AIR, TEST_MATERIAL},
     particle::{Particle, ParticleSystem, UpdateParticles},
     physics::Physics,

@@ -7,7 +7,6 @@ use fs_common::game::common::{
         entity::{
             GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState, PlayerMovementMode,
         },
-        gen::WorldGenerator,
         material::Color,
         particle::ParticleSystem,
         physics::PHYSICS_SCALE,

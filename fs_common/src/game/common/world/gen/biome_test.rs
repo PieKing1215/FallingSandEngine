@@ -1,15 +1,30 @@
-use crate::game::common::world::material::{Color, MaterialInstance, PhysicsType, TEST_MATERIAL};
+use crate::game::common::world::material::MaterialInstance;
 
 use simdnoise::NoiseBuilder;
 
 use crate::game::common::world::CHUNK_SIZE;
 
-use super::{WorldGenerator, biome::{Biome, BiomePlacementParameter}};
+use super::{WorldGenerator, biome::BiomePlacementParameter};
 
 #[derive(Clone, Copy, Debug)]
 pub struct BiomeTestGenerator;
 
 const BIOME_SIZE: u16 = 200;
+
+fn single_random_at(x: f32, y: f32, freq: f32, seed: i32) -> f32 {
+    NoiseBuilder::gradient_2d_offset(x, 1, y, 1)
+        .with_freq(freq)
+        .with_seed(seed)
+        .generate()
+        .0[0]
+}
+
+fn biome_params_at(x: i32, y: i32, seed: i32) -> BiomePlacementParameter {
+    let factor_a = (single_random_at(x as f32, y as f32, 0.001, seed + 4) * 20.0 + 0.5).clamp(0.0, 1.0);
+    let factor_b = (single_random_at(x as f32, y as f32, 0.0005, seed + 5) * 20.0 + 0.5).clamp(0.0, 1.0);
+    let factor_c = (single_random_at(x as f32, y as f32, 0.00025, seed + 6) * 20.0 + 0.5).clamp(0.0, 1.0);
+    BiomePlacementParameter { a: factor_a, b: factor_b, c: factor_c }
+}
 
 impl WorldGenerator for BiomeTestGenerator {
     #[allow(clippy::cast_lossless)]
@@ -33,36 +48,10 @@ impl WorldGenerator for BiomeTestGenerator {
             .collect::<Vec<_>>();
 
         let mut vals = base_pts.iter().map(|(x, y)| {
-            
-            let disp_x = x + (NoiseBuilder::gradient_2d_offset(*x as f32, 1, *y as f32, 1)
-                .with_freq(0.003)
-                .with_seed(seed + 1)
-                .generate()
-                .0[0] * 20.0 * BIOME_SIZE as f32) as i32;
-            
-            let disp_y = y + (NoiseBuilder::gradient_2d_offset(*x as f32, 1, *y as f32, 1)
-                .with_freq(0.003)
-                .with_seed(seed + 2)
-                .generate()
-                .0[0] * 20.0 * BIOME_SIZE as f32) as i32;
+            let disp_x = x + (single_random_at(*x as f32, *y as f32, 0.003, seed + 1) * 20.0 * BIOME_SIZE as f32) as i32;
+            let disp_y = y + (single_random_at(*x as f32, *y as f32, 0.003, seed + 2) * 20.0 * BIOME_SIZE as f32) as i32;
 
-            let a = (NoiseBuilder::gradient_2d_offset(*x as f32, 1, *y as f32, 1)
-                .with_freq(0.001)
-                .with_seed(seed + 4)
-                .generate()
-                .0[0] * 20.0 + 0.5).clamp(0.0, 1.0);
-            let b = (NoiseBuilder::gradient_2d_offset(*x as f32, 1, *y as f32, 1)
-                .with_freq(0.0005)
-                .with_seed(seed + 5)
-                .generate()
-                .0[0] * 20.0 + 0.5).clamp(0.0, 1.0);
-            let c = (NoiseBuilder::gradient_2d_offset(*x as f32, 1, *y as f32, 1)
-                .with_freq(0.00025)
-                .with_seed(seed + 6)
-                .generate()
-                .0[0] * 20.0 + 0.5).clamp(0.0, 1.0);
-
-            let biome = (*super::biome::test::TEST_BIOME_PLACEMENT).nearest(BiomePlacementParameter { a, b, c });
+            let biome = (*super::biome::test::TEST_BIOME_PLACEMENT).nearest(biome_params_at(*x, *y, seed));
 
             ((disp_x, disp_y), biome)
         }).collect::<Vec<_>>();
