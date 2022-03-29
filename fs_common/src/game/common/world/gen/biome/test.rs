@@ -1,4 +1,4 @@
-use crate::game::common::world::material::{MaterialInstance, TEST_MATERIAL, Color, PhysicsType};
+use crate::game::common::world::material::{Color, MaterialInstance, PhysicsType, TEST_MATERIAL};
 
 use super::{Biome, BiomePlacement, BiomePlacementParameter};
 
@@ -6,7 +6,7 @@ lazy_static::lazy_static! {
     pub static ref TEST_BIOME_PLACEMENT: BiomePlacement = BiomePlacement {
         points: vec![
             (BiomePlacementParameter { a: 0.0, b: 0.0, c: 0.0 }, &TestBiome(Color::BLACK)),
-            
+
             (BiomePlacementParameter { a: 0.75, b: 0.0, c: 0.0 }, &TestBiome(Color::RED)),
             (BiomePlacementParameter { a: 0.0, b: 0.75, c: 0.0 }, &TestBiome(Color::GREEN)),
             (BiomePlacementParameter { a: 0.0, b: 0.0, c: 0.75 }, &TestBiome(Color::BLUE)),

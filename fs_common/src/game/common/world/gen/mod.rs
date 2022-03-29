@@ -1,6 +1,6 @@
-mod test;
-pub mod biome_test;
 pub mod biome;
+pub mod biome_test;
+mod test;
 
 use std::usize;
 

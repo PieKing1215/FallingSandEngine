@@ -2,7 +2,10 @@ use std::fs;
 
 use egui::{plot::HLine, Align2, RichText, WidgetText};
 use fs_common::game::{
-    common::{world::{material::Color, Velocity, Position}, FileHelper, Rect},
+    common::{
+        world::{material::Color, Position, Velocity},
+        FileHelper, Rect,
+    },
     GameData,
 };
 use glium::{Blend, Display, DrawParameters, PolygonMode};
@@ -11,7 +14,7 @@ use glium_glyph::{
     GlyphBrush,
 };
 use glutin::{dpi::LogicalSize, event_loop::EventLoop};
-use specs::{ReadStorage};
+use specs::ReadStorage;
 
 use crate::{
     render::egui::DebugUI,
@@ -125,7 +128,6 @@ impl<'a> Renderer<'a> {
                     // let last_vsync = game.settings.vsync;
                     // let last_minimize_on_lost_focus = game.settings.minimize_on_lost_focus;
 
-                    
                     egui::Window::new("Debug").show(egui_ctx, |ui| {
                         if let Some(w) = &client.world {
                             if let Some(eid) = w.local_entity {

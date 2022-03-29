@@ -85,14 +85,8 @@ pub struct ChunkHandler<C: Chunk> {
     pub path: Option<PathBuf>,
 }
 
-unsafe impl<C: Chunk> Send
-    for ChunkHandler<C>
-{
-}
-unsafe impl<C: Chunk> Sync
-    for ChunkHandler<C>
-{
-}
+unsafe impl<C: Chunk> Send for ChunkHandler<C> {}
+unsafe impl<C: Chunk> Sync for ChunkHandler<C> {}
 
 pub trait ChunkHandlerGeneric {
     fn update_chunk_graphics(&mut self);
@@ -489,8 +483,9 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     [0; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize],
                                 );
 
-                                self.generator.generate(e.1, e.2, 2, &mut pixels, &mut colors); // TODO: non constant seed
-                                                                                     // println!("{}", e.0);
+                                self.generator
+                                    .generate(e.1, e.2, 2, &mut pixels, &mut colors); // TODO: non constant seed
+                                                                                      // println!("{}", e.0);
                                 (e.0, pixels, colors)
                             })
                             .collect();

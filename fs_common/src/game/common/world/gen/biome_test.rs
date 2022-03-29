@@ -4,7 +4,7 @@ use simdnoise::NoiseBuilder;
 
 use crate::game::common::world::CHUNK_SIZE;
 
-use super::{WorldGenerator, biome::BiomePlacementParameter};
+use super::{biome::BiomePlacementParameter, WorldGenerator};
 
 #[derive(Clone, Copy, Debug)]
 pub struct BiomeTestGenerator;
@@ -20,9 +20,12 @@ fn single_random_at(x: f32, y: f32, freq: f32, seed: i32) -> f32 {
 }
 
 fn biome_params_at(x: i32, y: i32, seed: i32) -> BiomePlacementParameter {
-    let factor_a = (single_random_at(x as f32, y as f32, 0.001, seed + 4) * 20.0 + 0.5).clamp(0.0, 1.0);
-    let factor_b = (single_random_at(x as f32, y as f32, 0.0005, seed + 5) * 20.0 + 0.5).clamp(0.0, 1.0);
-    let factor_c = (single_random_at(x as f32, y as f32, 0.00025, seed + 6) * 20.0 + 0.5).clamp(0.0, 1.0);
+    let factor_a =
+        (single_random_at(x as f32, y as f32, 0.001, seed + 4) * 20.0 + 0.5).clamp(0.0, 1.0);
+    let factor_b =
+        (single_random_at(x as f32, y as f32, 0.0005, seed + 5) * 20.0 + 0.5).clamp(0.0, 1.0);
+    let factor_c =
+        (single_random_at(x as f32, y as f32, 0.00025, seed + 6) * 20.0 + 0.5).clamp(0.0, 1.0);
     BiomePlacementParameter { a: factor_a, b: factor_b, c: factor_c }
 }
 
@@ -40,21 +43,45 @@ impl WorldGenerator for BiomeTestGenerator {
         let cofs_x = (chunk_x * CHUNK_SIZE as i32) as f32;
         let cofs_y = (chunk_y * CHUNK_SIZE as i32) as f32;
 
-        let center_biome_point_x = ((((chunk_x * CHUNK_SIZE as i32) + (CHUNK_SIZE/2) as i32) as f32) / (BIOME_SIZE as f32)).floor() as i32 * (BIOME_SIZE as i32);
-        let center_biome_point_y = ((((chunk_y * CHUNK_SIZE as i32) + (CHUNK_SIZE/2) as i32) as f32) / (BIOME_SIZE as f32)).floor() as i32 * (BIOME_SIZE as i32);
+        let center_biome_point_x = ((((chunk_x * CHUNK_SIZE as i32) + (CHUNK_SIZE / 2) as i32)
+            as f32)
+            / (BIOME_SIZE as f32))
+            .floor() as i32
+            * (BIOME_SIZE as i32);
+        let center_biome_point_y = ((((chunk_y * CHUNK_SIZE as i32) + (CHUNK_SIZE / 2) as i32)
+            as f32)
+            / (BIOME_SIZE as f32))
+            .floor() as i32
+            * (BIOME_SIZE as i32);
 
-        let base_pts = (-1..=1).flat_map(|x| (-1..=1).map(move |y| (x, y)))
-            .map(|(x, y)| (center_biome_point_x + x * BIOME_SIZE as i32, center_biome_point_y + y * BIOME_SIZE as i32))
+        let base_pts = (-1..=1)
+            .flat_map(|x| (-1..=1).map(move |y| (x, y)))
+            .map(|(x, y)| {
+                (
+                    center_biome_point_x + x * BIOME_SIZE as i32,
+                    center_biome_point_y + y * BIOME_SIZE as i32,
+                )
+            })
             .collect::<Vec<_>>();
 
-        let mut vals = base_pts.iter().map(|(x, y)| {
-            let disp_x = x + (single_random_at(*x as f32, *y as f32, 0.003, seed + 1) * 20.0 * BIOME_SIZE as f32) as i32;
-            let disp_y = y + (single_random_at(*x as f32, *y as f32, 0.003, seed + 2) * 20.0 * BIOME_SIZE as f32) as i32;
+        let mut vals = base_pts
+            .iter()
+            .map(|(x, y)| {
+                let disp_x = x
+                    + (single_random_at(*x as f32, *y as f32, 0.003, seed + 1)
+                        * 20.0
+                        * BIOME_SIZE as f32) as i32;
+                let disp_y = y
+                    + (single_random_at(*x as f32, *y as f32, 0.003, seed + 2)
+                        * 20.0
+                        * BIOME_SIZE as f32) as i32;
 
-            let biome = (*super::biome::test::TEST_BIOME_PLACEMENT).nearest(biome_params_at(*x, *y, seed));
+                let biome = (*super::biome::test::TEST_BIOME_PLACEMENT)
+                    .nearest(biome_params_at(*x, *y, seed));
 
-            ((disp_x, disp_y), biome)
-        }).collect::<Vec<_>>();
+                ((disp_x, disp_y), biome)
+            })
+            .collect::<Vec<_>>();
 
         let ofs_x_1 =
             NoiseBuilder::gradient_2d_offset(cofs_x, CHUNK_SIZE.into(), cofs_y, CHUNK_SIZE.into())
@@ -87,14 +114,26 @@ impl WorldGenerator for BiomeTestGenerator {
         for x in 0..CHUNK_SIZE {
             for y in 0..CHUNK_SIZE {
                 let i = (x + y * CHUNK_SIZE) as usize;
-                
+
                 vals.sort_by(|((x1, y1), _v1), ((x2, y2), _v2)| {
-                    let dx1 = x1 - (x as i32 + cofs_x as i32 + (ofs_x_1[i] * 1000.0 + ofs_x_2[i] * 500.0) as i32);
-                    let dy1 = y1 - (y as i32 + cofs_y as i32 + (ofs_y_1[i] * 1000.0 + ofs_y_2[i] * 500.0) as i32);
+                    let dx1 = x1
+                        - (x as i32
+                            + cofs_x as i32
+                            + (ofs_x_1[i] * 1000.0 + ofs_x_2[i] * 500.0) as i32);
+                    let dy1 = y1
+                        - (y as i32
+                            + cofs_y as i32
+                            + (ofs_y_1[i] * 1000.0 + ofs_y_2[i] * 500.0) as i32);
                     let d1 = dx1 * dx1 + dy1 * dy1;
 
-                    let dx2 = x2 - (x as i32 + cofs_x as i32 + (ofs_x_1[i] * 1000.0 + ofs_x_2[i] * 500.0) as i32);
-                    let dy2 = y2 - (y as i32 + cofs_y as i32 + (ofs_y_1[i] * 1000.0 + ofs_y_2[i] * 500.0) as i32);
+                    let dx2 = x2
+                        - (x as i32
+                            + cofs_x as i32
+                            + (ofs_x_1[i] * 1000.0 + ofs_x_2[i] * 500.0) as i32);
+                    let dy2 = y2
+                        - (y as i32
+                            + cofs_y as i32
+                            + (ofs_y_1[i] * 1000.0 + ofs_y_2[i] * 500.0) as i32);
                     let d2 = dx2 * dx2 + dy2 * dy2;
 
                     d1.cmp(&d2)
@@ -107,7 +146,6 @@ impl WorldGenerator for BiomeTestGenerator {
                 colors[i * 4 + 1] = pixels[i].color.g;
                 colors[i * 4 + 2] = pixels[i].color.b;
                 colors[i * 4 + 3] = pixels[i].color.a;
-
             }
         }
     }

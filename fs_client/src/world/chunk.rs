@@ -427,9 +427,7 @@ pub trait ClientChunkHandlerExt {
     ) -> Result<(), String>;
 }
 
-impl ClientChunkHandlerExt
-    for ChunkHandler<ClientChunk>
-{
+impl ClientChunkHandlerExt for ChunkHandler<ClientChunk> {
     fn sync_chunk(
         &mut self,
         chunk_x: i32,
