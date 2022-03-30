@@ -59,8 +59,8 @@ impl WorldGenerator for BiomeTestGenerator {
 
         let (center_biome_point_x, center_biome_point_y) = nearest_biome_point_to((chunk_x * CHUNK_SIZE as i32) + (CHUNK_SIZE / 2) as i32, (chunk_y * CHUNK_SIZE as i32) + (CHUNK_SIZE / 2) as i32);
 
-        let base_pts = (-1..=1)
-            .flat_map(|x| (-1..=1).map(move |y| (x, y)))
+        let base_pts = (-2..=2)
+            .flat_map(|x| (-2..=2).map(move |y| (x, y)))
             .map(|(x, y)| {
                 (
                     center_biome_point_x + x * BIOME_SIZE as i32,
