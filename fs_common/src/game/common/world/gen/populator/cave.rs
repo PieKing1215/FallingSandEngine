@@ -1,9 +1,8 @@
 use simdnoise::NoiseBuilder;
 
-use crate::game::common::world::{CHUNK_SIZE, material::MaterialInstance};
+use crate::game::common::world::{material::MaterialInstance, CHUNK_SIZE};
 
-use super::{Populator, ChunkContext};
-
+use super::{ChunkContext, Populator};
 
 pub struct CavePopulator;
 
@@ -18,12 +17,16 @@ impl Populator<0> for CavePopulator {
         let enable_caves = true;
 
         if enable_caves {
-            let noise_cave_2 =
-                NoiseBuilder::gradient_2d_offset(cofs_x, CHUNK_SIZE.into(), cofs_y, CHUNK_SIZE.into())
-                    .with_freq(0.002)
-                    .with_seed(seed)
-                    .generate()
-                    .0;
+            let noise_cave_2 = NoiseBuilder::gradient_2d_offset(
+                cofs_x,
+                CHUNK_SIZE.into(),
+                cofs_y,
+                CHUNK_SIZE.into(),
+            )
+            .with_freq(0.002)
+            .with_seed(seed)
+            .generate()
+            .0;
 
             for x in 0..CHUNK_SIZE {
                 for y in 0..CHUNK_SIZE {

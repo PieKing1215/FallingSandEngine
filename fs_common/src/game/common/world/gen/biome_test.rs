@@ -31,12 +31,8 @@ fn biome_params_at(x: i32, y: i32, seed: i32) -> BiomePlacementParameter {
 
 #[allow(clippy::cast_lossless)]
 fn nearest_biome_point_to(x: i32, y: i32) -> (i32, i32) {
-    let bp_x = ((x as f32) / (BIOME_SIZE as f32))
-        .floor() as i32
-        * (BIOME_SIZE as i32);
-    let bp_y = ((y as f32) / (BIOME_SIZE as f32))
-        .floor() as i32
-        * (BIOME_SIZE as i32);
+    let bp_x = ((x as f32) / (BIOME_SIZE as f32)).floor() as i32 * (BIOME_SIZE as i32);
+    let bp_y = ((y as f32) / (BIOME_SIZE as f32)).floor() as i32 * (BIOME_SIZE as i32);
 
     (bp_x, bp_y)
 }
@@ -57,7 +53,10 @@ impl WorldGenerator for BiomeTestGenerator {
         let cofs_x = chunk_pixel_x as f32;
         let cofs_y = chunk_pixel_y as f32;
 
-        let (center_biome_point_x, center_biome_point_y) = nearest_biome_point_to((chunk_x * CHUNK_SIZE as i32) + (CHUNK_SIZE / 2) as i32, (chunk_y * CHUNK_SIZE as i32) + (CHUNK_SIZE / 2) as i32);
+        let (center_biome_point_x, center_biome_point_y) = nearest_biome_point_to(
+            (chunk_x * CHUNK_SIZE as i32) + (CHUNK_SIZE / 2) as i32,
+            (chunk_y * CHUNK_SIZE as i32) + (CHUNK_SIZE / 2) as i32,
+        );
 
         let base_pts = (-2..=2)
             .flat_map(|x| (-2..=2).map(move |y| (x, y)))

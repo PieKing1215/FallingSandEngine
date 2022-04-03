@@ -1,9 +1,8 @@
-
-pub mod test;
 pub mod cave;
 pub mod nearby_replace;
+pub mod test;
 
-use crate::game::common::world::{Chunk, material::MaterialInstance, CHUNK_SIZE};
+use crate::game::common::world::{material::MaterialInstance, Chunk, CHUNK_SIZE};
 
 // where S=0 means 1x1, S=1 means 3x3, etc
 pub trait Populator<const S: usize> {
@@ -12,7 +11,7 @@ pub trait Populator<const S: usize> {
 
 // where S=0 means 1x1, S=1 means 3x3, etc
 // when generic_const_exprs gets stablized eventually, could use [&mut dyn Chunk; (S * 2 + 1) * (S * 2 + 1)]
-pub struct ChunkContext<'a, const S: usize> (&'a mut [&'a mut dyn Chunk]);
+pub struct ChunkContext<'a, const S: usize>(&'a mut [&'a mut dyn Chunk]);
 
 impl<'a, const S: usize> ChunkContext<'a, S> {
     #[warn(clippy::result_unit_err)] // TODO
@@ -30,7 +29,10 @@ impl<'a, const S: usize> ChunkContext<'a, S> {
     }
 
     pub fn pixel_to_chunk(x: i32, y: i32) -> (i8, i8) {
-        ((x as f32 / CHUNK_SIZE as f32).floor() as i8, (y as f32 / CHUNK_SIZE as f32).floor() as i8)
+        (
+            (x as f32 / CHUNK_SIZE as f32).floor() as i8,
+            (y as f32 / CHUNK_SIZE as f32).floor() as i8,
+        )
     }
 
     pub fn chunk_index(cx: i8, cy: i8) -> usize {
@@ -44,12 +46,19 @@ impl<'a, const S: usize> ChunkContext<'a, S> {
     pub fn set(&mut self, x: i32, y: i32, mat: MaterialInstance) -> Result<(), String> {
         let (cx, cy) = Self::pixel_to_chunk(x, y);
         let i = Self::chunk_index(cx, cy);
-        self.0[i].set(x.rem_euclid(CHUNK_SIZE as i32) as u16, y.rem_euclid(CHUNK_SIZE as i32) as u16, mat)
+        self.0[i].set(
+            x.rem_euclid(CHUNK_SIZE as i32) as u16,
+            y.rem_euclid(CHUNK_SIZE as i32) as u16,
+            mat,
+        )
     }
 
     pub fn get(&self, x: i32, y: i32) -> Result<&MaterialInstance, String> {
         let (cx, cy) = Self::pixel_to_chunk(x, y);
         let i = Self::chunk_index(cx, cy);
-        self.0[i].get(x.rem_euclid(CHUNK_SIZE as i32) as u16, y.rem_euclid(CHUNK_SIZE as i32) as u16)
+        self.0[i].get(
+            x.rem_euclid(CHUNK_SIZE as i32) as u16,
+            y.rem_euclid(CHUNK_SIZE as i32) as u16,
+        )
     }
 }

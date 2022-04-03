@@ -1,8 +1,8 @@
-use crate::game::common::world::gen::populator::Populator;
-use crate::game::common::world::gen::populator::ChunkContext;
 use crate::game::common::world::gen::populator::cave::CavePopulator;
 use crate::game::common::world::gen::populator::nearby_replace::NearbyReplacePopulator;
 use crate::game::common::world::gen::populator::test::TestPopulator;
+use crate::game::common::world::gen::populator::ChunkContext;
+use crate::game::common::world::gen::populator::Populator;
 use crate::game::common::world::material;
 use crate::game::common::world::particle::ParticleSystem;
 use crate::game::common::world::simulator::Simulator;
@@ -588,12 +588,16 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                         _ => false,
                                     }
                                 }) {
-
                                     let mut chunks = Vec::new();
 
                                     for y in -(cur_stage as i32)..=(cur_stage as i32) {
                                         for x in -(cur_stage as i32)..=(cur_stage as i32) {
-                                            let c = self.loaded_chunks.get_mut(&chunk_index(chunk_x + x, chunk_y + y)).unwrap() as &mut dyn Chunk as *mut _;
+                                            let c = self
+                                                .loaded_chunks
+                                                .get_mut(&chunk_index(chunk_x + x, chunk_y + y))
+                                                .unwrap()
+                                                as &mut dyn Chunk
+                                                as *mut _;
                                             chunks.push(unsafe { &mut *c });
                                         }
                                     }
@@ -601,21 +605,21 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     // TODO: make not hardcoded
                                     match cur_stage {
                                         0 => {
-                                            let ctx = ChunkContext::<0>::new(chunks.as_mut_slice()).unwrap();
+                                            let ctx = ChunkContext::<0>::new(chunks.as_mut_slice())
+                                                .unwrap();
                                             let pop = CavePopulator;
                                             pop.populate(ctx, 2); // TODO: non constant seed
                                         },
                                         1 => {
-                                            let ctx = ChunkContext::<1>::new(chunks.as_mut_slice()).unwrap();
+                                            let ctx = ChunkContext::<1>::new(chunks.as_mut_slice())
+                                                .unwrap();
                                             let pop = NearbyReplacePopulator {
                                                 radius: 2,
                                                 matches: |m| m.material_id == material::AIR.id,
-                                                replace_with: || {
-                                                    MaterialInstance {
-                                                        material_id: material::TEST_MATERIAL.id,
-                                                        physics: PhysicsType::Solid,
-                                                        color: Color::ROSE,
-                                                    }
+                                                replace_with: || MaterialInstance {
+                                                    material_id: material::TEST_MATERIAL.id,
+                                                    physics: PhysicsType::Solid,
+                                                    color: Color::ROSE,
                                                 },
                                             };
                                             pop.populate(ctx, 2); // TODO: non constant seed

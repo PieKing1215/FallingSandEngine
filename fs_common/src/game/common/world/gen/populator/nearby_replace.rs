@@ -1,6 +1,9 @@
-use crate::game::common::world::{Chunk, CHUNK_SIZE, material::{self, MaterialInstance, PhysicsType, Color}};
+use crate::game::common::world::{
+    material::{self, Color, MaterialInstance, PhysicsType},
+    Chunk, CHUNK_SIZE,
+};
 
-use super::{Populator, ChunkContext};
+use super::{ChunkContext, Populator};
 
 pub struct NearbyReplacePopulator {
     pub radius: u16,
@@ -19,7 +22,9 @@ impl Populator<1> for NearbyReplacePopulator {
                         for dy in -(self.radius as i32)..=(self.radius as i32) {
                             let m2 = chunks.get(x as i32 + dx, y as i32 + dy).unwrap();
                             if (self.matches)(m2) {
-                                chunks.set(x as i32, y as i32, (self.replace_with)()).unwrap();
+                                chunks
+                                    .set(x as i32, y as i32, (self.replace_with)())
+                                    .unwrap();
                             }
                         }
                     }

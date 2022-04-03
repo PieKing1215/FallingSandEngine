@@ -1,7 +1,9 @@
-use crate::game::common::world::{Chunk, CHUNK_SIZE, material::{self, MaterialInstance, PhysicsType, Color}};
+use crate::game::common::world::{
+    material::{self, Color, MaterialInstance, PhysicsType},
+    Chunk, CHUNK_SIZE,
+};
 
-use super::{Populator, ChunkContext};
-
+use super::{ChunkContext, Populator};
 
 pub struct TestPopulator;
 
@@ -15,11 +17,17 @@ impl<const S: usize> Populator<S> for TestPopulator {
                         for dy in -1..=1 {
                             let m2 = chunks.get(x as i32 + dx, y as i32 + dy).unwrap();
                             if m2.material_id == material::AIR.id {
-                                chunks.set(x as i32, y as i32, MaterialInstance {
-                                    material_id: material::TEST_MATERIAL.id,
-                                    physics: PhysicsType::Solid,
-                                    color: Color::ROSE,
-                                }).unwrap();
+                                chunks
+                                    .set(
+                                        x as i32,
+                                        y as i32,
+                                        MaterialInstance {
+                                            material_id: material::TEST_MATERIAL.id,
+                                            physics: PhysicsType::Solid,
+                                            color: Color::ROSE,
+                                        },
+                                    )
+                                    .unwrap();
                             }
                         }
                     }
