@@ -533,6 +533,18 @@ impl Client {
                                                                 .y)
                                                             * 0.25;
 
+                                                    // do custom "gravity" that works better with lerping
+                                                    gravity = false;
+                                                    let angle = (dx / dy).atan();
+                                                    velocity_storage.get_mut(eid).unwrap().y +=
+                                                        0.5 * angle.sin().abs().max(0.02);
+                                                    velocity_storage.get_mut(eid).unwrap().x *=
+                                                        0.99;
+                                                    velocity_storage.get_mut(eid).unwrap().x += 0.25
+                                                        * (angle.cos() * (angle.sin().abs()))
+                                                        * dx.signum();
+                                                    // log::debug!("{angle} {}", 1.0 * (angle.cos() * (angle.sin().abs())) * dx.signum());
+
                                                     velocity_storage.get_mut(eid).unwrap().x +=
                                                         ((position_storage
                                                             .get_mut(eid)
@@ -547,7 +559,7 @@ impl Client {
                                                                 .get_mut(eid)
                                                                 .unwrap()
                                                                 .x)
-                                                            * 0.25;
+                                                            * 0.5;
                                                     velocity_storage.get_mut(eid).unwrap().y +=
                                                         ((position_storage
                                                             .get_mut(eid)
@@ -562,7 +574,7 @@ impl Client {
                                                                 .get_mut(eid)
                                                                 .unwrap()
                                                                 .y)
-                                                            * 0.25;
+                                                            * 0.5;
                                                 }
                                             }
                                         } else if mag > 256.0 {

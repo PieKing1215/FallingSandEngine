@@ -828,8 +828,8 @@ impl ClientGame {
         self.data.tick_time += 1;
 
         if let Some(w) = &mut self.data.world {
-            w.tick(self.data.tick_time, &self.data.settings);
             self.client.tick(w);
+            w.tick(self.data.tick_time, &self.data.settings);
         }
     }
 }
