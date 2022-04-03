@@ -1,6 +1,7 @@
 pub mod biome;
 pub mod biome_test;
 mod test;
+pub mod populator;
 
 use std::usize;
 

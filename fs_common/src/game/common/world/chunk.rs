@@ -1,3 +1,6 @@
+use crate::game::common::world::gen::populator::Populator;
+use crate::game::common::world::gen::populator::ChunkContext;
+use crate::game::common::world::gen::populator::test::TestPopulator;
 use crate::game::common::world::particle::ParticleSystem;
 use crate::game::common::world::simulator::Simulator;
 use crate::game::common::world::{Loader, Position};
@@ -582,6 +585,25 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                         _ => false,
                                     }
                                 }) {
+
+                                    let mut chunks = Vec::new();
+
+                                    for y in -(cur_stage as i32)..=(cur_stage as i32) {
+                                        for x in -(cur_stage as i32)..=(cur_stage as i32) {
+                                            let c = self.loaded_chunks.get_mut(&chunk_index(chunk_x + x, chunk_y + y)).unwrap() as &mut dyn Chunk as *mut _;
+                                            chunks.push(unsafe { &mut *c });
+                                        }
+                                    }
+
+                                    match cur_stage {
+                                        1 => {
+                                            let ctx = ChunkContext::<1>::new(chunks.as_mut_slice()).unwrap();
+                                            let pop = TestPopulator;
+                                            pop.populate(ctx);
+                                        },
+                                        _ => {},
+                                    }
+
                                     self.loaded_chunks
                                         .get_mut(&key)
                                         .unwrap()

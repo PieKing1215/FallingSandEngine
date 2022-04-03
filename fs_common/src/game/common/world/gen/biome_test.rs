@@ -116,7 +116,7 @@ impl WorldGenerator for BiomeTestGenerator {
                 .generate()
                 .0;
 
-        let enable_caves = false;
+        let enable_caves = true;
 
         let noise_cave_2 =
             NoiseBuilder::gradient_2d_offset(cofs_x, CHUNK_SIZE.into(), cofs_y, CHUNK_SIZE.into())
