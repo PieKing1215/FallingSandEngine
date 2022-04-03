@@ -1,11 +1,13 @@
 
 pub mod test;
+pub mod cave;
+pub mod nearby_replace;
 
 use crate::game::common::world::{Chunk, material::MaterialInstance, CHUNK_SIZE};
 
 // where S=0 means 1x1, S=1 means 3x3, etc
 pub trait Populator<const S: usize> {
-    fn populate(&self, chunks: ChunkContext<S>);
+    fn populate(&self, chunks: ChunkContext<S>, seed: i32);
 }
 
 // where S=0 means 1x1, S=1 means 3x3, etc
@@ -20,6 +22,11 @@ impl<'a, const S: usize> ChunkContext<'a, S> {
         } else {
             Err(())
         }
+    }
+
+    pub fn center_chunk(&self) -> (i32, i32) {
+        let ch = &self.0[Self::chunk_index(0, 0)];
+        (ch.get_chunk_x(), ch.get_chunk_y())
     }
 
     pub fn pixel_to_chunk(x: i32, y: i32) -> (i8, i8) {

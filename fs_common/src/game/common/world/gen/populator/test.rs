@@ -6,7 +6,7 @@ use super::{Populator, ChunkContext};
 pub struct TestPopulator;
 
 impl<const S: usize> Populator<S> for TestPopulator {
-    fn populate(&self, mut chunks: ChunkContext<S>) {
+    fn populate(&self, mut chunks: ChunkContext<S>, _seed: i32) {
         for x in 0..CHUNK_SIZE {
             for y in 0..CHUNK_SIZE {
                 let m = chunks.get(x as i32, y as i32).unwrap();

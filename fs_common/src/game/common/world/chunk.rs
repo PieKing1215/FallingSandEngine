@@ -1,6 +1,9 @@
 use crate::game::common::world::gen::populator::Populator;
 use crate::game::common::world::gen::populator::ChunkContext;
+use crate::game::common::world::gen::populator::cave::CavePopulator;
+use crate::game::common::world::gen::populator::nearby_replace::NearbyReplacePopulator;
 use crate::game::common::world::gen::populator::test::TestPopulator;
+use crate::game::common::world::material;
 use crate::game::common::world::particle::ParticleSystem;
 use crate::game::common::world::simulator::Simulator;
 use crate::game::common::world::{Loader, Position};
@@ -595,11 +598,27 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                         }
                                     }
 
+                                    // TODO: make not hardcoded
                                     match cur_stage {
+                                        0 => {
+                                            let ctx = ChunkContext::<0>::new(chunks.as_mut_slice()).unwrap();
+                                            let pop = CavePopulator;
+                                            pop.populate(ctx, 2); // TODO: non constant seed
+                                        },
                                         1 => {
                                             let ctx = ChunkContext::<1>::new(chunks.as_mut_slice()).unwrap();
-                                            let pop = TestPopulator;
-                                            pop.populate(ctx);
+                                            let pop = NearbyReplacePopulator {
+                                                radius: 2,
+                                                matches: |m| m.material_id == material::AIR.id,
+                                                replace_with: || {
+                                                    MaterialInstance {
+                                                        material_id: material::TEST_MATERIAL.id,
+                                                        physics: PhysicsType::Solid,
+                                                        color: Color::ROSE,
+                                                    }
+                                                },
+                                            };
+                                            pop.populate(ctx, 2); // TODO: non constant seed
                                         },
                                         _ => {},
                                     }
