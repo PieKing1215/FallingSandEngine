@@ -1,6 +1,5 @@
 use crate::game::common::world::gen::populator::cave::CavePopulator;
 use crate::game::common::world::gen::populator::nearby_replace::NearbyReplacePopulator;
-use crate::game::common::world::gen::populator::test::TestPopulator;
 use crate::game::common::world::gen::populator::ChunkContext;
 use crate::game::common::world::gen::populator::Populator;
 use crate::game::common::world::material;
@@ -590,8 +589,9 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                 }) {
                                     let mut chunks = Vec::new();
 
-                                    for y in -(cur_stage as i32)..=(cur_stage as i32) {
-                                        for x in -(cur_stage as i32)..=(cur_stage as i32) {
+                                    let range = i32::from(cur_stage);
+                                    for y in -range..=range {
+                                        for x in -range..=range {
                                             let c = self
                                                 .loaded_chunks
                                                 .get_mut(&chunk_index(chunk_x + x, chunk_y + y))

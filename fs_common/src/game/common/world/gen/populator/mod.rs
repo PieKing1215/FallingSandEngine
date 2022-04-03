@@ -5,21 +5,25 @@ pub mod test;
 use crate::game::common::world::{material::MaterialInstance, Chunk, CHUNK_SIZE};
 
 // where S=0 means 1x1, S=1 means 3x3, etc
-pub trait Populator<const S: usize> {
+pub trait Populator<const S: u8> {
     fn populate(&self, chunks: ChunkContext<S>, seed: i32);
 }
 
 // where S=0 means 1x1, S=1 means 3x3, etc
 // when generic_const_exprs gets stablized eventually, could use [&mut dyn Chunk; (S * 2 + 1) * (S * 2 + 1)]
-pub struct ChunkContext<'a, const S: usize>(&'a mut [&'a mut dyn Chunk]);
+pub struct ChunkContext<'a, const S: u8>(&'a mut [&'a mut dyn Chunk]);
 
-impl<'a, const S: usize> ChunkContext<'a, S> {
+impl<'a, const S: u8> ChunkContext<'a, S> {
     #[warn(clippy::result_unit_err)] // TODO
-    pub fn new(slice: &'a mut [&'a mut dyn Chunk]) -> Result<Self, ()> {
-        if slice.len() == (S * 2 + 1) * (S * 2 + 1) {
+    pub fn new(slice: &'a mut [&'a mut dyn Chunk]) -> Result<Self, String> {
+        if slice.len() == ((S * 2 + 1) * (S * 2 + 1)) as usize {
             Ok(Self(slice))
         } else {
-            Err(())
+            Err(format!(
+                "Incorrect slice length, expected {}, got {}",
+                (S * 2 + 1) * (S * 2 + 1),
+                slice.len()
+            ))
         }
     }
 
@@ -30,16 +34,16 @@ impl<'a, const S: usize> ChunkContext<'a, S> {
 
     pub fn pixel_to_chunk(x: i32, y: i32) -> (i8, i8) {
         (
-            (x as f32 / CHUNK_SIZE as f32).floor() as i8,
-            (y as f32 / CHUNK_SIZE as f32).floor() as i8,
+            (x as f32 / f32::from(CHUNK_SIZE)).floor() as i8,
+            (y as f32 / f32::from(CHUNK_SIZE)).floor() as i8,
         )
     }
 
     pub fn chunk_index(cx: i8, cy: i8) -> usize {
         let center = S;
-        let abs_x = (cx + center as i8) as usize;
-        let abs_y = (cy + center as i8) as usize;
-        let width = S * 2 + 1;
+        let abs_x = (i16::from(cx) + i16::from(center)) as usize;
+        let abs_y = (i16::from(cy) + i16::from(center)) as usize;
+        let width = S as usize * 2 + 1;
         abs_x + abs_y * width
     }
 
@@ -47,8 +51,8 @@ impl<'a, const S: usize> ChunkContext<'a, S> {
         let (cx, cy) = Self::pixel_to_chunk(x, y);
         let i = Self::chunk_index(cx, cy);
         self.0[i].set(
-            x.rem_euclid(CHUNK_SIZE as i32) as u16,
-            y.rem_euclid(CHUNK_SIZE as i32) as u16,
+            x.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
+            y.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
             mat,
         )
     }
@@ -57,8 +61,8 @@ impl<'a, const S: usize> ChunkContext<'a, S> {
         let (cx, cy) = Self::pixel_to_chunk(x, y);
         let i = Self::chunk_index(cx, cy);
         self.0[i].get(
-            x.rem_euclid(CHUNK_SIZE as i32) as u16,
-            y.rem_euclid(CHUNK_SIZE as i32) as u16,
+            x.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
+            y.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
         )
     }
 }

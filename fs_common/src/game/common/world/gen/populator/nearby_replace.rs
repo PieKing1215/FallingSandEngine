@@ -1,6 +1,6 @@
 use crate::game::common::world::{
-    material::{self, Color, MaterialInstance, PhysicsType},
-    Chunk, CHUNK_SIZE,
+    material::{self, MaterialInstance},
+    CHUNK_SIZE,
 };
 
 use super::{ChunkContext, Populator};
@@ -14,12 +14,13 @@ pub struct NearbyReplacePopulator {
 impl Populator<1> for NearbyReplacePopulator {
     fn populate(&self, mut chunks: ChunkContext<1>, _seed: i32) {
         // TODO: optimize this the same as the equivalent here: https://github.com/PieKing1215/FallingSandSurvival/blob/dev/FallingSandSurvival/Populators.cpp#L186=
-        for x in 0..CHUNK_SIZE {
-            for y in 0..CHUNK_SIZE {
+        for x in 0..i32::from(CHUNK_SIZE) {
+            for y in 0..i32::from(CHUNK_SIZE) {
                 let m = chunks.get(x as i32, y as i32).unwrap();
                 if m.material_id != material::AIR.id {
-                    for dx in -(self.radius as i32)..=(self.radius as i32) {
-                        for dy in -(self.radius as i32)..=(self.radius as i32) {
+                    let range = i32::from(self.radius);
+                    for dx in -range..=range {
+                        for dy in -range..=range {
                             let m2 = chunks.get(x as i32 + dx, y as i32 + dy).unwrap();
                             if (self.matches)(m2) {
                                 chunks
