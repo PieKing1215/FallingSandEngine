@@ -11,6 +11,8 @@ use fs_common::game::common::world::{
     ChunkHandlerGeneric, Position, Velocity, World,
 };
 
+use crate::ui::DebugUIs;
+
 use super::{
     input::{Controls, InputEvent, KeyControl, KeyControlMode, MultiControl, MultiControlMode},
     ui::MainMenu,
@@ -23,6 +25,7 @@ pub struct Client {
     pub camera_scale: f64,
     pub mouse_joint: Option<(RigidBodyHandle, Vector2<f32>)>,
     pub main_menu: MainMenu,
+    pub debug_ui: Option<DebugUIs>,
 }
 
 impl Client {
@@ -126,7 +129,12 @@ impl Client {
                 state: super::ui::MainMenuState::Main,
                 action_queue: Vec::new(),
             },
+            debug_ui: None,
         }
+    }
+
+    pub fn open_debug_ui(&mut self) {
+        self.debug_ui = Some(DebugUIs::new());
     }
 
     #[allow(clippy::too_many_lines)]

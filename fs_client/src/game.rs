@@ -66,6 +66,10 @@ impl ClientGame {
         event_loop: EventLoop<()>,
     ) {
         self.data.settings.debug = args.is_present("debug");
+        if self.data.settings.debug {
+            self.client.open_debug_ui();
+        }
+
         if args.is_present("no-tick") {
             self.data.settings.simulate_chunks = false;
             self.data.settings.simulate_particles = false;
