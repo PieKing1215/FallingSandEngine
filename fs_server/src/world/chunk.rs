@@ -1,4 +1,4 @@
-use fs_common::game::common::world::material::Color;
+use fs_common::game::common::world::material::color::Color;
 use fs_common::game::common::world::material::MaterialInstance;
 use fs_common::game::common::world::mesh;
 use fs_common::game::common::world::Chunk;

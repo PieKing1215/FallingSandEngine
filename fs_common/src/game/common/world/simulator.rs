@@ -4,10 +4,10 @@ use crate::game::common::world::material::{MaterialInstance, PhysicsType};
 use crate::game::common::world::{rigidbody, CHUNK_SIZE};
 use crate::game::common::Rect;
 
-use super::material::{Color, AIR};
+use super::material::color::Color;
 use super::particle::Particle;
-use super::pixel_to_chunk_pos;
 use super::rigidbody::FSRigidBody;
+use super::{material, pixel_to_chunk_pos};
 use super::{
     physics::{Physics, PHYSICS_SCALE},
     Chunk, ChunkHandler, ChunkHandlerGeneric, Position, Velocity,
@@ -234,7 +234,7 @@ impl<C: Chunk> SimulationHelper for SimulationHelperRigidBody<'_, C> {
     unsafe fn get_pixel_local(&self, x: i32, y: i32) -> MaterialInstance {
         let world_mat = self.chunk_handler.get(i64::from(x), i64::from(y)); // TODO: consider changing the args to i64
         if let Ok(m) = world_mat {
-            if m.material_id != AIR.id {
+            if m.material_id != material::AIR {
                 return *m;
             }
         }
@@ -254,7 +254,7 @@ impl<C: Chunk> SimulationHelper for SimulationHelperRigidBody<'_, C> {
                 if nt_x >= 0 && nt_y >= 0 && nt_x < cur.width.into() && nt_y < cur.width.into() {
                     let px = cur.pixels[(nt_x + nt_y * i32::from(cur.width)) as usize];
 
-                    if px.material_id != AIR.id {
+                    if px.material_id != material::AIR {
                         return px;
                     }
                 }
@@ -299,7 +299,7 @@ impl<C: Chunk> SimulationHelper for SimulationHelperRigidBody<'_, C> {
                 if nt_x >= 0 && nt_y >= 0 && nt_x < cur.width.into() && nt_y < cur.width.into() {
                     let px = cur.pixels[(nt_x + nt_y * i32::from(cur.width)) as usize];
 
-                    if px.material_id != AIR.id {
+                    if px.material_id != material::AIR {
                         return px.color;
                     }
                 }
@@ -461,9 +461,9 @@ impl Simulator {
                         let res =
                             Self::simulate_pixel(tx as i32, ty as i32, cur, &mut helper, &rng);
 
-                        // if cur.material_id != AIR.id {
+                        // if cur.material_id != material::AIR {
                         //     // helper.set_pixel_local(tx as i32, ty as i32, MaterialInstance {
-                        //     //     material_id: TEST_MATERIAL.id,
+                        //     //     material_id: material::TEST,
                         //     //     physics: PhysicsType::Sand,
                         //     //     color: Color::RGB(64, 255, 64),
                         //     // });

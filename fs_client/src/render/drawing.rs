@@ -1,5 +1,5 @@
 use fs_common::game::common::{
-    world::{material::Color, particle::Particle, CHUNK_SIZE},
+    world::{material::color::Color, particle::Particle, CHUNK_SIZE},
     Rect,
 };
 use glium::{

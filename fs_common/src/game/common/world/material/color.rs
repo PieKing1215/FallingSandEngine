@@ -1,9 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-pub static AIR: Material = Material { id: 0, name: "Air" };
-
-pub static TEST_MATERIAL: Material = Material { id: 1, name: "Test Material" };
-
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Color {
     pub r: u8,
@@ -118,43 +114,5 @@ impl From<Color> for [f32; 3] {
 impl From<Color> for (f32, f32, f32) {
     fn from(color: Color) -> (f32, f32, f32) {
         (color.r_f32(), color.g_f32(), color.b_f32())
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Serialize, Deserialize, Debug)]
-pub enum PhysicsType {
-    Air,
-    Solid,
-    Sand,
-    Liquid,
-    Gas,
-    Object,
-}
-
-pub struct Material<'a> {
-    pub id: u16,
-    pub name: &'a str,
-}
-
-#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
-pub struct MaterialInstance {
-    pub material_id: u16,
-    pub physics: PhysicsType,
-    pub color: Color,
-}
-
-impl MaterialInstance {
-    pub fn air() -> Self {
-        Self {
-            material_id: AIR.id,
-            physics: PhysicsType::Air,
-            color: Color::rgba(0, 0, 0, 0),
-        }
-    }
-}
-
-impl Default for MaterialInstance {
-    fn default() -> Self {
-        Self::air()
     }
 }

@@ -1,4 +1,4 @@
-use crate::game::common::world::material::{Color, MaterialInstance, PhysicsType, TEST_MATERIAL};
+use crate::game::common::world::material::{self, color::Color, MaterialInstance, PhysicsType};
 
 use super::{Biome, BiomePlacement, BiomePlacementParameter};
 
@@ -27,7 +27,7 @@ pub struct TestBiome(Color);
 impl Biome for TestBiome {
     fn pixel(&self) -> MaterialInstance {
         MaterialInstance {
-            material_id: TEST_MATERIAL.id,
+            material_id: material::TEST,
             physics: PhysicsType::Object,
             color: self.0,
         }

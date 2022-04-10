@@ -3,7 +3,7 @@ use std::fs;
 use egui::{plot::HLine, Align2, RichText, WidgetText};
 use fs_common::game::{
     common::{
-        world::{material::Color, Position, Velocity},
+        world::{material::color::Color, Position, Velocity},
         FileHelper, Rect,
     },
     GameData,

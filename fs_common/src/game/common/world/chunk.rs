@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use specs::{Join, ReadStorage, WorldExt};
 
 use super::gen::WorldGenerator;
-use super::material::{Color, PhysicsType};
+use super::material::{color::Color, PhysicsType};
 use super::particle::Particle;
 use super::physics::Physics;
 use crate::game::common::world::material::MaterialInstance;
@@ -615,9 +615,9 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                                 .unwrap();
                                             let pop = NearbyReplacePopulator {
                                                 radius: 2,
-                                                matches: |m| m.material_id == material::AIR.id,
+                                                matches: |m| m.material_id == material::AIR,
                                                 replace_with: || MaterialInstance {
-                                                    material_id: material::TEST_MATERIAL.id,
+                                                    material_id: material::TEST,
                                                     physics: PhysicsType::Solid,
                                                     color: Color::ROSE,
                                                 },

@@ -774,7 +774,7 @@ impl Client {
 
         // for (x, y) in pixels_to_highlight.iter() {
         //     world.chunk_handler.set(*x, *y, MaterialInstance {
-        //         material_id: TEST_MATERIAL.id,
+        //         material_id: material::TEST,
         //         physics: crate::game::common::world::material::PhysicsType::Solid,
         //         color: Color::RGB(255, 255, 255),
         //     });

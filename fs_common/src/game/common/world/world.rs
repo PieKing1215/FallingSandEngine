@@ -21,7 +21,7 @@ use super::{
         UpdatePhysicsEntities,
     },
     gen::biome_test::BiomeTestGenerator,
-    material::{Color, MaterialInstance, PhysicsType, AIR, TEST_MATERIAL},
+    material::{self, color::Color, MaterialInstance, PhysicsType},
     particle::{Particle, ParticleSystem, UpdateParticles},
     physics::Physics,
     rigidbody::FSRigidBody,
@@ -125,7 +125,7 @@ impl<'w, C: Chunk> World<C> {
                 let y: i32 = i / 40;
                 if (x - 20).abs() < 5 || (y - 20).abs() < 5 {
                     MaterialInstance {
-                        material_id: TEST_MATERIAL.id,
+                        material_id: material::TEST,
                         physics: PhysicsType::Solid,
                         color: Color::rgb(
                             64,
@@ -150,7 +150,7 @@ impl<'w, C: Chunk> World<C> {
                 let y: i32 = i / 40;
                 if (y <= 5) || ((x - y).abs() <= 5) {
                     MaterialInstance {
-                        material_id: TEST_MATERIAL.id,
+                        material_id: material::TEST,
                         physics: PhysicsType::Solid,
                         color: Color::rgb(
                             64,
@@ -178,13 +178,13 @@ impl<'w, C: Chunk> World<C> {
                 let dst = (x - 20) * (x - 20) + (y - 20) * (y - 20);
                 if dst <= 10 * 10 {
                     MaterialInstance {
-                        material_id: TEST_MATERIAL.id,
+                        material_id: material::TEST,
                         physics: PhysicsType::Sand,
                         color: Color::rgb(255, 64, 255),
                     }
                 } else if dst <= 20 * 20 && ((x - 20).abs() >= 5 || y > 20) {
                     MaterialInstance {
-                        material_id: TEST_MATERIAL.id,
+                        material_id: material::TEST,
                         physics: PhysicsType::Solid,
                         color: Color::rgb(
                             if (x + y) % 4 >= 2 { 191 } else { 64 },
@@ -212,7 +212,7 @@ impl<'w, C: Chunk> World<C> {
                     let dst = (x - 15) * (x - 15) + (y - 15) * (y - 15);
                     if dst > 5 * 5 && dst <= 10 * 10 {
                         MaterialInstance {
-                            material_id: TEST_MATERIAL.id,
+                            material_id: material::TEST,
                             physics: PhysicsType::Solid,
                             color: Color::rgb(
                                 if (x + y) % 4 >= 2 { 191 } else { 64 },
@@ -300,10 +300,10 @@ impl<'w, C: Chunk> World<C> {
                             let ty = f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y;
 
                             let cur = rb.pixels[(rb_x + rb_y * rb_w) as usize];
-                            if cur.material_id != AIR.id {
+                            if cur.material_id != material::AIR {
                                 let world = self.chunk_handler.get(tx as i64, ty as i64);
                                 if let Ok(mat) = world {
-                                    if mat.material_id == AIR.id {
+                                    if mat.material_id == material::AIR {
                                         let _ignore = self.chunk_handler.set(
                                             tx as i64,
                                             ty as i64,
@@ -496,7 +496,7 @@ impl<'w, C: Chunk> World<C> {
 
                         let world = ch.get(pos_x.floor() as i64, pos_y.floor() as i64);
                         if let Ok(mat) = world.map(|m| *m) {
-                            if mat.material_id == AIR.id {
+                            if mat.material_id == material::AIR {
                                 let _ignore = ch.set(
                                     pos_x.floor() as i64,
                                     pos_y.floor() as i64,

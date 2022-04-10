@@ -5,7 +5,7 @@ use super::{
 };
 use crate::game::common::world::{
     chunk_index, chunk_update_order,
-    material::{Color, PhysicsType, TEST_MATERIAL},
+    material::{self, color::Color, PhysicsType},
     pixel_to_chunk_pos, pixel_to_chunk_pos_with_chunk_size, ChunkState, PassThroughHasherU32,
 };
 
@@ -109,7 +109,7 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
 
         system.active.push(Particle::new(
             MaterialInstance {
-                material_id: TEST_MATERIAL.id,
+                material_id: material::TEST,
                 physics: PhysicsType::Sand,
                 color: Color::rgb(64, 255, 255),
             },

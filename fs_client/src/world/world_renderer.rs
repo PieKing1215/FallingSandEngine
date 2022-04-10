@@ -7,7 +7,7 @@ use fs_common::game::common::{
         entity::{
             GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState, PlayerMovementMode,
         },
-        material::Color,
+        material::color::Color,
         particle::ParticleSystem,
         physics::PHYSICS_SCALE,
         AutoTarget, Camera, ChunkHandlerGeneric, ChunkState, Position, Velocity, World, CHUNK_SIZE,

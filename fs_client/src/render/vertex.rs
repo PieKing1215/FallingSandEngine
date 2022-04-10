@@ -1,4 +1,4 @@
-use fs_common::game::common::world::material::Color;
+use fs_common::game::common::world::material::color::Color;
 
 #[derive(Copy, Clone)]
 pub struct Vertex2 {

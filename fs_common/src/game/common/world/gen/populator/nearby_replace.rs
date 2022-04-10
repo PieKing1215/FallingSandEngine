@@ -17,7 +17,7 @@ impl Populator<1> for NearbyReplacePopulator {
         for x in 0..i32::from(CHUNK_SIZE) {
             for y in 0..i32::from(CHUNK_SIZE) {
                 let m = chunks.get(x as i32, y as i32).unwrap();
-                if m.material_id != material::AIR.id {
+                if m.material_id != material::AIR {
                     let range = i32::from(self.radius);
                     for dx in -range..=range {
                         for dy in -range..=range {

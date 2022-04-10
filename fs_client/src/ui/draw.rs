@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use fs_common::game::common::world::material::{self, Material};
+use fs_common::game::common::world::material::{self, MaterialID};
 
 pub struct DrawUI {
     textures: BTreeMap<u16, egui::TextureHandle>,
@@ -10,21 +10,16 @@ pub struct DrawUI {
 impl DrawUI {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        Self {
-            textures: BTreeMap::new(),
-            selected: material::AIR.id,
-        }
+        Self { textures: BTreeMap::new(), selected: material::AIR }
     }
 
     pub fn render(&mut self, egui_ctx: &egui::Context) {
-        self.textures.entry(material::AIR.id).or_insert_with(|| {
+        self.textures.entry(material::AIR).or_insert_with(|| {
             egui_ctx.load_texture("my-image", gen_material_preview(&material::AIR))
         });
-        self.textures
-            .entry(material::TEST_MATERIAL.id)
-            .or_insert_with(|| {
-                egui_ctx.load_texture("my-image", gen_material_preview(&material::TEST_MATERIAL))
-            });
+        self.textures.entry(material::TEST).or_insert_with(|| {
+            egui_ctx.load_texture("my-image", gen_material_preview(&material::TEST))
+        });
 
         egui::Window::new("Draw")
             .resizable(false)
@@ -52,7 +47,7 @@ impl DrawUI {
     }
 }
 
-fn gen_material_preview(mat: &Material) -> egui::ColorImage {
+fn gen_material_preview(mat: &MaterialID) -> egui::ColorImage {
     let width = 8;
     let height = 8;
     let fake_nearest_neighbor_scale = 4;

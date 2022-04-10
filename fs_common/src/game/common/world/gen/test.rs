@@ -1,4 +1,4 @@
-use crate::game::common::world::material::{Color, MaterialInstance, PhysicsType, TEST_MATERIAL};
+use crate::game::common::world::material::{self, color::Color, MaterialInstance, PhysicsType};
 
 use simdnoise::NoiseBuilder;
 
@@ -60,7 +60,7 @@ impl WorldGenerator for TestGenerator {
                 } else if v2 > 0.0 {
                     let f = (v2 / 0.02).clamp(0.0, 1.0);
                     pixels[i] = MaterialInstance {
-                        material_id: TEST_MATERIAL.id,
+                        material_id: material::TEST,
                         physics: PhysicsType::Sand,
                         color: Color::rgb(
                             (f * 191.0) as u8 + 64,
@@ -73,13 +73,13 @@ impl WorldGenerator for TestGenerator {
                     colors[i * 4 + 2] = pixels[i].color.b;
                     colors[i * 4 + 3] = pixels[i].color.a;
                     // chunk.set(x, y, MaterialInstance {
-                    //     material_id: TEST_MATERIAL.id,
+                    //     material_id: material::TEST,
                     //     physics: crate::game::world::PhysicsType::Solid,
                     //     color: Color::rgb(0, 0, 255),
                     // }).unwrap();
                 } else {
                     pixels[i] = MaterialInstance {
-                        material_id: TEST_MATERIAL.id,
+                        material_id: material::TEST,
                         physics: PhysicsType::Solid,
                         color: Color::rgb(80, 64, 32),
                     };
@@ -88,7 +88,7 @@ impl WorldGenerator for TestGenerator {
                     colors[i * 4 + 2] = pixels[i].color.b;
                     colors[i * 4 + 3] = pixels[i].color.a;
                     // chunk.set(x, y, MaterialInstance {
-                    //     material_id: TEST_MATERIAL.id,
+                    //     material_id: material::TEST,
                     //     physics: crate::game::world::PhysicsType::Solid,
                     //     color: Color::rgb(0, 255, 0),
                     // }).unwrap();
