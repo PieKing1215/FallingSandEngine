@@ -37,7 +37,7 @@ impl DrawUI {
                         for (id, tex) in &self.textures {
                             if ui
                                 .add(
-                                    egui::ImageButton::new(tex, (32.0, 32.0))
+                                    egui::ImageButton::new(tex, (40.0, 40.0))
                                         .selected(*id == self.selected),
                                 )
                                 .on_hover_text(
@@ -61,9 +61,9 @@ impl DrawUI {
 }
 
 fn gen_material_preview(placer: &dyn MaterialPlacer) -> egui::ColorImage {
-    let width = 8;
-    let height = 8;
-    let fake_nearest_neighbor_scale = 4;
+    let width = 20;
+    let height = 20;
+    let fake_nearest_neighbor_scale = 3;
     let mut img = egui::ColorImage::new(
         [
             width * fake_nearest_neighbor_scale,
