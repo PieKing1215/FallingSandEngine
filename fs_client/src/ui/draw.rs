@@ -74,11 +74,11 @@ fn gen_material_preview(placer: &dyn MaterialPlacer) -> egui::ColorImage {
     for y in 0..height {
         for x in 0..width {
             let mat = placer.pixel(x as i64, y as i64);
-            let col = egui::color::Rgba::from_rgba_unmultiplied(
-                mat.color.r_f32(),
-                mat.color.g_f32(),
-                mat.color.b_f32(),
-                mat.color.a_f32(),
+            let col = egui::color::Rgba::from_srgba_unmultiplied(
+                mat.color.r,
+                mat.color.g,
+                mat.color.b,
+                mat.color.a,
             )
             .into();
 
