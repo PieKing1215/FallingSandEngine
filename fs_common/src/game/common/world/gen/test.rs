@@ -1,4 +1,7 @@
-use crate::game::common::world::material::{self, color::Color, MaterialInstance, PhysicsType};
+use crate::game::{
+    common::world::material::{self, color::Color, MaterialInstance, PhysicsType},
+    Registries,
+};
 
 use simdnoise::NoiseBuilder;
 
@@ -21,6 +24,7 @@ impl WorldGenerator for TestGenerator {
         seed: i32,
         pixels: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
         colors: &mut [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize],
+        _registries: &Registries,
     ) {
         let cofs_x = (chunk_x * CHUNK_SIZE as i32) as f32;
         let cofs_y = (chunk_y * CHUNK_SIZE as i32) as f32;

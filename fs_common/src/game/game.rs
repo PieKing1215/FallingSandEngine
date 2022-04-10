@@ -20,6 +20,13 @@ impl Registries {
             material_placers: placer::init_material_placers(file_helper),
         }
     }
+
+    pub fn empty() -> Self {
+        Self {
+            materials: MaterialRegistry::new(),
+            material_placers: MaterialPlacerRegistry::new(),
+        }
+    }
 }
 
 pub struct GameData<C: Chunk> {

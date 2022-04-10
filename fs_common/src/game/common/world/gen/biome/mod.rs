@@ -1,9 +1,9 @@
 pub mod test;
 
-use crate::game::common::world::material::MaterialInstance;
+use crate::game::{common::world::material::MaterialInstance, Registries};
 
 pub trait Biome {
-    fn pixel(&self) -> MaterialInstance;
+    fn pixel(&self, x: i64, y: i64, registries: &Registries) -> MaterialInstance;
 }
 
 pub struct BiomePlacement {

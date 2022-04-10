@@ -1,8 +1,11 @@
 use std::{borrow::BorrowMut, path::PathBuf, time::Duration};
 
-use crate::game::common::{
-    world::{physics::PHYSICS_SCALE, RigidBodyState},
-    Settings,
+use crate::game::{
+    common::{
+        world::{physics::PHYSICS_SCALE, RigidBodyState},
+        Settings,
+    },
+    Registries,
 };
 
 use rapier2d::{
@@ -278,7 +281,7 @@ impl<'w, C: Chunk> World<C> {
     }
 
     #[profiling::function]
-    pub fn tick(&mut self, tick_time: u32, settings: &Settings) {
+    pub fn tick(&mut self, tick_time: u32, settings: &Settings, registries: &Registries) {
         *self.ecs.write_resource::<TickTime>() = TickTime(tick_time);
 
         {
@@ -529,8 +532,13 @@ impl<'w, C: Chunk> World<C> {
             // }
         }
 
-        self.chunk_handler
-            .tick(tick_time, settings, &mut self.ecs, &mut self.physics);
+        self.chunk_handler.tick(
+            tick_time,
+            settings,
+            &mut self.ecs,
+            &mut self.physics,
+            registries,
+        );
 
         if settings.simulate_particles {
             let mut update_particles = UpdateParticles { chunk_handler: &mut self.chunk_handler };

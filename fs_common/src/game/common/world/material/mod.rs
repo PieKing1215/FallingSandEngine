@@ -46,8 +46,15 @@ impl Default for MaterialInstance {
     }
 }
 
-pub static AIR: MaterialID = 0;
-pub static TEST: MaterialID = 1;
+pub const AIR: MaterialID = 0;
+pub const TEST: MaterialID = 1;
+
+pub const COBBLE_STONE: MaterialID = 2;
+pub const COBBLE_DIRT: MaterialID = 3;
+pub const FADED_COBBLE_STONE: MaterialID = 4;
+pub const FADED_COBBLE_DIRT: MaterialID = 5;
+pub const SMOOTH_STONE: MaterialID = 6;
+pub const SMOOTH_DIRT: MaterialID = 7;
 
 pub type MaterialRegistry = Registry<MaterialID, Material>;
 
@@ -56,6 +63,27 @@ pub fn init_material_types() -> MaterialRegistry {
 
     registry.register(AIR, Material { display_name: "Air".to_string() });
     registry.register(TEST, Material { display_name: "Test".to_string() });
+    registry.register(
+        COBBLE_STONE,
+        Material { display_name: "Cobblestone".to_string() },
+    );
+    registry.register(
+        COBBLE_DIRT,
+        Material { display_name: "Cobbledirt".to_string() },
+    );
+    registry.register(
+        FADED_COBBLE_STONE,
+        Material { display_name: "Faded Cobblestone".to_string() },
+    );
+    registry.register(
+        FADED_COBBLE_DIRT,
+        Material { display_name: "Faded Cobbledirt".to_string() },
+    );
+    registry.register(
+        SMOOTH_STONE,
+        Material { display_name: "Smoth Stone".to_string() },
+    );
+    registry.register(SMOOTH_DIRT, Material { display_name: "Dirt".to_string() });
 
     registry
 }

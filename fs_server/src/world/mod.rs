@@ -9,6 +9,7 @@ mod tests {
         chunk_index, ChunkHandler, ChunkHandlerGeneric, Loader, Position,
     };
     use fs_common::game::common::Settings;
+    use fs_common::game::Registries;
 
     use fs_common::game::common::world::{gen::TestGenerator, FilePersistent, Velocity};
     use specs::saveload::{SimpleMarker, SimpleMarkerAllocator};
@@ -18,6 +19,8 @@ mod tests {
 
     #[test]
     fn chunk_loading() {
+        let registries = Registries::empty();
+
         let mut ch: ChunkHandler<ServerChunk> =
             ChunkHandler::<ServerChunk>::new(TestGenerator {}, None);
 
@@ -65,9 +68,9 @@ mod tests {
 
         let mut phys = Physics::new();
 
-        ch.tick(0, &Settings::default(), &mut ecs, &mut phys);
+        ch.tick(0, &Settings::default(), &mut ecs, &mut phys, &registries);
         while !ch.load_queue.is_empty() {
-            ch.tick(0, &Settings::default(), &mut ecs, &mut phys);
+            ch.tick(0, &Settings::default(), &mut ecs, &mut phys, &registries);
         }
 
         assert!(ch.is_chunk_loaded(11, -12));
@@ -99,7 +102,7 @@ mod tests {
 
         // should unload since no loaders are nearby
         assert_eq!(ecs.delete_entity(loader), Ok(()));
-        ch.tick(0, &Settings::default(), &mut ecs, &mut phys);
+        ch.tick(0, &Settings::default(), &mut ecs, &mut phys, &registries);
 
         assert!(!ch.is_chunk_loaded(11, -12));
         assert!(!ch.is_chunk_loaded(-3, 2));

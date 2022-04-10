@@ -7,6 +7,8 @@ use std::usize;
 
 pub use test::*;
 
+use crate::game::Registries;
+
 use super::{material::MaterialInstance, CHUNK_SIZE};
 
 pub trait WorldGenerator: Send + Sync + std::fmt::Debug {
@@ -18,6 +20,7 @@ pub trait WorldGenerator: Send + Sync + std::fmt::Debug {
         seed: i32,
         pixels: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
         colors: &mut [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize],
+        registries: &Registries,
     );
 
     fn max_gen_stage(&self) -> u8;

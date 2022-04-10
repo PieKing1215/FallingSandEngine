@@ -7,6 +7,7 @@ use crate::game::common::world::particle::ParticleSystem;
 use crate::game::common::world::simulator::Simulator;
 use crate::game::common::world::{Loader, Position};
 use crate::game::common::{Rect, Settings};
+use crate::game::Registries;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::hash::BuildHasherDefault;
@@ -101,6 +102,7 @@ pub trait ChunkHandlerGeneric {
         settings: &Settings,
         world: &mut specs::World,
         physics: &mut Physics,
+        registries: &Registries,
     );
     fn save_chunk(&mut self, index: u32) -> Result<(), Box<dyn std::error::Error>>;
     fn unload_all_chunks(
@@ -151,6 +153,7 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
         settings: &Settings,
         world: &mut specs::World,
         physics: &mut Physics,
+        registries: &Registries,
     ) {
         profiling::scope!("tick");
 
@@ -469,6 +472,8 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                     profiling::scope!("gen chunks");
                     // println!("a {}", to_exec.len());
 
+                    let reg = std::sync::Arc::new(std::sync::RwLock::new(registries));
+
                     let b = {
                         profiling::scope!("gen");
                         let futs2: Vec<_> = to_exec
@@ -488,9 +493,15 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     [0; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize],
                                 );
 
-                                self.generator
-                                    .generate(e.1, e.2, 2, &mut pixels, &mut colors); // TODO: non constant seed
-                                                                                      // println!("{}", e.0);
+                                self.generator.generate(
+                                    e.1,
+                                    e.2,
+                                    2,
+                                    &mut pixels,
+                                    &mut colors,
+                                    &reg.read().unwrap(),
+                                ); // TODO: non constant seed
+                                   // println!("{}", e.0);
                                 (e.0, pixels, colors)
                             })
                             .collect();
