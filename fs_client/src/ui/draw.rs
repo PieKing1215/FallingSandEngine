@@ -14,12 +14,11 @@ impl DrawUI {
     }
 
     pub fn render(&mut self, egui_ctx: &egui::Context, material_registry: &MaterialRegistry) {
-        self.textures.entry(material::AIR).or_insert_with(|| {
-            egui_ctx.load_texture("my-image", gen_material_preview(&material::AIR))
-        });
-        self.textures.entry(material::TEST).or_insert_with(|| {
-            egui_ctx.load_texture("my-image", gen_material_preview(&material::TEST))
-        });
+        for (id, _mat) in material_registry {
+            self.textures.entry(*id).or_insert_with(|| {
+                egui_ctx.load_texture(format!("{id}"), gen_material_preview(id))
+            });
+        }
 
         egui::Window::new("Draw")
             .resizable(false)
@@ -35,7 +34,9 @@ impl DrawUI {
                                     egui::ImageButton::new(tex, (32.0, 32.0))
                                         .selected(*id == self.selected),
                                 )
-                                .on_hover_text(format!("{id}"))
+                                .on_hover_text(
+                                    material_registry.get(id).unwrap().display_name.to_string(),
+                                )
                                 .clicked()
                             {
                                 self.selected = *id;
