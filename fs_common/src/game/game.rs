@@ -3,7 +3,8 @@ use crate::game::common::Settings;
 
 use std::time::Instant;
 
-use super::common::world::Chunk;
+use super::common::world::material::MaterialRegistry;
+use super::common::world::{material, Chunk};
 use super::common::FileHelper;
 
 pub struct GameData<C: Chunk> {
@@ -14,6 +15,7 @@ pub struct GameData<C: Chunk> {
     pub process_stats: ProcessStats,
     pub settings: Settings,
     pub file_helper: FileHelper,
+    pub material_registry: MaterialRegistry,
 }
 
 pub struct ProcessStats {
@@ -52,6 +54,7 @@ impl<C: Chunk> GameData<C> {
             process_stats: ProcessStats { cpu_usage: None, memory: None },
             settings: Settings::default(),
             file_helper,
+            material_registry: material::init_material_types(),
         }
     }
 }

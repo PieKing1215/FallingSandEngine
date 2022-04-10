@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use fs_common::game::common::world::material::{self, MaterialID};
+use fs_common::game::common::world::material::{self, MaterialID, MaterialRegistry};
 
 pub struct DrawUI {
     textures: BTreeMap<u16, egui::TextureHandle>,
@@ -13,7 +13,7 @@ impl DrawUI {
         Self { textures: BTreeMap::new(), selected: material::AIR }
     }
 
-    pub fn render(&mut self, egui_ctx: &egui::Context) {
+    pub fn render(&mut self, egui_ctx: &egui::Context, material_registry: &MaterialRegistry) {
         self.textures.entry(material::AIR).or_insert_with(|| {
             egui_ctx.load_texture("my-image", gen_material_preview(&material::AIR))
         });

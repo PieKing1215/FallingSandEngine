@@ -1,6 +1,7 @@
 pub mod draw;
 mod main_menu;
 
+use fs_common::game::common::world::material::MaterialRegistry;
 pub use main_menu::*;
 
 use self::draw::DrawUI;
@@ -15,7 +16,7 @@ impl DebugUIs {
         Self { draw: DrawUI::new() }
     }
 
-    pub fn render(&mut self, egui_ctx: &egui::Context) {
-        self.draw.render(egui_ctx);
+    pub fn render(&mut self, egui_ctx: &egui::Context, material_registry: &MaterialRegistry) {
+        self.draw.render(egui_ctx, material_registry);
     }
 }

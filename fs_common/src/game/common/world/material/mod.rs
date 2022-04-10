@@ -48,7 +48,9 @@ impl Default for MaterialInstance {
 pub static AIR: MaterialID = 0;
 pub static TEST: MaterialID = 1;
 
-pub fn init_material_types() -> Registry<MaterialID, Material> {
+pub type MaterialRegistry = Registry<MaterialID, Material>;
+
+pub fn init_material_types() -> MaterialRegistry {
     let mut registry = Registry::new();
 
     registry.register(AIR, Material { display_name: "Air".to_string() });
