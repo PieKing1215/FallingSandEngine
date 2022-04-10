@@ -1,4 +1,4 @@
-use std::collections::{HashMap, hash_map};
+use std::collections::{hash_map, HashMap};
 
 pub struct Registry<K: Eq + std::hash::Hash + Copy + std::fmt::Debug, V: std::fmt::Debug> {
     map: HashMap<K, V>,
@@ -19,7 +19,9 @@ impl<K: Eq + std::hash::Hash + Copy + std::fmt::Debug, V: std::fmt::Debug> Regis
     }
 }
 
-impl<'a, K: Eq + std::hash::Hash + Copy + std::fmt::Debug, V: std::fmt::Debug> IntoIterator for &'a Registry<K, V> {
+impl<'a, K: Eq + std::hash::Hash + Copy + std::fmt::Debug, V: std::fmt::Debug> IntoIterator
+    for &'a Registry<K, V>
+{
     type Item = (&'a K, &'a V);
     type IntoIter = hash_map::Iter<'a, K, V>;
 
