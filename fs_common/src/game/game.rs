@@ -13,11 +13,11 @@ pub struct Registries {
     pub material_placers: MaterialPlacerRegistry,
 }
 
-impl Default for Registries {
-    fn default() -> Self {
+impl Registries {
+    fn init(file_helper: &FileHelper) -> Self {
         Self {
             materials: material::init_material_types(),
-            material_placers: placer::init_material_placers(),
+            material_placers: placer::init_material_placers(file_helper),
         }
     }
 }
@@ -68,8 +68,8 @@ impl<C: Chunk> GameData<C> {
             },
             process_stats: ProcessStats { cpu_usage: None, memory: None },
             settings: Settings::default(),
+            registries: Registries::init(&file_helper),
             file_helper,
-            registries: Registries::default(),
         }
     }
 }

@@ -28,7 +28,6 @@ use fs_common::game::{
         networking::{Packet, PacketType},
         world::{
             entity::{GameEntity, Hitbox, Persistent, PhysicsEntity, Player, PlayerMovementMode},
-            material::MaterialInstance,
             physics::PHYSICS_SCALE,
             Camera, ChunkHandlerGeneric, CollisionFlags, Loader, Position, RigidBodyComponent,
             Velocity, World, WorldNetworkMode,

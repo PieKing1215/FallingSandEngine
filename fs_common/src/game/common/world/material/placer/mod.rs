@@ -1,3 +1,11 @@
+pub mod textured;
+
+use std::fs;
+
+use crate::game::common::FileHelper;
+
+use self::textured::TexturedPlacer;
+
 use super::{color::Color, registry::Registry, MaterialID, MaterialInstance, PhysicsType};
 
 pub trait MaterialPlacer {
@@ -30,7 +38,7 @@ pub static TEST_PLACER_2: MaterialPlacerID = 2;
 pub type MaterialPlacerRegistry =
     Registry<MaterialID, (MaterialPlacerMeta, Box<dyn MaterialPlacer>)>;
 
-pub fn init_material_placers() -> MaterialPlacerRegistry {
+pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry {
     let mut registry = Registry::new();
 
     registry.register(
@@ -40,6 +48,7 @@ pub fn init_material_placers() -> MaterialPlacerRegistry {
             Box::new(MaterialInstance::air) as Box<dyn MaterialPlacer>,
         ),
     );
+
     registry.register(
         TEST_PLACER_1,
         (
@@ -51,15 +60,16 @@ pub fn init_material_placers() -> MaterialPlacerRegistry {
             }),
         ),
     );
+
     registry.register(
         TEST_PLACER_2,
         (
             MaterialPlacerMeta { display_name: "Test 2".to_string() },
-            Box::new(MaterialInstance {
-                material_id: super::TEST,
-                physics: PhysicsType::Sand,
-                color: Color::ROSE,
-            }),
+            Box::new(TexturedPlacer::new(
+                super::TEST,
+                PhysicsType::Sand,
+                &fs::read(file_helper.asset_path("texture/material/test.png")).unwrap(),
+            )),
         ),
     );
 

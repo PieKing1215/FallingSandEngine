@@ -32,7 +32,7 @@ salva2d = { version = "0.7", features = ["rapier"] }
 rapier2d = { version = "0.11", features = ["simd-stable"] }
 rayon = "1.5"
 itertools = "0.10"
-parking_lot = "0.12"
+image = "0.24.1"
 
 # mesh generation
 contour = "0.4"

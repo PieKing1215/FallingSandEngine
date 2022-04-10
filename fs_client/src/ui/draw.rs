@@ -1,10 +1,7 @@
 use std::collections::BTreeMap;
 
 use fs_common::game::{
-    common::world::material::{
-        self,
-        placer::{self, MaterialPlacer, MaterialPlacerID},
-    },
+    common::world::material::placer::{self, MaterialPlacer, MaterialPlacerID},
     Registries,
 };
 
