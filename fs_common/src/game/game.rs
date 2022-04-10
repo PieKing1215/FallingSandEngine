@@ -3,9 +3,24 @@ use crate::game::common::Settings;
 
 use std::time::Instant;
 
-use super::common::world::material::MaterialRegistry;
+use super::common::world::material::placer::MaterialPlacerRegistry;
+use super::common::world::material::{placer, MaterialRegistry};
 use super::common::world::{material, Chunk};
 use super::common::FileHelper;
+
+pub struct Registries {
+    pub materials: MaterialRegistry,
+    pub material_placers: MaterialPlacerRegistry,
+}
+
+impl Default for Registries {
+    fn default() -> Self {
+        Self {
+            materials: material::init_material_types(),
+            material_placers: placer::init_material_placers(),
+        }
+    }
+}
 
 pub struct GameData<C: Chunk> {
     pub world: Option<World<C>>,
@@ -15,7 +30,7 @@ pub struct GameData<C: Chunk> {
     pub process_stats: ProcessStats,
     pub settings: Settings,
     pub file_helper: FileHelper,
-    pub material_registry: MaterialRegistry,
+    pub registries: Registries,
 }
 
 pub struct ProcessStats {
@@ -54,7 +69,7 @@ impl<C: Chunk> GameData<C> {
             process_stats: ProcessStats { cpu_usage: None, memory: None },
             settings: Settings::default(),
             file_helper,
-            material_registry: material::init_material_types(),
+            registries: Registries::default(),
         }
     }
 }

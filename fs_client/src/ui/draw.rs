@@ -1,22 +1,31 @@
 use std::collections::BTreeMap;
 
-use fs_common::game::common::world::material::{self, MaterialID, MaterialRegistry};
+use fs_common::game::{
+    common::world::material::{
+        self,
+        placer::{self, MaterialPlacer, MaterialPlacerID},
+    },
+    Registries,
+};
 
 pub struct DrawUI {
     textures: BTreeMap<u16, egui::TextureHandle>,
-    selected: u16,
+    pub selected: MaterialPlacerID,
 }
 
 impl DrawUI {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        Self { textures: BTreeMap::new(), selected: material::AIR }
+        Self {
+            textures: BTreeMap::new(),
+            selected: placer::AIR_PLACER,
+        }
     }
 
-    pub fn render(&mut self, egui_ctx: &egui::Context, material_registry: &MaterialRegistry) {
-        for (id, _mat) in material_registry {
+    pub fn render(&mut self, egui_ctx: &egui::Context, registries: &Registries) {
+        for (id, (_meta, placer)) in &registries.material_placers {
             self.textures.entry(*id).or_insert_with(|| {
-                egui_ctx.load_texture(format!("{id}"), gen_material_preview(id))
+                egui_ctx.load_texture(format!("{id}"), gen_material_preview(placer.as_ref()))
             });
         }
 
@@ -35,7 +44,13 @@ impl DrawUI {
                                         .selected(*id == self.selected),
                                 )
                                 .on_hover_text(
-                                    material_registry.get(id).unwrap().display_name.to_string(),
+                                    registries
+                                        .material_placers
+                                        .get(id)
+                                        .unwrap()
+                                        .0
+                                        .display_name
+                                        .to_string(),
                                 )
                                 .clicked()
                             {
@@ -48,7 +63,7 @@ impl DrawUI {
     }
 }
 
-fn gen_material_preview(mat: &MaterialID) -> egui::ColorImage {
+fn gen_material_preview(placer: &dyn MaterialPlacer) -> egui::ColorImage {
     let width = 8;
     let height = 8;
     let fake_nearest_neighbor_scale = 4;
@@ -61,16 +76,21 @@ fn gen_material_preview(mat: &MaterialID) -> egui::ColorImage {
     );
     for y in 0..height {
         for x in 0..width {
-            let h = x as f32 / width as f32;
-            let s = 1.0;
-            let v = 1.0;
-            let a = y as f32 / height as f32;
+            let mat = placer.pixel(x as i64, y as i64);
+            let col = egui::color::Rgba::from_rgba_unmultiplied(
+                mat.color.r_f32(),
+                mat.color.g_f32(),
+                mat.color.b_f32(),
+                mat.color.a_f32(),
+            )
+            .into();
+
             for xx in 0..fake_nearest_neighbor_scale {
                 for yy in 0..fake_nearest_neighbor_scale {
                     img[(
-                        x * fake_nearest_neighbor_scale + xx,
-                        y * fake_nearest_neighbor_scale + yy,
-                    )] = egui::color::Hsva { h, s, v, a }.into();
+                        x as usize * fake_nearest_neighbor_scale + xx,
+                        y as usize * fake_nearest_neighbor_scale + yy,
+                    )] = col;
                 }
             }
         }

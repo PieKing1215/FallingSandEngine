@@ -1,4 +1,5 @@
 pub mod color;
+pub mod placer;
 pub mod registry;
 
 use serde::{Deserialize, Serialize};

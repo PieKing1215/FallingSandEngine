@@ -197,36 +197,38 @@ impl ClientGame {
                                         }
                                     }
                                 } else if middle_mouse_down {
-                                    if let Some(w) = &mut self.data.world {
-                                        let (
-                                            position_storage,
-                                            camera_storage,
-                                        ) = w.ecs.system_data::<(
-                                            ReadStorage<Position>,
-                                            ReadStorage<Camera>,
-                                        )>();
+                                    if let Some(debug_ui) = &self.client.debug_ui {
+                                        if let Some(w) = &mut self.data.world {
+                                            let (
+                                                position_storage,
+                                                camera_storage,
+                                            ) = w.ecs.system_data::<(
+                                                ReadStorage<Position>,
+                                                ReadStorage<Camera>,
+                                            )>();
 
-                                        let camera_pos = (&position_storage, &camera_storage)
-                                            .join()
-                                            .find_map(|(p, _c)| Some(p));
+                                            let camera_pos = (&position_storage, &camera_storage)
+                                                .join()
+                                                .find_map(|(p, _c)| Some(p));
 
-                                        if let Some(camera_pos) = camera_pos {
-                                            let world_x = camera_pos.x
-                                                + (cursor_pos.x
-                                                    - f64::from(renderer.display.gl_window().window().inner_size().width) / 2.0)
-                                                    / self.client.camera_scale;
-                                            let world_y = camera_pos.y
-                                                + (cursor_pos.y
-                                                    - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
-                                                    / self.client.camera_scale;
+                                            if let Some(camera_pos) = camera_pos {
+                                                let world_x = camera_pos.x
+                                                    + (cursor_pos.x
+                                                        - f64::from(renderer.display.gl_window().window().inner_size().width) / 2.0)
+                                                        / self.client.camera_scale;
+                                                let world_y = camera_pos.y
+                                                    + (cursor_pos.y
+                                                        - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
+                                                        / self.client.camera_scale;
 
-                                            for xx in -3..=3 {
-                                                for yy in -3..=3 {
-                                                    let _ = w.chunk_handler.set(
-                                                        world_x as i64 + xx,
-                                                        world_y as i64 + yy,
-                                                        MaterialInstance::air(),
-                                                    );
+                                                for xx in -3..=3 {
+                                                    for yy in -3..=3 {
+                                                        let x = world_x as i64 + xx;
+                                                        let y = world_y as i64 + yy;
+                                                        let _ = w.chunk_handler.set(x, y,
+                                                            self.data.registries.material_placers.get(&debug_ui.draw.selected).unwrap().1.pixel(x, y),
+                                                        );
+                                                    }
                                                 }
                                             }
                                         }

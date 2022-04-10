@@ -319,7 +319,7 @@ impl<'a> Renderer<'a> {
 
                 client.main_menu.render(egui_ctx, &game.file_helper);
                 if let Some(debug_ui) = &mut client.debug_ui {
-                    debug_ui.render(egui_ctx, &game.material_registry);
+                    debug_ui.render(egui_ctx, &game.registries);
                 }
             });
 
