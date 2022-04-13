@@ -1,6 +1,9 @@
 use simdnoise::NoiseBuilder;
 
-use crate::game::common::world::{material::MaterialInstance, CHUNK_SIZE};
+use crate::game::{
+    common::world::{material::MaterialInstance, CHUNK_SIZE},
+    Registries,
+};
 
 use super::{ChunkContext, Populator};
 
@@ -8,7 +11,7 @@ pub struct CavePopulator;
 
 impl Populator<0> for CavePopulator {
     #[profiling::function]
-    fn populate(&self, mut chunks: ChunkContext<0>, seed: i32) {
+    fn populate(&self, chunks: &mut ChunkContext<0>, seed: i32, registries: &Registries) {
         let (chunk_x, chunk_y) = chunks.center_chunk();
         let chunk_pixel_x = chunk_x * i32::from(CHUNK_SIZE);
         let chunk_pixel_y = chunk_y * i32::from(CHUNK_SIZE);

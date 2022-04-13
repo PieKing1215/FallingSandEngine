@@ -1,6 +1,9 @@
-use crate::game::common::world::{
-    material::{self, color::Color, MaterialInstance, PhysicsType},
-    CHUNK_SIZE,
+use crate::game::{
+    common::world::{
+        material::{self, color::Color, MaterialInstance, PhysicsType},
+        CHUNK_SIZE,
+    },
+    Registries,
 };
 
 use super::{ChunkContext, Populator};
@@ -8,7 +11,7 @@ use super::{ChunkContext, Populator};
 pub struct TestPopulator;
 
 impl<const S: u8> Populator<S> for TestPopulator {
-    fn populate(&self, mut chunks: ChunkContext<S>, _seed: i32) {
+    fn populate(&self, chunks: &mut ChunkContext<S>, _seed: i32, _registries: &Registries) {
         for x in 0..i32::from(CHUNK_SIZE) {
             for y in 0..i32::from(CHUNK_SIZE) {
                 let m = chunks.get(x as i32, y as i32).unwrap();

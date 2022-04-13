@@ -3,6 +3,7 @@ use crate::game::common::world::gen::populator::nearby_replace::NearbyReplacePop
 use crate::game::common::world::gen::populator::ChunkContext;
 use crate::game::common::world::gen::populator::Populator;
 use crate::game::common::world::material;
+use crate::game::common::world::material::placer;
 use crate::game::common::world::particle::ParticleSystem;
 use crate::game::common::world::simulator::Simulator;
 use crate::game::common::world::{Loader, Position};
@@ -616,30 +617,60 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     // TODO: make not hardcoded
                                     match cur_stage {
                                         0 => {
-                                            let ctx = ChunkContext::<0>::new(chunks.as_mut_slice())
-                                                .unwrap();
+                                            let mut ctx =
+                                                ChunkContext::<0>::new(chunks.as_mut_slice())
+                                                    .unwrap();
                                             let pop = CavePopulator;
-                                            pop.populate(ctx, 2); // TODO: non constant seed
+                                            pop.populate(&mut ctx, 2, registries);
+                                            // TODO: non constant seed
                                         },
                                         1 => {
-                                            let ctx = ChunkContext::<1>::new(chunks.as_mut_slice())
-                                                .unwrap();
+                                            let mut ctx =
+                                                ChunkContext::<1>::new(chunks.as_mut_slice())
+                                                    .unwrap();
                                             let pop = NearbyReplacePopulator {
-                                                radius: 2,
+                                                radius: 10,
                                                 searching_for: |m| m.material_id == material::AIR,
-                                                replace: |mat| {
+                                                replace: |mat, x, y, registries| {
                                                     if mat.material_id == material::SMOOTH_STONE {
-                                                        Some(MaterialInstance {
-                                                            material_id: material::TEST,
-                                                            physics: PhysicsType::Solid,
-                                                            color: Color::ROSE,
-                                                        })
+                                                        Some(
+                                                            registries
+                                                                .material_placers
+                                                                .get(&placer::FADED_COBBLE_STONE)
+                                                                .unwrap()
+                                                                .1
+                                                                .pixel(x, y),
+                                                        )
                                                     } else {
                                                         None
                                                     }
                                                 },
                                             };
-                                            pop.populate(ctx, 2); // TODO: non constant seed
+                                            pop.populate(&mut ctx, 2, registries); // TODO: non constant seed
+
+                                            let pop = NearbyReplacePopulator {
+                                                radius: 6,
+                                                searching_for: |m| m.material_id == material::AIR,
+                                                replace: |mat, x, y, registries| {
+                                                    if mat.material_id == material::SMOOTH_STONE
+                                                        || mat.material_id
+                                                            == material::FADED_COBBLE_STONE
+                                                    {
+                                                        Some(
+                                                            registries
+                                                                .material_placers
+                                                                .get(&placer::COBBLE_STONE)
+                                                                .unwrap()
+                                                                .1
+                                                                .pixel(x, y),
+                                                        )
+                                                    } else {
+                                                        None
+                                                    }
+                                                },
+                                            };
+                                            pop.populate(&mut ctx, 2, registries);
+                                            // TODO: non constant seed
                                         },
                                         _ => {},
                                     }

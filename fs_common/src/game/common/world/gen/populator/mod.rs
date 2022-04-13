@@ -2,11 +2,14 @@ pub mod cave;
 pub mod nearby_replace;
 pub mod test;
 
-use crate::game::common::world::{material::MaterialInstance, Chunk, CHUNK_SIZE};
+use crate::game::{
+    common::world::{material::MaterialInstance, Chunk, CHUNK_SIZE},
+    Registries,
+};
 
 // where S=0 means 1x1, S=1 means 3x3, etc
 pub trait Populator<const S: u8> {
-    fn populate(&self, chunks: ChunkContext<S>, seed: i32);
+    fn populate(&self, chunks: &mut ChunkContext<S>, seed: i32, registries: &Registries);
 }
 
 // where S=0 means 1x1, S=1 means 3x3, etc
