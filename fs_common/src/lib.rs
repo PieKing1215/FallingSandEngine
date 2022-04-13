@@ -14,6 +14,7 @@
 #![allow(clippy::similar_names)]
 #![allow(clippy::must_use_candidate)]
 #![allow(clippy::inline_always)]
+#![allow(clippy::implicit_saturating_sub)]
 // TODO
 #![allow(clippy::missing_panics_doc)]
 #![allow(clippy::missing_errors_doc)]

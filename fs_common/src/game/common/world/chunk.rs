@@ -626,11 +626,17 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                                 .unwrap();
                                             let pop = NearbyReplacePopulator {
                                                 radius: 2,
-                                                matches: |m| m.material_id == material::AIR,
-                                                replace_with: || MaterialInstance {
-                                                    material_id: material::TEST,
-                                                    physics: PhysicsType::Solid,
-                                                    color: Color::ROSE,
+                                                searching_for: |m| m.material_id == material::AIR,
+                                                replace: |mat| {
+                                                    if mat.material_id == material::SMOOTH_STONE {
+                                                        Some(MaterialInstance {
+                                                            material_id: material::TEST,
+                                                            physics: PhysicsType::Solid,
+                                                            color: Color::ROSE,
+                                                        })
+                                                    } else {
+                                                        None
+                                                    }
                                                 },
                                             };
                                             pop.populate(ctx, 2); // TODO: non constant seed

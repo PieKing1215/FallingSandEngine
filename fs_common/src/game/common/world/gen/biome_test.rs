@@ -69,7 +69,7 @@ impl WorldGenerator for BiomeTestGenerator {
             })
             .collect::<Vec<_>>();
 
-        let mut vals = base_pts
+        let vals = base_pts
             .iter()
             .map(|(x, y)| {
                 let disp_x = x
