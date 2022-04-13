@@ -116,45 +116,50 @@ impl WorldGenerator for BiomeTestGenerator {
                 .generate()
                 .0;
 
-        for x in 0..CHUNK_SIZE {
-            for y in 0..CHUNK_SIZE {
-                let i = (x + y * CHUNK_SIZE) as usize;
+        {
+            profiling::scope!("loop");
+            for x in 0..CHUNK_SIZE {
+                for y in 0..CHUNK_SIZE {
+                    let i = (x + y * CHUNK_SIZE) as usize;
 
-                vals.sort_by(|((x1, y1), _v1), ((x2, y2), _v2)| {
-                    let dx1 = x1
-                        - (x as i64
-                            + cofs_x as i64
-                            + (ofs_x_1[i] * 1000.0 + ofs_x_2[i] * 500.0) as i64);
-                    let dy1 = y1
-                        - (y as i64
-                            + cofs_y as i64
-                            + (ofs_y_1[i] * 1000.0 + ofs_y_2[i] * 500.0) as i64);
-                    let d1 = dx1 * dx1 + dy1 * dy1;
+                    let biome = vals
+                        .iter()
+                        .min_by(|((x1, y1), _v1), ((x2, y2), _v2)| {
+                            let dx1 = x1
+                                - (x as i64
+                                    + cofs_x as i64
+                                    + (ofs_x_1[i] * 1000.0 + ofs_x_2[i] * 500.0) as i64);
+                            let dy1 = y1
+                                - (y as i64
+                                    + cofs_y as i64
+                                    + (ofs_y_1[i] * 1000.0 + ofs_y_2[i] * 500.0) as i64);
+                            let d1 = dx1 * dx1 + dy1 * dy1;
 
-                    let dx2 = x2
-                        - (x as i64
-                            + cofs_x as i64
-                            + (ofs_x_1[i] * 1000.0 + ofs_x_2[i] * 500.0) as i64);
-                    let dy2 = y2
-                        - (y as i64
-                            + cofs_y as i64
-                            + (ofs_y_1[i] * 1000.0 + ofs_y_2[i] * 500.0) as i64);
-                    let d2 = dx2 * dx2 + dy2 * dy2;
+                            let dx2 = x2
+                                - (x as i64
+                                    + cofs_x as i64
+                                    + (ofs_x_1[i] * 1000.0 + ofs_x_2[i] * 500.0) as i64);
+                            let dy2 = y2
+                                - (y as i64
+                                    + cofs_y as i64
+                                    + (ofs_y_1[i] * 1000.0 + ofs_y_2[i] * 500.0) as i64);
+                            let d2 = dx2 * dx2 + dy2 * dy2;
 
-                    d1.cmp(&d2)
-                });
+                            d1.cmp(&d2)
+                        })
+                        .unwrap()
+                        .1;
 
-                let biome = vals.first().unwrap().1;
-
-                pixels[i] = biome.pixel(
-                    chunk_pixel_x + x as i64,
-                    chunk_pixel_y + y as i64,
-                    registries,
-                );
-                colors[i * 4] = pixels[i].color.r;
-                colors[i * 4 + 1] = pixels[i].color.g;
-                colors[i * 4 + 2] = pixels[i].color.b;
-                colors[i * 4 + 3] = pixels[i].color.a;
+                    pixels[i] = biome.pixel(
+                        chunk_pixel_x + x as i64,
+                        chunk_pixel_y + y as i64,
+                        registries,
+                    );
+                    colors[i * 4] = pixels[i].color.r;
+                    colors[i * 4 + 1] = pixels[i].color.g;
+                    colors[i * 4 + 2] = pixels[i].color.b;
+                    colors[i * 4 + 3] = pixels[i].color.a;
+                }
             }
         }
     }

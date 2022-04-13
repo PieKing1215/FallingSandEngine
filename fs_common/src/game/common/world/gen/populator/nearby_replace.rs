@@ -12,6 +12,7 @@ pub struct NearbyReplacePopulator {
 }
 
 impl Populator<1> for NearbyReplacePopulator {
+    #[profiling::function]
     fn populate(&self, mut chunks: ChunkContext<1>, _seed: i32) {
         // TODO: optimize this the same as the equivalent here: https://github.com/PieKing1215/FallingSandSurvival/blob/dev/FallingSandSurvival/Populators.cpp#L186=
         for x in 0..i32::from(CHUNK_SIZE) {

@@ -7,6 +7,7 @@ use super::{ChunkContext, Populator};
 pub struct CavePopulator;
 
 impl Populator<0> for CavePopulator {
+    #[profiling::function]
     fn populate(&self, mut chunks: ChunkContext<0>, seed: i32) {
         let (chunk_x, chunk_y) = chunks.center_chunk();
         let chunk_pixel_x = chunk_x * i32::from(CHUNK_SIZE);
@@ -31,7 +32,7 @@ impl Populator<0> for CavePopulator {
             for x in 0..i32::from(CHUNK_SIZE) {
                 for y in 0..i32::from(CHUNK_SIZE) {
                     let i = (x + y * i32::from(CHUNK_SIZE)) as usize;
-                    if enable_caves && noise_cave_2[i] > 0.0 {
+                    if noise_cave_2[i] > 0.0 {
                         chunks
                             .set(x as i32, y as i32, MaterialInstance::air())
                             .unwrap();
