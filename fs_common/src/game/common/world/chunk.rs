@@ -512,7 +512,6 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                         let chunk = self.loaded_chunks.get_mut(&keys[p.0]).unwrap();
                         chunk.set_pixels(&p.1);
                         chunk.set_pixel_colors(&p.2);
-                        let _ = chunk.generate_mesh();
                     }
                 }
             }
@@ -563,6 +562,8 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                             let max_stage = self.generator.max_gen_stage();
 
                             if cur_stage >= max_stage {
+                                let _ = self.loaded_chunks.get_mut(&key).unwrap().generate_mesh();
+
                                 self.loaded_chunks
                                     .get_mut(&key)
                                     .unwrap()
