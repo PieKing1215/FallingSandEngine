@@ -606,33 +606,42 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     let mut chunks = Vec::new();
 
                                     let range = i32::from(cur_stage + 1);
-                                    for y in -range..=range {
+
+                                    // try to gather the nearby chunks needed to populate this one
+                                    let mut failed = false;
+                                    'outer: for y in -range..=range {
                                         for x in -range..=range {
                                             let c = self
                                                 .loaded_chunks
-                                                .get_mut(&chunk_index(chunk_x + x, chunk_y + y))
-                                                .unwrap()
-                                                as &mut dyn Chunk
-                                                as *mut _;
-                                            // this is just blatantly bypassing the borrow checker to get mutable refs to multiple unique hashmap entries
-                                            // TODO: profile this and see if removing and readding to the map isn't slow (since it would avoid unsafe)
-                                            chunks.push(unsafe { &mut *c });
+                                                .get_mut(&chunk_index(chunk_x + x, chunk_y + y));
+                                            if let Some(c) = c {
+                                                let c = c as &mut dyn Chunk as *mut _;
+                                                // this is just blatantly bypassing the borrow checker to get mutable refs to multiple unique hashmap entries
+                                                // TODO: profile this and see if removing and readding to the map isn't slow (since it would avoid unsafe)
+                                                chunks.push(unsafe { &mut *c });
+                                            } else {
+                                                failed = true;
+                                                break 'outer;
+                                            }
                                         }
                                     }
 
-                                    // TODO: make not hardcoded
-                                    // TODO: non constant seed
-                                    self.generator.get_populators().populate(
-                                        cur_stage + 1,
-                                        chunks.as_mut_slice(),
-                                        2,
-                                        registries,
-                                    );
+                                    // if we failed to get all nearby chunks, don't populate and don't go to the next stage
+                                    if !failed {
+                                        // TODO: make not hardcoded
+                                        // TODO: non constant seed
+                                        self.generator.get_populators().populate(
+                                            cur_stage + 1,
+                                            chunks.as_mut_slice(),
+                                            2,
+                                            registries,
+                                        );
 
-                                    self.loaded_chunks
-                                        .get_mut(&key)
-                                        .unwrap()
-                                        .set_state(ChunkState::Generating(cur_stage + 1));
+                                        self.loaded_chunks
+                                            .get_mut(&key)
+                                            .unwrap()
+                                            .set_state(ChunkState::Generating(cur_stage + 1));
+                                    }
                                 }
 
                                 if !unload_zone.iter().any(|z| rect.intersects(z)) {
