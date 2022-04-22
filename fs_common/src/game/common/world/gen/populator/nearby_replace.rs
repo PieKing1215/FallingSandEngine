@@ -34,12 +34,12 @@ impl Populator<1> for NearbyReplacePopulator {
                             let m2 = chunks.get(x as i32 + dx, y as i32 + dy).unwrap();
                             if let Some(rep) = (self.replace)(
                                 m2,
-                                (chunks.center_chunk().0 as i64 * CHUNK_SIZE as i64)
-                                    + x as i64
-                                    + dx as i64,
-                                (chunks.center_chunk().1 as i64 * CHUNK_SIZE as i64)
-                                    + y as i64
-                                    + dy as i64,
+                                (i64::from(chunks.center_chunk().0) * i64::from(CHUNK_SIZE))
+                                    + i64::from(x)
+                                    + i64::from(dx),
+                                (i64::from(chunks.center_chunk().1) * i64::from(CHUNK_SIZE))
+                                    + i64::from(y)
+                                    + i64::from(dy),
                                 registries,
                             ) {
                                 chunks.set(x as i32 + dx, y as i32 + dy, rep).unwrap();

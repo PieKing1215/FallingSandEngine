@@ -1,9 +1,3 @@
-use crate::game::common::world::gen::populator::cave::CavePopulator;
-use crate::game::common::world::gen::populator::nearby_replace::NearbyReplacePopulator;
-use crate::game::common::world::gen::populator::ChunkContext;
-use crate::game::common::world::gen::populator::Populator;
-use crate::game::common::world::material;
-use crate::game::common::world::material::placer;
 use crate::game::common::world::particle::ParticleSystem;
 use crate::game::common::world::simulator::Simulator;
 use crate::game::common::world::{Loader, Position};
@@ -615,65 +609,13 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     }
 
                                     // TODO: make not hardcoded
-                                    match cur_stage {
-                                        0 => {
-                                            let mut ctx =
-                                                ChunkContext::<0>::new(chunks.as_mut_slice())
-                                                    .unwrap();
-                                            let pop = CavePopulator;
-                                            pop.populate(&mut ctx, 2, registries);
-                                            // TODO: non constant seed
-                                        },
-                                        1 => {
-                                            let mut ctx =
-                                                ChunkContext::<1>::new(chunks.as_mut_slice())
-                                                    .unwrap();
-                                            let pop = NearbyReplacePopulator {
-                                                radius: 10,
-                                                searching_for: |m| m.material_id == material::AIR,
-                                                replace: |mat, x, y, registries| {
-                                                    if mat.material_id == material::SMOOTH_STONE {
-                                                        Some(
-                                                            registries
-                                                                .material_placers
-                                                                .get(&placer::FADED_COBBLE_STONE)
-                                                                .unwrap()
-                                                                .1
-                                                                .pixel(x, y),
-                                                        )
-                                                    } else {
-                                                        None
-                                                    }
-                                                },
-                                            };
-                                            pop.populate(&mut ctx, 2, registries); // TODO: non constant seed
-
-                                            let pop = NearbyReplacePopulator {
-                                                radius: 6,
-                                                searching_for: |m| m.material_id == material::AIR,
-                                                replace: |mat, x, y, registries| {
-                                                    if mat.material_id == material::SMOOTH_STONE
-                                                        || mat.material_id
-                                                            == material::FADED_COBBLE_STONE
-                                                    {
-                                                        Some(
-                                                            registries
-                                                                .material_placers
-                                                                .get(&placer::COBBLE_STONE)
-                                                                .unwrap()
-                                                                .1
-                                                                .pixel(x, y),
-                                                        )
-                                                    } else {
-                                                        None
-                                                    }
-                                                },
-                                            };
-                                            pop.populate(&mut ctx, 2, registries);
-                                            // TODO: non constant seed
-                                        },
-                                        _ => {},
-                                    }
+                                    // TODO: non constant seed
+                                    self.generator.get_populators().populate(
+                                        cur_stage,
+                                        chunks.as_mut_slice(),
+                                        2,
+                                        registries,
+                                    );
 
                                     self.loaded_chunks
                                         .get_mut(&key)

@@ -1,13 +1,73 @@
-use crate::game::{common::world::material::MaterialInstance, Registries};
+use crate::game::{
+    common::world::material::{self, placer, MaterialInstance},
+    Registries,
+};
 
 use simdnoise::NoiseBuilder;
 
 use crate::game::common::world::CHUNK_SIZE;
 
-use super::{biome::BiomePlacementParameter, WorldGenerator};
+use super::{
+    biome::BiomePlacementParameter,
+    populator::{cave::CavePopulator, nearby_replace::NearbyReplacePopulator},
+    PopulatorList, WorldGenerator,
+};
 
-#[derive(Clone, Copy, Debug)]
-pub struct BiomeTestGenerator;
+#[derive(Debug)]
+pub struct BiomeTestGenerator {
+    populators: PopulatorList,
+}
+
+impl BiomeTestGenerator {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        let mut populators = PopulatorList::new();
+
+        populators.add(CavePopulator);
+
+        populators.add(NearbyReplacePopulator {
+            radius: 10,
+            searching_for: |m| m.material_id == material::AIR,
+            replace: |mat, x, y, registries| {
+                if mat.material_id == material::SMOOTH_STONE {
+                    Some(
+                        registries
+                            .material_placers
+                            .get(&placer::FADED_COBBLE_STONE)
+                            .unwrap()
+                            .1
+                            .pixel(x, y),
+                    )
+                } else {
+                    None
+                }
+            },
+        });
+
+        populators.add(NearbyReplacePopulator {
+            radius: 6,
+            searching_for: |m| m.material_id == material::AIR,
+            replace: |mat, x, y, registries| {
+                if mat.material_id == material::SMOOTH_STONE
+                    || mat.material_id == material::FADED_COBBLE_STONE
+                {
+                    Some(
+                        registries
+                            .material_placers
+                            .get(&placer::COBBLE_STONE)
+                            .unwrap()
+                            .1
+                            .pixel(x, y),
+                    )
+                } else {
+                    None
+                }
+            },
+        });
+
+        Self { populators }
+    }
+}
 
 const BIOME_SIZE: u16 = 200;
 
@@ -166,5 +226,9 @@ impl WorldGenerator for BiomeTestGenerator {
 
     fn max_gen_stage(&self) -> u8 {
         2
+    }
+
+    fn get_populators(&self) -> &super::PopulatorList {
+        &self.populators
     }
 }

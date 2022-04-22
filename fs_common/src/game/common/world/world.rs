@@ -113,7 +113,7 @@ impl<'w, C: Chunk> World<C> {
 
         let mut w = World {
             ecs,
-            chunk_handler: ChunkHandler::new(BiomeTestGenerator, path.clone()),
+            chunk_handler: ChunkHandler::new(BiomeTestGenerator::new(), path.clone()),
             path,
             net_mode: WorldNetworkMode::Local,
             rigidbodies: Vec::new(),

@@ -22,7 +22,7 @@ mod tests {
         let registries = Registries::empty();
 
         let mut ch: ChunkHandler<ServerChunk> =
-            ChunkHandler::<ServerChunk>::new(TestGenerator {}, None);
+            ChunkHandler::<ServerChunk>::new(TestGenerator::new(), None);
 
         assert_eq!(ch.load_queue.len(), 0);
         assert_eq!(ch.loaded_chunks.len(), 0);
@@ -111,7 +111,7 @@ mod tests {
     #[test]
     fn zones() {
         let ch: ChunkHandler<ServerChunk> =
-            ChunkHandler::<ServerChunk>::new(TestGenerator {}, None);
+            ChunkHandler::<ServerChunk>::new(TestGenerator::new(), None);
 
         let center = (12.3, -42.2);
         let screen = ch.get_screen_zone(center);

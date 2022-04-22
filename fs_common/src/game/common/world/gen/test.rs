@@ -7,12 +7,19 @@ use simdnoise::NoiseBuilder;
 
 use crate::game::common::world::CHUNK_SIZE;
 
-use super::WorldGenerator;
+use super::{PopulatorList, WorldGenerator};
 
-pub static TEST_GENERATOR: TestGenerator = TestGenerator {};
+#[derive(Debug)]
+pub struct TestGenerator {
+    populators: PopulatorList,
+}
 
-#[derive(Clone, Copy, Debug)]
-pub struct TestGenerator {}
+impl TestGenerator {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        Self { populators: PopulatorList::new() }
+    }
+}
 
 impl WorldGenerator for TestGenerator {
     #[allow(clippy::cast_lossless)]
@@ -103,5 +110,9 @@ impl WorldGenerator for TestGenerator {
 
     fn max_gen_stage(&self) -> u8 {
         2
+    }
+
+    fn get_populators(&self) -> &super::PopulatorList {
+        &self.populators
     }
 }
