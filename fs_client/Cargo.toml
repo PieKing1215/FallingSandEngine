@@ -14,7 +14,7 @@ edition = "2021"
 fs_common = { path = "../fs_common" }
 log = "0.4"
 profiling = "1.0"
-clap = { version = "3.0", features = ["cargo"] }
+clap = { version = "3.1", features = ["cargo"] }
 egui = { version = "0.17", default-features = false, features = ["default_fonts"] }
 egui_glium = { version = "0.17", default-features = false, features = [] }
 specs = { version = "0.17", features = ["serde", "specs-derive"] }

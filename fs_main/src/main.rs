@@ -247,7 +247,8 @@ pub fn main() -> Result<(), String> {
                     })
                     .set_level_padding(simplelog::LevelPadding::Right)
                     .set_target_level(LevelFilter::Off)
-                    .set_time_to_local(true)
+                    .set_time_offset_to_local()
+                    .unwrap()
                     .build(),
                 TerminalMode::Mixed,
                 simplelog::ColorChoice::Auto,
@@ -258,7 +259,8 @@ pub fn main() -> Result<(), String> {
                     .set_location_level(LevelFilter::Error)
                     .set_level_padding(simplelog::LevelPadding::Right)
                     .set_target_level(LevelFilter::Off)
-                    .set_time_to_local(true)
+                    .set_time_offset_to_local()
+                    .unwrap()
                     .build(),
                 File::create(file_helper.game_path("logs/client_latest.log")).unwrap(),
             ),

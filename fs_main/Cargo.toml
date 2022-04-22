@@ -15,11 +15,11 @@ build = "src/build.rs"
 fs_common = { path = "../fs_common" }
 fs_client = { path = "../fs_client" }
 fs_server = { path = "../fs_server" }
-clap = { version = "3.0", features = ["cargo"] }
+clap = { version = "3.1", features = ["cargo"] }
 profiling = "1.0"
 log = "0.4"
 crossterm = "0.23"
-simplelog = "0.11"
+simplelog = "0.12"
 tui = { version = "0.17", default-features = false, features = ["crossterm"] }
 tui-logger = "0.7"
 backtrace = "0.3"
