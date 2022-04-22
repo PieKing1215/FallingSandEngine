@@ -699,204 +699,74 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                         profiling::scope!("iter");
 
                         if old_dirty_rects.get(key).is_some() {
-                            let ch00: *mut [MaterialInstance;
-                                (CHUNK_SIZE as usize * CHUNK_SIZE as usize)] = self
-                                .loaded_chunks
-                                .get_mut(&chunk_index(ch_pos.0 - 1, ch_pos.1 - 1))
-                                .unwrap()
-                                .get_pixels_mut()
-                                .as_mut()
-                                .unwrap();
-                            let ch10: *mut [MaterialInstance;
-                                (CHUNK_SIZE as usize * CHUNK_SIZE as usize)] = self
-                                .loaded_chunks
-                                .get_mut(&chunk_index(ch_pos.0, ch_pos.1 - 1))
-                                .unwrap()
-                                .get_pixels_mut()
-                                .as_mut()
-                                .unwrap();
-                            let ch20: *mut [MaterialInstance;
-                                (CHUNK_SIZE as usize * CHUNK_SIZE as usize)] = self
-                                .loaded_chunks
-                                .get_mut(&chunk_index(ch_pos.0 + 1, ch_pos.1 - 1))
-                                .unwrap()
-                                .get_pixels_mut()
-                                .as_mut()
-                                .unwrap();
-                            let ch01: *mut [MaterialInstance;
-                                (CHUNK_SIZE as usize * CHUNK_SIZE as usize)] = self
-                                .loaded_chunks
-                                .get_mut(&chunk_index(ch_pos.0 - 1, ch_pos.1))
-                                .unwrap()
-                                .get_pixels_mut()
-                                .as_mut()
-                                .unwrap();
-                            let ch11: *mut [MaterialInstance;
-                                (CHUNK_SIZE as usize * CHUNK_SIZE as usize)] = self
-                                .loaded_chunks
-                                .get_mut(&chunk_index(ch_pos.0, ch_pos.1))
-                                .unwrap()
-                                .get_pixels_mut()
-                                .as_mut()
-                                .unwrap();
-                            let ch21: *mut [MaterialInstance;
-                                (CHUNK_SIZE as usize * CHUNK_SIZE as usize)] = self
-                                .loaded_chunks
-                                .get_mut(&chunk_index(ch_pos.0 + 1, ch_pos.1))
-                                .unwrap()
-                                .get_pixels_mut()
-                                .as_mut()
-                                .unwrap();
-                            let ch02: *mut [MaterialInstance;
-                                (CHUNK_SIZE as usize * CHUNK_SIZE as usize)] = self
-                                .loaded_chunks
-                                .get_mut(&chunk_index(ch_pos.0 - 1, ch_pos.1 + 1))
-                                .unwrap()
-                                .get_pixels_mut()
-                                .as_mut()
-                                .unwrap();
-                            let ch12: *mut [MaterialInstance;
-                                (CHUNK_SIZE as usize * CHUNK_SIZE as usize)] = self
-                                .loaded_chunks
-                                .get_mut(&chunk_index(ch_pos.0, ch_pos.1 + 1))
-                                .unwrap()
-                                .get_pixels_mut()
-                                .as_mut()
-                                .unwrap();
-                            let ch22: *mut [MaterialInstance;
-                                (CHUNK_SIZE as usize * CHUNK_SIZE as usize)] = self
-                                .loaded_chunks
-                                .get_mut(&chunk_index(ch_pos.0 + 1, ch_pos.1 + 1))
-                                .unwrap()
-                                .get_pixels_mut()
-                                .as_mut()
-                                .unwrap();
-                            let arr = unsafe {
-                                [
-                                    &mut *ch00, &mut *ch10, &mut *ch20, &mut *ch01, &mut *ch11,
-                                    &mut *ch21, &mut *ch02, &mut *ch12, &mut *ch22,
-                                ]
-                            };
+                            // SAFETY: the same chunks' arrays may be modified mutably on multiple threads at once, which is necessary for multithreading
+                            // However, ticking a chunk can only affect pixels within CHUNK_SIZE/2 of the center chunk (this is unchecked)
+                            //   so multiple threads will not modify the same index in the array at the same time
+                            // Assuming the hack here to mutably borrow multiple things out of a hashmap is sound (idk), the rest should be sound I think (TM)
 
-                            let gr_ch00: *mut [u8; (CHUNK_SIZE as usize
-                                * CHUNK_SIZE as usize
-                                * 4)] = self
-                                .loaded_chunks
-                                .get_mut(&chunk_index(ch_pos.0 - 1, ch_pos.1 - 1))
-                                .unwrap()
-                                .get_colors_mut();
-                            let gr_ch10: *mut [u8; (CHUNK_SIZE as usize
-                                * CHUNK_SIZE as usize
-                                * 4)] = self
-                                .loaded_chunks
-                                .get_mut(&chunk_index(ch_pos.0, ch_pos.1 - 1))
-                                .unwrap()
-                                .get_colors_mut();
-                            let gr_ch20: *mut [u8; (CHUNK_SIZE as usize
-                                * CHUNK_SIZE as usize
-                                * 4)] = self
-                                .loaded_chunks
-                                .get_mut(&chunk_index(ch_pos.0 + 1, ch_pos.1 - 1))
-                                .unwrap()
-                                .get_colors_mut();
-                            let gr_ch01: *mut [u8; (CHUNK_SIZE as usize
-                                * CHUNK_SIZE as usize
-                                * 4)] = self
-                                .loaded_chunks
-                                .get_mut(&chunk_index(ch_pos.0 - 1, ch_pos.1))
-                                .unwrap()
-                                .get_colors_mut();
-                            let gr_ch11: *mut [u8; (CHUNK_SIZE as usize
-                                * CHUNK_SIZE as usize
-                                * 4)] = self
-                                .loaded_chunks
-                                .get_mut(&chunk_index(ch_pos.0, ch_pos.1))
-                                .unwrap()
-                                .get_colors_mut();
-                            let gr_ch21: *mut [u8; (CHUNK_SIZE as usize
-                                * CHUNK_SIZE as usize
-                                * 4)] = self
-                                .loaded_chunks
-                                .get_mut(&chunk_index(ch_pos.0 + 1, ch_pos.1))
-                                .unwrap()
-                                .get_colors_mut();
-                            let gr_ch02: *mut [u8; (CHUNK_SIZE as usize
-                                * CHUNK_SIZE as usize
-                                * 4)] = self
-                                .loaded_chunks
-                                .get_mut(&chunk_index(ch_pos.0 - 1, ch_pos.1 + 1))
-                                .unwrap()
-                                .get_colors_mut();
-                            let gr_ch12: *mut [u8; (CHUNK_SIZE as usize
-                                * CHUNK_SIZE as usize
-                                * 4)] = self
-                                .loaded_chunks
-                                .get_mut(&chunk_index(ch_pos.0, ch_pos.1 + 1))
-                                .unwrap()
-                                .get_colors_mut();
-                            let gr_ch22: *mut [u8; (CHUNK_SIZE as usize
-                                * CHUNK_SIZE as usize
-                                * 4)] = self
-                                .loaded_chunks
-                                .get_mut(&chunk_index(ch_pos.0 + 1, ch_pos.1 + 1))
-                                .unwrap()
-                                .get_colors_mut();
-                            let gr_arr = unsafe {
-                                [
-                                    &mut *gr_ch00,
-                                    &mut *gr_ch10,
-                                    &mut *gr_ch20,
-                                    &mut *gr_ch01,
-                                    &mut *gr_ch11,
-                                    &mut *gr_ch21,
-                                    &mut *gr_ch02,
-                                    &mut *gr_ch12,
-                                    &mut *gr_ch22,
-                                ]
-                            };
+                            let arr = [
+                                (-1, -1),
+                                (0, -1),
+                                (1, -1),
+                                (-1, 0),
+                                (0, 0),
+                                (1, 0),
+                                (-1, 1),
+                                (0, 1),
+                                (1, 1),
+                            ]
+                            .map(|(x, y)| {
+                                let raw: *mut [MaterialInstance;
+                                    (CHUNK_SIZE as usize * CHUNK_SIZE as usize)] = self
+                                    .loaded_chunks
+                                    .get_mut(&chunk_index(ch_pos.0 + x, ch_pos.1 + y))
+                                    .unwrap()
+                                    .get_pixels_mut()
+                                    .as_mut()
+                                    .unwrap();
+                                // blatantly bypassing the borrow checker, see safety comment above
+                                unsafe { &mut *raw }
+                            });
 
-                            let dirty_ch00 = *old_dirty_rects
-                                .get(&chunk_index(ch_pos.0 - 1, ch_pos.1 - 1))
-                                .unwrap();
-                            let dirty_ch10 = *old_dirty_rects
-                                .get(&chunk_index(ch_pos.0, ch_pos.1 - 1))
-                                .unwrap();
-                            let dirty_ch20 = *old_dirty_rects
-                                .get(&chunk_index(ch_pos.0 + 1, ch_pos.1 - 1))
-                                .unwrap();
-                            let dirty_ch01 = *old_dirty_rects
-                                .get(&chunk_index(ch_pos.0 - 1, ch_pos.1))
-                                .unwrap();
-                            let dirty_ch11 = *old_dirty_rects
-                                .get(&chunk_index(ch_pos.0, ch_pos.1))
-                                .unwrap();
-                            let dirty_ch21 = *old_dirty_rects
-                                .get(&chunk_index(ch_pos.0 + 1, ch_pos.1))
-                                .unwrap();
-                            let dirty_ch02 = *old_dirty_rects
-                                .get(&chunk_index(ch_pos.0 - 1, ch_pos.1 + 1))
-                                .unwrap();
-                            let dirty_ch12 = *old_dirty_rects
-                                .get(&chunk_index(ch_pos.0, ch_pos.1 + 1))
-                                .unwrap();
-                            let dirty_ch22 = *old_dirty_rects
-                                .get(&chunk_index(ch_pos.0 + 1, ch_pos.1 + 1))
-                                .unwrap();
+                            let gr_arr = [
+                                (-1, -1),
+                                (0, -1),
+                                (1, -1),
+                                (-1, 0),
+                                (0, 0),
+                                (1, 0),
+                                (-1, 1),
+                                (0, 1),
+                                (1, 1),
+                            ]
+                            .map(|(x, y)| {
+                                let raw: *mut [u8; (CHUNK_SIZE as usize
+                                    * CHUNK_SIZE as usize
+                                    * 4)] = self
+                                    .loaded_chunks
+                                    .get_mut(&chunk_index(ch_pos.0 + x, ch_pos.1 + y))
+                                    .unwrap()
+                                    .get_colors_mut();
+                                // blatantly bypassing the borrow checker, see safety comment above
+                                unsafe { &mut *raw }
+                            });
+
                             let dirty_arr = [
-                                dirty_ch00, dirty_ch10, dirty_ch20, dirty_ch01, dirty_ch11,
-                                dirty_ch21, dirty_ch02, dirty_ch12, dirty_ch22,
-                            ];
-
-                            // let diff = self.simulate_chunk(arr);
-
-                            // for i in 0..9 {
-                            //     if diff[i].len() > 0 {
-                            //         let rel_ch_x = (i % 3) as i32 - 1;
-                            //         let rel_ch_y = (i / 3) as i32 - 1;
-                            //         self.loaded_chunks.get_mut(&chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y)).unwrap()
-                            //             .apply_diff(&diff[i]);
-                            //     }
-                            // }
+                                (-1, -1),
+                                (0, -1),
+                                (1, -1),
+                                (-1, 0),
+                                (0, 0),
+                                (1, 0),
+                                (-1, 1),
+                                (0, 1),
+                                (1, 1),
+                            ]
+                            .map(|(x, y)| {
+                                *old_dirty_rects
+                                    .get(&chunk_index(ch_pos.0 + x, ch_pos.1 + y))
+                                    .unwrap()
+                            });
 
                             to_exec.push((ch_pos, arr, gr_arr, dirty_arr));
                         }
@@ -916,7 +786,7 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                         profiling::scope!("par_iter");
                         to_exec
                             .into_par_iter()
-                            .map(|(ch_pos, pixels_raw, colors_raw, mut dirty_rects)| {
+                            .map(|(ch_pos, pixels, colors, mut dirty_rects)| {
                                 profiling::register_thread!("Simulation thread");
                                 profiling::scope!("chunk");
 
@@ -925,8 +795,8 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                 Simulator::simulate_chunk(
                                     ch_pos.0,
                                     ch_pos.1,
-                                    pixels_raw,
-                                    colors_raw,
+                                    pixels,
+                                    colors,
                                     &mut dirty,
                                     &mut dirty_rects,
                                     &mut particles,
@@ -1019,43 +889,6 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                 }
             }
         }
-
-        // if tick_time % 15 == 0 {
-        //     let cho = self.get_chunk(0, 0);
-        //     match cho {
-        //         Some(ch) => {
-        //             match ch.state {
-        //                 ChunkState::Active => {
-        //                     let ch_pos = (0, 0);
-        //                     let ch00 = self.loaded_chunks.get(&chunk_index(ch_pos.0 - 1, ch_pos.1 - 1)).unwrap().pixels.as_ref().unwrap();
-        //                     let ch10 = self.loaded_chunks.get(&chunk_index(ch_pos.0 + 0, ch_pos.1 - 1)).unwrap().pixels.as_ref().unwrap();
-        //                     let ch20 = self.loaded_chunks.get(&chunk_index(ch_pos.0 + 1, ch_pos.1 - 1)).unwrap().pixels.as_ref().unwrap();
-        //                     let ch01 = self.loaded_chunks.get(&chunk_index(ch_pos.0 - 1, ch_pos.1 + 0)).unwrap().pixels.as_ref().unwrap();
-        //                     let ch11 = self.loaded_chunks.get(&chunk_index(ch_pos.0 + 0, ch_pos.1 + 0)).unwrap().pixels.as_ref().unwrap();
-        //                     let ch21 = self.loaded_chunks.get(&chunk_index(ch_pos.0 + 1, ch_pos.1 + 0)).unwrap().pixels.as_ref().unwrap();
-        //                     let ch02 = self.loaded_chunks.get(&chunk_index(ch_pos.0 - 1, ch_pos.1 + 1)).unwrap().pixels.as_ref().unwrap();
-        //                     let ch12 = self.loaded_chunks.get(&chunk_index(ch_pos.0 + 0, ch_pos.1 + 1)).unwrap().pixels.as_ref().unwrap();
-        //                     let ch22 = self.loaded_chunks.get(&chunk_index(ch_pos.0 + 1, ch_pos.1 + 1)).unwrap().pixels.as_ref().unwrap();
-        //                     let arr = [
-        //                         ch00, ch10, ch20,
-        //                         ch01, ch11, ch21,
-        //                         ch02, ch12, ch22 ];
-
-        //                     let diff = self.simulate_chunk(arr);
-
-        //                     for i in 0..9 {
-        //                         let rel_ch_x = (i % 3) as i32 - 1;
-        //                         let rel_ch_y = (i / 3) as i32 - 1;
-        //                         self.loaded_chunks.get_mut(&chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y)).unwrap()
-        //                             .apply_diff(&diff[i]);
-        //                     }
-        //                 },
-        //                 _ => {},
-        //             }
-        //         },
-        //         None => {},
-        //     }
-        // }
     }
 
     #[profiling::function]
