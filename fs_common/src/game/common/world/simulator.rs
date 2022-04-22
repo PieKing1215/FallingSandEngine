@@ -16,16 +16,16 @@ use super::{
 pub struct Simulator {}
 
 trait SimulationHelper {
-    unsafe fn get_pixel_local(&self, x: i32, y: i32) -> MaterialInstance;
-    unsafe fn set_pixel_local(&mut self, x: i32, y: i32, mat: MaterialInstance);
-    unsafe fn get_color_local(&self, x: i32, y: i32) -> Color;
-    unsafe fn set_color_local(&mut self, x: i32, y: i32, col: Color);
+    fn get_pixel_local(&self, x: i32, y: i32) -> MaterialInstance;
+    fn set_pixel_local(&mut self, x: i32, y: i32, mat: MaterialInstance);
+    fn get_color_local(&self, x: i32, y: i32) -> Color;
+    fn set_color_local(&mut self, x: i32, y: i32, col: Color);
     fn add_particle(&mut self, material: MaterialInstance, pos: Position, vel: Velocity);
 }
 
 struct SimulationHelperChunk<'a> {
-    pixels: [*mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]; 9],
-    colors: [*mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]; 9],
+    pixels: [&'a mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]; 9],
+    colors: [&'a mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]; 9],
     dirty: &'a mut [bool; 9],
     dirty_rects: &'a mut [Option<Rect<i32>>; 9],
     min_x: [u16; 9],
@@ -39,11 +39,8 @@ struct SimulationHelperChunk<'a> {
 
 impl SimulationHelperChunk<'_> {
     #[inline]
-    unsafe fn get_pixel_from_index(
-        &self,
-        (ch, px, ..): (usize, usize, u16, u16),
-    ) -> MaterialInstance {
-        (*self.pixels[ch])[px]
+    fn get_pixel_from_index(&self, (ch, px, ..): (usize, usize, u16, u16)) -> MaterialInstance {
+        self.pixels[ch][px]
     }
 
     #[inline]
@@ -51,7 +48,7 @@ impl SimulationHelperChunk<'_> {
         &self,
         (ch, px, ..): (usize, usize, u16, u16),
     ) -> MaterialInstance {
-        *(**self.pixels.get_unchecked(ch)).get_unchecked(px)
+        *self.pixels.get_unchecked(ch).get_unchecked(px)
     }
 
     #[inline]
@@ -60,12 +57,12 @@ impl SimulationHelperChunk<'_> {
     }
 
     #[inline]
-    unsafe fn set_pixel_from_index(
+    fn set_pixel_from_index(
         &mut self,
         (ch, px, ch_x, ch_y): (usize, usize, u16, u16),
         mat: MaterialInstance,
     ) {
-        (*self.pixels[ch])[px] = mat;
+        self.pixels[ch][px] = mat;
 
         self.min_x[ch] = self.min_x[ch].min(ch_x);
         self.min_y[ch] = self.min_y[ch].min(ch_y);
@@ -79,7 +76,7 @@ impl SimulationHelperChunk<'_> {
         (ch, px, ch_x, ch_y): (usize, usize, u16, u16),
         mat: MaterialInstance,
     ) {
-        *(**self.pixels.get_unchecked_mut(ch)).get_unchecked_mut(px) = mat;
+        *self.pixels.get_unchecked_mut(ch).get_unchecked_mut(px) = mat;
 
         *self.min_x.get_unchecked_mut(ch) = (*self.min_x.get_unchecked_mut(ch)).min(ch_x);
         *self.min_y.get_unchecked_mut(ch) = (*self.min_y.get_unchecked_mut(ch)).min(ch_y);
@@ -93,12 +90,12 @@ impl SimulationHelperChunk<'_> {
     }
 
     #[inline]
-    unsafe fn get_color_from_index(&self, (ch, px, ..): (usize, usize, u16, u16)) -> Color {
+    fn get_color_from_index(&self, (ch, px, ..): (usize, usize, u16, u16)) -> Color {
         Color::rgba(
-            (*self.colors[ch])[px * 4],
-            (*self.colors[ch])[px * 4 + 1],
-            (*self.colors[ch])[px * 4 + 2],
-            (*self.colors[ch])[px * 4 + 3],
+            self.colors[ch][px * 4],
+            self.colors[ch][px * 4 + 1],
+            self.colors[ch][px * 4 + 2],
+            self.colors[ch][px * 4 + 3],
         )
     }
 
@@ -109,10 +106,10 @@ impl SimulationHelperChunk<'_> {
         (ch, px, ..): (usize, usize, u16, u16),
     ) -> Color {
         Color::rgba(
-            *(**self.colors.get_unchecked(ch)).get_unchecked(px * 4),
-            *(**self.colors.get_unchecked(ch)).get_unchecked(px * 4 + 1),
-            *(**self.colors.get_unchecked(ch)).get_unchecked(px * 4 + 2),
-            *(**self.colors.get_unchecked(ch)).get_unchecked(px * 4 + 3),
+            *self.colors.get_unchecked(ch).get_unchecked(px * 4),
+            *self.colors.get_unchecked(ch).get_unchecked(px * 4 + 1),
+            *self.colors.get_unchecked(ch).get_unchecked(px * 4 + 2),
+            *self.colors.get_unchecked(ch).get_unchecked(px * 4 + 3),
         )
     }
 
@@ -123,15 +120,11 @@ impl SimulationHelperChunk<'_> {
     }
 
     #[inline]
-    unsafe fn set_color_from_index(
-        &mut self,
-        (ch, px, ..): (usize, usize, u16, u16),
-        color: Color,
-    ) {
-        (*self.colors[ch])[px * 4] = color.r;
-        (*self.colors[ch])[px * 4 + 1] = color.g;
-        (*self.colors[ch])[px * 4 + 2] = color.b;
-        (*self.colors[ch])[px * 4 + 3] = color.a;
+    fn set_color_from_index(&mut self, (ch, px, ..): (usize, usize, u16, u16), color: Color) {
+        self.colors[ch][px * 4] = color.r;
+        self.colors[ch][px * 4 + 1] = color.g;
+        self.colors[ch][px * 4 + 2] = color.b;
+        self.colors[ch][px * 4 + 3] = color.a;
 
         self.dirty[ch] = true;
     }
@@ -142,10 +135,19 @@ impl SimulationHelperChunk<'_> {
         (ch, px, ..): (usize, usize, u16, u16),
         color: Color,
     ) {
-        *(**self.colors.get_unchecked_mut(ch)).get_unchecked_mut(px * 4) = color.r;
-        *(**self.colors.get_unchecked_mut(ch)).get_unchecked_mut(px * 4 + 1) = color.g;
-        *(**self.colors.get_unchecked_mut(ch)).get_unchecked_mut(px * 4 + 2) = color.b;
-        *(**self.colors.get_unchecked_mut(ch)).get_unchecked_mut(px * 4 + 3) = color.a;
+        *self.colors.get_unchecked_mut(ch).get_unchecked_mut(px * 4) = color.r;
+        *self
+            .colors
+            .get_unchecked_mut(ch)
+            .get_unchecked_mut(px * 4 + 1) = color.g;
+        *self
+            .colors
+            .get_unchecked_mut(ch)
+            .get_unchecked_mut(px * 4 + 2) = color.b;
+        *self
+            .colors
+            .get_unchecked_mut(ch)
+            .get_unchecked_mut(px * 4 + 3) = color.a;
 
         self.dirty[ch] = true;
     }
@@ -191,22 +193,22 @@ impl SimulationHelperChunk<'_> {
 
 impl SimulationHelper for SimulationHelperChunk<'_> {
     #[inline]
-    unsafe fn get_pixel_local(&self, x: i32, y: i32) -> MaterialInstance {
+    fn get_pixel_local(&self, x: i32, y: i32) -> MaterialInstance {
         self.get_pixel_from_index(Self::local_to_indices(x, y))
     }
 
     #[inline]
-    unsafe fn set_pixel_local(&mut self, x: i32, y: i32, mat: MaterialInstance) {
+    fn set_pixel_local(&mut self, x: i32, y: i32, mat: MaterialInstance) {
         self.set_pixel_from_index(Self::local_to_indices(x, y), mat);
     }
 
     #[inline]
-    unsafe fn get_color_local(&self, x: i32, y: i32) -> Color {
+    fn get_color_local(&self, x: i32, y: i32) -> Color {
         self.get_color_from_index(Self::local_to_indices(x, y))
     }
 
     #[inline]
-    unsafe fn set_color_local(&mut self, x: i32, y: i32, col: Color) {
+    fn set_color_local(&mut self, x: i32, y: i32, col: Color) {
         self.set_color_from_index(Self::local_to_indices(x, y), col);
     }
 
@@ -231,7 +233,7 @@ struct SimulationHelperRigidBody<'a, C: Chunk> {
 }
 
 impl<C: Chunk> SimulationHelper for SimulationHelperRigidBody<'_, C> {
-    unsafe fn get_pixel_local(&self, x: i32, y: i32) -> MaterialInstance {
+    fn get_pixel_local(&self, x: i32, y: i32) -> MaterialInstance {
         let world_mat = self.chunk_handler.get(i64::from(x), i64::from(y)); // TODO: consider changing the args to i64
         if let Ok(m) = world_mat {
             if m.material_id != material::AIR {
@@ -264,11 +266,11 @@ impl<C: Chunk> SimulationHelper for SimulationHelperRigidBody<'_, C> {
         MaterialInstance::air()
     }
 
-    unsafe fn set_pixel_local(&mut self, x: i32, y: i32, mat: MaterialInstance) {
+    fn set_pixel_local(&mut self, x: i32, y: i32, mat: MaterialInstance) {
         let _ignore = self.chunk_handler.set(i64::from(x), i64::from(y), mat); // TODO: consider changing the args to i64
     }
 
-    unsafe fn get_color_local(&self, x: i32, y: i32) -> Color {
+    fn get_color_local(&self, x: i32, y: i32) -> Color {
         let (chunk_x, chunk_y) = pixel_to_chunk_pos(i64::from(x), i64::from(y));
         let chunk = self.chunk_handler.get_chunk(chunk_x, chunk_y);
 
@@ -309,7 +311,7 @@ impl<C: Chunk> SimulationHelper for SimulationHelperRigidBody<'_, C> {
         Color::rgba(0, 0, 0, 0)
     }
 
-    unsafe fn set_color_local(&mut self, x: i32, y: i32, col: Color) {
+    fn set_color_local(&mut self, x: i32, y: i32, col: Color) {
         let (chunk_x, chunk_y) = pixel_to_chunk_pos(i64::from(x), i64::from(y));
         let chunk = self.chunk_handler.get_chunk_mut(chunk_x, chunk_y);
 
@@ -553,105 +555,99 @@ impl Simulator {
         helper: &mut impl SimulationHelper,
         rng: &fastrand::Rng,
     ) -> Option<MaterialInstance> {
-        unsafe {
-            let mut new_mat = None;
+        let mut new_mat = None;
 
-            #[allow(clippy::single_match)]
-            match cur.physics {
-                PhysicsType::Sand => {
-                    let below = helper.get_pixel_local(x, y + 1);
-                    let below_can = below.physics == PhysicsType::Air;
+        #[allow(clippy::single_match)]
+        match cur.physics {
+            PhysicsType::Sand => {
+                let below = helper.get_pixel_local(x, y + 1);
+                let below_can = below.physics == PhysicsType::Air;
 
-                    let bl = helper.get_pixel_local(x - 1, y + 1);
-                    let bl_can = bl.physics == PhysicsType::Air;
+                let bl = helper.get_pixel_local(x - 1, y + 1);
+                let bl_can = bl.physics == PhysicsType::Air;
 
-                    let br = helper.get_pixel_local(x + 1, y + 1);
-                    let br_can = br.physics == PhysicsType::Air;
+                let br = helper.get_pixel_local(x + 1, y + 1);
+                let br_can = br.physics == PhysicsType::Air;
 
-                    if below_can && (!(br_can || bl_can) || rng.f32() > 0.1) {
-                        // let below2_i = index_helper(x, y + 2);
-                        // let below2 = (*pixels[below_i.0])[below_i.1];
-                        // if below2.physics == PhysicsType::Air {
-                        //     set_color(x, y + 2, cur.color, true);
-                        //     (*pixels[below2_i.0])[below2_i.1] = cur;
-                        //     new_mat = Some(MaterialInstance::air());
-                        // }else {
+                if below_can && (!(br_can || bl_can) || rng.f32() > 0.1) {
+                    // let below2_i = index_helper(x, y + 2);
+                    // let below2 = (*pixels[below_i.0])[below_i.1];
+                    // if below2.physics == PhysicsType::Air {
+                    //     set_color(x, y + 2, cur.color, true);
+                    //     (*pixels[below2_i.0])[below2_i.1] = cur;
+                    //     new_mat = Some(MaterialInstance::air());
+                    // }else {
 
-                        let empty_below = (0..4).all(|i| {
-                            let pix = helper.get_pixel_local(x, y + i + 2); // don't include myself or one below
-                            pix.physics == PhysicsType::Air
-                        });
+                    let empty_below = (0..4).all(|i| {
+                        let pix = helper.get_pixel_local(x, y + i + 2); // don't include myself or one below
+                        pix.physics == PhysicsType::Air
+                    });
 
-                        if empty_below {
-                            helper.add_particle(
-                                cur,
-                                Position { x: f64::from(x), y: f64::from(y) },
-                                Velocity { x: (rng.f64() - 0.5) * 0.5, y: 1.0 + rng.f64() },
-                            );
-                        } else if rng.bool()
-                            && helper.get_pixel_local(x, y + 2).physics == PhysicsType::Air
-                        {
-                            helper.set_color_local(x, y + 2, cur.color);
-                            helper.set_pixel_local(x, y + 2, cur);
-                        } else {
-                            helper.set_color_local(x, y + 1, cur.color);
-                            helper.set_pixel_local(x, y + 1, cur);
-                        }
-
-                        new_mat = Some(MaterialInstance::air());
-
-                        // }
+                    if empty_below {
+                        helper.add_particle(
+                            cur,
+                            Position { x: f64::from(x), y: f64::from(y) },
+                            Velocity { x: (rng.f64() - 0.5) * 0.5, y: 1.0 + rng.f64() },
+                        );
+                    } else if rng.bool()
+                        && helper.get_pixel_local(x, y + 2).physics == PhysicsType::Air
+                    {
+                        helper.set_color_local(x, y + 2, cur.color);
+                        helper.set_pixel_local(x, y + 2, cur);
                     } else {
-                        let above = helper.get_pixel_local(x, y - 1);
-                        let above_air = above.physics == PhysicsType::Air;
-                        if above_air || rng.f32() > 0.5 {
-                            if bl_can && br_can {
-                                if rng.bool() {
-                                    helper.set_color_local(x + 1, y + 1, cur.color);
-                                    helper.set_pixel_local(x + 1, y + 1, cur);
-                                } else {
-                                    helper.set_color_local(x - 1, y + 1, cur.color);
-                                    helper.set_pixel_local(x - 1, y + 1, cur);
-                                }
+                        helper.set_color_local(x, y + 1, cur.color);
+                        helper.set_pixel_local(x, y + 1, cur);
+                    }
+
+                    new_mat = Some(MaterialInstance::air());
+
+                    // }
+                } else {
+                    let above = helper.get_pixel_local(x, y - 1);
+                    let above_air = above.physics == PhysicsType::Air;
+                    if above_air || rng.f32() > 0.5 {
+                        if bl_can && br_can {
+                            if rng.bool() {
+                                helper.set_color_local(x + 1, y + 1, cur.color);
+                                helper.set_pixel_local(x + 1, y + 1, cur);
+                            } else {
+                                helper.set_color_local(x - 1, y + 1, cur.color);
+                                helper.set_pixel_local(x - 1, y + 1, cur);
+                            }
+                            new_mat = Some(MaterialInstance::air());
+                        } else if bl_can {
+                            if rng.bool()
+                                && helper.get_pixel_local(x - 2, y + 1).physics == PhysicsType::Air
+                                && helper.get_pixel_local(x - 2, y + 2).physics != PhysicsType::Air
+                            {
+                                helper.set_color_local(x - 2, y + 1, cur.color);
+                                helper.set_pixel_local(x - 2, y + 1, cur);
                                 new_mat = Some(MaterialInstance::air());
-                            } else if bl_can {
-                                if rng.bool()
-                                    && helper.get_pixel_local(x - 2, y + 1).physics
-                                        == PhysicsType::Air
-                                    && helper.get_pixel_local(x - 2, y + 2).physics
-                                        != PhysicsType::Air
-                                {
-                                    helper.set_color_local(x - 2, y + 1, cur.color);
-                                    helper.set_pixel_local(x - 2, y + 1, cur);
-                                    new_mat = Some(MaterialInstance::air());
-                                } else {
-                                    helper.set_color_local(x - 1, y + 1, cur.color);
-                                    helper.set_pixel_local(x - 1, y + 1, cur);
-                                    new_mat = Some(MaterialInstance::air());
-                                }
-                            } else if br_can {
-                                if rng.bool()
-                                    && helper.get_pixel_local(x + 2, y + 1).physics
-                                        == PhysicsType::Air
-                                    && helper.get_pixel_local(x + 2, y + 2).physics
-                                        != PhysicsType::Air
-                                {
-                                    helper.set_color_local(x + 2, y + 1, cur.color);
-                                    helper.set_pixel_local(x + 2, y + 1, cur);
-                                    new_mat = Some(MaterialInstance::air());
-                                } else {
-                                    helper.set_color_local(x + 1, y + 1, cur.color);
-                                    helper.set_pixel_local(x + 1, y + 1, cur);
-                                    new_mat = Some(MaterialInstance::air());
-                                }
+                            } else {
+                                helper.set_color_local(x - 1, y + 1, cur.color);
+                                helper.set_pixel_local(x - 1, y + 1, cur);
+                                new_mat = Some(MaterialInstance::air());
+                            }
+                        } else if br_can {
+                            if rng.bool()
+                                && helper.get_pixel_local(x + 2, y + 1).physics == PhysicsType::Air
+                                && helper.get_pixel_local(x + 2, y + 2).physics != PhysicsType::Air
+                            {
+                                helper.set_color_local(x + 2, y + 1, cur.color);
+                                helper.set_pixel_local(x + 2, y + 1, cur);
+                                new_mat = Some(MaterialInstance::air());
+                            } else {
+                                helper.set_color_local(x + 1, y + 1, cur.color);
+                                helper.set_pixel_local(x + 1, y + 1, cur);
+                                new_mat = Some(MaterialInstance::air());
                             }
                         }
                     }
-                },
-                _ => {},
-            }
-
-            new_mat
+                }
+            },
+            _ => {},
         }
+
+        new_mat
     }
 }

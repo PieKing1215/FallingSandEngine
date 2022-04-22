@@ -98,5 +98,3 @@ pub trait WorldGenerator: Send + Sync + std::fmt::Debug {
 
     fn get_populators(&self) -> &PopulatorList;
 }
-
-// unsafe impl<T> Send for T where T: WorldGenerator {}

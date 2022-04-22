@@ -23,7 +23,7 @@ pub struct Particle {
     pub pos: Position,
     pub vel: Velocity,
     pub in_object_state: InObjectState,
-    pub chunk_cache: (u32, u8),
+    pub chunk_cache: (u32, u8), // (chunk index, chunk update order) TODO: make chunk update order a type?
 }
 
 impl Particle {

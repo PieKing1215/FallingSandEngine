@@ -24,7 +24,7 @@ impl MaterialPlacer for TexturedPlacer {
         let px = (x.rem_euclid(i64::from(self.image.width()))) as u32;
         let py = (y.rem_euclid(i64::from(self.image.height()))) as u32;
 
-        // the bounds are enforced with the `rem_euclid`s above
+        // safety: the bounds are enforced with the `rem_euclid`s above
         let rgba = unsafe { self.image.unsafe_get_pixel(px, py) }.0;
 
         let color = Color::rgba(rgba[0], rgba[1], rgba[2], rgba[3]);

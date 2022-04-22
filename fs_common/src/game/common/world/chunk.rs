@@ -614,6 +614,8 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                                 .unwrap()
                                                 as &mut dyn Chunk
                                                 as *mut _;
+                                            // this is just blatantly bypassing the borrow checker to get mutable refs to multiple unique hashmap entries
+                                            // TODO: profile this and see if removing and readding to the map isn't slow (since it would avoid unsafe)
                                             chunks.push(unsafe { &mut *c });
                                         }
                                     }
