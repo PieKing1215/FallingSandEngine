@@ -512,6 +512,15 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                         let chunk = self.loaded_chunks.get_mut(&keys[p.0]).unwrap();
                         chunk.set_pixels(&p.1);
                         chunk.set_pixel_colors(&p.2);
+
+                        // TODO: non constant seed
+                        // TODO: populating stage 0 should be able to be multithreaded
+                        self.generator.get_populators().populate(
+                            0,
+                            &mut [chunk as &mut dyn Chunk],
+                            2,
+                            registries,
+                        );
                     }
                 }
             }
@@ -596,7 +605,7 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                 }) {
                                     let mut chunks = Vec::new();
 
-                                    let range = i32::from(cur_stage);
+                                    let range = i32::from(cur_stage + 1);
                                     for y in -range..=range {
                                         for x in -range..=range {
                                             let c = self
@@ -612,7 +621,7 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     // TODO: make not hardcoded
                                     // TODO: non constant seed
                                     self.generator.get_populators().populate(
-                                        cur_stage,
+                                        cur_stage + 1,
                                         chunks.as_mut_slice(),
                                         2,
                                         registries,
