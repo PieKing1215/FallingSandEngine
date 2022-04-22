@@ -335,8 +335,8 @@ impl Simulator {
     pub fn simulate_chunk(
         chunk_x: i32,
         chunk_y: i32,
-        pixels_raw: [usize; 9],
-        colors_raw: [usize; 9],
+        pixels: [&mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]; 9],
+        colors: [&mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]; 9],
         dirty: &mut [bool; 9],
         dirty_rects: &mut [Option<Rect<i32>>; 9],
         particles: &mut Vec<Particle>,
@@ -350,70 +350,43 @@ impl Simulator {
         }
         let my_dirty_rect = my_dirty_rect_o.unwrap();
 
-        unsafe {
-            let mut helper = SimulationHelperChunk {
-                pixels: [
-                    &mut *(pixels_raw[0]
-                        as *mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]),
-                    &mut *(pixels_raw[1]
-                        as *mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]),
-                    &mut *(pixels_raw[2]
-                        as *mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]),
-                    &mut *(pixels_raw[3]
-                        as *mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]),
-                    &mut *(pixels_raw[4]
-                        as *mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]),
-                    &mut *(pixels_raw[5]
-                        as *mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]),
-                    &mut *(pixels_raw[6]
-                        as *mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]),
-                    &mut *(pixels_raw[7]
-                        as *mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]),
-                    &mut *(pixels_raw[8]
-                        as *mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]),
-                ],
-                colors: [
-                    &mut *(colors_raw[0] as *mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]),
-                    &mut *(colors_raw[1] as *mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]),
-                    &mut *(colors_raw[2] as *mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]),
-                    &mut *(colors_raw[3] as *mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]),
-                    &mut *(colors_raw[4] as *mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]),
-                    &mut *(colors_raw[5] as *mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]),
-                    &mut *(colors_raw[6] as *mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]),
-                    &mut *(colors_raw[7] as *mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]),
-                    &mut *(colors_raw[8] as *mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]),
-                ],
-                dirty,
-                dirty_rects,
-                min_x: [CHUNK_SIZE + 1; 9],
-                min_y: [CHUNK_SIZE + 1; 9],
-                max_x: [0; 9],
-                max_y: [0; 9],
-                particles,
-                chunk_x,
-                chunk_y,
-            };
+        let mut helper = SimulationHelperChunk {
+            pixels,
+            colors,
+            dirty,
+            dirty_rects,
+            min_x: [CHUNK_SIZE + 1; 9],
+            min_y: [CHUNK_SIZE + 1; 9],
+            max_x: [0; 9],
+            max_y: [0; 9],
+            particles,
+            chunk_x,
+            chunk_y,
+        };
 
-            let rng = fastrand::Rng::new();
-            {
-                profiling::scope!("loop");
-                if rng.bool() {
-                    for y in my_dirty_rect.range_tb().rev() {
-                        for x in my_dirty_rect.range_lr() {
-                            let cur = helper.get_pixel_local_unchecked(x, y);
+        let rng = fastrand::Rng::new();
+        {
+            profiling::scope!("loop");
+            if rng.bool() {
+                for y in my_dirty_rect.range_tb().rev() {
+                    for x in my_dirty_rect.range_lr() {
+                        let cur = unsafe { helper.get_pixel_local_unchecked(x, y) };
 
-                            if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper, &rng) {
+                        if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper, &rng) {
+                            unsafe {
                                 helper.set_color_local_unchecked(x, y, mat.color);
                                 helper.set_pixel_local_unchecked(x, y, mat);
                             }
                         }
                     }
-                } else {
-                    for y in my_dirty_rect.range_tb().rev() {
-                        for x in my_dirty_rect.range_lr().rev() {
-                            let cur = helper.get_pixel_local_unchecked(x, y);
+                }
+            } else {
+                for y in my_dirty_rect.range_tb().rev() {
+                    for x in my_dirty_rect.range_lr().rev() {
+                        let cur = unsafe { helper.get_pixel_local_unchecked(x, y) };
 
-                            if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper, &rng) {
+                        if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper, &rng) {
+                            unsafe {
                                 helper.set_color_local_unchecked(x, y, mat.color);
                                 helper.set_pixel_local_unchecked(x, y, mat);
                             }
@@ -421,9 +394,9 @@ impl Simulator {
                     }
                 }
             }
-
-            helper.finish_dirty_rects();
         }
+
+        helper.finish_dirty_rects();
     }
 
     #[allow(clippy::unnecessary_unwrap)]

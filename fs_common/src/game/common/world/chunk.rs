@@ -771,17 +771,12 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                 .get_pixels_mut()
                                 .as_mut()
                                 .unwrap();
-                            let arr = [
-                                ch00 as usize,
-                                ch10 as usize,
-                                ch20 as usize,
-                                ch01 as usize,
-                                ch11 as usize,
-                                ch21 as usize,
-                                ch02 as usize,
-                                ch12 as usize,
-                                ch22 as usize,
-                            ];
+                            let arr = unsafe {
+                                [
+                                    &mut *ch00, &mut *ch10, &mut *ch20, &mut *ch01, &mut *ch11,
+                                    &mut *ch21, &mut *ch02, &mut *ch12, &mut *ch22,
+                                ]
+                            };
 
                             let gr_ch00: *mut [u8; (CHUNK_SIZE as usize
                                 * CHUNK_SIZE as usize
@@ -846,17 +841,19 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                 .get_mut(&chunk_index(ch_pos.0 + 1, ch_pos.1 + 1))
                                 .unwrap()
                                 .get_colors_mut();
-                            let gr_arr = [
-                                gr_ch00 as usize,
-                                gr_ch10 as usize,
-                                gr_ch20 as usize,
-                                gr_ch01 as usize,
-                                gr_ch11 as usize,
-                                gr_ch21 as usize,
-                                gr_ch02 as usize,
-                                gr_ch12 as usize,
-                                gr_ch22 as usize,
-                            ];
+                            let gr_arr = unsafe {
+                                [
+                                    &mut *gr_ch00,
+                                    &mut *gr_ch10,
+                                    &mut *gr_ch20,
+                                    &mut *gr_ch01,
+                                    &mut *gr_ch11,
+                                    &mut *gr_ch21,
+                                    &mut *gr_ch02,
+                                    &mut *gr_ch12,
+                                    &mut *gr_ch22,
+                                ]
+                            };
 
                             let dirty_ch00 = *old_dirty_rects
                                 .get(&chunk_index(ch_pos.0 - 1, ch_pos.1 - 1))
