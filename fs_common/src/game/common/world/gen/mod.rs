@@ -29,6 +29,8 @@ impl PopulatorList {
     }
 
     pub fn add<const S: u8>(&mut self, pop: impl Populator<S> + 'static + Send + Sync) {
+        // this downcast can be made unchecked once that's stabilized
+        // https://github.com/rust-lang/rust/issues/90850
         let vec: &mut Vec<Box<dyn Populator<S> + Send + Sync>> = self
             .map
             .entry(S)
@@ -40,6 +42,8 @@ impl PopulatorList {
 
     pub fn get_all<const S: u8>(&self) -> &[Box<dyn Populator<S> + Send + Sync>] {
         if let Some(a) = self.map.get(&S) {
+            // this downcast can be made unchecked once that's stabilized
+            // https://github.com/rust-lang/rust/issues/90850
             let vec: &Vec<Box<dyn Populator<S> + Send + Sync>> = a.downcast_ref().unwrap();
             vec
         } else {
