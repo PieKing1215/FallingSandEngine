@@ -226,46 +226,49 @@ pub fn main() -> Result<(), String> {
     } else if client {
         let debug = matches.is_present("debug");
 
-        if !file_helper.game_path("logs/").exists() {
-            info!("logs dir missing, creating it...");
-            std::fs::create_dir_all(file_helper.game_path("logs/"))
-                .expect("Failed to create logs dir:");
-        }
+        {
+            profiling::scope!("Init logging");
+            if !file_helper.game_path("logs/").exists() {
+                info!("logs dir missing, creating it...");
+                std::fs::create_dir_all(file_helper.game_path("logs/"))
+                    .expect("Failed to create logs dir:");
+            }
 
-        CombinedLogger::init(vec![
-            TermLogger::new(
-                if debug {
-                    LevelFilter::Trace
-                } else {
-                    LevelFilter::Info
-                },
-                ConfigBuilder::new()
-                    .set_location_level(if debug {
-                        LevelFilter::Error
+            CombinedLogger::init(vec![
+                TermLogger::new(
+                    if debug {
+                        LevelFilter::Trace
                     } else {
-                        LevelFilter::Off
-                    })
-                    .set_level_padding(simplelog::LevelPadding::Right)
-                    .set_target_level(LevelFilter::Off)
-                    .set_time_offset_to_local()
-                    .unwrap()
-                    .build(),
-                TerminalMode::Mixed,
-                simplelog::ColorChoice::Auto,
-            ),
-            WriteLogger::new(
-                LevelFilter::Trace,
-                ConfigBuilder::new()
-                    .set_location_level(LevelFilter::Error)
-                    .set_level_padding(simplelog::LevelPadding::Right)
-                    .set_target_level(LevelFilter::Off)
-                    .set_time_offset_to_local()
-                    .unwrap()
-                    .build(),
-                File::create(file_helper.game_path("logs/client_latest.log")).unwrap(),
-            ),
-        ])
-        .unwrap();
+                        LevelFilter::Info
+                    },
+                    ConfigBuilder::new()
+                        .set_location_level(if debug {
+                            LevelFilter::Error
+                        } else {
+                            LevelFilter::Off
+                        })
+                        .set_level_padding(simplelog::LevelPadding::Right)
+                        .set_target_level(LevelFilter::Off)
+                        .set_time_offset_to_local()
+                        .unwrap()
+                        .build(),
+                    TerminalMode::Mixed,
+                    simplelog::ColorChoice::Auto,
+                ),
+                WriteLogger::new(
+                    LevelFilter::Trace,
+                    ConfigBuilder::new()
+                        .set_location_level(LevelFilter::Error)
+                        .set_level_padding(simplelog::LevelPadding::Right)
+                        .set_target_level(LevelFilter::Off)
+                        .set_time_offset_to_local()
+                        .unwrap()
+                        .build(),
+                    File::create(file_helper.game_path("logs/client_latest.log")).unwrap(),
+                ),
+            ])
+            .unwrap();
+        }
 
         std::panic::set_hook(Box::new(|info| {
             let thread = thread::current();
@@ -284,7 +287,10 @@ pub fn main() -> Result<(), String> {
         // let sdl = Renderer::init_sdl().unwrap();
         info!("Starting init...");
 
-        let event_loop = glutin::event_loop::EventLoop::new();
+        let event_loop = {
+            profiling::scope!("EventLoop::new");
+            glutin::event_loop::EventLoop::new()
+        };
         let r = Renderer::create(&event_loop, &file_helper).expect("Renderer::create failed"); // want to panic
 
         info!("Finished init.");

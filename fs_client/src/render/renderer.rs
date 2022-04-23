@@ -43,15 +43,22 @@ pub struct Fonts {
 }
 
 impl<'a> Renderer<'a> {
-    #[profiling::function]
     pub fn create(event_loop: &EventLoop<()>, file_helper: &FileHelper) -> Result<Self, String> {
+        profiling::scope!("Renderer::create");
+
         let wb = glutin::window::WindowBuilder::new()
             .with_inner_size(LogicalSize::new(1200_i16, 800_i16))
             .with_title("FallingSandRust");
         let cb = glutin::ContextBuilder::new();
-        let display = glium::Display::new(wb, cb, event_loop).unwrap();
+        let display = {
+            profiling::scope!("glium::Display::new");
+            glium::Display::new(wb, cb, event_loop).unwrap()
+        };
 
-        let egui_glium = egui_glium::EguiGlium::new(&display);
+        let egui_glium = {
+            profiling::scope!("EguiGlium::new");
+            egui_glium::EguiGlium::new(&display)
+        };
 
         log::info!("glversion = {:?}", display.get_opengl_version());
 

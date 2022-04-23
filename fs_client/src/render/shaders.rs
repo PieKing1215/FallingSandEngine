@@ -14,6 +14,7 @@ pub struct Shaders {
 
 impl Shaders {
     pub fn new(display: &Display, file_helper: &FileHelper) -> Self {
+        profiling::scope!("Shaders::new");
         let helper = Helper { file_helper, display };
 
         Self {
