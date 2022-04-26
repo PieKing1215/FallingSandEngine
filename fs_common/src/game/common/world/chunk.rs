@@ -41,12 +41,12 @@ pub trait Chunk {
     fn get_dirty_rect(&self) -> Option<Rect<i32>>;
     fn set_dirty_rect(&mut self, rect: Option<Rect<i32>>);
 
-    fn set_pixels(&mut self, pixels: &[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]);
+    fn set_pixels(&mut self, pixels: [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]);
     fn get_pixels_mut(
         &mut self,
     ) -> &mut Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>;
     fn get_pixels(&self) -> &Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>;
-    fn set_pixel_colors(&mut self, colors: &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]);
+    fn set_pixel_colors(&mut self, colors: [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]);
     fn get_colors_mut(&mut self) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
     fn get_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
 
@@ -330,7 +330,7 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                         d1.cmp(&d2)
                     });
                 }
-                let mut to_exec = vec![];
+                let mut to_generate = vec![];
                 for key in &keys {
                     let state = self.loaded_chunks.get(key).unwrap().get_state(); // copy
                     let rect = Rect::new_wh(
@@ -379,7 +379,7 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                                         .get_mut(key)
                                                         .unwrap()
                                                         .set_pixels(
-                                                            &save.pixels.try_into().unwrap(),
+                                                            save.pixels.try_into().unwrap(),
                                                         );
                                                     self.loaded_chunks
                                                         .get_mut(key)
@@ -401,7 +401,7 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                                             .get_mut(key)
                                                             .unwrap()
                                                             .set_pixel_colors(
-                                                                &save.colors.try_into().unwrap(),
+                                                                save.colors.try_into().unwrap(),
                                                             );
                                                     } else {
                                                         log::error!("colors Vec is the wrong size: {} (expected {})", save.colors.len(), CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4);
@@ -454,24 +454,22 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     .get_mut(key)
                                     .unwrap()
                                     .set_state(ChunkState::Generating(0));
-                                to_exec.push((key, chunk_x, chunk_y));
+                                to_generate.push((key, chunk_x, chunk_y));
                             }
 
-                            // generation_pool.spawn_ok(fut);
                             num_loaded_this_tick += 1;
                         }
                     }
                 }
 
-                if !to_exec.is_empty() {
+                if !to_generate.is_empty() {
                     profiling::scope!("gen chunks");
-                    // println!("a {}", to_exec.len());
 
-                    let reg = std::sync::Arc::new(std::sync::RwLock::new(registries));
+                    let mt_registries = std::sync::RwLock::new(registries);
 
-                    let b = {
+                    let generated: Vec<_> = {
                         profiling::scope!("gen");
-                        let futs2: Vec<_> = to_exec
+                        to_generate
                             .into_par_iter()
                             .map(|e| {
                                 profiling::register_thread!("Generation thread");
@@ -494,24 +492,21 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     2,
                                     &mut pixels,
                                     &mut colors,
-                                    &reg.read().unwrap(),
+                                    &mt_registries.read().unwrap(),
                                 ); // TODO: non constant seed
-                                   // println!("{}", e.0);
+
                                 (e.0, pixels, colors)
                             })
-                            .collect();
-                        futs2
+                            .collect()
                     };
-                    for r in b {
+                    for ch in generated {
                         profiling::scope!("finish chunk");
 
                         // TODO: this is very slow
 
-                        let p = r;
-                        // println!("{} {}", i, p.0);
-                        let chunk = self.loaded_chunks.get_mut(p.0).unwrap();
-                        chunk.set_pixels(&p.1);
-                        chunk.set_pixel_colors(&p.2);
+                        let chunk = self.loaded_chunks.get_mut(ch.0).unwrap();
+                        chunk.set_pixels(*ch.1);
+                        chunk.set_pixel_colors(*ch.2);
 
                         // TODO: non constant seed
                         // TODO: populating stage 0 should be able to be multithreaded

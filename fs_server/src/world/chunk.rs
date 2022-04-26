@@ -135,8 +135,8 @@ impl<'ch> Chunk for ServerChunk {
         }
     }
 
-    fn set_pixels(&mut self, pixels: &[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]) {
-        self.pixels = Some(*pixels);
+    fn set_pixels(&mut self, pixels: [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]) {
+        self.pixels = Some(pixels);
     }
 
     fn get_pixels_mut(
@@ -149,8 +149,8 @@ impl<'ch> Chunk for ServerChunk {
         &self.pixels
     }
 
-    fn set_pixel_colors(&mut self, colors: &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]) {
-        self.pixel_data = *colors;
+    fn set_pixel_colors(&mut self, colors: [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]) {
+        self.pixel_data = colors;
     }
 
     fn get_colors_mut(&mut self) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
