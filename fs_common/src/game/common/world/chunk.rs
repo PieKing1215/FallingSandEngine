@@ -331,7 +331,7 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                     });
                 }
                 let mut to_exec = vec![];
-                for (i, key) in keys.iter().enumerate() {
+                for key in &keys {
                     let state = self.loaded_chunks.get(key).unwrap().get_state(); // copy
                     let rect = Rect::new_wh(
                         self.loaded_chunks.get(key).unwrap().get_chunk_x() * i32::from(CHUNK_SIZE),
@@ -454,7 +454,7 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     .get_mut(key)
                                     .unwrap()
                                     .set_state(ChunkState::Generating(0));
-                                to_exec.push((i, chunk_x, chunk_y));
+                                to_exec.push((key, chunk_x, chunk_y));
                             }
 
                             // generation_pool.spawn_ok(fut);
@@ -509,7 +509,7 @@ impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
 
                         let p = r;
                         // println!("{} {}", i, p.0);
-                        let chunk = self.loaded_chunks.get_mut(&keys[p.0]).unwrap();
+                        let chunk = self.loaded_chunks.get_mut(p.0).unwrap();
                         chunk.set_pixels(&p.1);
                         chunk.set_pixel_colors(&p.2);
 
