@@ -19,6 +19,9 @@ use super::{material::MaterialInstance, CHUNK_SIZE};
 
 #[derive(Debug)]
 pub struct PopulatorList {
+    /// Invariant: for a given key S, the value must be `Box<Vec<Box<dyn Populator<S> + Send + Sync>>>`
+    ///
+    /// Afaik this is impossible to express statically
     map: HashMap<u8, Box<dyn Any + Send + Sync>>,
 }
 
@@ -29,22 +32,23 @@ impl PopulatorList {
     }
 
     pub fn add<const S: u8>(&mut self, pop: impl Populator<S> + 'static + Send + Sync) {
-        // this downcast can be made unchecked once that's stabilized
-        // https://github.com/rust-lang/rust/issues/90850
-        let vec: &mut Vec<Box<dyn Populator<S> + Send + Sync>> = self
+        let opt: Option<&mut Vec<Box<dyn Populator<S> + Send + Sync>>> = self
             .map
             .entry(S)
             .or_insert_with(|| Box::new(Vec::<Box<dyn Populator<S> + Send + Sync>>::new()))
-            .downcast_mut()
-            .unwrap();
+            .downcast_mut();
+
+        // Safety: this function is the only place where we insert into self.map, so the downcast cannot fail
+        let vec = unsafe { opt.unwrap_unchecked() };
+
         vec.push(Box::new(pop));
     }
 
     pub fn get_all<const S: u8>(&self) -> &[Box<dyn Populator<S> + Send + Sync>] {
         if let Some(a) = self.map.get(&S) {
-            // this downcast can be made unchecked once that's stabilized
-            // https://github.com/rust-lang/rust/issues/90850
-            let vec: &Vec<Box<dyn Populator<S> + Send + Sync>> = a.downcast_ref().unwrap();
+            // Safety: this is an invariant of self.map
+            let vec: &Vec<Box<dyn Populator<S> + Send + Sync>> =
+                unsafe { a.downcast_ref().unwrap_unchecked() };
             vec
         } else {
             &[]
