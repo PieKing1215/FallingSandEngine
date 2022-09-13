@@ -185,8 +185,7 @@ impl ClientGame {
                                         )>();
 
                                         let camera_pos = (&mut position_storage, &camera_storage)
-                                            .join()
-                                            .find_map(|(p, _c)| Some(p));
+                                            .join().map(|(p, _c)| p).next();
 
                                         if let Some(camera_pos) = camera_pos {
                                             // this doesn't do anything if game.client_entity_id exists
@@ -207,8 +206,7 @@ impl ClientGame {
                                             )>();
 
                                             let camera_pos = (&position_storage, &camera_storage)
-                                                .join()
-                                                .find_map(|(p, _c)| Some(p));
+                                                .join().map(|(p, _c)| p).next();
 
                                             if let Some(camera_pos) = camera_pos {
                                                 let world_x = camera_pos.x
@@ -243,8 +241,7 @@ impl ClientGame {
                                         )>();
 
                                         let camera_pos = (&position_storage, &camera_storage)
-                                            .join()
-                                            .find_map(|(p, _c)| Some(p));
+                                            .join().map(|(p, _c)| p).next();
 
                                         if let Some(camera_pos) = camera_pos {
                                             let world_x = camera_pos.x
@@ -316,8 +313,7 @@ impl ClientGame {
                                         );
 
                                         let camera_pos = (&position_storage, &camera_storage)
-                                            .join()
-                                            .find_map(|(p, _c)| Some(p));
+                                            .join().map(|(p, _c)| p).next();
 
                                         if let Some(camera_pos) = camera_pos {
                                             let world_x = camera_pos.x

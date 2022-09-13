@@ -48,7 +48,7 @@ pub struct World<C: Chunk> {
     pub physics: Physics,
 }
 
-impl<'w, C: Chunk> World<C> {
+impl<C: Chunk> World<C> {
     #[profiling::function]
     pub fn create(path: Option<PathBuf>) -> Self {
         let mut ecs = specs::World::new();

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use self::{color::Color, registry::Registry};
 
-#[derive(Clone, Copy, PartialEq, Serialize, Deserialize, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Debug)]
 pub enum PhysicsType {
     Air,
     Solid,

@@ -3,7 +3,7 @@ use specs::{storage::BTreeStorage, Component, Entity};
 
 use crate::game::common::world::Position;
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum PlayerJumpState {
     None,
     Jumping,

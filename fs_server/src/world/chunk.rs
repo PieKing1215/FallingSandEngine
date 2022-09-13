@@ -19,7 +19,7 @@ pub struct ServerChunk {
     pub mesh_simplified: Option<Vec<Vec<Vec<Vec<f64>>>>>,
 }
 
-impl<'ch> Chunk for ServerChunk {
+impl Chunk for ServerChunk {
     fn new_empty(chunk_x: i32, chunk_y: i32) -> Self {
         Self {
             chunk_x,

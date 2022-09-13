@@ -68,7 +68,7 @@ pub trait Chunk {
     fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]);
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ChunkState {
     NotGenerated,
     Generating(u8), // stage
@@ -127,7 +127,7 @@ struct ChunkSaveFormat {
     colors: Vec<u8>,
 }
 
-impl<'a, C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
+impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
     #[profiling::function]
     fn update_chunk_graphics(&mut self) {
         let keys = self.loaded_chunks.keys().copied().collect::<Vec<u32>>();
@@ -1153,7 +1153,7 @@ impl std::hash::Hasher for PassThroughHasherU32 {
     }
 }
 
-impl<'a, C: Chunk> ChunkHandler<C> {
+impl<C: Chunk> ChunkHandler<C> {
     #[profiling::function]
     pub fn new(generator: impl WorldGenerator + 'static, path: Option<PathBuf>) -> Self {
         ChunkHandler {

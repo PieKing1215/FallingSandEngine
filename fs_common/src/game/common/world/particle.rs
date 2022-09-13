@@ -62,7 +62,7 @@ impl Particle {
 //     type Storage = VecStorage<Self>;
 // }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 pub enum InObjectState {
     FirstFrame,
     Inside,
@@ -186,8 +186,6 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
                 let v = p.into_par_iter().flat_map_iter(|mut chunk_px| {
                     profiling::scope!("chunk");
 
-                    use retain_mut::RetainMut;
-                    #[allow(unstable_name_collisions)]
                     chunk_px.retain_mut(|part| {
                         let unsafe_async_chunk_handler =
                             unsafe { &mut **((async_chunk_handler.clone()).value) };
@@ -323,9 +321,6 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
             }
         }
 
-        // TODO: we want to use the std version once it is stable
-        //     use retain_mut::RetainMut;
-        //     #[allow(unstable_name_collisions)]
         //     system.active.retain_mut(|part| {
         //         // profiling::scope!("particle");
 

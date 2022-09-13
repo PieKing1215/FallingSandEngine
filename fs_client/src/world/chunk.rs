@@ -25,7 +25,7 @@ pub struct ClientChunk {
     pub tris: Option<Vec<Vec<mesh::Tri>>>,
 }
 
-impl<'ch> Chunk for ClientChunk {
+impl Chunk for ClientChunk {
     fn new_empty(chunk_x: i32, chunk_y: i32) -> Self {
         Self {
             chunk_x,
@@ -233,7 +233,7 @@ pub struct ChunkGraphics {
     pub was_dirty: bool,
 }
 
-impl<'cg> ChunkGraphics {
+impl ChunkGraphics {
     // #[profiling::function] // huge performance impact
     pub fn set(&mut self, x: u16, y: u16, color: Color) -> Result<(), String> {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
