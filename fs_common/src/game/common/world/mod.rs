@@ -9,9 +9,9 @@ mod simulator;
 mod world;
 mod world_loading;
 
+pub mod copy_paste;
 pub mod gen;
 pub mod physics;
-pub mod copy_paste;
 
 pub use chunk::*;
 pub use ecs::*;

@@ -1,17 +1,21 @@
-use glutin::event::{VirtualKeyCode, WindowEvent, ModifiersState, MouseButton};
+use glutin::event::{ModifiersState, MouseButton, VirtualKeyCode, WindowEvent};
 use rapier2d::{na::Vector2, prelude::RigidBodyHandle};
 use specs::{Entities, WorldExt, WriteStorage};
 
 use fs_common::game::common::world::{
+    copy_paste::MaterialBuf,
     entity::{
         CollisionDetector, GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState,
         PlayerJumpState, PlayerLaunchState, PlayerMovementMode,
     },
     material::{MaterialInstance, PhysicsType},
-    ChunkHandlerGeneric, Position, Velocity, World, copy_paste::MaterialBuf,
+    ChunkHandlerGeneric, Position, Velocity, World,
 };
 
-use crate::{ui::DebugUIs, input::{MouseButtonControl, MouseButtonControlMode}};
+use crate::{
+    input::{MouseButtonControl, MouseButtonControlMode},
+    ui::DebugUIs,
+};
 
 use super::{
     input::{Controls, InputEvent, KeyControl, KeyControlMode, MultiControl, MultiControlMode},
@@ -113,7 +117,7 @@ impl Client {
                 free_fly: Box::new(KeyControl::new(
                     VirtualKeyCode::Numpad1,
                     KeyControlMode::Rising,
-                            ModifiersState::empty(),
+                    ModifiersState::empty(),
                 )),
                 launch: Box::new(MultiControl::new(
                     MultiControlMode::Or,

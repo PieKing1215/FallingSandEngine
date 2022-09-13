@@ -74,9 +74,9 @@ impl TransformStack {
         ));
 
         (
-            v[0], v[1]
-            // (point.0.into() + t.translate_x) * t.scale_x,
-            // (point.1.into() + t.translate_y) * t.scale_y,
+            v[0],
+            v[1], // (point.0.into() + t.translate_x) * t.scale_x,
+                 // (point.1.into() + t.translate_y) * t.scale_y,
         )
     }
 
@@ -90,9 +90,9 @@ impl TransformStack {
         ));
 
         (
-            v[0] as i32, v[1] as i32
-            // (point.0.into() + t.translate_x) * t.scale_x,
-            // (point.1.into() + t.translate_y) * t.scale_y,
+            v[0] as i32,
+            v[1] as i32, // (point.0.into() + t.translate_x) * t.scale_x,
+                         // (point.1.into() + t.translate_y) * t.scale_y,
         )
     }
 
@@ -113,9 +113,9 @@ impl TransformStack {
         ));
 
         (
-            v[0], v[1]
-            // point.0.into() / t.scale_x - t.translate_x,
-            // point.1.into() / t.scale_y - t.translate_y,
+            v[0],
+            v[1], // point.0.into() / t.scale_x - t.translate_x,
+                 // point.1.into() / t.scale_y - t.translate_y,
         )
     }
 
@@ -129,9 +129,9 @@ impl TransformStack {
         ));
 
         (
-            v[0] as i32, v[1] as i32
-            // (point.0.into() / t.scale_x - t.translate_x) as i32,
-            // (point.1.into() / t.scale_y - t.translate_y) as i32,
+            v[0] as i32,
+            v[1] as i32, // (point.0.into() / t.scale_x - t.translate_x) as i32,
+                         // (point.1.into() / t.scale_y - t.translate_y) as i32,
         )
     }
 

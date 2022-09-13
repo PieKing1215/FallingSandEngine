@@ -1,4 +1,6 @@
-use glutin::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent, MouseButton, ModifiersState};
+use glutin::event::{
+    ElementState, KeyboardInput, ModifiersState, MouseButton, VirtualKeyCode, WindowEvent,
+};
 
 #[derive(Debug)]
 pub enum InputEvent<'a> {
@@ -28,7 +30,9 @@ pub struct Controls {
 
 impl Controls {
     pub fn process(&mut self, event: &InputEvent) {
-        if let InputEvent::GlutinEvent(glutin::event::WindowEvent::ModifiersChanged(modifiers))  = event {
+        if let InputEvent::GlutinEvent(glutin::event::WindowEvent::ModifiersChanged(modifiers)) =
+            event
+        {
             self.cur_modifiers = *modifiers;
         }
 
@@ -163,7 +167,11 @@ pub struct MouseButtonControl {
 }
 
 impl MouseButtonControl {
-    pub fn new(button: MouseButton, mode: MouseButtonControlMode, modifiers: ModifiersState) -> Self {
+    pub fn new(
+        button: MouseButton,
+        mode: MouseButtonControlMode,
+        modifiers: ModifiersState,
+    ) -> Self {
         Self {
             button,
             mode,
@@ -196,9 +204,13 @@ impl Control<bool> for MouseButtonControl {
 
     fn process(&mut self, event: &InputEvent, modifiers: &ModifiersState) {
         match event {
-            InputEvent::GlutinEvent(glutin::event::WindowEvent::MouseInput { state, button, .. }) if *button == self.button => {
+            InputEvent::GlutinEvent(glutin::event::WindowEvent::MouseInput {
+                state,
+                button,
+                ..
+            }) if *button == self.button => {
                 self.raw = *state == ElementState::Pressed && modifiers.contains(self.modifiers);
-            }
+            },
             _ => {},
         }
     }
@@ -230,6 +242,8 @@ impl Control<bool> for MultiControl {
     }
 
     fn process(&mut self, event: &InputEvent, modifiers: &ModifiersState) {
-        self.controls.iter_mut().for_each(|c| c.process(event, modifiers));
+        self.controls
+            .iter_mut()
+            .for_each(|c| c.process(event, modifiers));
     }
 }

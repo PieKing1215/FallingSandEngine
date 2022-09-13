@@ -72,12 +72,12 @@ impl WorldRenderer {
         )>();
 
         let camera_pos = (&position_storage, velocity_storage.maybe(), &camera_storage)
-            .join().map(|(p, v, _c)| {
-                Position {
-                    x: p.x + v.map_or(0.0, |v| v.x) * partial_ticks,
-                    y: p.y + v.map_or(0.0, |v| v.y) * partial_ticks,
-                }
-            }).next()
+            .join()
+            .map(|(p, v, _c)| Position {
+                x: p.x + v.map_or(0.0, |v| v.x) * partial_ticks,
+                y: p.y + v.map_or(0.0, |v| v.y) * partial_ticks,
+            })
+            .next()
             .expect("No Camera in world!");
 
         let loader_pos = match client {
