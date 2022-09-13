@@ -1,11 +1,14 @@
-use glutin::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent};
+use glutin::event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent, MouseButton, ModifiersState};
 
 #[derive(Debug)]
 pub enum InputEvent<'a> {
     GlutinEvent(&'a WindowEvent<'a>),
 }
 
+// TODO: make/use a new fn instead
 pub struct Controls {
+    pub cur_modifiers: ModifiersState,
+
     pub up: Box<dyn Control<bool>>,
     pub down: Box<dyn Control<bool>>,
     pub left: Box<dyn Control<bool>>,
@@ -16,26 +19,40 @@ pub struct Controls {
     pub grapple: Box<dyn Control<bool>>,
 
     pub free_fly: Box<dyn Control<bool>>,
+
+    pub copy: Box<dyn Control<bool>>,
+    pub cut: Box<dyn Control<bool>>,
+    pub paste: Box<dyn Control<bool>>,
+    pub clipboard_action: Box<dyn Control<bool>>,
 }
 
 impl Controls {
     pub fn process(&mut self, event: &InputEvent) {
-        self.up.process(event);
-        self.down.process(event);
-        self.left.process(event);
-        self.right.process(event);
+        if let InputEvent::GlutinEvent(glutin::event::WindowEvent::ModifiersChanged(modifiers))  = event {
+            self.cur_modifiers = *modifiers;
+        }
 
-        self.jump.process(event);
-        self.launch.process(event);
-        self.grapple.process(event);
+        self.up.process(event, &self.cur_modifiers);
+        self.down.process(event, &self.cur_modifiers);
+        self.left.process(event, &self.cur_modifiers);
+        self.right.process(event, &self.cur_modifiers);
 
-        self.free_fly.process(event);
+        self.jump.process(event, &self.cur_modifiers);
+        self.launch.process(event, &self.cur_modifiers);
+        self.grapple.process(event, &self.cur_modifiers);
+
+        self.free_fly.process(event, &self.cur_modifiers);
+
+        self.copy.process(event, &self.cur_modifiers);
+        self.cut.process(event, &self.cur_modifiers);
+        self.paste.process(event, &self.cur_modifiers);
+        self.clipboard_action.process(event, &self.cur_modifiers);
     }
 }
 
 pub trait Control<T> {
     fn get(&mut self) -> T;
-    fn process(&mut self, event: &InputEvent);
+    fn process(&mut self, event: &InputEvent, modifiers: &ModifiersState);
 }
 
 impl<T: Control<bool>> Control<f32> for T {
@@ -47,8 +64,8 @@ impl<T: Control<bool>> Control<f32> for T {
         }
     }
 
-    fn process(&mut self, event: &InputEvent) {
-        T::process(self, event);
+    fn process(&mut self, event: &InputEvent, modifiers: &ModifiersState) {
+        T::process(self, event, modifiers);
     }
 }
 
@@ -65,6 +82,7 @@ pub enum KeyControlMode {
 pub struct KeyControl {
     pub key: VirtualKeyCode,
     pub mode: KeyControlMode,
+    pub modifiers: ModifiersState,
 
     raw: bool,
     last_raw: bool,
@@ -72,10 +90,11 @@ pub struct KeyControl {
 }
 
 impl KeyControl {
-    pub fn new(key: VirtualKeyCode, mode: KeyControlMode) -> Self {
+    pub fn new(key: VirtualKeyCode, mode: KeyControlMode, modifiers: ModifiersState) -> Self {
         Self {
             key,
             mode,
+            modifiers,
             raw: false,
             last_raw: false,
             last_state: false,
@@ -107,7 +126,7 @@ impl Control<bool> for KeyControl {
         ret
     }
 
-    fn process(&mut self, event: &InputEvent) {
+    fn process(&mut self, event: &InputEvent, modifiers: &ModifiersState) {
         // log::debug!("{:?}", event);
         #[allow(clippy::match_wildcard_for_single_variants)]
         match event {
@@ -116,9 +135,70 @@ impl Control<bool> for KeyControl {
                 ..
             }) if *k == self.key => {
                 // if !repeat || self.mode == KeyControlMode::Type {
-                self.raw = *state == ElementState::Pressed;
+                self.raw = *state == ElementState::Pressed && modifiers.contains(self.modifiers);
                 // }
             },
+            _ => {},
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, PartialEq)]
+pub enum MouseButtonControlMode {
+    Momentary,
+    Rising,
+    Falling,
+    Toggle,
+}
+
+pub struct MouseButtonControl {
+    pub button: MouseButton,
+    pub mode: MouseButtonControlMode,
+    pub modifiers: ModifiersState,
+
+    raw: bool,
+    last_raw: bool,
+    last_state: bool,
+}
+
+impl MouseButtonControl {
+    pub fn new(button: MouseButton, mode: MouseButtonControlMode, modifiers: ModifiersState) -> Self {
+        Self {
+            button,
+            mode,
+            modifiers,
+            raw: false,
+            last_raw: false,
+            last_state: false,
+        }
+    }
+}
+
+impl Control<bool> for MouseButtonControl {
+    fn get(&mut self) -> bool {
+        let ret = match self.mode {
+            MouseButtonControlMode::Momentary => self.raw,
+            MouseButtonControlMode::Rising => self.raw && !self.last_raw,
+            MouseButtonControlMode::Falling => !self.raw && self.last_raw,
+            MouseButtonControlMode::Toggle => {
+                if self.raw && self.last_raw {
+                    self.last_state = !self.last_state;
+                }
+                self.last_state
+            },
+        };
+
+        self.last_raw = self.raw;
+
+        ret
+    }
+
+    fn process(&mut self, event: &InputEvent, modifiers: &ModifiersState) {
+        match event {
+            InputEvent::GlutinEvent(glutin::event::WindowEvent::MouseInput { state, button, .. }) if *button == self.button => {
+                self.raw = *state == ElementState::Pressed && modifiers.contains(self.modifiers);
+            }
             _ => {},
         }
     }
@@ -149,7 +229,7 @@ impl Control<bool> for MultiControl {
         }
     }
 
-    fn process(&mut self, event: &InputEvent) {
-        self.controls.iter_mut().for_each(|c| c.process(event));
+    fn process(&mut self, event: &InputEvent, modifiers: &ModifiersState) {
+        self.controls.iter_mut().for_each(|c| c.process(event, modifiers));
     }
 }

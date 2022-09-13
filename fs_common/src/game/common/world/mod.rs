@@ -11,6 +11,7 @@ mod world_loading;
 
 pub mod gen;
 pub mod physics;
+pub mod copy_paste;
 
 pub use chunk::*;
 pub use ecs::*;

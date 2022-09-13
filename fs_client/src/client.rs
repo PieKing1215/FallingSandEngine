@@ -1,4 +1,4 @@
-use glutin::event::{VirtualKeyCode, WindowEvent};
+use glutin::event::{VirtualKeyCode, WindowEvent, ModifiersState, MouseButton};
 use rapier2d::{na::Vector2, prelude::RigidBodyHandle};
 use specs::{Entities, WorldExt, WriteStorage};
 
@@ -8,10 +8,10 @@ use fs_common::game::common::world::{
         PlayerJumpState, PlayerLaunchState, PlayerMovementMode,
     },
     material::{MaterialInstance, PhysicsType},
-    ChunkHandlerGeneric, Position, Velocity, World,
+    ChunkHandlerGeneric, Position, Velocity, World, copy_paste::MaterialBuf,
 };
 
-use crate::ui::DebugUIs;
+use crate::{ui::DebugUIs, input::{MouseButtonControl, MouseButtonControlMode}};
 
 use super::{
     input::{Controls, InputEvent, KeyControl, KeyControlMode, MultiControl, MultiControlMode},
@@ -26,6 +26,7 @@ pub struct Client {
     pub mouse_joint: Option<(RigidBodyHandle, Vector2<f32>)>,
     pub main_menu: MainMenu,
     pub debug_ui: Option<DebugUIs>,
+    pub clipboard: Option<MaterialBuf>,
 }
 
 impl Client {
@@ -33,16 +34,19 @@ impl Client {
         Self {
             world: None,
             controls: Controls {
+                cur_modifiers: ModifiersState::empty(),
                 up: Box::new(MultiControl::new(
                     MultiControlMode::Or,
                     vec![
                         Box::new(KeyControl::new(
                             VirtualKeyCode::W,
                             KeyControlMode::Momentary,
+                            ModifiersState::empty(),
                         )),
                         Box::new(KeyControl::new(
                             VirtualKeyCode::Up,
                             KeyControlMode::Momentary,
+                            ModifiersState::empty(),
                         )),
                     ],
                 )),
@@ -52,10 +56,12 @@ impl Client {
                         Box::new(KeyControl::new(
                             VirtualKeyCode::S,
                             KeyControlMode::Momentary,
+                            ModifiersState::empty(),
                         )),
                         Box::new(KeyControl::new(
                             VirtualKeyCode::Down,
                             KeyControlMode::Momentary,
+                            ModifiersState::empty(),
                         )),
                     ],
                 )),
@@ -65,10 +71,12 @@ impl Client {
                         Box::new(KeyControl::new(
                             VirtualKeyCode::A,
                             KeyControlMode::Momentary,
+                            ModifiersState::empty(),
                         )),
                         Box::new(KeyControl::new(
                             VirtualKeyCode::Left,
                             KeyControlMode::Momentary,
+                            ModifiersState::empty(),
                         )),
                     ],
                 )),
@@ -78,10 +86,12 @@ impl Client {
                         Box::new(KeyControl::new(
                             VirtualKeyCode::D,
                             KeyControlMode::Momentary,
+                            ModifiersState::empty(),
                         )),
                         Box::new(KeyControl::new(
                             VirtualKeyCode::Right,
                             KeyControlMode::Momentary,
+                            ModifiersState::empty(),
                         )),
                     ],
                 )),
@@ -91,16 +101,19 @@ impl Client {
                         Box::new(KeyControl::new(
                             VirtualKeyCode::Space,
                             KeyControlMode::Momentary,
+                            ModifiersState::empty(),
                         )),
                         Box::new(KeyControl::new(
                             VirtualKeyCode::C,
                             KeyControlMode::Momentary,
+                            ModifiersState::empty(),
                         )),
                     ],
                 )),
                 free_fly: Box::new(KeyControl::new(
                     VirtualKeyCode::Numpad1,
                     KeyControlMode::Rising,
+                            ModifiersState::empty(),
                 )),
                 launch: Box::new(MultiControl::new(
                     MultiControlMode::Or,
@@ -108,10 +121,12 @@ impl Client {
                         Box::new(KeyControl::new(
                             VirtualKeyCode::LShift,
                             KeyControlMode::Momentary,
+                            ModifiersState::empty(),
                         )),
                         Box::new(KeyControl::new(
                             VirtualKeyCode::X,
                             KeyControlMode::Momentary,
+                            ModifiersState::empty(),
                         )),
                     ],
                 )),
@@ -120,7 +135,37 @@ impl Client {
                     vec![Box::new(KeyControl::new(
                         VirtualKeyCode::Z,
                         KeyControlMode::Momentary,
+                        ModifiersState::empty(),
                     ))],
+                )),
+                copy: Box::new(MultiControl::new(
+                    MultiControlMode::Or,
+                    vec![Box::new(KeyControl::new(
+                        VirtualKeyCode::C,
+                        KeyControlMode::Rising,
+                        ModifiersState::CTRL,
+                    ))],
+                )),
+                cut: Box::new(MultiControl::new(
+                    MultiControlMode::Or,
+                    vec![Box::new(KeyControl::new(
+                        VirtualKeyCode::X,
+                        KeyControlMode::Rising,
+                        ModifiersState::CTRL,
+                    ))],
+                )),
+                paste: Box::new(MultiControl::new(
+                    MultiControlMode::Or,
+                    vec![Box::new(KeyControl::new(
+                        VirtualKeyCode::V,
+                        KeyControlMode::Rising,
+                        ModifiersState::CTRL,
+                    ))],
+                )),
+                clipboard_action: Box::new(MouseButtonControl::new(
+                    MouseButton::Left,
+                    MouseButtonControlMode::Rising,
+                    ModifiersState::CTRL,
                 )),
             },
             camera_scale: 2.0,
@@ -130,6 +175,7 @@ impl Client {
                 action_queue: Vec::new(),
             },
             debug_ui: None,
+            clipboard: None,
         }
     }
 
