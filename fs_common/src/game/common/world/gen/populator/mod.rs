@@ -17,7 +17,6 @@ pub trait Populator<const S: u8> {
 pub struct ChunkContext<'a, const S: u8>(&'a mut [&'a mut dyn Chunk]);
 
 impl<'a, const S: u8> ChunkContext<'a, S> {
-    #[warn(clippy::result_unit_err)] // TODO
     pub fn new(slice: &'a mut [&'a mut dyn Chunk]) -> Result<Self, String> {
         if slice.len() == ((S * 2 + 1) * (S * 2 + 1)) as usize {
             Ok(Self(slice))

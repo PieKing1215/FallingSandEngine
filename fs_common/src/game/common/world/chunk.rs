@@ -1085,22 +1085,14 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
     fn get_chunk(&self, chunk_x: i32, chunk_y: i32) -> Option<&dyn Chunk> {
         self.loaded_chunks
             .get(&chunk_index(chunk_x, chunk_y))
-            .map(|c| {
-                // TODO: I can't figure out how to make this less stupid
-                let dc: &dyn Chunk = c;
-                dc
-            })
+            .map(|c| c as _)
     }
 
     // #[profiling::function]
     fn get_chunk_mut(&mut self, chunk_x: i32, chunk_y: i32) -> Option<&mut dyn Chunk> {
         self.loaded_chunks
             .get_mut(&chunk_index(chunk_x, chunk_y))
-            .map(|c| {
-                // TODO: I can't figure out how to make this less stupid
-                let dc: &mut dyn Chunk = c;
-                dc
-            })
+            .map(|c| c as _)
     }
 
     #[profiling::function]
