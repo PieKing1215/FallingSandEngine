@@ -5,7 +5,7 @@ use clap::{crate_authors, crate_name, crate_version, Arg, Command};
 use fs_client::{render::Renderer, world::ClientWorld, ClientGame};
 use fs_common::game::common::{
     world::{
-        entity::{GameEntity, Hitbox, Persistent, PhysicsEntity, Player, PlayerMovementMode},
+        entity::{GameEntity, Hitbox, Persistent, PhysicsEntity, Player, PlayerMovementMode, PlayerClipboard},
         physics::PHYSICS_SCALE,
         AutoTarget, Camera, CollisionFlags, Loader, Position, RigidBodyComponent, Target,
         TargetStyle, Velocity,
@@ -193,7 +193,7 @@ pub fn main() -> Result<(), String> {
                 let _player = w
                     .ecs
                     .create_entity()
-                    .with(Player { movement: PlayerMovementMode::Free })
+                    .with(Player {movement:PlayerMovementMode::Free, clipboard: PlayerClipboard::default() })
                     .with(GameEntity)
                     .with(PhysicsEntity {
                         on_ground: false,
@@ -329,7 +329,7 @@ pub fn main() -> Result<(), String> {
             let player = w
                 .ecs
                 .create_entity()
-                .with(Player { movement: PlayerMovementMode::Free })
+                .with(Player { movement: PlayerMovementMode::Free, clipboard: PlayerClipboard::default() })
                 .with(GameEntity)
                 .with(PhysicsEntity {
                     on_ground: false,

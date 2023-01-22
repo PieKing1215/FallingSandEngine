@@ -1,5 +1,8 @@
-use super::{material::MaterialInstance, Chunk, ChunkHandlerGeneric, World};
+use std::fmt::Debug;
 
+use super::{material::MaterialInstance, Chunk, ChunkHandlerGeneric, World, ChunkHandler};
+
+#[derive(Clone)]
 pub struct MaterialBuf {
     pub width: u16,
     pub height: u16,
@@ -20,7 +23,7 @@ impl MaterialBuf {
     }
 
     pub fn copy<C: Chunk>(
-        world: &World<C>,
+        chunk_handler: &ChunkHandler<C>,
         x: impl Into<i64>,
         y: impl Into<i64>,
         width: impl Into<u16>,
@@ -33,12 +36,11 @@ impl MaterialBuf {
 
         let mut buf = Vec::with_capacity(width as usize * height as usize);
 
-        for dx in 0..width {
-            for dy in 0..height {
+        for dy in 0..height {
+            for dx in 0..width {
                 let wx = x + i64::from(dx);
                 let wy = y + i64::from(dy);
-                buf[dx as usize + dy as usize * width as usize] =
-                    world.chunk_handler.get(wx, wy).copied()?;
+                buf.push(chunk_handler.get(wx, wy).copied()?);
             }
         }
 
@@ -46,7 +48,7 @@ impl MaterialBuf {
     }
 
     pub fn cut<C: Chunk>(
-        world: &mut World<C>,
+        chunk_handler: &mut ChunkHandler<C>,
         x: impl Into<i64>,
         y: impl Into<i64>,
         width: impl Into<u16>,
@@ -59,13 +61,12 @@ impl MaterialBuf {
 
         let mut buf = Vec::with_capacity(width as usize * height as usize);
 
-        for dx in 0..width {
-            for dy in 0..height {
+        for dy in 0..height {
+            for dx in 0..width {
                 let wx = x + i64::from(dx);
                 let wy = y + i64::from(dy);
-                buf[dx as usize + dy as usize * width as usize] =
-                    world.chunk_handler.get(wx, wy).copied()?;
-                world.chunk_handler.set(wx, wy, MaterialInstance::air())?;
+                buf.push(chunk_handler.get(wx, wy).copied()?);
+                chunk_handler.set(wx, wy, MaterialInstance::air())?;
             }
         }
 
@@ -74,7 +75,7 @@ impl MaterialBuf {
 
     pub fn paste<C: Chunk>(
         &self,
-        world: &mut World<C>,
+        chunk_handler: &mut ChunkHandler<C>,
         x: impl Into<i64>,
         y: impl Into<i64>,
     ) -> Result<(), String> {
@@ -85,7 +86,7 @@ impl MaterialBuf {
             for dy in 0..self.height {
                 let wx = x + i64::from(dx);
                 let wy = y + i64::from(dy);
-                world.chunk_handler.set(
+                chunk_handler.set(
                     wx,
                     wy,
                     self.materials[dx as usize + dy as usize * self.width as usize],
@@ -94,5 +95,11 @@ impl MaterialBuf {
         }
 
         Ok(())
+    }
+}
+
+impl Debug for MaterialBuf {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MaterialBuf").field("width", &self.width).field("height", &self.height).finish()
     }
 }

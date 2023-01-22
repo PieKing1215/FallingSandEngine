@@ -1,20 +1,20 @@
-use glutin::event::{ModifiersState, MouseButton, VirtualKeyCode, WindowEvent};
+use glutin::{event::{ModifiersState, MouseButton, VirtualKeyCode, WindowEvent}, dpi::PhysicalPosition};
 use rapier2d::{na::Vector2, prelude::RigidBodyHandle};
-use specs::{Entities, WorldExt, WriteStorage};
+use specs::{Entities, WorldExt, WriteStorage, ReadStorage, Join};
 
 use fs_common::game::common::world::{
     copy_paste::MaterialBuf,
     entity::{
         CollisionDetector, GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState,
-        PlayerJumpState, PlayerLaunchState, PlayerMovementMode,
+        PlayerJumpState, PlayerLaunchState, PlayerMovementMode, PlayerClipboardState, CutCopy,
     },
     material::{MaterialInstance, PhysicsType},
-    ChunkHandlerGeneric, Position, Velocity, World,
+    ChunkHandlerGeneric, Position, Velocity, World, Camera,
 };
 
 use crate::{
     input::{MouseButtonControl, MouseButtonControlMode},
-    ui::DebugUIs,
+    ui::DebugUIs, render::Renderer,
 };
 
 use super::{
@@ -39,6 +39,7 @@ impl Client {
             world: None,
             controls: Controls {
                 cur_modifiers: ModifiersState::empty(),
+                cursor_pos: PhysicalPosition { x: 0.0, y: 0.0 },
                 up: Box::new(MultiControl::new(
                     MultiControlMode::Or,
                     vec![
@@ -114,11 +115,6 @@ impl Client {
                         )),
                     ],
                 )),
-                free_fly: Box::new(KeyControl::new(
-                    VirtualKeyCode::Numpad1,
-                    KeyControlMode::Rising,
-                    ModifiersState::empty(),
-                )),
                 launch: Box::new(MultiControl::new(
                     MultiControlMode::Or,
                     vec![
@@ -141,6 +137,11 @@ impl Client {
                         KeyControlMode::Momentary,
                         ModifiersState::empty(),
                     ))],
+                )),
+                free_fly: Box::new(KeyControl::new(
+                    VirtualKeyCode::Numpad1,
+                    KeyControlMode::Rising,
+                    ModifiersState::empty(),
                 )),
                 copy: Box::new(MultiControl::new(
                     MultiControlMode::Or,
@@ -168,7 +169,7 @@ impl Client {
                 )),
                 clipboard_action: Box::new(MouseButtonControl::new(
                     MouseButton::Left,
-                    MouseButtonControlMode::Rising,
+                    MouseButtonControlMode::Momentary,
                     ModifiersState::CTRL,
                 )),
             },
@@ -188,7 +189,7 @@ impl Client {
     }
 
     #[allow(clippy::too_many_lines)]
-    pub fn tick(&mut self, world: &mut World<ClientChunk>) {
+    pub fn tick(&mut self, world: &mut World<ClientChunk>, renderer: &mut Renderer) {
         let mut pixels_to_highlight: Vec<(i64, i64)> = Vec::new();
         if let Some(w) = &mut self.world {
             w.tick(world);
@@ -203,6 +204,7 @@ impl Client {
                     mut position_storage,
                     mut hitbox_storage,
                     mut collision_storage,
+                    camera_storage
                 ) = world.ecs.system_data::<(
                     Entities,
                     WriteStorage<Player>,
@@ -212,6 +214,7 @@ impl Client {
                     WriteStorage<Position>,
                     WriteStorage<Hitbox>,
                     WriteStorage<CollisionDetector>,
+                    ReadStorage<Camera>,
                 )>();
 
                 let player = player
@@ -817,6 +820,98 @@ impl Client {
                         }
                     },
                 }
+
+                log::debug!("{:?}", player.clipboard.state);
+                match &player.clipboard.state {
+                    PlayerClipboardState::Idle => {
+                        if self.controls.copy.get() {
+                            player.clipboard.state = PlayerClipboardState::PreSelecting(CutCopy::Copy);
+                        } else if self.controls.cut.get() {
+                            player.clipboard.state = PlayerClipboardState::PreSelecting(CutCopy::Cut);
+                        } else if self.controls.paste.get() && player.clipboard.clipboard.is_some() {
+                            player.clipboard.state = PlayerClipboardState::Pasting;
+                        }
+                    },
+                    PlayerClipboardState::PreSelecting(cut_copy) => {
+                        if self.controls.clipboard_action.get() {
+                            let camera_pos = (&position_storage, &camera_storage)
+                                .join().map(|(p, _c)| p).next();
+
+                            if let Some(camera_pos) = camera_pos {
+                                let world_x = camera_pos.x
+                                    + (self.controls.cursor_pos.x
+                                        - f64::from(renderer.display.gl_window().window().inner_size().width) / 2.0)
+                                        / self.camera_scale;
+                                let world_y = camera_pos.y
+                                    + (self.controls.cursor_pos.y
+                                        - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
+                                        / self.camera_scale;
+
+                                player.clipboard.state = PlayerClipboardState::Selecting(*cut_copy, Position { x: world_x, y: world_y });
+                            } else {
+                                player.clipboard.state = PlayerClipboardState::Idle;
+                            }
+                        }
+                    },
+                    PlayerClipboardState::Selecting(cut_copy, start_pos) => {
+                        if !self.controls.clipboard_action.get() {
+                            let camera_pos = (&position_storage, &camera_storage)
+                                .join().map(|(p, _c)| p).next();
+
+                            if let Some(camera_pos) = camera_pos {
+                                let world_x = camera_pos.x
+                                    + (self.controls.cursor_pos.x
+                                        - f64::from(renderer.display.gl_window().window().inner_size().width) / 2.0)
+                                        / self.camera_scale;
+                                let world_y = camera_pos.y
+                                    + (self.controls.cursor_pos.y
+                                        - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
+                                        / self.camera_scale;
+
+                                let x = (start_pos.x as i64).min(world_x as i64);
+                                let y = (start_pos.y as i64).min(world_y as i64);
+                                let width = (start_pos.x as i64 - world_x as i64).abs();
+                                let height = (start_pos.y as i64 - world_y as i64).abs();
+                                let buf = match cut_copy {
+                                    CutCopy::Copy => MaterialBuf::copy(&world.chunk_handler, x, y, width as u16, height as u16),
+                                    CutCopy::Cut => MaterialBuf::cut(&mut world.chunk_handler, x, y, width as u16, height as u16),
+                                };
+
+                                if let Ok(buf) = buf {
+                                    player.clipboard.clipboard = Some(buf);
+                                }
+                            }
+
+                            player.clipboard.state = PlayerClipboardState::Idle;
+                        }
+                    },
+                    PlayerClipboardState::Pasting => {
+                        if self.controls.clipboard_action.get() {
+                            let camera_pos = (&position_storage, &camera_storage)
+                                .join().map(|(p, _c)| p).next();
+
+                            if let Some(camera_pos) = camera_pos {
+                                let world_x = camera_pos.x
+                                    + (self.controls.cursor_pos.x
+                                        - f64::from(renderer.display.gl_window().window().inner_size().width) / 2.0)
+                                        / self.camera_scale;
+                                let world_y = camera_pos.y
+                                    + (self.controls.cursor_pos.y
+                                        - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
+                                        / self.camera_scale;
+
+                                if let Some(buf) = &player.clipboard.clipboard {
+                                    buf.paste(&mut world.chunk_handler, world_x as i64, world_y as i64).unwrap();
+                                }
+
+                                player.clipboard.state = PlayerClipboardState::Idle;
+                            } else {
+                                player.clipboard.state = PlayerClipboardState::Idle;
+                            }
+                        }
+                    },
+                }
+
             }
 
             world.ecs.maintain();

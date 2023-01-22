@@ -27,7 +27,7 @@ use fs_common::game::{
     common::{
         networking::{Packet, PacketType},
         world::{
-            entity::{GameEntity, Hitbox, Persistent, PhysicsEntity, Player, PlayerMovementMode},
+            entity::{GameEntity, Hitbox, Persistent, PhysicsEntity, Player, PlayerMovementMode, PlayerClipboard},
             physics::PHYSICS_SCALE,
             Camera, ChunkHandlerGeneric, CollisionFlags, Loader, Position, RigidBodyComponent,
             Velocity, World, WorldNetworkMode,
@@ -442,7 +442,7 @@ impl ClientGame {
                     if do_tick_next && can_tick {
                         prev_tick_time = now;
                         let st = Instant::now();
-                        self.tick();
+                        self.tick(&mut renderer);
 
                         for act in self.client.main_menu.action_queue.drain(..) {
                             match act {
@@ -521,7 +521,7 @@ impl ClientGame {
                                         let player = w
                                             .ecs
                                             .create_entity()
-                                            .with(Player { movement: PlayerMovementMode::Free })
+                                            .with(Player {movement:PlayerMovementMode::Free, clipboard: PlayerClipboard::default() })
                                             .with(GameEntity)
                                             .with(PhysicsEntity {
                                                 on_ground: false,
@@ -825,11 +825,11 @@ impl ClientGame {
     }
 
     #[profiling::function]
-    fn tick(&mut self) {
+    fn tick(&mut self, renderer: &mut Renderer) {
         self.data.tick_time += 1;
 
         if let Some(w) = &mut self.data.world {
-            self.client.tick(w);
+            self.client.tick(w, renderer);
             w.tick(
                 self.data.tick_time,
                 &self.data.settings,

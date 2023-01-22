@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use specs::{storage::BTreeStorage, Component, Entity};
 
-use crate::game::common::world::Position;
+use crate::game::common::world::{Position, copy_paste::MaterialBuf};
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum PlayerJumpState {
@@ -46,8 +46,40 @@ pub enum PlayerMovementMode {
 }
 
 #[derive(Debug, Clone)]
+pub struct PlayerClipboard {
+    pub clipboard: Option<MaterialBuf>,
+    pub state: PlayerClipboardState,
+}
+
+impl Default for PlayerClipboard {
+    fn default() -> Self {
+        Self { clipboard: None, state: PlayerClipboardState::Idle }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CutCopy {
+    Copy,
+    Cut,
+}
+
+#[derive(Debug, Clone)]
+pub enum PlayerClipboardState {
+    Idle,
+    
+    // before the player started dragging
+    PreSelecting(CutCopy),
+    
+    // player currently dragging
+    Selecting(CutCopy, Position), 
+    
+    Pasting,
+}
+
+#[derive(Debug, Clone)]
 pub struct Player {
     pub movement: PlayerMovementMode,
+    pub clipboard: PlayerClipboard,
 }
 
 impl Component for Player {
