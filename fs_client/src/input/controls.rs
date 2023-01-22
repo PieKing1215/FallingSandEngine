@@ -1,6 +1,9 @@
-use glutin::{event::{
-    ElementState, KeyboardInput, ModifiersState, MouseButton, VirtualKeyCode, WindowEvent,
-}, dpi::PhysicalPosition};
+use glutin::{
+    dpi::PhysicalPosition,
+    event::{
+        ElementState, KeyboardInput, ModifiersState, MouseButton, VirtualKeyCode, WindowEvent,
+    },
+};
 
 #[derive(Debug)]
 pub enum InputEvent<'a> {
@@ -35,7 +38,11 @@ impl Controls {
             event
         {
             self.cur_modifiers = *modifiers;
-        } else if let InputEvent::GlutinEvent(glutin::event::WindowEvent::CursorMoved { position, .. }) = event {
+        } else if let InputEvent::GlutinEvent(glutin::event::WindowEvent::CursorMoved {
+            position,
+            ..
+        }) = event
+        {
             self.cursor_pos = *position;
         }
 

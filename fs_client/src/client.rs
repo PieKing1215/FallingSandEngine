@@ -1,20 +1,25 @@
-use glutin::{event::{ModifiersState, MouseButton, VirtualKeyCode, WindowEvent}, dpi::PhysicalPosition};
+use glutin::{
+    dpi::PhysicalPosition,
+    event::{ModifiersState, MouseButton, VirtualKeyCode, WindowEvent},
+};
 use rapier2d::{na::Vector2, prelude::RigidBodyHandle};
-use specs::{Entities, WorldExt, WriteStorage, ReadStorage, Join};
+use specs::{Entities, Join, ReadStorage, WorldExt, WriteStorage};
 
 use fs_common::game::common::world::{
     copy_paste::MaterialBuf,
     entity::{
-        CollisionDetector, GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState,
-        PlayerJumpState, PlayerLaunchState, PlayerMovementMode, PlayerClipboardState, CutCopy,
+        CollisionDetector, CutCopy, GameEntity, Hitbox, PhysicsEntity, Player,
+        PlayerClipboardState, PlayerGrappleState, PlayerJumpState, PlayerLaunchState,
+        PlayerMovementMode,
     },
     material::{MaterialInstance, PhysicsType},
-    ChunkHandlerGeneric, Position, Velocity, World, Camera,
+    Camera, ChunkHandlerGeneric, Position, Velocity, World,
 };
 
 use crate::{
     input::{MouseButtonControl, MouseButtonControlMode},
-    ui::DebugUIs, render::Renderer,
+    render::Renderer,
+    ui::DebugUIs,
 };
 
 use super::{
@@ -204,7 +209,7 @@ impl Client {
                     mut position_storage,
                     mut hitbox_storage,
                     mut collision_storage,
-                    camera_storage
+                    camera_storage,
                 ) = world.ecs.system_data::<(
                     Entities,
                     WriteStorage<Player>,
@@ -825,29 +830,51 @@ impl Client {
                 match &player.clipboard.state {
                     PlayerClipboardState::Idle => {
                         if self.controls.copy.get() {
-                            player.clipboard.state = PlayerClipboardState::PreSelecting(CutCopy::Copy);
+                            player.clipboard.state =
+                                PlayerClipboardState::PreSelecting(CutCopy::Copy);
                         } else if self.controls.cut.get() {
-                            player.clipboard.state = PlayerClipboardState::PreSelecting(CutCopy::Cut);
-                        } else if self.controls.paste.get() && player.clipboard.clipboard.is_some() {
+                            player.clipboard.state =
+                                PlayerClipboardState::PreSelecting(CutCopy::Cut);
+                        } else if self.controls.paste.get() && player.clipboard.clipboard.is_some()
+                        {
                             player.clipboard.state = PlayerClipboardState::Pasting;
                         }
                     },
                     PlayerClipboardState::PreSelecting(cut_copy) => {
                         if self.controls.clipboard_action.get() {
                             let camera_pos = (&position_storage, &camera_storage)
-                                .join().map(|(p, _c)| p).next();
+                                .join()
+                                .map(|(p, _c)| p)
+                                .next();
 
                             if let Some(camera_pos) = camera_pos {
                                 let world_x = camera_pos.x
                                     + (self.controls.cursor_pos.x
-                                        - f64::from(renderer.display.gl_window().window().inner_size().width) / 2.0)
+                                        - f64::from(
+                                            renderer
+                                                .display
+                                                .gl_window()
+                                                .window()
+                                                .inner_size()
+                                                .width,
+                                        ) / 2.0)
                                         / self.camera_scale;
                                 let world_y = camera_pos.y
                                     + (self.controls.cursor_pos.y
-                                        - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
+                                        - f64::from(
+                                            renderer
+                                                .display
+                                                .gl_window()
+                                                .window()
+                                                .inner_size()
+                                                .height,
+                                        ) / 2.0)
                                         / self.camera_scale;
 
-                                player.clipboard.state = PlayerClipboardState::Selecting(*cut_copy, Position { x: world_x, y: world_y });
+                                player.clipboard.state = PlayerClipboardState::Selecting(
+                                    *cut_copy,
+                                    Position { x: world_x, y: world_y },
+                                );
                             } else {
                                 player.clipboard.state = PlayerClipboardState::Idle;
                             }
@@ -856,16 +883,32 @@ impl Client {
                     PlayerClipboardState::Selecting(cut_copy, start_pos) => {
                         if !self.controls.clipboard_action.get() {
                             let camera_pos = (&position_storage, &camera_storage)
-                                .join().map(|(p, _c)| p).next();
+                                .join()
+                                .map(|(p, _c)| p)
+                                .next();
 
                             if let Some(camera_pos) = camera_pos {
                                 let world_x = camera_pos.x
                                     + (self.controls.cursor_pos.x
-                                        - f64::from(renderer.display.gl_window().window().inner_size().width) / 2.0)
+                                        - f64::from(
+                                            renderer
+                                                .display
+                                                .gl_window()
+                                                .window()
+                                                .inner_size()
+                                                .width,
+                                        ) / 2.0)
                                         / self.camera_scale;
                                 let world_y = camera_pos.y
                                     + (self.controls.cursor_pos.y
-                                        - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
+                                        - f64::from(
+                                            renderer
+                                                .display
+                                                .gl_window()
+                                                .window()
+                                                .inner_size()
+                                                .height,
+                                        ) / 2.0)
                                         / self.camera_scale;
 
                                 let x = (start_pos.x as i64).min(world_x as i64);
@@ -873,8 +916,20 @@ impl Client {
                                 let width = (start_pos.x as i64 - world_x as i64).abs();
                                 let height = (start_pos.y as i64 - world_y as i64).abs();
                                 let buf = match cut_copy {
-                                    CutCopy::Copy => MaterialBuf::copy(&world.chunk_handler, x, y, width as u16, height as u16),
-                                    CutCopy::Cut => MaterialBuf::cut(&mut world.chunk_handler, x, y, width as u16, height as u16),
+                                    CutCopy::Copy => MaterialBuf::copy(
+                                        &world.chunk_handler,
+                                        x,
+                                        y,
+                                        width as u16,
+                                        height as u16,
+                                    ),
+                                    CutCopy::Cut => MaterialBuf::cut(
+                                        &mut world.chunk_handler,
+                                        x,
+                                        y,
+                                        width as u16,
+                                        height as u16,
+                                    ),
                                 };
 
                                 if let Ok(buf) = buf {
@@ -888,20 +943,41 @@ impl Client {
                     PlayerClipboardState::Pasting => {
                         if self.controls.clipboard_action.get() {
                             let camera_pos = (&position_storage, &camera_storage)
-                                .join().map(|(p, _c)| p).next();
+                                .join()
+                                .map(|(p, _c)| p)
+                                .next();
 
                             if let Some(camera_pos) = camera_pos {
                                 let world_x = camera_pos.x
                                     + (self.controls.cursor_pos.x
-                                        - f64::from(renderer.display.gl_window().window().inner_size().width) / 2.0)
+                                        - f64::from(
+                                            renderer
+                                                .display
+                                                .gl_window()
+                                                .window()
+                                                .inner_size()
+                                                .width,
+                                        ) / 2.0)
                                         / self.camera_scale;
                                 let world_y = camera_pos.y
                                     + (self.controls.cursor_pos.y
-                                        - f64::from(renderer.display.gl_window().window().inner_size().height) / 2.0)
+                                        - f64::from(
+                                            renderer
+                                                .display
+                                                .gl_window()
+                                                .window()
+                                                .inner_size()
+                                                .height,
+                                        ) / 2.0)
                                         / self.camera_scale;
 
                                 if let Some(buf) = &player.clipboard.clipboard {
-                                    buf.paste(&mut world.chunk_handler, world_x as i64, world_y as i64).unwrap();
+                                    buf.paste(
+                                        &mut world.chunk_handler,
+                                        world_x as i64,
+                                        world_y as i64,
+                                    )
+                                    .unwrap();
                                 }
 
                                 player.clipboard.state = PlayerClipboardState::Idle;
@@ -911,7 +987,6 @@ impl Client {
                         }
                     },
                 }
-
             }
 
             world.ecs.maintain();

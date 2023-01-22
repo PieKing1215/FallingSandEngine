@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use specs::{storage::BTreeStorage, Component, Entity};
 
-use crate::game::common::world::{Position, copy_paste::MaterialBuf};
+use crate::game::common::world::{copy_paste::MaterialBuf, Position};
 
 #[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum PlayerJumpState {
@@ -66,13 +66,13 @@ pub enum CutCopy {
 #[derive(Debug, Clone)]
 pub enum PlayerClipboardState {
     Idle,
-    
+
     // before the player started dragging
     PreSelecting(CutCopy),
-    
+
     // player currently dragging
-    Selecting(CutCopy, Position), 
-    
+    Selecting(CutCopy, Position),
+
     Pasting,
 }
 
