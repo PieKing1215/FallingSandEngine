@@ -21,7 +21,7 @@ use rapier2d::{
     na::{Isometry2, Vector2},
     prelude::{ColliderBuilder, InteractionGroups, RigidBodyBuilder},
 };
-use salva2d::{integrations::rapier::ColliderSampling, object::Boundary};
+// use salva2d::{integrations::rapier::ColliderSampling, object::Boundary};
 use simplelog::{CombinedLogger, ConfigBuilder, TermLogger, TerminalMode, WriteLogger};
 use specs::{Builder, WorldExt};
 use tui::{
@@ -160,7 +160,7 @@ pub fn main() -> Result<(), String> {
             let mut game: ServerGame = ServerGame::new(file_helper);
 
             if let Some(w) = &mut game.0.world {
-                let rigid_body = RigidBodyBuilder::new_dynamic()
+                let rigid_body = RigidBodyBuilder::dynamic()
                     .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
                     .lock_rotations()
                     .gravity_scale(0.0)
@@ -169,26 +169,28 @@ pub fn main() -> Result<(), String> {
                 let collider =
                     ColliderBuilder::cuboid(12.0 / PHYSICS_SCALE / 2.0, 20.0 / PHYSICS_SCALE / 2.0)
                         .collision_groups(InteractionGroups::new(
-                            CollisionFlags::PLAYER.bits(),
-                            (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits(),
+                            CollisionFlags::PLAYER.bits().into(),
+                            (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY)
+                                .bits()
+                                .into(),
                         ))
                         .density(1.5)
                         .friction(0.3)
                         .build();
-                let co_handle =
+                let _co_handle =
                     w.physics
                         .colliders
                         .insert_with_parent(collider, handle, &mut w.physics.bodies);
-                let bo_handle = w
-                    .physics
-                    .fluid_pipeline
-                    .liquid_world
-                    .add_boundary(Boundary::new(Vec::new()));
-                w.physics.fluid_pipeline.coupling.register_coupling(
-                    bo_handle,
-                    co_handle,
-                    ColliderSampling::DynamicContactSampling,
-                );
+                // let bo_handle = w
+                //     .physics
+                //     .fluid_pipeline
+                //     .liquid_world
+                //     .add_boundary(Boundary::new(Vec::new()));
+                // w.physics.fluid_pipeline.coupling.register_coupling(
+                //     bo_handle,
+                //     co_handle,
+                //     ColliderSampling::DynamicContactSampling,
+                // );
 
                 let _player = w
                     .ecs
@@ -299,7 +301,7 @@ pub fn main() -> Result<(), String> {
         let mut game: ClientGame = ClientGame::new(file_helper);
 
         if let Some(w) = &mut game.data.world {
-            let rigid_body = RigidBodyBuilder::new_dynamic()
+            let rigid_body = RigidBodyBuilder::dynamic()
                 .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
                 .lock_rotations()
                 .gravity_scale(0.0)
@@ -308,26 +310,28 @@ pub fn main() -> Result<(), String> {
             let collider =
                 ColliderBuilder::cuboid(12.0 / PHYSICS_SCALE / 2.0, 20.0 / PHYSICS_SCALE / 2.0)
                     .collision_groups(InteractionGroups::new(
-                        CollisionFlags::PLAYER.bits(),
-                        (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits(),
+                        CollisionFlags::PLAYER.bits().into(),
+                        (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY)
+                            .bits()
+                            .into(),
                     ))
                     .density(1.5)
                     .friction(0.3)
                     .build();
-            let co_handle =
+            let _co_handle =
                 w.physics
                     .colliders
                     .insert_with_parent(collider, handle, &mut w.physics.bodies);
-            let bo_handle = w
-                .physics
-                .fluid_pipeline
-                .liquid_world
-                .add_boundary(Boundary::new(Vec::new()));
-            w.physics.fluid_pipeline.coupling.register_coupling(
-                bo_handle,
-                co_handle,
-                ColliderSampling::DynamicContactSampling,
-            );
+            // let bo_handle = w
+            //     .physics
+            //     .fluid_pipeline
+            //     .liquid_world
+            //     .add_boundary(Boundary::new(Vec::new()));
+            // w.physics.fluid_pipeline.coupling.register_coupling(
+            //     bo_handle,
+            //     co_handle,
+            //     ColliderSampling::DynamicContactSampling,
+            // );
 
             let player = w
                 .ecs

@@ -1,23 +1,23 @@
 use rapier2d::{
-    na::{Isometry2, Vector2},
+    na::Vector2,
     prelude::{
-        BroadPhase, CCDSolver, ColliderBuilder, ColliderSet, EventHandler, IntegrationParameters,
-        IslandManager, JointSet, NarrowPhase, PhysicsHooks, PhysicsPipeline, RigidBody,
-        RigidBodyBuilder, RigidBodyHandle, RigidBodySet,
+        BroadPhase, CCDSolver, ColliderSet, EventHandler, ImpulseJointSet, IntegrationParameters,
+        IslandManager, MultibodyJointSet, NarrowPhase, PhysicsHooks, PhysicsPipeline, RigidBody,
+        RigidBodyHandle, RigidBodySet,
     },
 };
-use salva2d::{
-    integrations::rapier::{ColliderSampling, FluidsPipeline},
-    object::Boundary,
-};
+// use salva2d::{
+//     integrations::rapier::{ColliderSampling, FluidsPipeline},
+//     object::Boundary,
+// };
 
 pub const PHYSICS_SCALE: f32 = 10.0;
 
-const PARTICLE_RADIUS: f32 = 0.19;
-const SMOOTHING_FACTOR: f32 = 2.0;
+// const PARTICLE_RADIUS: f32 = 0.19;
+// const SMOOTHING_FACTOR: f32 = 2.0;
 
 pub struct Physics {
-    pub fluid_pipeline: FluidsPipeline,
+    // pub fluid_pipeline: FluidsPipeline,
     pub bodies: RigidBodySet,
     pub colliders: ColliderSet,
     pub gravity: Vector2<f32>,
@@ -27,16 +27,17 @@ pub struct Physics {
     pub broad_phase: BroadPhase,
     pub narrow_phase: NarrowPhase,
     pub ccd_solver: CCDSolver,
-    pub joints: JointSet,
-    pub hooks: Box<dyn PhysicsHooks<RigidBodySet, ColliderSet>>,
+    pub impulse_joints: ImpulseJointSet,
+    pub multibody_joints: MultibodyJointSet,
+    pub hooks: Box<dyn PhysicsHooks>,
     pub event_handler: Box<dyn EventHandler>,
 }
 
 impl Physics {
     pub fn new() -> Self {
-        let mut bodies = RigidBodySet::new();
-        let mut colliders = ColliderSet::new();
-        let mut fluid_pipeline = FluidsPipeline::new(PARTICLE_RADIUS, SMOOTHING_FACTOR);
+        let bodies = RigidBodySet::new();
+        let colliders = ColliderSet::new();
+        // let mut fluid_pipeline = FluidsPipeline::new(PARTICLE_RADIUS, SMOOTHING_FACTOR);
 
         // let mut points1: Vec<Point2<f32>> = Vec::new();
         // let mut points2 = Vec::new();
@@ -71,49 +72,43 @@ impl Physics {
         // // fluid.nonpressure_forces.push(Box::new(viscosity.clone()));
         // let fluid_handle = fluid_pipeline.liquid_world.add_fluid(fluid);
 
-        let rigid_body = RigidBodyBuilder::new_static()
-            .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
-            .build();
-        let handle = bodies.insert(rigid_body);
-        let collider = ColliderBuilder::cuboid(10.0, 1.0).build();
-        let co_handle = colliders.insert_with_parent(collider, handle, &mut bodies);
-        let bo_handle = fluid_pipeline
-            .liquid_world
-            .add_boundary(Boundary::new(Vec::new()));
-        fluid_pipeline.coupling.register_coupling(
-            bo_handle,
-            co_handle,
-            ColliderSampling::DynamicContactSampling,
-        );
+        // let rigid_body = RigidBodyBuilder::fixed()
+        //     .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
+        //     .build();
+        // let handle = bodies.insert(rigid_body);
+        // let collider = ColliderBuilder::cuboid(10.0, 1.0).build();
+        // let co_handle = colliders.insert_with_parent(collider, handle, &mut bodies);
+        // let bo_handle = fluid_pipeline
+        //     .liquid_world
+        //     .add_boundary(Boundary::new(Vec::new()));
+        // fluid_pipeline.coupling.register_coupling(
+        //     bo_handle,
+        //     co_handle,
+        //     ColliderSampling::DynamicContactSampling,
+        // );
 
-        let integration_parameters = IntegrationParameters::default();
-        let physics_pipeline = PhysicsPipeline::new();
-        let islands = IslandManager::new();
-        let broad_phase = BroadPhase::new();
-        let narrow_phase = NarrowPhase::new();
-        let ccd_solver = CCDSolver::new();
-        let joints = JointSet::new();
-
+        #[allow(clippy::default_trait_access)]
         Self {
-            fluid_pipeline,
+            // fluid_pipeline,
             bodies,
             colliders,
             gravity: Vector2::y() * 3.0,
-            integration_parameters,
-            physics_pipeline,
-            islands,
-            broad_phase,
-            narrow_phase,
-            ccd_solver,
-            joints,
             hooks: Box::new(()),
             event_handler: Box::new(()),
+            integration_parameters: Default::default(),
+            physics_pipeline: Default::default(),
+            islands: Default::default(),
+            broad_phase: Default::default(),
+            narrow_phase: Default::default(),
+            ccd_solver: Default::default(),
+            impulse_joints: Default::default(),
+            multibody_joints: Default::default(),
         }
     }
 
-    pub fn step(&mut self, time_step: f32) {
-        self.fluid_pipeline
-            .step(&self.gravity, time_step, &self.colliders, &mut self.bodies);
+    pub fn step(&mut self, _time_step: f32) {
+        // self.fluid_pipeline
+        //     .step(&self.gravity, time_step, &self.colliders, &mut self.bodies);
 
         self.physics_pipeline.step(
             &self.gravity,
@@ -123,8 +118,10 @@ impl Physics {
             &mut self.narrow_phase,
             &mut self.bodies,
             &mut self.colliders,
-            &mut self.joints,
+            &mut self.impulse_joints,
+            &mut self.multibody_joints,
             &mut self.ccd_solver,
+            None,
             &*self.hooks,
             &*self.event_handler,
         );
@@ -135,7 +132,9 @@ impl Physics {
             handle,
             &mut self.islands,
             &mut self.colliders,
-            &mut self.joints,
+            &mut self.impulse_joints,
+            &mut self.multibody_joints,
+            true,
         )
     }
 }

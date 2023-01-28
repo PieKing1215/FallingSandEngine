@@ -15,11 +15,11 @@ use log::{debug, error, info, warn};
 use rapier2d::{
     na::{Isometry2, Point2, Vector2},
     prelude::{
-        BallJoint, ColliderBuilder, InteractionGroups, QueryPipeline, RigidBodyBuilder,
+        ColliderBuilder, InteractionGroups, QueryPipeline, RevoluteJointBuilder, RigidBodyBuilder,
         RigidBodyType,
     },
 };
-use salva2d::{integrations::rapier::ColliderSampling, object::Boundary};
+// use salva2d::{integrations::rapier::ColliderSampling, object::Boundary};
 use specs::{Builder, Join, ReadStorage, WorldExt, WriteStorage};
 use sysinfo::{ProcessExt, SystemExt};
 
@@ -334,46 +334,47 @@ impl ClientGame {
                                             );
 
                                             let groups = InteractionGroups::all();
-                                            let filter = None;
                                             let mut query_pipeline = QueryPipeline::new();
                                             query_pipeline.update(
-                                                &w.physics.islands,
                                                 &w.physics.bodies,
                                                 &w.physics.colliders,
                                             );
+                                            let mut handles = Vec::new();
                                             query_pipeline.intersections_with_point(
-                                                &w.physics.colliders, &point, groups, filter, |handle| {
-                                                    let col = w.physics.colliders.get(handle).unwrap();
-                                                    if let Some(rb_handle) = col.parent() {
-                                                        let rb = w.physics.bodies.get(rb_handle).unwrap();
-                                                        if rb.body_type() == RigidBodyType::Dynamic {
-                                                            let point = Vector2::new(
-                                                                world_x as f32 / PHYSICS_SCALE,
-                                                                world_y as f32 / PHYSICS_SCALE,
-                                                            );
-                                                            let new_rb = RigidBodyBuilder::new_kinematic_position_based()
-                                                                .translation(point).build();
-
-                                                            let local_point = rb.position().inverse_transform_point(&Point2::new(point.x, point.y));
-
-                                                            let mouse_h = w.physics.bodies.insert(new_rb);
-
-                                                            let joint = BallJoint::new(Point2::new(0.0, 0.0), local_point);
-                                                            w.physics.joints.insert(mouse_h, rb_handle, joint);
-
-                                                            self.client.mouse_joint = Some((mouse_h, Vector2::new(0.0, 0.0)));
-                                                        }
-                                                    }
-
+                                                &w.physics.bodies, &w.physics.colliders, &point, groups.into(), |handle| {
+                                                    handles.push(handle);
                                                     false
                                                 }
                                             );
+                                            for handle in handles {
+                                                let col = w.physics.colliders.get(handle).unwrap();
+                                                if let Some(rb_handle) = col.parent() {
+                                                    let rb = w.physics.bodies.get(rb_handle).unwrap();
+                                                    if rb.body_type() == RigidBodyType::Dynamic {
+                                                        let point = Vector2::new(
+                                                            world_x as f32 / PHYSICS_SCALE,
+                                                            world_y as f32 / PHYSICS_SCALE,
+                                                        );
+                                                        let new_rb = RigidBodyBuilder::kinematic_position_based()
+                                                            .translation(point).build();
+
+                                                        let local_point = rb.position().inverse_transform_point(&Point2::new(point.x, point.y));
+
+                                                        let mouse_h = w.physics.bodies.insert(new_rb);
+
+                                                        let joint = RevoluteJointBuilder::new().local_anchor1(Point2::new(0.0, 0.0)).local_anchor2(local_point);
+                                                        w.physics.impulse_joints.insert(mouse_h, rb_handle, joint, true);
+
+                                                        self.client.mouse_joint = Some((mouse_h, Vector2::new(0.0, 0.0)));
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 } else if *button == MouseButton::Right && *state == ElementState::Released {
                                     if let Some(w) = &mut self.data.world {
                                         if let Some((rb_h, linvel)) = self.client.mouse_joint.take() {
-                                            for j in w.physics.joints.joints_with(rb_h) {
+                                            for j in w.physics.impulse_joints.attached_joints(rb_h) {
                                                 w.physics
                                                     .bodies
                                                     .get_mut(j.1)
@@ -384,7 +385,9 @@ impl ClientGame {
                                                 rb_h,
                                                 &mut w.physics.islands,
                                                 &mut w.physics.colliders,
-                                                &mut w.physics.joints,
+                                                &mut w.physics.impulse_joints,
+                                                &mut w.physics.multibody_joints,
+                                                true,
                                             );
                                         }
                                     }
@@ -468,7 +471,7 @@ impl ClientGame {
                                             .to_path_buf(),
                                     )));
 
-                                    let rigid_body = RigidBodyBuilder::new_dynamic()
+                                    let rigid_body = RigidBodyBuilder::dynamic()
                                         .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
                                         .lock_rotations()
                                         .gravity_scale(0.0)
@@ -486,39 +489,39 @@ impl ClientGame {
                                         20.0 / PHYSICS_SCALE / 2.0,
                                     )
                                     .collision_groups(InteractionGroups::new(
-                                        CollisionFlags::PLAYER.bits(),
-                                        (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits(),
+                                        CollisionFlags::PLAYER.bits().into(),
+                                        (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits().into(),
                                     ))
                                     .density(1.5)
                                     .friction(0.3)
                                     .build();
                                     let w = self.data.world.as_mut().unwrap();
-                                    let co_handle = w.physics.colliders.insert_with_parent(
+                                    let _co_handle = w.physics.colliders.insert_with_parent(
                                         collider,
                                         handle,
                                         &mut w.physics.bodies,
                                     );
-                                    let bo_handle = self
-                                        .data
-                                        .world
-                                        .as_mut()
-                                        .unwrap()
-                                        .physics
-                                        .fluid_pipeline
-                                        .liquid_world
-                                        .add_boundary(Boundary::new(Vec::new()));
-                                    self.data
-                                        .world
-                                        .as_mut()
-                                        .unwrap()
-                                        .physics
-                                        .fluid_pipeline
-                                        .coupling
-                                        .register_coupling(
-                                            bo_handle,
-                                            co_handle,
-                                            ColliderSampling::DynamicContactSampling,
-                                        );
+                                    // let bo_handle = self
+                                    //     .data
+                                    //     .world
+                                    //     .as_mut()
+                                    //     .unwrap()
+                                    //     .physics
+                                    //     .fluid_pipeline
+                                    //     .liquid_world
+                                    //     .add_boundary(Boundary::new(Vec::new()));
+                                    // self.data
+                                    //     .world
+                                    //     .as_mut()
+                                    //     .unwrap()
+                                    //     .physics
+                                    //     .fluid_pipeline
+                                    //     .coupling
+                                    //     .register_coupling(
+                                    //         bo_handle,
+                                    //         co_handle,
+                                    //         ColliderSampling::DynamicContactSampling,
+                                    //     );
 
                                     if let Some(w) = &mut self.data.world {
                                         let player = w

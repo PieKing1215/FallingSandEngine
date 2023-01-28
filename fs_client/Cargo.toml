@@ -18,12 +18,12 @@ clap = { version = "4.1", features = ["cargo"] }
 egui = { version = "0.20", default-features = false, features = ["default_fonts"] }
 egui_glium = { version = "0.20", default-features = false, features = [] }
 specs = { version = "0.18", features = ["serde", "specs-derive"] }
-salva2d = { version = "0.7", features = ["rapier"] }
-rapier2d = { version = "0.11", features = ["simd-stable"] }
+# salva2d = { version = "0.7", features = ["rapier"] }
+rapier2d = { version = "0.17", features = ["simd-stable"] }
 sysinfo = "0.27"
 bincode = "1.3"
 glutin = "0.29"
 glium = "0.32"
 glium-glyph = "0.14"
-nalgebra = { version = "0.30", default-features = false, features = [] }
-nalgebra-glm = "0.16"
+nalgebra = { version = "0.32", default-features = false, features = [] }
+nalgebra-glm = "0.18"

@@ -12,7 +12,7 @@ use rapier2d::{
     na::{Point2, Vector2},
     prelude::{ColliderBuilder, InteractionGroups, RigidBodyBuilder, RigidBodyType},
 };
-use salva2d::{integrations::rapier::ColliderSampling, object::Boundary};
+// use salva2d::{integrations::rapier::ColliderSampling, object::Boundary};
 use specs::{
     saveload::{SimpleMarker, SimpleMarkerAllocator},
     Join, Read, ReadStorage, RunNow, WorldExt,
@@ -326,10 +326,10 @@ impl<C: Chunk> World<C> {
                                         ));
                                         // TODO: extract constant into material property (like weight or something)
                                         // TODO: consider making it so the body actually comes to a stop
-                                        body.apply_force_at_point(
+                                        body.apply_impulse_at_point(
                                             Vector2::new(
-                                                -point_velocity.x * 0.1,
-                                                -point_velocity.y * 0.1,
+                                                -point_velocity.x * 0.1 / body.mass(),
+                                                -point_velocity.y * 0.1 / body.mass(),
                                             ),
                                             world_point,
                                             true,
@@ -373,10 +373,12 @@ impl<C: Chunk> World<C> {
                                                             .active
                                                             .push(part);
 
-                                                        body.apply_force_at_point(
+                                                        body.apply_impulse_at_point(
                                                             Vector2::new(
-                                                                -point_velocity.x * 0.5,
-                                                                -point_velocity.y * 0.5,
+                                                                -point_velocity.x * 0.5
+                                                                    / body.mass(),
+                                                                -point_velocity.y * 0.5
+                                                                    / body.mass(),
                                                             ),
                                                             world_point,
                                                             true,
@@ -410,10 +412,12 @@ impl<C: Chunk> World<C> {
                                                                 .active
                                                                 .push(part);
 
-                                                            body.apply_force_at_point(
+                                                            body.apply_impulse_at_point(
                                                                 Vector2::new(
-                                                                    -point_velocity.x * 0.75,
-                                                                    -point_velocity.y * 0.75,
+                                                                    -point_velocity.x * 0.75
+                                                                        / body.mass(),
+                                                                    -point_velocity.y * 0.75
+                                                                        / body.mass(),
                                                                 ),
                                                                 world_point,
                                                                 true,
@@ -432,10 +436,10 @@ impl<C: Chunk> World<C> {
                                                 }
                                             }
                                         } else {
-                                            body.apply_force_at_point(
+                                            body.apply_impulse_at_point(
                                                 Vector2::new(
-                                                    -point_velocity.x * 0.1,
-                                                    -point_velocity.y * 0.1,
+                                                    -point_velocity.x * 0.1 / body.mass(),
+                                                    -point_velocity.y * 0.1 / body.mass(),
                                                 ),
                                                 world_point,
                                                 true,
@@ -686,7 +690,7 @@ impl<C: Chunk> World<C> {
                     // }
 
                     if let Some(loops) = c.get_mesh_loops() {
-                        let rigid_body = RigidBodyBuilder::new_static()
+                        let rigid_body = RigidBodyBuilder::fixed()
                             .translation(Vector2::new(
                                 (c.get_chunk_x() * i32::from(CHUNK_SIZE)) as f32 / PHYSICS_SCALE,
                                 (c.get_chunk_y() * i32::from(CHUNK_SIZE)) as f32 / PHYSICS_SCALE,
@@ -707,8 +711,8 @@ impl<C: Chunk> World<C> {
 
                                 let collider = ColliderBuilder::polyline(verts, None)
                                     .collision_groups(InteractionGroups::new(
-                                        CollisionFlags::WORLD.bits(),
-                                        CollisionFlags::RIGIDBODY.bits(),
+                                        CollisionFlags::WORLD.bits().into(),
+                                        CollisionFlags::RIGIDBODY.bits().into(),
                                     ))
                                     .density(0.0)
                                     .build();
@@ -788,7 +792,9 @@ impl<C: Chunk> World<C> {
                                         *h,
                                         &mut self.physics.islands,
                                         &mut self.physics.colliders,
-                                        &mut self.physics.joints,
+                                        &mut self.physics.impulse_joints,
+                                        &mut self.physics.multibody_joints,
+                                        true,
                                     )
                                     .unwrap();
                                 *state = RigidBodyState::Inactive(Box::new(rb), colls);
@@ -801,21 +807,21 @@ impl<C: Chunk> World<C> {
                                 RigidBodyState::Inactive(rb, colls) if should_be_active => {
                                     let rb_handle = self.physics.bodies.insert(*rb);
                                     for collider in colls {
-                                        let bo_handle = self
-                                            .physics
-                                            .fluid_pipeline
-                                            .liquid_world
-                                            .add_boundary(Boundary::new(Vec::new()));
-                                        let co_handle = self.physics.colliders.insert_with_parent(
+                                        // let bo_handle = self
+                                        //     .physics
+                                        //     .fluid_pipeline
+                                        //     .liquid_world
+                                        //     .add_boundary(Boundary::new(Vec::new()));
+                                        let _co_handle = self.physics.colliders.insert_with_parent(
                                             collider,
                                             rb_handle,
                                             &mut self.physics.bodies,
                                         );
-                                        self.physics.fluid_pipeline.coupling.register_coupling(
-                                            bo_handle,
-                                            co_handle,
-                                            ColliderSampling::DynamicContactSampling,
-                                        );
+                                        // self.physics.fluid_pipeline.coupling.register_coupling(
+                                        //     bo_handle,
+                                        //     co_handle,
+                                        //     ColliderSampling::DynamicContactSampling,
+                                        // );
                                     }
                                     c.set_rigidbody(Some(RigidBodyState::Active(rb_handle)));
                                 },

@@ -826,7 +826,7 @@ impl Client {
                     },
                 }
 
-                log::debug!("{:?}", player.clipboard.state);
+                // log::debug!("{:?}", player.clipboard.state);
                 match &player.clipboard.state {
                     PlayerClipboardState::Idle => {
                         if self.controls.copy.get() {

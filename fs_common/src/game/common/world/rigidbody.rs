@@ -6,7 +6,7 @@ use rapier2d::{
         SharedShape,
     },
 };
-use salva2d::{integrations::rapier::ColliderSampling, object::Boundary};
+// use salva2d::{integrations::rapier::ColliderSampling, object::Boundary};
 
 use super::{
     material::MaterialInstance,
@@ -62,7 +62,7 @@ impl FSRigidBody {
         // };
         // body_def.position.set(position.0, position.1);
 
-        let rigid_body = RigidBodyBuilder::new_dynamic()
+        let rigid_body = RigidBodyBuilder::dynamic()
             .translation(Vector2::new(position.0, position.1))
             .build();
         let rb_handle = physics.bodies.insert(rigid_body);
@@ -105,24 +105,24 @@ impl FSRigidBody {
 
         let collider = ColliderBuilder::compound(shapes)
             .collision_groups(InteractionGroups::new(
-                CollisionFlags::RIGIDBODY.bits(),
-                CollisionFlags::all().bits(),
+                CollisionFlags::RIGIDBODY.bits().into(),
+                CollisionFlags::all().bits().into(),
             ))
             .density(1.0)
             .build();
-        let co_handle =
+        let _co_handle =
             physics
                 .colliders
                 .insert_with_parent(collider, rb_handle, &mut physics.bodies);
-        let bo_handle = physics
-            .fluid_pipeline
-            .liquid_world
-            .add_boundary(Boundary::new(Vec::new()));
-        physics.fluid_pipeline.coupling.register_coupling(
-            bo_handle,
-            co_handle,
-            ColliderSampling::DynamicContactSampling,
-        );
+        // let bo_handle = physics
+        //     .fluid_pipeline
+        //     .liquid_world
+        //     .add_boundary(Boundary::new(Vec::new()));
+        // physics.fluid_pipeline.coupling.register_coupling(
+        //     bo_handle,
+        //     co_handle,
+        //     ColliderSampling::DynamicContactSampling,
+        // );
 
         Ok(Self {
             width,
@@ -222,7 +222,9 @@ impl FSRigidBody {
                 b,
                 &mut physics.islands,
                 &mut physics.colliders,
-                &mut physics.joints,
+                &mut physics.impulse_joints,
+                &mut physics.multibody_joints,
+                true,
             );
         }
 
@@ -235,7 +237,7 @@ impl FSRigidBody {
 
         let loops = mesh::triangulate(&mesh);
 
-        let rigid_body = RigidBodyBuilder::new_dynamic()
+        let rigid_body = RigidBodyBuilder::dynamic()
             .translation(Vector2::new(position.0, position.1))
             .build();
         let rb_handle = physics.bodies.insert(rigid_body);
@@ -279,19 +281,19 @@ impl FSRigidBody {
         }
 
         let collider = ColliderBuilder::compound(shapes).build();
-        let co_handle =
+        let _co_handle =
             physics
                 .colliders
                 .insert_with_parent(collider, rb_handle, &mut physics.bodies);
-        let bo_handle = physics
-            .fluid_pipeline
-            .liquid_world
-            .add_boundary(Boundary::new(Vec::new()));
-        physics.fluid_pipeline.coupling.register_coupling(
-            bo_handle,
-            co_handle,
-            ColliderSampling::DynamicContactSampling,
-        );
+        // let bo_handle = physics
+        //     .fluid_pipeline
+        //     .liquid_world
+        //     .add_boundary(Boundary::new(Vec::new()));
+        // physics.fluid_pipeline.coupling.register_coupling(
+        //     bo_handle,
+        //     co_handle,
+        //     ColliderSampling::DynamicContactSampling,
+        // );
 
         self.body = Some(rb_handle);
 

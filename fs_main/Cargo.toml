@@ -23,8 +23,8 @@ simplelog = "0.12"
 tui = { version = "0.19", default-features = false, features = ["crossterm"] }
 tui-logger = "0.8"
 backtrace = "0.3"
-rapier2d = { version = "0.11", features = ["simd-stable"] }
-salva2d = { version = "0.7", features = ["rapier"] }
+rapier2d = { version = "0.17", features = ["simd-stable"] }
+# salva2d = { version = "0.7", features = ["rapier"] }
 specs = { version = "0.18", features = ["serde", "specs-derive"] }
 num_cpus = "1.13"
 glutin = "0.29"

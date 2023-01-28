@@ -490,7 +490,9 @@ impl Simulator {
                         rb.body.take().unwrap(),
                         &mut physics.islands,
                         &mut physics.colliders,
-                        &mut physics.joints,
+                        &mut physics.impulse_joints,
+                        &mut physics.multibody_joints,
+                        true,
                     );
                     let mut r = rigidbody::FSRigidBody::make_bodies(
                         &rb.pixels, rb.width, rb.height, physics, pos,

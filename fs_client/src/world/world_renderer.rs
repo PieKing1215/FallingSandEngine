@@ -529,7 +529,7 @@ impl WorldRenderer {
                 // target.circle(x as f32, y as f32, 3.0, Color::GREEN.into_sdl());
 
                 if settings.physics_dbg_draw_center_of_mass {
-                    let com = b.mass_properties().local_com;
+                    let com = b.mass_properties().local_mprops.local_com;
                     target.line(
                         (com.x, com.y),
                         (com.x + 0.5, com.y),
