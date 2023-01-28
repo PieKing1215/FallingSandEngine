@@ -18,7 +18,7 @@ fs_server = { path = "../fs_server" }
 clap = { version = "4.1", features = ["cargo"] }
 profiling = "1.0"
 log = "0.4"
-crossterm = "0.25"
+crossterm = "0.26"
 simplelog = "0.12"
 tui = { version = "0.19", default-features = false, features = ["crossterm"] }
 tui-logger = "0.8"

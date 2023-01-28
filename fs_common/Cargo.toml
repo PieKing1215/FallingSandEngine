@@ -35,11 +35,11 @@ image = { version = "0.24", default_features = false, features = ["png"] }
 akin = "0.4"
 
 # mesh generation
-contour = "0.4"
-geojson = "0.22"
+contour = "0.7"
+geojson = "0.24"
 ramer_douglas_peucker = "0.2"
 mint = "0.5"
-earcutr = "0.2"
+earcutr = "0.4"
 
 [features]
 profile = ["profiling/profile-with-tracy"]

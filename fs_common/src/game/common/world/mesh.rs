@@ -59,76 +59,71 @@ pub fn generate_mesh_with_simplified(
     let contours = c.contours(values, &[1.0]);
 
     let feat = contours.map(|vf| {
-        // this unwrap should never fail, since the Features returned by contours are always Some geometry with MultiPolygon value
-        match &vf[0].geometry.as_ref().unwrap().value {
-            geojson::Value::MultiPolygon(mp) => {
-                let v: (Mesh, Mesh) = mp
+        let mp = &vf[0].geometry().0;
+        let v: (Mesh, Mesh) = mp
+            .iter()
+            .map(|pt| {
+                return pt
+                    .interiors()
                     .iter()
-                    .map(|pt| {
-                        return pt
+                    .chain(std::iter::once(pt.exterior()))
+                    .map(|ln| {
+                        let pts: Vec<Point2<_>> =
+                            ln.0.iter()
+                                .map(|pt| {
+                                    let mut x = pt.x;
+                                    let mut y = pt.y;
+
+                                    // this extra manipulation helps seal the seams on chunk edges during the later mesh simplification
+
+                                    if (y == 0.0 || (y - f64::from(height)).abs() < f64::EPSILON)
+                                        && (x - 0.5).abs() < f64::EPSILON
+                                    {
+                                        x = 0.0;
+                                    }
+
+                                    if (x == 0.0 || (x - f64::from(width)).abs() < f64::EPSILON)
+                                        && (y - 0.5).abs() < f64::EPSILON
+                                    {
+                                        y = 0.0;
+                                    }
+
+                                    if (y == 0.0 || (y - f64::from(height)).abs() < f64::EPSILON)
+                                        && (x - (f64::from(width) - 0.5)).abs() < f64::EPSILON
+                                    {
+                                        x = f64::from(width);
+                                    }
+
+                                    if (x == 0.0 || (x - f64::from(width)).abs() < f64::EPSILON)
+                                        && (y - (f64::from(height) - 0.5)).abs() < f64::EPSILON
+                                    {
+                                        y = f64::from(height);
+                                    }
+
+                                    x = x.round() - 0.5;
+                                    y = y.round() - 0.5;
+
+                                    Point2 { x, y }
+                                })
+                                .collect();
+
+                        let keep = ramer_douglas_peucker::rdp(&pts, 1.0);
+
+                        let p1: Poly = pts.iter().map(|p| vec![p.x, p.y]).collect();
+                        let p2: Poly = pts
                             .iter()
-                            .map(|ln| {
-                                let pts: Vec<Point2<_>> = ln
-                                    .iter()
-                                    .map(|pt| {
-                                        let mut x = pt[0];
-                                        let mut y = pt[1];
-
-                                        // this extra manipulation helps seal the seams on chunk edges during the later mesh simplification
-
-                                        if (y == 0.0
-                                            || (y - f64::from(height)).abs() < f64::EPSILON)
-                                            && (x - 0.5).abs() < f64::EPSILON
-                                        {
-                                            x = 0.0;
-                                        }
-
-                                        if (x == 0.0 || (x - f64::from(width)).abs() < f64::EPSILON)
-                                            && (y - 0.5).abs() < f64::EPSILON
-                                        {
-                                            y = 0.0;
-                                        }
-
-                                        if (y == 0.0
-                                            || (y - f64::from(height)).abs() < f64::EPSILON)
-                                            && (x - (f64::from(width) - 0.5)).abs() < f64::EPSILON
-                                        {
-                                            x = f64::from(width);
-                                        }
-
-                                        if (x == 0.0 || (x - f64::from(width)).abs() < f64::EPSILON)
-                                            && (y - (f64::from(height) - 0.5)).abs() < f64::EPSILON
-                                        {
-                                            y = f64::from(height);
-                                        }
-
-                                        x = x.round() - 0.5;
-                                        y = y.round() - 0.5;
-
-                                        Point2 { x, y }
-                                    })
-                                    .collect();
-
-                                let keep = ramer_douglas_peucker::rdp(&pts, 1.0);
-
-                                let p1: Poly = pts.iter().map(|p| vec![p.x, p.y]).collect();
-                                let p2: Poly = pts
-                                    .iter()
-                                    .enumerate()
-                                    .filter(|(i, &_p)| keep.contains(i))
-                                    .map(|(_, p)| vec![p.x, p.y])
-                                    .collect();
-                                (p1, p2)
-                            })
-                            .filter(|(norm, simple)| norm.len() > 2 && simple.len() > 2)
-                            .unzip();
+                            .enumerate()
+                            .filter(|(i, &_p)| keep.contains(i))
+                            .map(|(_, p)| vec![p.x, p.y])
+                            .collect();
+                        (p1, p2)
                     })
-                    .filter(|p: &(Loop, Loop)| !p.0.is_empty() && !p.1.is_empty())
+                    .filter(|(norm, simple)| norm.len() > 2 && simple.len() > 2)
                     .unzip();
-                v
-            },
-            _ => unreachable!(), // it is always a MultiPolygon
-        }
+            })
+            .filter(|p: &(Loop, Loop)| !p.0.is_empty() && !p.1.is_empty())
+            .unzip();
+        v
     });
 
     feat.map_err(|e| e.to_string())
@@ -143,7 +138,8 @@ pub fn triangulate(mesh: &Mesh) -> Vec<Vec<Tri>> {
     mesh.iter()
         .map(|part| {
             let (vertices, holes, dimensions) = earcutr::flatten(part);
-            let triangles = earcutr::earcut(&vertices, &holes, dimensions);
+            let triangles =
+                earcutr::earcut(&vertices, &holes, dimensions).expect("earcutr::earcut failed!");
 
             let mut res: Vec<Tri> = Vec::new();
 

@@ -17,7 +17,7 @@ fs_common = { path = "../fs_common" }
 profiling = "1.0"
 clap = { version = "4.1", features = ["cargo"] }
 log = "0.4"
-crossterm = "0.25"
+crossterm = "0.26"
 tui = { version = "0.19", default-features = false, features = ["crossterm"] }
 tui-logger = "0.8"
 bincode = "1.3"
