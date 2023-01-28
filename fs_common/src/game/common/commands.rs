@@ -1,10 +1,10 @@
 use clap::{ArgMatches, Command};
 
-pub struct CommandHandler<'a> {
-    commands: Command<'a>,
+pub struct CommandHandler {
+    commands: Command,
 }
 
-impl CommandHandler<'_> {
+impl CommandHandler {
     pub fn new() -> Self {
         Self {
             commands: Command::new("commands")
@@ -15,7 +15,7 @@ impl CommandHandler<'_> {
                 .help_template("Command Help:\n{subcommands}")
                 .subcommand(
                     Command::new("shutdown")
-                        .aliases(&["exit", "quit", "stop"])
+                        .aliases(["exit", "quit", "stop"])
                         .about("Exit the game"),
                 )
                 .subcommand(Command::new("save").about("Save the game")),
@@ -28,7 +28,7 @@ impl CommandHandler<'_> {
     }
 }
 
-impl Default for CommandHandler<'_> {
+impl Default for CommandHandler {
     fn default() -> Self {
         Self::new()
     }

@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use egui::TextureOptions;
 use fs_common::game::{
     common::world::material::placer::{self, MaterialPlacer, MaterialPlacerID},
     Registries,
@@ -22,7 +23,11 @@ impl DrawUI {
     pub fn render(&mut self, egui_ctx: &egui::Context, registries: &Registries) {
         for (id, (_meta, placer)) in &registries.material_placers {
             self.textures.entry(*id).or_insert_with(|| {
-                egui_ctx.load_texture(format!("{id}"), gen_material_preview(placer.as_ref()))
+                egui_ctx.load_texture(
+                    format!("{id}"),
+                    gen_material_preview(placer.as_ref()),
+                    TextureOptions::LINEAR,
+                )
             });
         }
 
@@ -30,7 +35,7 @@ impl DrawUI {
             .resizable(false)
             .show(egui_ctx, |ui| {
                 ui.with_layout(
-                    egui::Layout::left_to_right()
+                    egui::Layout::left_to_right(egui::Align::Min)
                         .with_cross_align(egui::Align::Min)
                         .with_main_wrap(true),
                     |ui| {
@@ -74,7 +79,7 @@ fn gen_material_preview(placer: &dyn MaterialPlacer) -> egui::ColorImage {
     for y in 0..height {
         for x in 0..width {
             let mat = placer.pixel(x as i64, y as i64);
-            let col = egui::color::Rgba::from_srgba_unmultiplied(
+            let col = egui::Rgba::from_srgba_unmultiplied(
                 mat.color.r,
                 mat.color.g,
                 mat.color.b,

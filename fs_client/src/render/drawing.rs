@@ -6,7 +6,10 @@ use glium::{
     implement_vertex, index::NoIndices, texture::Texture2dArray, uniform, Blend, Display,
     DrawParameters, Frame, IndexBuffer, PolygonMode, Surface, SwapBuffersError, Texture2d,
 };
-use glium_glyph::{glyph_brush::Section, GlyphBrush};
+use glium_glyph::{
+    glyph_brush::{ab_glyph::FontVec, Section},
+    GlyphBrush,
+};
 
 use super::{
     shaders::Shaders,
@@ -20,7 +23,7 @@ pub struct RenderTarget<'a, 'b> {
     pub transform: TransformStack,
     pub base_transform: TransformStack,
     pub shaders: &'a Shaders,
-    glyph_brush: &'a mut GlyphBrush<'b, 'b>,
+    glyph_brush: &'a mut GlyphBrush<'b, FontVec>,
 }
 
 pub trait Vertices {
@@ -64,7 +67,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
     pub fn new(
         display: &mut Display,
         shaders: &'a Shaders,
-        glyph_brush: &'a mut glium_glyph::GlyphBrush<'b, 'b>,
+        glyph_brush: &'a mut glium_glyph::GlyphBrush<'b, FontVec>,
     ) -> Self {
         profiling::scope!("RenderTarget::new");
 

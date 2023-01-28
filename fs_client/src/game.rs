@@ -67,12 +67,12 @@ impl ClientGame {
         args: ArgMatches,
         event_loop: EventLoop<()>,
     ) {
-        self.data.settings.debug = args.is_present("debug");
+        self.data.settings.debug = args.contains_id("debug");
         if self.data.settings.debug {
             self.client.open_debug_ui();
         }
 
-        if args.is_present("no-tick") {
+        if args.get_flag("no-tick") {
             self.data.settings.simulate_chunks = false;
             self.data.settings.simulate_particles = false;
             self.data.settings.tick_physics = false;
@@ -80,7 +80,7 @@ impl ClientGame {
 
         let mut network = None;
 
-        if let Some(addr) = args.value_of("connect") {
+        if let Some(addr) = args.get_one::<String>("connect") {
             info!("Connecting to {}...", addr);
             match TcpStream::connect(addr).map(BufReader::new) {
                 Ok(mut r) => {
@@ -147,7 +147,7 @@ impl ClientGame {
                         *control_flow = glutin::event_loop::ControlFlow::Exit;
                     },
                     _ => {
-                        if renderer.egui_glium.on_event(w_event) {
+                        if renderer.egui_glium.on_event(w_event).consumed {
                             return;
                         }
 

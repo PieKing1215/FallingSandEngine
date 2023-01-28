@@ -14,16 +14,16 @@ edition = "2021"
 fs_common = { path = "../fs_common" }
 log = "0.4"
 profiling = "1.0"
-clap = { version = "3.1", features = ["cargo"] }
-egui = { version = "0.17", default-features = false, features = ["default_fonts"] }
-egui_glium = { version = "0.17", default-features = false, features = [] }
+clap = { version = "4.1", features = ["cargo"] }
+egui = { version = "0.20", default-features = false, features = ["default_fonts"] }
+egui_glium = { version = "0.20", default-features = false, features = [] }
 specs = { version = "0.17", features = ["serde", "specs-derive"] }
 salva2d = { version = "0.7", features = ["rapier"] }
 rapier2d = { version = "0.11", features = ["simd-stable"] }
 sysinfo = "0.23"
 bincode = "1.3"
-glutin = "0.28"
-glium = "0.31"
-glium-glyph = { git = "https://github.com/est31/glium-glyph.git" }
+glutin = "0.29"
+glium = "0.32"
+glium-glyph = "0.14"
 nalgebra = { version = "0.30", default-features = false, features = [] }
 nalgebra-glm = "0.16"

@@ -1,7 +1,7 @@
-use std::{fs::File, str::FromStr, thread};
+use std::{fs::File, thread};
 
 use backtrace::Backtrace;
-use clap::{crate_authors, crate_name, crate_version, Arg, Command};
+use clap::{crate_authors, crate_name, crate_version, Arg, ArgAction, Command};
 use fs_client::{render::Renderer, world::ClientWorld, ClientGame};
 use fs_common::game::common::{
     world::{
@@ -29,17 +29,6 @@ use tui::{
     Terminal,
 };
 
-#[allow(clippy::needless_pass_by_value)]
-fn is_type<T: FromStr>(val: &str) -> Result<(), String>
-where
-    <T as std::str::FromStr>::Err: std::string::ToString,
-{
-    match val.parse::<T>() {
-        Ok(_) => Ok(()),
-        Err(e) => Err(e.to_string()),
-    }
-}
-
 #[profiling::function]
 pub fn main() -> Result<(), String> {
     unsafe {
@@ -54,25 +43,27 @@ pub fn main() -> Result<(), String> {
             Arg::new("debug")
                 .short('d')
                 .long("debug")
+                .action(ArgAction::SetTrue)
                 .help("Enable debugging features"),
         )
         .arg(
             Arg::new("no-tick")
                 .long("no-tick")
+                .action(ArgAction::SetTrue)
                 .help("Turn off simulation by default"),
         )
         .arg(
             Arg::new("connect")
                 .short('c')
                 .long("connect")
-                .takes_value(true)
+                .action(ArgAction::Set)
                 .value_name("IP:PORT")
                 .help("Connect to a server automatically"),
         )
         .arg(
             Arg::new("game-dir")
                 .long("game-dir")
-                .takes_value(true)
+                .action(ArgAction::Set)
                 .value_name("PATH")
                 .default_value("./gamedir/")
                 .help("Set the game directory"),
@@ -80,7 +71,7 @@ pub fn main() -> Result<(), String> {
         .arg(
             Arg::new("assets-dir")
                 .long("assets-dir")
-                .takes_value(true)
+                .action(ArgAction::Set)
                 .value_name("PATH")
                 .default_value("./gamedir/assets/")
                 .help("Set the assets directory"),
@@ -90,18 +81,18 @@ pub fn main() -> Result<(), String> {
                 Arg::new("port")
                     .short('p')
                     .long("port")
-                    .takes_value(true)
+                    .action(ArgAction::Set)
                     .value_name("PORT")
                     .default_value("6673")
-                    .validator(is_type::<u16>)
+                    .value_parser(clap::value_parser!(u16))
                     .help("The port to run the server on"),
             ),
         )
         .get_matches();
 
     let file_helper = FileHelper::new(
-        matches.value_of("game-dir").unwrap().into(),
-        matches.value_of("assets-dir").unwrap().into(),
+        matches.get_one::<String>("game-dir").unwrap().into(),
+        matches.get_one::<String>("assets-dir").unwrap().into(),
     );
 
     if !file_helper.game_path("").exists() {
@@ -157,7 +148,14 @@ pub fn main() -> Result<(), String> {
             );
         }));
 
+        // hack to
+        // https://github.com/clap-rs/clap/issues/3876 ?
+        // TODO: investigate this more
+        let matches_unsafe = Box::leak(Box::new(matches)) as *mut _ as *mut ();
         let res = std::panic::catch_unwind(move || {
+            let matches_unsafe2 = matches_unsafe as *mut clap::ArgMatches;
+            let matches = *unsafe { Box::from_raw(matches_unsafe2) };
+
             println!("Starting server...");
             let mut game: ServerGame = ServerGame::new(file_helper);
 
@@ -229,7 +227,7 @@ pub fn main() -> Result<(), String> {
             println!("Server shut down successfully.");
         }
     } else if client {
-        let debug = matches.is_present("debug");
+        let debug = matches.get_flag("debug");
 
         {
             profiling::scope!("Init logging");

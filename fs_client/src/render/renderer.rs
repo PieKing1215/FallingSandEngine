@@ -10,8 +10,8 @@ use fs_common::game::{
 };
 use glium::{Blend, Display, DrawParameters, PolygonMode};
 use glium_glyph::{
-    glyph_brush::{rusttype::Font, Section},
-    GlyphBrush,
+    glyph_brush::{ab_glyph::FontVec, Section, Text},
+    GlyphBrush, GlyphBrushBuilder,
 };
 use glutin::{dpi::LogicalSize, event_loop::EventLoop};
 use specs::ReadStorage;
@@ -29,7 +29,7 @@ pub static mut GIT_HASH: Option<&str> = None;
 
 pub struct Renderer<'a> {
     // pub fonts: Fonts,
-    pub glyph_brush: GlyphBrush<'a, 'a>,
+    pub glyph_brush: GlyphBrush<'a, FontVec>,
     pub shaders: Shaders,
     pub display: Display,
     pub world_renderer: WorldRenderer,
@@ -57,7 +57,7 @@ impl<'a> Renderer<'a> {
 
         let egui_glium = {
             profiling::scope!("EguiGlium::new");
-            egui_glium::EguiGlium::new(&display)
+            egui_glium::EguiGlium::new(&display, event_loop)
         };
 
         log::info!("glversion = {:?}", display.get_opengl_version());
@@ -66,9 +66,9 @@ impl<'a> Renderer<'a> {
 
         let pixel_operator =
             fs::read(file_helper.asset_path("font/pixel_operator/PixelOperator.ttf")).unwrap();
-        let fonts = vec![Font::from_bytes(pixel_operator).unwrap()];
+        let pixel_operator_font = FontVec::try_from_vec(pixel_operator).unwrap();
 
-        let glyph_brush = GlyphBrush::new(&display, fonts);
+        let glyph_brush = GlyphBrushBuilder::using_font(pixel_operator_font).build(&display);
 
         Ok(Renderer {
             glyph_brush,
@@ -104,25 +104,28 @@ impl<'a> Renderer<'a> {
         {
             profiling::scope!("version info");
 
-            target.queue_text(Section {
-                text: "Development Build",
-                screen_position: (4.0, target.height() as f32 - 40.0),
-                bounds: (150.0, 20.0),
-                color: Color::WHITE.into(),
-                ..Section::default()
-            });
-            target.queue_text(Section {
-                text: format!(
-                    "{} ({})",
-                    unsafe { BUILD_DATETIME }.unwrap_or("???"),
-                    unsafe { GIT_HASH }.unwrap_or("???")
-                )
-                .as_str(),
-                screen_position: (4.0, target.height() as f32 - 20.0),
-                bounds: (200.0, 20.0),
-                color: Color::WHITE.into(),
-                ..Section::default()
-            });
+            target.queue_text(
+                Section::default()
+                    .add_text(Text::new("Development Build").with_color(Color::WHITE))
+                    .with_screen_position((4.0, target.height() as f32 - 40.0))
+                    .with_bounds((150.0, 20.0)),
+            );
+            target.queue_text(
+                Section::default()
+                    .add_text(
+                        Text::new(
+                            format!(
+                                "{} ({})",
+                                unsafe { BUILD_DATETIME }.unwrap_or("???"),
+                                unsafe { GIT_HASH }.unwrap_or("???")
+                            )
+                            .as_str(),
+                        )
+                        .with_color(Color::WHITE),
+                    )
+                    .with_screen_position((4.0, target.height() as f32 - 20.0))
+                    .with_bounds((200.0, 20.0)),
+            );
             target.draw_queued_text();
         }
 
@@ -228,7 +231,7 @@ impl<'a> Renderer<'a> {
                             .include_y(50.0)
                             .show(ui, |plot_ui| {
                                 plot_ui.text(egui::plot::Text::new(
-                                    egui::plot::Value::new(nums.len() as f32 / 2.0, 45.0),
+                                    egui::plot::PlotPoint::new(nums.len() as f32 / 2.0, 45.0),
                                     WidgetText::RichText(
                                         RichText::new(format!(
                                             "mspf: {:.2} fps: {:.0}/{:.0}",
@@ -277,7 +280,7 @@ impl<'a> Renderer<'a> {
                             .include_y(30.0)
                             .show(ui, |plot_ui| {
                                 plot_ui.text(egui::plot::Text::new(
-                                    egui::plot::Value::new(nums.len() as f32 / 2.0, 27.0),
+                                    egui::plot::PlotPoint::new(nums.len() as f32 / 2.0, 27.0),
                                     WidgetText::RichText(
                                         RichText::new(format!("tick mspt: {avg_mspt:.2}"))
                                             .size(14.0),
@@ -311,7 +314,7 @@ impl<'a> Renderer<'a> {
                             .include_y(10.0)
                             .show(ui, |plot_ui| {
                                 plot_ui.text(egui::plot::Text::new(
-                                    egui::plot::Value::new(nums.len() as f32 / 2.0, 9.0),
+                                    egui::plot::PlotPoint::new(nums.len() as f32 / 2.0, 9.0),
                                     WidgetText::RichText(
                                         RichText::new(format!("phys mspt: {avg_mspt_physics:.2}"))
                                             .size(14.0),

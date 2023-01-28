@@ -60,7 +60,7 @@ impl ServerGame {
         term.clear().unwrap();
 
         let server_args = args.subcommand_matches("server").unwrap();
-        let port = server_args.value_of("port").unwrap();
+        let port = server_args.get_one::<String>("port").unwrap();
         let net_listener =
             TcpListener::bind(format!("127.0.0.1:{port}")).map_err(|e| e.to_string())?;
         net_listener
@@ -266,10 +266,15 @@ impl ServerGame {
                                                 break 'mainLoop;
                                             }
                                         },
-                                        Err(e) if e.kind() == clap::ErrorKind::UnknownArgument => {
+                                        Err(e)
+                                            if e.kind()
+                                                == clap::error::ErrorKind::UnknownArgument =>
+                                        {
                                             error!(target: "", "Found argument '{:?}' which wasn't expected, or isn't valid in this context.", e.context().find_map(|(k, v)| (k == ContextKind::InvalidArg).then_some(v)).unwrap());
                                         },
-                                        Err(e) if e.kind() == clap::ErrorKind::DisplayHelp => {
+                                        Err(e)
+                                            if e.kind() == clap::error::ErrorKind::DisplayHelp =>
+                                        {
                                             info!(target: "", "{:?}", e.to_string());
                                         },
                                         Err(e) => {
