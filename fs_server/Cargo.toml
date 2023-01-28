@@ -17,8 +17,8 @@ fs_common = { path = "../fs_common" }
 profiling = "1.0"
 clap = { version = "4.1", features = ["cargo"] }
 log = "0.4"
-crossterm = "0.23"
-tui = { version = "0.17", default-features = false, features = ["crossterm"] }
-tui-logger = "0.7"
+crossterm = "0.25"
+tui = { version = "0.19", default-features = false, features = ["crossterm"] }
+tui-logger = "0.8"
 bincode = "1.3"
-specs = { version = "0.17", features = ["serde", "specs-derive"] }
+specs = { version = "0.18", features = ["serde", "specs-derive"] }

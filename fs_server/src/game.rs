@@ -249,12 +249,12 @@ impl ServerGame {
                     let event = read().unwrap();
 
                     match event {
-                        Event::Key(KeyEvent { code: KeyCode::Char('c'), modifiers })
+                        Event::Key(KeyEvent { code: KeyCode::Char('c'), modifiers, .. })
                             if modifiers.contains(KeyModifiers::CONTROL) =>
                         {
                             break 'mainLoop;
                         },
-                        Event::Key(KeyEvent { code, modifiers: _ }) => {
+                        Event::Key(KeyEvent { code, .. }) => {
                             match code {
                                 KeyCode::Enter => {
                                     // handle
