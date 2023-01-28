@@ -353,8 +353,7 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                 if !chunk_path_root.exists() {
                                     std::fs::create_dir_all(&chunk_path_root).expect(
                                         format!(
-                                            "Failed to create chunk directory @ {:?}",
-                                            chunk_path_root
+                                            "Failed to create chunk directory @ {chunk_path_root:?}"
                                         )
                                         .as_str(),
                                     );

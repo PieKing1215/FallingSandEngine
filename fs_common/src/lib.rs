@@ -5,7 +5,6 @@
 #![allow(clippy::expect_fun_call)]
 #![allow(clippy::struct_excessive_bools)]
 #![allow(clippy::cast_possible_truncation)]
-#![allow(clippy::let_underscore_drop)]
 #![allow(clippy::cast_precision_loss)]
 #![allow(clippy::cast_sign_loss)]
 #![allow(clippy::module_inception)]

@@ -140,8 +140,7 @@ pub fn main() -> Result<(), String> {
             let mut c: tui::buffer::Cell = tui::buffer::Cell::default();
             c.set_symbol(
                 format!(
-                    "thread '{}' {}\nSee latest.log for more details. Backtrace:\n{:?}\n",
-                    name, info, bt
+                    "thread '{name}' {info}\nSee latest.log for more details. Backtrace:\n{bt:?}\n"
                 )
                 .as_str(),
             );
@@ -220,7 +219,7 @@ pub fn main() -> Result<(), String> {
             println!("Starting main loop...");
             match game.run(&matches, &mut terminal) {
                 Ok(_) => {},
-                Err(e) => panic!("Server encountered a fatal error: {}", e),
+                Err(e) => panic!("Server encountered a fatal error: {e}"),
             }
         });
 

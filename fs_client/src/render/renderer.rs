@@ -191,7 +191,7 @@ impl<'a> Renderer<'a> {
                     .default_width(200.0)
                     .show(egui_ctx, |ui| {
                         let a = match game.process_stats.cpu_usage {
-                            Some(c) => format!("CPU: {:.0}%", c),
+                            Some(c) => format!("CPU: {c:.0}%"),
                             None => "CPU: n/a".to_string(),
                         };
                         let b = match game.process_stats.memory {
@@ -279,7 +279,7 @@ impl<'a> Renderer<'a> {
                                 plot_ui.text(egui::plot::Text::new(
                                     egui::plot::Value::new(nums.len() as f32 / 2.0, 27.0),
                                     WidgetText::RichText(
-                                        RichText::new(format!("tick mspt: {:.2}", avg_mspt))
+                                        RichText::new(format!("tick mspt: {avg_mspt:.2}"))
                                             .size(14.0),
                                     ),
                                 ));
@@ -313,11 +313,8 @@ impl<'a> Renderer<'a> {
                                 plot_ui.text(egui::plot::Text::new(
                                     egui::plot::Value::new(nums.len() as f32 / 2.0, 9.0),
                                     WidgetText::RichText(
-                                        RichText::new(format!(
-                                            "phys mspt: {:.2}",
-                                            avg_mspt_physics
-                                        ))
-                                        .size(14.0),
+                                        RichText::new(format!("phys mspt: {avg_mspt_physics:.2}"))
+                                            .size(14.0),
                                     ),
                                 ));
                                 plot_ui.bar_chart(chart)

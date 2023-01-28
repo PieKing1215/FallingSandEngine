@@ -570,7 +570,7 @@ impl ClientGame {
                                         // trying_to_read = None;
                                         panic!("[CLIENT] Zero length packet.");
                                     } else {
-                                        assert!(size <= 2_000_000, "[CLIENT] Almost tried to read packet that is too big ({} bytes)", size);
+                                        assert!(size <= 2_000_000, "[CLIENT] Almost tried to read packet that is too big ({size} bytes)");
 
                                         // let mut buf = vec![0; size as usize];
 

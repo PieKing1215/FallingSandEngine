@@ -62,7 +62,7 @@ impl ServerGame {
         let server_args = args.subcommand_matches("server").unwrap();
         let port = server_args.value_of("port").unwrap();
         let net_listener =
-            TcpListener::bind(format!("127.0.0.1:{}", port)).map_err(|e| e.to_string())?;
+            TcpListener::bind(format!("127.0.0.1:{port}")).map_err(|e| e.to_string())?;
         net_listener
             .set_nonblocking(true)
             .map_err(|e| e.to_string())?;
@@ -149,7 +149,7 @@ impl ServerGame {
                         Err(e) => {
                             // TODO: this needs to be handled correctly like in client::game
                             //         since when read_to_end fails, it can still have read some of the bytes
-                            panic!("read_to_end failed: {}", e);
+                            panic!("read_to_end failed: {e}");
                         },
                     }
                 }
@@ -579,14 +579,14 @@ impl ServerGame {
                     ticks_style,
                 ),
             ]),
-            Spans::from(format!("mspf: {:.2}", avg_ms_frame)),
+            Spans::from(format!("mspf: {avg_ms_frame:.2}")),
             Spans::from(vec![
                 Span::raw("mspt: "),
-                Span::styled(format!("{:.2}", avg_ms_tick), mspt_style),
+                Span::styled(format!("{avg_ms_tick:.2}"), mspt_style),
             ]),
             Spans::from(vec![
                 Span::raw("avg_mspt_physics: "),
-                Span::styled(format!("{:.2}", avg_mspt_physics), mspt_physics_style),
+                Span::styled(format!("{avg_mspt_physics:.2}"), mspt_physics_style),
             ]),
         ];
         let block = Block::default()
