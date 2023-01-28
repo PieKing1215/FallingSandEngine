@@ -148,7 +148,7 @@ pub fn main() -> Result<(), String> {
             );
         }));
 
-        // hack to
+        // hack to move ArgMatches into catch_unwind, which is normally not possible due to it containing an Arc<dyn Any>
         // https://github.com/clap-rs/clap/issues/3876 ?
         // TODO: investigate this more
         let matches_unsafe = Box::leak(Box::new(matches)) as *mut _ as *mut ();
