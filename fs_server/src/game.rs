@@ -267,7 +267,7 @@ impl ServerGame {
                                             }
                                         },
                                         Err(e) if e.kind() == clap::ErrorKind::UnknownArgument => {
-                                            error!(target: "", "Found argument '{:?}' which wasn't expected, or isn't valid in this context.", e.context().find_map(|(k,v)| (k == ContextKind::InvalidArg).then(|| v)).unwrap());
+                                            error!(target: "", "Found argument '{:?}' which wasn't expected, or isn't valid in this context.", e.context().find_map(|(k, v)| (k == ContextKind::InvalidArg).then_some(v)).unwrap());
                                         },
                                         Err(e) if e.kind() == clap::ErrorKind::DisplayHelp => {
                                             info!(target: "", "{:?}", e.to_string());

@@ -3,9 +3,10 @@ pub mod biome_test;
 pub mod populator;
 mod test;
 
-use std::any::Any;
+use std::boxed::Box;
 use std::collections::HashMap;
 use std::usize;
+use std::{any::Any, vec::Vec};
 
 pub use test::*;
 
@@ -35,7 +36,7 @@ impl PopulatorList {
         let opt: Option<&mut Vec<Box<dyn Populator<S> + Send + Sync>>> = self
             .map
             .entry(S)
-            .or_insert_with(|| Box::new(Vec::<Box<dyn Populator<S> + Send + Sync>>::new()))
+            .or_insert_with(|| Box::<Vec<Box<dyn Populator<S> + Send + Sync>>>::default())
             .downcast_mut();
 
         // Safety: this function is the only place where we insert into self.map, so the downcast cannot fail

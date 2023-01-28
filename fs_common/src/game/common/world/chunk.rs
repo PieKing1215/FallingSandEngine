@@ -360,7 +360,7 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     );
                                 }
                                 let chunk_path =
-                                    chunk_path_root.join(format!("{}_{}.chunk", chunk_x, chunk_y));
+                                    chunk_path_root.join(format!("{chunk_x}_{chunk_y}.chunk"));
                                 if chunk_path.exists() {
                                     if let Ok(data) = std::fs::read(&chunk_path) {
                                         match bincode::deserialize(&data) {
@@ -369,7 +369,6 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
 
                                                 if save.pixels.len()
                                                     == (CHUNK_SIZE as usize * CHUNK_SIZE as usize)
-                                                        as usize
                                                 {
                                                     self.loaded_chunks
                                                         .get_mut(key)
@@ -395,7 +394,6 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                                         == (CHUNK_SIZE as usize
                                                             * CHUNK_SIZE as usize
                                                             * 4)
-                                                            as usize
                                                     {
                                                         self.loaded_chunks
                                                             .get_mut(key)
@@ -906,8 +904,7 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                 let chunk_path_root = path.join("chunks/");
                 if !chunk_path_root.exists() {
                     std::fs::create_dir_all(&chunk_path_root).expect(
-                        format!("Failed to create chunk directory @ {:?}", chunk_path_root)
-                            .as_str(),
+                        format!("Failed to create chunk directory @ {chunk_path_root:?}").as_str(),
                     );
                 }
                 let chunk_path = chunk_path_root.join(format!(
@@ -1275,7 +1272,7 @@ mod tests {
             let x: i32 = rand::thread_rng().gen_range(-10000..10000);
             let y: i32 = rand::thread_rng().gen_range(-10000..10000);
 
-            println!("Testing ({}, {})...", x, y);
+            println!("Testing ({x}, {y})...");
             let index = chunk_index(x, y);
             let result = chunk_index_inv(index);
 
@@ -1289,7 +1286,7 @@ mod tests {
             let x: i32 = rand::thread_rng().gen_range(-10000..10000);
             let y: i32 = rand::thread_rng().gen_range(-10000..10000);
 
-            println!("Testing ({}, {})...", x, y);
+            println!("Testing ({x}, {y})...");
 
             let my_order = super::chunk_update_order(x, y);
 

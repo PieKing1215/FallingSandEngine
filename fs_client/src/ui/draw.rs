@@ -85,8 +85,8 @@ fn gen_material_preview(placer: &dyn MaterialPlacer) -> egui::ColorImage {
             for xx in 0..fake_nearest_neighbor_scale {
                 for yy in 0..fake_nearest_neighbor_scale {
                     img[(
-                        x as usize * fake_nearest_neighbor_scale + xx,
-                        y as usize * fake_nearest_neighbor_scale + yy,
+                        x * fake_nearest_neighbor_scale + xx,
+                        y * fake_nearest_neighbor_scale + yy,
                     )] = col;
                 }
             }

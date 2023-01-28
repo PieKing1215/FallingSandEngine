@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use super::{material::MaterialInstance, Chunk, ChunkHandler, ChunkHandlerGeneric, World};
+use super::{material::MaterialInstance, Chunk, ChunkHandler, ChunkHandlerGeneric};
 
 #[derive(Clone)]
 pub struct MaterialBuf {

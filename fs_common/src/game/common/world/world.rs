@@ -754,10 +754,8 @@ impl<C: Chunk> World<C> {
                         if rb.body_type() == RigidBodyType::Dynamic {
                             // if body.is_awake() { // this just causes flickering
                             let pos = rb.translation();
-                            let dist_x =
-                                (pos.x * PHYSICS_SCALE as f32 - chunk_center_x as f32).abs();
-                            let dist_y =
-                                (pos.y * PHYSICS_SCALE as f32 - chunk_center_y as f32).abs();
+                            let dist_x = (pos.x * PHYSICS_SCALE - chunk_center_x as f32).abs();
+                            let dist_y = (pos.y * PHYSICS_SCALE - chunk_center_y as f32).abs();
                             if dist_x < dist_body && dist_y < dist_body {
                                 should_be_active = true;
                             }

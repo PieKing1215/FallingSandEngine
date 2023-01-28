@@ -59,7 +59,9 @@ impl<'a, const S: u8> ChunkContext<'a, S> {
         )
     }
 
-    pub fn get(&self, x: i32, y: i32) -> Result<&MaterialInstance, String> {
+    pub fn get(&self, x: impl Into<i32>, y: impl Into<i32>) -> Result<&MaterialInstance, String> {
+        let x = x.into();
+        let y = y.into();
         let (cx, cy) = Self::pixel_to_chunk(x, y);
         let i = Self::chunk_index(cx, cy);
         self.0[i].get(

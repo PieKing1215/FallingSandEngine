@@ -31,7 +31,7 @@ impl FSRigidBody {
         height: u16,
     ) -> Result<Self, String> {
         if pixels.len() != width as usize * height as usize {
-            return Err(format!("RigidBody::from_pixels incorrect Vec size: pixels.len() = {}, width = {}, height = {}", pixels.len(), width, height));
+            return Err(format!("RigidBody::from_pixels incorrect Vec size: pixels.len() = {}, width = {width}, height = {height}", pixels.len()));
         }
 
         Ok(Self {
@@ -53,7 +53,7 @@ impl FSRigidBody {
         position: (f32, f32),
     ) -> Result<Self, String> {
         if pixels.len() != width as usize * height as usize {
-            return Err(format!("RigidBody::from_pixels incorrect Vec size: pixels.len() = {}, width = {}, height = {}", pixels.len(), width, height));
+            return Err(format!("RigidBody::from_pixels incorrect Vec size: pixels.len() = {}, width = {width}, height = {height}", pixels.len()));
         }
 
         // let mut body_def = BodyDef {

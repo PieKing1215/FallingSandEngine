@@ -439,7 +439,7 @@ impl WorldRenderer {
                     let (x1, y1) = (-cuboid.half_extents[0], -cuboid.half_extents[1]);
                     let (x2, y2) = (cuboid.half_extents[0], cuboid.half_extents[1]);
                     target.rectangle(
-                        Rect::new(x1 as f32, y1 as f32, x2 as f32, y2 as f32),
+                        Rect::new(x1, y1, x2, y2),
                         color,
                         DrawParameters {
                             polygon_mode: PolygonMode::Line,
@@ -453,8 +453,8 @@ impl WorldRenderer {
                         let (x1, y1) = (seg.a[0], seg.a[1]);
                         let (x2, y2) = (seg.b[0], seg.b[1]);
                         target.line(
-                            (x1 as f32, y1 as f32),
-                            (x2 as f32, y2 as f32),
+                            (x1, y1),
+                            (x2, y2),
                             color,
                             DrawParameters {
                                 blend: Blend::alpha_blending(),
@@ -479,9 +479,9 @@ impl WorldRenderer {
                         let (x2, y2) = (tri.b[0], tri.b[1]);
                         let (x3, y3) = (tri.c[0], tri.c[1]);
                         target.triangle(
-                            (x1 as f32, y1 as f32),
-                            (x2 as f32, y2 as f32),
-                            (x3 as f32, y3 as f32),
+                            (x1, y1),
+                            (x2, y2),
+                            (x3, y3),
                             color,
                             DrawParameters {
                                 polygon_mode: PolygonMode::Line,
@@ -496,9 +496,9 @@ impl WorldRenderer {
                     let (x2, y2) = (x + tri.b[0], y + tri.b[1]);
                     let (x3, y3) = (x + tri.c[0], y + tri.c[1]);
                     target.triangle(
-                        (x1 as f32, y1 as f32),
-                        (x2 as f32, y2 as f32),
-                        (x3 as f32, y3 as f32),
+                        (x1, y1),
+                        (x2, y2),
+                        (x3, y3),
                         color,
                         DrawParameters {
                             polygon_mode: PolygonMode::Line,
@@ -576,7 +576,7 @@ impl WorldRenderer {
                         let (x2, y2) = (aabb.half_extents()[0], aabb.half_extents()[1]);
 
                         target.rectangle(
-                            Rect::new(x1 as f32, y1 as f32, x2 as f32, y2 as f32),
+                            Rect::new(x1, y1, x2, y2),
                             Color::rgba(0xff, 0, 0xff, if b.is_sleeping() { 0x64 } else { 0xff }),
                             DrawParameters {
                                 polygon_mode: PolygonMode::Line,
@@ -648,8 +648,8 @@ impl WorldRenderer {
                                 let (vel_x2, vel_y2) = target.transform.transform((vel.x, vel.y));
 
                                 target.line(
-                                    (vel_x1 as f32, vel_y1 as f32),
-                                    (vel_x2 as f32, vel_y2 as f32),
+                                    (vel_x1, vel_y1),
+                                    (vel_x2, vel_y2),
                                     Color::rgba(64, 255, 64, alpha),
                                     DrawParameters {
                                         polygon_mode: PolygonMode::Line,
@@ -916,7 +916,7 @@ impl WorldRenderer {
         if settings.debug && settings.draw_origin {
             let len: f32 = 16.0;
             target.rectangle(
-                Rect::new_wh(-len - 2.0, -1.0, (len * 2.0 + 4.0) as f32, 3.0),
+                Rect::new_wh(-len - 2.0, -1.0, len * 2.0 + 4.0, 3.0),
                 Color::rgba(0, 0, 0, 127),
                 DrawParameters {
                     blend: Blend::alpha_blending(),
@@ -924,7 +924,7 @@ impl WorldRenderer {
                 },
             );
             target.rectangle(
-                Rect::new_wh(-1.0, -len - 2.0, 3.0, (len * 2.0 + 4.0) as f32),
+                Rect::new_wh(-1.0, -len - 2.0, 3.0, len * 2.0 + 4.0),
                 Color::rgba(0, 0, 0, 127),
                 DrawParameters {
                     blend: Blend::alpha_blending(),

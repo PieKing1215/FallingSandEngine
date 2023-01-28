@@ -273,7 +273,7 @@ impl ChunkGraphics {
         if self.dirty {
             if self.texture.is_some() {
                 let image = glium::texture::RawImage2d::from_raw_rgba(
-                    (&self.pixel_data).to_vec(),
+                    self.pixel_data.to_vec(),
                     (CHUNK_SIZE.into(), CHUNK_SIZE.into()),
                 );
 
@@ -409,7 +409,7 @@ impl ChunkGraphics {
     pub fn render(&mut self, target: &mut RenderTarget, _settings: &Settings) {
         if self.texture.is_none() {
             let image = glium::texture::RawImage2d::from_raw_rgba(
-                (&self.pixel_data).to_vec(),
+                self.pixel_data.to_vec(),
                 (CHUNK_SIZE.into(), CHUNK_SIZE.into()),
             );
             self.texture = Some(Texture2d::new(&target.display, image).unwrap());

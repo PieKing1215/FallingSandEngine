@@ -383,13 +383,13 @@ impl<'a> Renderer<'a> {
                     (
                         Rect::new_wh(
                             75.0 + (i as f32 % 1000.0)
-                                + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32
+                                + (((game.frame_count as f32 / 2.0 + (i / 2) as f32
                                     - timeshift as f32)
                                     / 100.0)
                                     .sin()
                                     * 50.0),
                             (i as f32 / 1000.0) * 100.0
-                                + (((game.frame_count as f32 / 2.0 + (i as i32 / 2) as f32
+                                + (((game.frame_count as f32 / 2.0 + (i / 2) as f32
                                     - timeshift as f32)
                                     / 100.0)
                                     .cos()

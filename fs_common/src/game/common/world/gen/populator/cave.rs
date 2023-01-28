@@ -36,9 +36,7 @@ impl Populator<0> for CavePopulator {
                 for y in 0..i32::from(CHUNK_SIZE) {
                     let i = (x + y * i32::from(CHUNK_SIZE)) as usize;
                     if noise_cave_2[i] > 0.0 {
-                        chunks
-                            .set(x as i32, y as i32, MaterialInstance::air())
-                            .unwrap();
+                        chunks.set(x, y, MaterialInstance::air()).unwrap();
                     }
                 }
             }

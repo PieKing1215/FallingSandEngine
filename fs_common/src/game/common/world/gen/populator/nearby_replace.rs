@@ -23,7 +23,7 @@ impl Populator<1> for NearbyReplacePopulator {
         for y in 0..i32::from(CHUNK_SIZE) {
             let mut skip_x = 0;
             for x in 0..i32::from(CHUNK_SIZE) {
-                let m = chunks.get(x as i32, y as i32).unwrap();
+                let m = chunks.get(x, y).unwrap();
                 if (self.searching_for)(m) {
                     let range = i32::from(self.radius);
                     for dx in (-range + i32::from(skip_x))..=range {
@@ -31,7 +31,7 @@ impl Populator<1> for NearbyReplacePopulator {
                             if dx == 0 && dy == 0 {
                                 continue;
                             }
-                            let m2 = chunks.get(x as i32 + dx, y as i32 + dy).unwrap();
+                            let m2 = chunks.get(x + dx, y + dy).unwrap();
                             if let Some(rep) = (self.replace)(
                                 m2,
                                 (i64::from(chunks.center_chunk().0) * i64::from(CHUNK_SIZE))
@@ -42,7 +42,7 @@ impl Populator<1> for NearbyReplacePopulator {
                                     + i64::from(dy),
                                 registries,
                             ) {
-                                chunks.set(x as i32 + dx, y as i32 + dy, rep).unwrap();
+                                chunks.set(x + dx, y + dy, rep).unwrap();
                             }
                         }
                     }

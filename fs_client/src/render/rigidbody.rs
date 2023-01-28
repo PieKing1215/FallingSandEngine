@@ -17,7 +17,7 @@ impl FSRigidBodyExt for FSRigidBody {
                 .collect();
 
             let image = glium::texture::RawImage2d::from_raw_rgba(
-                (&pixel_data).to_vec(),
+                pixel_data,
                 (self.width.into(), self.height.into()),
             );
 

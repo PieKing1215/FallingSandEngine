@@ -118,7 +118,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
         let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
         let indices = glium::index::NoIndices(glium::index::PrimitiveType::LinesList);
 
-        self.frame.draw(&vertex_buffer, &indices, &self.shaders.common, &uniform! { matrix: view, col: [color.r_f32(), color.g_f32(), color.b_f32(), color.a_f32()] }, &param).unwrap();
+        self.frame.draw(&vertex_buffer, indices, &self.shaders.common, &uniform! { matrix: view, col: [color.r_f32(), color.g_f32(), color.b_f32(), color.a_f32()] }, &param).unwrap();
     }
 
     pub fn triangle(
@@ -141,7 +141,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
         let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
         let indices = glium::index::NoIndices(glium::index::PrimitiveType::TriangleStrip);
 
-        self.frame.draw(&vertex_buffer, &indices, &self.shaders.common, &uniform! { matrix: view, col: [color.r_f32(), color.g_f32(), color.b_f32(), color.a_f32()] }, &param).unwrap();
+        self.frame.draw(&vertex_buffer, indices, &self.shaders.common, &uniform! { matrix: view, col: [color.r_f32(), color.g_f32(), color.b_f32(), color.a_f32()] }, &param).unwrap();
     }
 
     pub fn rectangle(&mut self, rect: impl Into<Rect<f32>>, color: Color, param: DrawParameters) {
@@ -156,7 +156,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
             let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
             let indices = NoIndices(glium::index::PrimitiveType::LineLoop);
 
-            self.frame.draw(&vertex_buffer, &indices, &self.shaders.common, &uniform! { matrix: view, col: [color.r_f32(), color.g_f32(), color.b_f32(), color.a_f32()] }, &param).unwrap();
+            self.frame.draw(&vertex_buffer, indices, &self.shaders.common, &uniform! { matrix: view, col: [color.r_f32(), color.g_f32(), color.b_f32(), color.a_f32()] }, &param).unwrap();
         } else {
             let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
             let indices = IndexBuffer::new(
@@ -184,7 +184,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
             let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
             let indices = NoIndices(glium::index::PrimitiveType::LineLoop);
 
-            self.frame.draw(&vertex_buffer, &indices, &self.shaders.common, &uniform! { matrix: view, col: [color.r_f32(), color.g_f32(), color.b_f32(), color.a_f32()] }, &param).unwrap();
+            self.frame.draw(&vertex_buffer, indices, &self.shaders.common, &uniform! { matrix: view, col: [color.r_f32(), color.g_f32(), color.b_f32(), color.a_f32()] }, &param).unwrap();
         } else {
             let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
             let data = shape
@@ -228,7 +228,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
             self.frame
                 .draw(
                     &vertex_buffer,
-                    &indices,
+                    indices,
                     &self.shaders.vertex_colors,
                     &uniform! { matrix: view },
                     &param,
