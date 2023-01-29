@@ -1,4 +1,4 @@
-use clap::{error::ContextKind, ArgMatches};
+use clap::error::ContextKind;
 use crossterm::event::{poll, read, Event, KeyCode, KeyEvent, KeyModifiers};
 use log::{debug, error, info, warn};
 use std::{
@@ -20,6 +20,7 @@ use tui_logger::{TuiLoggerSmartWidget, TuiWidgetState};
 use super::world::ServerChunk;
 use fs_common::game::{
     common::{
+        cli::{CLArgs, CLSubcommand},
         commands::CommandHandler,
         networking::{Packet, PacketType},
         world::{chunk_index_inv, Chunk, ChunkState, CHUNK_SIZE},
@@ -38,7 +39,7 @@ impl ServerGame {
     #[profiling::function]
     pub fn run<TB: Backend>(
         &mut self,
-        args: &ArgMatches,
+        args: &CLArgs,
         term: &mut Terminal<TB>,
     ) -> Result<(), String> {
         tui_logger::init_logger(log::LevelFilter::Trace).unwrap();
@@ -59,8 +60,7 @@ impl ServerGame {
 
         term.clear().unwrap();
 
-        let server_args = args.subcommand_matches("server").unwrap();
-        let port = server_args.get_one::<String>("port").unwrap();
+        let CLSubcommand::Server { port } = args.subcommand.as_ref().unwrap();
         let net_listener =
             TcpListener::bind(format!("127.0.0.1:{port}")).map_err(|e| e.to_string())?;
         net_listener

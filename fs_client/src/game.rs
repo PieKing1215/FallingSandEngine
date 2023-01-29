@@ -4,7 +4,6 @@ use std::{
     time::Instant,
 };
 
-use clap::ArgMatches;
 use glutin::{
     dpi::PhysicalPosition,
     event::{ElementState, KeyboardInput, MouseButton, VirtualKeyCode},
@@ -25,6 +24,7 @@ use sysinfo::{ProcessExt, SystemExt};
 
 use fs_common::game::{
     common::{
+        cli::CLArgs,
         networking::{Packet, PacketType},
         world::{
             entity::{
@@ -61,18 +61,13 @@ impl ClientGame {
     }
 
     #[profiling::function]
-    pub fn run(
-        mut self,
-        mut renderer: Renderer<'static>,
-        args: ArgMatches,
-        event_loop: EventLoop<()>,
-    ) {
-        self.data.settings.debug = args.contains_id("debug");
+    pub fn run(mut self, mut renderer: Renderer<'static>, args: CLArgs, event_loop: EventLoop<()>) {
+        self.data.settings.debug = args.debug;
         if self.data.settings.debug {
             self.client.open_debug_ui();
         }
 
-        if args.get_flag("no-tick") {
+        if args.no_tick {
             self.data.settings.simulate_chunks = false;
             self.data.settings.simulate_particles = false;
             self.data.settings.tick_physics = false;
@@ -80,9 +75,9 @@ impl ClientGame {
 
         let mut network = None;
 
-        if let Some(addr) = args.get_one::<String>("connect") {
-            info!("Connecting to {}...", addr);
-            match TcpStream::connect(addr).map(BufReader::new) {
+        if let Some(addr) = args.connect {
+            info!("Connecting to {addr}...");
+            match TcpStream::connect(addr.to_string()).map(BufReader::new) {
                 Ok(mut r) => {
                     info!("[CLIENT] Connected to server");
 

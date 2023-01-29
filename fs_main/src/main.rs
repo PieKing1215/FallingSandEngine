@@ -1,9 +1,9 @@
 use std::{fs::File, thread};
 
 use backtrace::Backtrace;
-use clap::{crate_authors, crate_name, crate_version, Arg, ArgAction, Command};
 use fs_client::{render::Renderer, world::ClientWorld, ClientGame};
 use fs_common::game::common::{
+    cli::{CLArgs, CLSubcommand},
     world::{
         entity::{
             GameEntity, Hitbox, Persistent, PhysicsEntity, Player, PlayerClipboard,
@@ -36,64 +36,9 @@ pub fn main() -> Result<(), String> {
         fs_client::render::GIT_HASH = option_env!("GIT_HASH");
     }
 
-    let matches = Command::new(crate_name!())
-        .version(crate_version!())
-        .author(crate_authors!())
-        .arg(
-            Arg::new("debug")
-                .short('d')
-                .long("debug")
-                .action(ArgAction::SetTrue)
-                .help("Enable debugging features"),
-        )
-        .arg(
-            Arg::new("no-tick")
-                .long("no-tick")
-                .action(ArgAction::SetTrue)
-                .help("Turn off simulation by default"),
-        )
-        .arg(
-            Arg::new("connect")
-                .short('c')
-                .long("connect")
-                .action(ArgAction::Set)
-                .value_name("IP:PORT")
-                .help("Connect to a server automatically"),
-        )
-        .arg(
-            Arg::new("game-dir")
-                .long("game-dir")
-                .action(ArgAction::Set)
-                .value_name("PATH")
-                .default_value("./gamedir/")
-                .help("Set the game directory"),
-        )
-        .arg(
-            Arg::new("assets-dir")
-                .long("assets-dir")
-                .action(ArgAction::Set)
-                .value_name("PATH")
-                .default_value("./gamedir/assets/")
-                .help("Set the assets directory"),
-        )
-        .subcommand(
-            Command::new("server").about("Run dedicated server").arg(
-                Arg::new("port")
-                    .short('p')
-                    .long("port")
-                    .action(ArgAction::Set)
-                    .value_name("PORT")
-                    .default_value("6673")
-                    .value_parser(clap::value_parser!(u16))
-                    .help("The port to run the server on"),
-            ),
-        )
-        .get_matches();
+    let cl_args = CLArgs::parse_args();
 
-    let file_helper = FileHelper::new(
-        matches.get_one::<String>("game-dir").unwrap().into(),
-        matches.get_one::<String>("assets-dir").unwrap().into(),
-    );
+    let file_helper = FileHelper::new(cl_args.game_dir.clone(), cl_args.assets_dir.clone());
 
     if !file_helper.game_path("").exists() {
         info!("game dir missing, creating it...");
@@ -105,7 +50,7 @@ pub fn main() -> Result<(), String> {
         std::fs::create_dir_all(file_helper.asset_path("")).expect("Failed to create asset dir:");
     }
 
-    let server = matches.subcommand_matches("server").is_some();
+    let server = matches!(cl_args.subcommand, Some(CLSubcommand::Server { .. }));
     let client = !server;
 
     std::env::set_var("RAYON_NUM_THREADS", format!("{}", num_cpus::get() - 1));
@@ -148,14 +93,7 @@ pub fn main() -> Result<(), String> {
             );
         }));
 
-        // hack to move ArgMatches into catch_unwind, which is normally not possible due to it containing an Arc<dyn Any>
-        // https://github.com/clap-rs/clap/issues/3876 ?
-        // TODO: investigate this more
-        let matches_unsafe = Box::leak(Box::new(matches)) as *mut _ as *mut ();
         let res = std::panic::catch_unwind(move || {
-            let matches_unsafe2 = matches_unsafe as *mut clap::ArgMatches;
-            let matches = *unsafe { Box::from_raw(matches_unsafe2) };
-
             println!("Starting server...");
             let mut game: ServerGame = ServerGame::new(file_helper);
 
@@ -217,7 +155,7 @@ pub fn main() -> Result<(), String> {
             };
 
             println!("Starting main loop...");
-            match game.run(&matches, &mut terminal) {
+            match game.run(&cl_args, &mut terminal) {
                 Ok(_) => {},
                 Err(e) => panic!("Server encountered a fatal error: {e}"),
             }
@@ -229,7 +167,7 @@ pub fn main() -> Result<(), String> {
             println!("Server shut down successfully.");
         }
     } else if client {
-        let debug = matches.get_flag("debug");
+        let debug = cl_args.debug;
 
         {
             profiling::scope!("Init logging");
@@ -373,7 +311,7 @@ pub fn main() -> Result<(), String> {
         };
 
         info!("Starting main loop...");
-        game.run(r, matches, event_loop);
+        game.run(r, cl_args, event_loop);
         info!("Goodbye!");
     }
 

@@ -1,6 +1,7 @@
 pub mod networking;
 pub mod world;
 
+pub mod cli;
 mod settings;
 use std::ops::Range;
 

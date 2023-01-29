@@ -15,7 +15,6 @@ build = "src/build.rs"
 fs_common = { path = "../fs_common" }
 fs_client = { path = "../fs_client" }
 fs_server = { path = "../fs_server" }
-clap = { version = "4.1", features = ["cargo"] }
 profiling = "1.0"
 log = "0.4"
 crossterm = "0.26"
@@ -28,7 +27,6 @@ rapier2d = { version = "0.17", features = ["simd-stable"] }
 specs = { version = "0.18", features = ["serde", "specs-derive"] }
 num_cpus = "1.13"
 glutin = "0.29"
-glium = "0.32"
 
 [build-dependencies]
 chrono = "0.4"
