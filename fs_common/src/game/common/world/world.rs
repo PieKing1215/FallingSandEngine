@@ -387,7 +387,7 @@ impl<C: Chunk + Send + Sync> World<C> {
                     let pos_x = body.translation().x * PHYSICS_SCALE;
                     let pos_y = body.translation().y * PHYSICS_SCALE;
 
-                    let mut impedement = 0.0_f32;
+                    let mut impediment = 0.0_f32;
 
                     for rb_y in 0..rb_w {
                         for rb_x in 0..rb_h {
@@ -535,7 +535,7 @@ impl<C: Chunk + Send + Sync> World<C> {
                                                 world_point,
                                                 true,
                                             );
-                                            impedement += 1.0 / 20.0;
+                                            impediment += 1.0 / 20.0; // TODO: this could be a material property
                                         }
                                     }
                                 }
@@ -543,8 +543,21 @@ impl<C: Chunk + Send + Sync> World<C> {
                         }
                     }
 
-                    // this makes it so the body can come to a full stop in sand
-                    body.set_gravity_scale(1.0 - (impedement / body.mass()).clamp(0.0, 1.0), false);
+                    // this gravity manipulation makes it so the body can come to a full stop in sand
+                    // the if is to help with making sure the body is woken up by changes in impedement
+
+                    let prev_gravity = body.gravity_scale();
+                    let new_gravity = 1.0 - (impediment / body.mass()).clamp(0.0, 1.0);
+
+                    // only wake and update if new gravity is different enough
+                    // extra checks for 0.0 and 1.0 to make sure it doesn't get stuck at 0.01 and prevent sleeping
+                    if (prev_gravity - new_gravity).abs() > 0.01
+                        || (new_gravity == 0.0 && prev_gravity != 0.0)
+                        || ((new_gravity - 1.0).abs() < 0.001 && (prev_gravity - 1.0).abs() > 0.001)
+                    {
+                        body.set_gravity_scale(new_gravity, true);
+                        body.wake_up(true);
+                    }
                 }
             }
         }
