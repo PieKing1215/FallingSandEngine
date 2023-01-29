@@ -60,7 +60,7 @@ jobs:
         path: package/
         
     - name: Steam Deploy
-      uses: game-ci/steam-deploy@v1.1.0
+      uses: game-ci/steam-deploy@v1.3.0
       with:
         username: ${{ secrets.STEAM_USERNAME }}
         password: ${{ secrets.STEAM_PASSWORD }}
