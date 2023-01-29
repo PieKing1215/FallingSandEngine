@@ -233,6 +233,9 @@ pub struct ChunkGraphics {
     pub was_dirty: bool,
 }
 
+unsafe impl Send for ChunkGraphics {}
+unsafe impl Sync for ChunkGraphics {}
+
 impl ChunkGraphics {
     // #[profiling::function] // huge performance impact
     pub fn set(&mut self, x: u16, y: u16, color: Color) -> Result<(), String> {

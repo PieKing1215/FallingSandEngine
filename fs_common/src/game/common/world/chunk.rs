@@ -86,9 +86,6 @@ pub struct ChunkHandler<C: Chunk> {
     pub path: Option<PathBuf>,
 }
 
-unsafe impl<C: Chunk> Send for ChunkHandler<C> {}
-unsafe impl<C: Chunk> Sync for ChunkHandler<C> {}
-
 pub trait ChunkHandlerGeneric {
     fn update_chunk_graphics(&mut self);
     fn tick(

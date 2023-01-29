@@ -281,6 +281,94 @@ impl<C: Chunk> World<C> {
     }
 
     #[profiling::function]
+    pub fn tick_physics(&mut self, settings: &Settings) {
+        // need to do this here since 'self' isn't mut in render
+
+        let mut update_bodies = UpdateRigidBodies { physics: &mut self.physics };
+        update_bodies.run_now(&self.ecs);
+
+        let time_step = settings.tick_physics_timestep;
+        // match self.net_mode {
+        //     WorldNetworkMode::Local => {
+        //         let time_step = settings.tick_physics_timestep;
+        //         let velocity_iterations = 3;
+        //         let position_iterations = 2;
+        //         self.lqf_world.step(time_step, velocity_iterations, position_iterations);
+        //     },
+        //     WorldNetworkMode::Remote => {},
+        // }
+
+        self.physics.step(time_step / 3.0);
+        self.physics.step(time_step / 3.0);
+        self.physics.step(time_step / 3.0);
+
+        let mut apply_bodies = ApplyRigidBodies { physics: &mut self.physics };
+        apply_bodies.run_now(&self.ecs);
+    }
+
+    pub fn frame(&mut self, delta_time: Duration) {
+        *self.ecs.write_resource::<DeltaTime>() = DeltaTime(delta_time);
+
+        let mut update_auto_targets = UpdateAutoTargets;
+        update_auto_targets.run_now(&self.ecs);
+    }
+
+    pub fn raycast(
+        &self,
+        mut x1: i64,
+        mut y1: i64,
+        x2: i64,
+        y2: i64,
+        collide_filder: fn((i64, i64), &MaterialInstance) -> bool,
+    ) -> Option<((i64, i64), &MaterialInstance)> {
+        let check_pixel = |x: i64, y: i64| {
+            let r = self.chunk_handler.get(x, y);
+            if let Ok(m) = r {
+                if m.physics != PhysicsType::Air {
+                    return Some(((x, y), m));
+                }
+            }
+            None
+        };
+
+        let x_dist = (x2 - x1).abs();
+        let y_dist = -(y2 - y1).abs();
+        let x_step = if x1 < x2 { 1 } else { -1 };
+        let y_step = if y1 < y2 { 1 } else { -1 };
+        let mut error = x_dist + y_dist;
+
+        if let Some(r) = check_pixel(x1, y1) {
+            if collide_filder(r.0, r.1) {
+                return Some(r);
+            }
+        }
+
+        while x1 != x2 || y1 != y2 {
+            let tmp = 2 * error;
+
+            if tmp > y_dist {
+                error += y_dist;
+                x1 += x_step;
+            }
+
+            if tmp < x_dist {
+                error += x_dist;
+                y1 += y_step;
+            }
+
+            if let Some(r) = check_pixel(x1, y1) {
+                if collide_filder(r.0, r.1) {
+                    return Some(r);
+                }
+            }
+        }
+
+        None
+    }
+}
+
+impl<C: Chunk + Send + Sync> World<C> {
+    #[profiling::function]
     pub fn tick(&mut self, tick_time: u32, settings: &Settings, registries: &Registries) {
         *self.ecs.write_resource::<TickTime>() = TickTime(tick_time);
 
@@ -841,91 +929,5 @@ impl<C: Chunk> World<C> {
         // }
 
         self.chunk_handler.update_chunk_graphics();
-    }
-
-    #[profiling::function]
-    pub fn tick_physics(&mut self, settings: &Settings) {
-        // need to do this here since 'self' isn't mut in render
-
-        let mut update_bodies = UpdateRigidBodies { physics: &mut self.physics };
-        update_bodies.run_now(&self.ecs);
-
-        let time_step = settings.tick_physics_timestep;
-        // match self.net_mode {
-        //     WorldNetworkMode::Local => {
-        //         let time_step = settings.tick_physics_timestep;
-        //         let velocity_iterations = 3;
-        //         let position_iterations = 2;
-        //         self.lqf_world.step(time_step, velocity_iterations, position_iterations);
-        //     },
-        //     WorldNetworkMode::Remote => {},
-        // }
-
-        self.physics.step(time_step / 3.0);
-        self.physics.step(time_step / 3.0);
-        self.physics.step(time_step / 3.0);
-
-        let mut apply_bodies = ApplyRigidBodies { physics: &mut self.physics };
-        apply_bodies.run_now(&self.ecs);
-    }
-
-    pub fn frame(&mut self, delta_time: Duration) {
-        *self.ecs.write_resource::<DeltaTime>() = DeltaTime(delta_time);
-
-        let mut update_auto_targets = UpdateAutoTargets;
-        update_auto_targets.run_now(&self.ecs);
-    }
-
-    pub fn raycast(
-        &self,
-        mut x1: i64,
-        mut y1: i64,
-        x2: i64,
-        y2: i64,
-        collide_filder: fn((i64, i64), &MaterialInstance) -> bool,
-    ) -> Option<((i64, i64), &MaterialInstance)> {
-        let check_pixel = |x: i64, y: i64| {
-            let r = self.chunk_handler.get(x, y);
-            if let Ok(m) = r {
-                if m.physics != PhysicsType::Air {
-                    return Some(((x, y), m));
-                }
-            }
-            None
-        };
-
-        let x_dist = (x2 - x1).abs();
-        let y_dist = -(y2 - y1).abs();
-        let x_step = if x1 < x2 { 1 } else { -1 };
-        let y_step = if y1 < y2 { 1 } else { -1 };
-        let mut error = x_dist + y_dist;
-
-        if let Some(r) = check_pixel(x1, y1) {
-            if collide_filder(r.0, r.1) {
-                return Some(r);
-            }
-        }
-
-        while x1 != x2 || y1 != y2 {
-            let tmp = 2 * error;
-
-            if tmp > y_dist {
-                error += y_dist;
-                x1 += x_step;
-            }
-
-            if tmp < x_dist {
-                error += x_dist;
-                y1 += y_step;
-            }
-
-            if let Some(r) = check_pixel(x1, y1) {
-                if collide_filder(r.0, r.1) {
-                    return Some(r);
-                }
-            }
-        }
-
-        None
     }
 }
