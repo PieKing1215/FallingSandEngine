@@ -373,6 +373,8 @@ impl<C: Chunk + Send + Sync> World<C> {
         *self.ecs.write_resource::<TickTime>() = TickTime(tick_time);
 
         {
+            let gravity = self.physics.gravity;
+
             profiling::scope!("fill rigidbodies");
             for rb_i in 0..self.rigidbodies.len() {
                 let rb = &mut self.rigidbodies[rb_i];
@@ -384,6 +386,8 @@ impl<C: Chunk + Send + Sync> World<C> {
                     let c = body.rotation().angle().cos();
                     let pos_x = body.translation().x * PHYSICS_SCALE;
                     let pos_y = body.translation().y * PHYSICS_SCALE;
+
+                    let mut impedement = 0.0_f32;
 
                     for rb_y in 0..rb_w {
                         for rb_x in 0..rb_h {
@@ -413,7 +417,6 @@ impl<C: Chunk + Send + Sync> World<C> {
                                             ty / PHYSICS_SCALE,
                                         ));
                                         // TODO: extract constant into material property (like weight or something)
-                                        // TODO: consider making it so the body actually comes to a stop
                                         body.apply_impulse_at_point(
                                             Vector2::new(
                                                 -point_velocity.x * 0.1 / body.mass(),
@@ -463,9 +466,9 @@ impl<C: Chunk + Send + Sync> World<C> {
 
                                                         body.apply_impulse_at_point(
                                                             Vector2::new(
-                                                                -point_velocity.x * 0.5
+                                                                -point_velocity.x * 0.25
                                                                     / body.mass(),
-                                                                -point_velocity.y * 0.5
+                                                                -point_velocity.y * 0.25
                                                                     / body.mass(),
                                                             ),
                                                             world_point,
@@ -514,8 +517,8 @@ impl<C: Chunk + Send + Sync> World<C> {
                                                             let linear_velocity = *body.linvel();
                                                             body.set_linvel(
                                                                 Vector2::new(
-                                                                    linear_velocity.x * 0.9,
-                                                                    linear_velocity.y * 0.9,
+                                                                    linear_velocity.x * 0.1,
+                                                                    linear_velocity.y * 0.1,
                                                                 ),
                                                                 true,
                                                             );
@@ -526,18 +529,22 @@ impl<C: Chunk + Send + Sync> World<C> {
                                         } else {
                                             body.apply_impulse_at_point(
                                                 Vector2::new(
-                                                    -point_velocity.x * 0.1 / body.mass(),
-                                                    -point_velocity.y * 0.1 / body.mass(),
+                                                    -point_velocity.x * 1.0 / body.mass(),
+                                                    -point_velocity.y * 1.0 / body.mass(),
                                                 ),
                                                 world_point,
                                                 true,
                                             );
+                                            impedement += 1.0 / 20.0;
                                         }
                                     }
                                 }
                             }
                         }
                     }
+
+                    // this makes it so the body can come to a full stop in sand
+                    body.set_gravity_scale(1.0 - (impedement / body.mass()).clamp(0.0, 1.0), false);
                 }
             }
         }
