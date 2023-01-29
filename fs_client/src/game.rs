@@ -12,14 +12,13 @@ use glutin::{
 };
 use log::{debug, error, info, warn};
 use rapier2d::{
-    na::{Isometry2, Point2, Vector2},
+    na::{Point2, Vector2},
     prelude::{
-        ColliderBuilder, InteractionGroups, QueryPipeline, RevoluteJointBuilder, RigidBodyBuilder,
-        RigidBodyType,
+        InteractionGroups, QueryPipeline, RevoluteJointBuilder, RigidBodyBuilder, RigidBodyType,
     },
 };
 // use salva2d::{integrations::rapier::ColliderSampling, object::Boundary};
-use specs::{Builder, Join, ReadStorage, WorldExt, WriteStorage};
+use specs::{Join, ReadStorage, WriteStorage};
 use sysinfo::{ProcessExt, SystemExt};
 
 use fs_common::game::{
@@ -27,13 +26,8 @@ use fs_common::game::{
         cli::CLArgs,
         networking::{Packet, PacketType},
         world::{
-            entity::{
-                GameEntity, Hitbox, Persistent, PhysicsEntity, Player, PlayerClipboard,
-                PlayerMovementMode,
-            },
-            physics::PHYSICS_SCALE,
-            Camera, ChunkHandlerGeneric, CollisionFlags, Loader, Position, RigidBodyComponent,
-            Velocity, World, WorldNetworkMode,
+            entity::Player, physics::PHYSICS_SCALE, Camera, ChunkHandlerGeneric, Position, World,
+            WorldNetworkMode,
         },
         FileHelper, Settings,
     },
@@ -466,78 +460,8 @@ impl ClientGame {
                                             .to_path_buf(),
                                     )));
 
-                                    let rigid_body = RigidBodyBuilder::dynamic()
-                                        .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
-                                        .lock_rotations()
-                                        .gravity_scale(0.0)
-                                        .build();
-                                    let handle = self
-                                        .data
-                                        .world
-                                        .as_mut()
-                                        .unwrap()
-                                        .physics
-                                        .bodies
-                                        .insert(rigid_body);
-                                    let collider = ColliderBuilder::cuboid(
-                                        12.0 / PHYSICS_SCALE / 2.0,
-                                        20.0 / PHYSICS_SCALE / 2.0,
-                                    )
-                                    .collision_groups(InteractionGroups::new(
-                                        CollisionFlags::PLAYER.bits().into(),
-                                        (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY).bits().into(),
-                                    ))
-                                    .density(1.5)
-                                    .friction(0.3)
-                                    .build();
-                                    let w = self.data.world.as_mut().unwrap();
-                                    let _co_handle = w.physics.colliders.insert_with_parent(
-                                        collider,
-                                        handle,
-                                        &mut w.physics.bodies,
-                                    );
-                                    // let bo_handle = self
-                                    //     .data
-                                    //     .world
-                                    //     .as_mut()
-                                    //     .unwrap()
-                                    //     .physics
-                                    //     .fluid_pipeline
-                                    //     .liquid_world
-                                    //     .add_boundary(Boundary::new(Vec::new()));
-                                    // self.data
-                                    //     .world
-                                    //     .as_mut()
-                                    //     .unwrap()
-                                    //     .physics
-                                    //     .fluid_pipeline
-                                    //     .coupling
-                                    //     .register_coupling(
-                                    //         bo_handle,
-                                    //         co_handle,
-                                    //         ColliderSampling::DynamicContactSampling,
-                                    //     );
-
                                     if let Some(w) = &mut self.data.world {
-                                        let player = w
-                                            .ecs
-                                            .create_entity()
-                                            .with(Player {movement:PlayerMovementMode::Free, clipboard: PlayerClipboard::default() })
-                                            .with(GameEntity)
-                                            .with(PhysicsEntity {
-                                                on_ground: false,
-                                                gravity: 0.1,
-                                                edge_clip_distance: 2.0,
-                                                collision: true,
-                                                collide_with_sand: true,
-                                            })
-                                            .with(Persistent)
-                                            .with(Position { x: 0.0, y: -20.0 })
-                                            .with(Velocity { x: 0.0, y: 0.0 })
-                                            .with(Hitbox { x1: -6.0, y1: -10.0, x2: 6.0, y2: 10.0 })
-                                            .with(Loader)
-                                            .with(RigidBodyComponent::of(handle))
-                                            .build();
+                                        let player = Player::create_and_add(w);
 
                                         self.client.world =
                                             Some(ClientWorld { local_entity: Some(player) });

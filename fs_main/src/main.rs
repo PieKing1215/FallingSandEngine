@@ -4,23 +4,12 @@ use backtrace::Backtrace;
 use fs_client::{render::Renderer, world::ClientWorld, ClientGame};
 use fs_common::game::common::{
     cli::{CLArgs, CLSubcommand},
-    world::{
-        entity::{
-            GameEntity, Hitbox, Persistent, PhysicsEntity, Player, PlayerClipboard,
-            PlayerMovementMode,
-        },
-        physics::PHYSICS_SCALE,
-        AutoTarget, Camera, CollisionFlags, Loader, Position, RigidBodyComponent, Target,
-        TargetStyle, Velocity,
-    },
+    world::{entity::Player, AutoTarget, Camera, Position, Target, TargetStyle, Velocity},
     FileHelper,
 };
 use fs_server::ServerGame;
 use log::{error, info, LevelFilter};
-use rapier2d::{
-    na::{Isometry2, Vector2},
-    prelude::{ColliderBuilder, InteractionGroups, RigidBodyBuilder},
-};
+
 // use salva2d::{integrations::rapier::ColliderSampling, object::Boundary};
 use simplelog::{CombinedLogger, ConfigBuilder, TermLogger, TerminalMode, WriteLogger};
 use specs::{Builder, WorldExt};
@@ -98,61 +87,8 @@ pub fn main() -> Result<(), String> {
             let mut game: ServerGame = ServerGame::new(file_helper);
 
             if let Some(w) = &mut game.0.world {
-                let rigid_body = RigidBodyBuilder::dynamic()
-                    .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
-                    .lock_rotations()
-                    .gravity_scale(0.0)
-                    .build();
-                let handle = w.physics.bodies.insert(rigid_body);
-                let collider =
-                    ColliderBuilder::cuboid(12.0 / PHYSICS_SCALE / 2.0, 20.0 / PHYSICS_SCALE / 2.0)
-                        .collision_groups(InteractionGroups::new(
-                            CollisionFlags::PLAYER.bits().into(),
-                            (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY)
-                                .bits()
-                                .into(),
-                        ))
-                        .density(1.5)
-                        .friction(0.3)
-                        .build();
-                let _co_handle =
-                    w.physics
-                        .colliders
-                        .insert_with_parent(collider, handle, &mut w.physics.bodies);
-                // let bo_handle = w
-                //     .physics
-                //     .fluid_pipeline
-                //     .liquid_world
-                //     .add_boundary(Boundary::new(Vec::new()));
-                // w.physics.fluid_pipeline.coupling.register_coupling(
-                //     bo_handle,
-                //     co_handle,
-                //     ColliderSampling::DynamicContactSampling,
-                // );
-
-                let _player = w
-                    .ecs
-                    .create_entity()
-                    .with(Player {
-                        movement: PlayerMovementMode::Free,
-                        clipboard: PlayerClipboard::default(),
-                    })
-                    .with(GameEntity)
-                    .with(PhysicsEntity {
-                        on_ground: false,
-                        gravity: 0.2,
-                        edge_clip_distance: 2.0,
-                        collision: true,
-                        collide_with_sand: true,
-                    })
-                    .with(Persistent)
-                    .with(Position { x: 0.0, y: -20.0 })
-                    .with(Velocity { x: 0.0, y: 0.0 })
-                    .with(Hitbox { x1: -6.0, y1: -10.0, x2: 6.0, y2: 10.0 })
-                    .with(Loader)
-                    .with(RigidBodyComponent::of(handle))
-                    .build();
-            };
+                Player::create_and_add(w);
+            }
 
             println!("Starting main loop...");
             match game.run(&cl_args, &mut terminal) {
@@ -239,60 +175,7 @@ pub fn main() -> Result<(), String> {
         let mut game: ClientGame = ClientGame::new(file_helper);
 
         if let Some(w) = &mut game.data.world {
-            let rigid_body = RigidBodyBuilder::dynamic()
-                .position(Isometry2::new(Vector2::new(0.0, 20.0), 0.0))
-                .lock_rotations()
-                .gravity_scale(0.0)
-                .build();
-            let handle = w.physics.bodies.insert(rigid_body);
-            let collider =
-                ColliderBuilder::cuboid(12.0 / PHYSICS_SCALE / 2.0, 20.0 / PHYSICS_SCALE / 2.0)
-                    .collision_groups(InteractionGroups::new(
-                        CollisionFlags::PLAYER.bits().into(),
-                        (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY)
-                            .bits()
-                            .into(),
-                    ))
-                    .density(1.5)
-                    .friction(0.3)
-                    .build();
-            let _co_handle =
-                w.physics
-                    .colliders
-                    .insert_with_parent(collider, handle, &mut w.physics.bodies);
-            // let bo_handle = w
-            //     .physics
-            //     .fluid_pipeline
-            //     .liquid_world
-            //     .add_boundary(Boundary::new(Vec::new()));
-            // w.physics.fluid_pipeline.coupling.register_coupling(
-            //     bo_handle,
-            //     co_handle,
-            //     ColliderSampling::DynamicContactSampling,
-            // );
-
-            let player = w
-                .ecs
-                .create_entity()
-                .with(Player {
-                    movement: PlayerMovementMode::Free,
-                    clipboard: PlayerClipboard::default(),
-                })
-                .with(GameEntity)
-                .with(PhysicsEntity {
-                    on_ground: false,
-                    gravity: 0.5,
-                    edge_clip_distance: 2.0,
-                    collision: true,
-                    collide_with_sand: true,
-                })
-                .with(Persistent)
-                .with(Position { x: 0.0, y: -20.0 })
-                .with(Velocity { x: 0.0, y: 0.0 })
-                .with(Hitbox { x1: -6.0, y1: -10.0, x2: 6.0, y2: 10.0 })
-                .with(Loader)
-                .with(RigidBodyComponent::of(handle))
-                .build();
+            let player = Player::create_and_add(w);
 
             let _camera = w
                 .ecs
