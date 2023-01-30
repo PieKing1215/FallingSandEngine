@@ -373,8 +373,6 @@ impl<C: Chunk + Send + Sync> World<C> {
         *self.ecs.write_resource::<TickTime>() = TickTime(tick_time);
 
         {
-            let gravity = self.physics.gravity;
-
             profiling::scope!("fill rigidbodies");
             for rb_i in 0..self.rigidbodies.len() {
                 let rb = &mut self.rigidbodies[rb_i];
