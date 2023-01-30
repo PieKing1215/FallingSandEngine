@@ -10,7 +10,8 @@ use crate::game::common::world::CHUNK_SIZE;
 use super::{
     biome::BiomePlacementParameter,
     populator::{
-        cave::CavePopulator, nearby_replace::NearbyReplacePopulator, spawn::SpawnPopulator,
+        cave::CavePopulator, nearby_replace::NearbyReplacePopulator,
+        place_above::PlaceAbovePopulator, spawn::SpawnPopulator, stalactite::StalactitePopulator,
     },
     PopulatorList, WorldGenerator,
 };
@@ -28,6 +29,40 @@ impl BiomeTestGenerator {
         populators.add(CavePopulator);
         populators.add(SpawnPopulator);
 
+        populators.add(PlaceAbovePopulator {
+            add_surface_height: 0,
+            replace_surface_depth: 1,
+            searching_for: |m| m.material_id == material::SMOOTH_DIRT,
+            replace: |_mat, x, y, registries| {
+                Some(
+                    registries
+                        .material_placers
+                        .get(&placer::TEST_PLACER_1)
+                        .unwrap()
+                        .1
+                        .pixel(x, y),
+                )
+            },
+        });
+
+        populators.add(StalactitePopulator {
+            searching_for: |m| m.material_id == material::SMOOTH_STONE,
+            replace: |mat, x, y, registries| {
+                if mat.material_id == material::AIR {
+                    Some(
+                        registries
+                            .material_placers
+                            .get(&placer::SMOOTH_STONE)
+                            .unwrap()
+                            .1
+                            .pixel(x, y),
+                    )
+                } else {
+                    None
+                }
+            },
+        });
+
         populators.add(NearbyReplacePopulator {
             radius: 10,
             searching_for: |m| m.material_id == material::AIR,
@@ -37,6 +72,15 @@ impl BiomeTestGenerator {
                         registries
                             .material_placers
                             .get(&placer::FADED_COBBLE_STONE)
+                            .unwrap()
+                            .1
+                            .pixel(x, y),
+                    )
+                } else if mat.material_id == material::SMOOTH_DIRT {
+                    Some(
+                        registries
+                            .material_placers
+                            .get(&placer::FADED_COBBLE_DIRT)
                             .unwrap()
                             .1
                             .pixel(x, y),
@@ -58,6 +102,17 @@ impl BiomeTestGenerator {
                         registries
                             .material_placers
                             .get(&placer::COBBLE_STONE)
+                            .unwrap()
+                            .1
+                            .pixel(x, y),
+                    )
+                } else if mat.material_id == material::SMOOTH_DIRT
+                    || mat.material_id == material::FADED_COBBLE_DIRT
+                {
+                    Some(
+                        registries
+                            .material_placers
+                            .get(&placer::COBBLE_DIRT)
                             .unwrap()
                             .1
                             .pixel(x, y),

@@ -1,6 +1,8 @@
 pub mod cave;
 pub mod nearby_replace;
+pub mod place_above;
 pub mod spawn;
+pub mod stalactite;
 pub mod test;
 
 use crate::game::{

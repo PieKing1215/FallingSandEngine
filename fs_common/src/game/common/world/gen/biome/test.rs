@@ -16,7 +16,7 @@ lazy_static::lazy_static! {
             (BiomePlacementParameter { a: 0.0, b: 0.0, c: 0.0 }, &TestBiome(Color::BLACK)),
 
             (BiomePlacementParameter { a: 0.75, b: 0.0, c: 0.0 }, &TestBiome(Color::RED)),
-            (BiomePlacementParameter { a: 0.0, b: 0.75, c: 0.0 }, &TestBiome(Color::GREEN)),
+            (BiomePlacementParameter { a: 0.0, b: 0.75, c: 0.0 }, &TestBiomePlacer(placer::SMOOTH_DIRT)),
             (BiomePlacementParameter { a: 0.0, b: 0.0, c: 0.75 }, &TestBiome(Color::BLUE)),
 
             (BiomePlacementParameter { a: 0.5, b: 0.5, c: 0.5 }, &TestBiomePlacer(placer::SMOOTH_STONE)),
