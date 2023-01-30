@@ -1,5 +1,6 @@
 pub mod cave;
 pub mod nearby_replace;
+pub mod spawn;
 pub mod test;
 
 use crate::game::{

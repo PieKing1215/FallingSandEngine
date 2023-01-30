@@ -9,7 +9,9 @@ use crate::game::common::world::CHUNK_SIZE;
 
 use super::{
     biome::BiomePlacementParameter,
-    populator::{cave::CavePopulator, nearby_replace::NearbyReplacePopulator},
+    populator::{
+        cave::CavePopulator, nearby_replace::NearbyReplacePopulator, spawn::SpawnPopulator,
+    },
     PopulatorList, WorldGenerator,
 };
 
@@ -24,6 +26,7 @@ impl BiomeTestGenerator {
         let mut populators = PopulatorList::new();
 
         populators.add(CavePopulator);
+        populators.add(SpawnPopulator);
 
         populators.add(NearbyReplacePopulator {
             radius: 10,
