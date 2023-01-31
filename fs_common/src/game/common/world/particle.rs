@@ -4,9 +4,8 @@ use super::{
     entity::Hitbox, material::MaterialInstance, ChunkHandlerGeneric, Position, TickTime, Velocity,
 };
 use crate::game::common::world::{
-    chunk_index, chunk_update_order,
-    material::{self, color::Color, PhysicsType},
-    pixel_to_chunk_pos, pixel_to_chunk_pos_with_chunk_size, ChunkState, PassThroughHasherU32,
+    chunk_index, chunk_update_order, material::PhysicsType, pixel_to_chunk_pos,
+    pixel_to_chunk_pos_with_chunk_size, ChunkState, PassThroughHasherU32,
 };
 
 use itertools::Itertools;
@@ -107,18 +106,18 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
 
         let chunk_handler = &mut *self.chunk_handler;
 
-        system.active.push(Particle::new(
-            MaterialInstance {
-                material_id: material::TEST,
-                physics: PhysicsType::Sand,
-                color: Color::rgb(64, 255, 255),
-            },
-            Position { x: (rand::random::<f64>() - 0.5) * 10.0, y: -100.0 },
-            Velocity {
-                x: (rand::random::<f64>() - 0.5) * 4.0,
-                y: (rand::random::<f64>() - 0.75) * 2.0,
-            },
-        ));
+        // system.active.push(Particle::new(
+        //     MaterialInstance {
+        //         material_id: material::TEST,
+        //         physics: PhysicsType::Sand,
+        //         color: Color::rgb(64, 255, 255),
+        //     },
+        //     Position { x: (rand::random::<f64>() - 0.5) * 10.0, y: -100.0 },
+        //     Velocity {
+        //         x: (rand::random::<f64>() - 0.5) * 4.0,
+        //         y: (rand::random::<f64>() - 0.75) * 2.0,
+        //     },
+        // ));
 
         if tick_time.0 % 29 == 0 {
             profiling::scope!("active->sleep");
