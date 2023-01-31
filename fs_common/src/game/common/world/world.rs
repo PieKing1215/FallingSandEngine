@@ -46,6 +46,7 @@ pub struct World<C: Chunk> {
     pub net_mode: WorldNetworkMode,
     pub rigidbodies: Vec<FSRigidBody>,
     pub physics: Physics,
+    pub seed: i32,
 }
 
 impl<C: Chunk> World<C> {
@@ -118,6 +119,7 @@ impl<C: Chunk> World<C> {
             net_mode: WorldNetworkMode::Local,
             rigidbodies: Vec::new(),
             physics: Physics::new(),
+            seed: 2, // TODO: non constant seed
         };
 
         // add a rigidbody
@@ -648,6 +650,7 @@ impl<C: Chunk + Send + Sync> World<C> {
             &mut self.ecs,
             &mut self.physics,
             registries,
+            self.seed,
         );
 
         if settings.simulate_particles {

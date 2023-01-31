@@ -98,6 +98,7 @@ pub trait ChunkHandlerGeneric {
         world: &mut specs::World,
         physics: &mut Physics,
         registries: &Registries,
+        seed: i32,
     );
     fn save_chunk(&mut self, index: u32) -> Result<(), Box<dyn std::error::Error>>;
     fn unload_all_chunks(
@@ -149,6 +150,7 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
         world: &mut specs::World,
         physics: &mut Physics,
         registries: &Registries,
+        seed: i32,
     ) {
         profiling::scope!("tick");
 
@@ -486,11 +488,11 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                 self.generator.generate(
                                     e.1,
                                     e.2,
-                                    2,
+                                    seed,
                                     &mut pixels,
                                     &mut colors,
                                     &mt_registries.read().unwrap(),
-                                ); // TODO: non constant seed
+                                );
 
                                 (e.0, pixels, colors)
                             })
@@ -505,12 +507,11 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                         chunk.set_pixels(*ch.1);
                         chunk.set_pixel_colors(*ch.2);
 
-                        // TODO: non constant seed
                         // TODO: populating stage 0 should be able to be multithreaded
                         self.generator.populators().populate(
                             0,
                             &mut [chunk as &mut dyn Chunk],
-                            2,
+                            seed,
                             registries,
                         );
                     }
@@ -621,26 +622,26 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     // if we failed to get all nearby chunks, don't populate and don't go to the next stage
                                     if !failed {
                                         // TODO: make not hardcoded
-                                        // TODO: non constant seed
 
                                         if cur_stage + 1 == 1 {
                                             let mut ctx =
                                                 ChunkContext::<1>::new(&mut chunks).unwrap();
                                             let mut rng = StdRng::seed_from_u64(
-                                                2 + u64::from(chunk_index(
-                                                    ctx.center_chunk().0,
-                                                    ctx.center_chunk().1,
-                                                )),
+                                                seed as u64
+                                                    + u64::from(chunk_index(
+                                                        ctx.center_chunk().0,
+                                                        ctx.center_chunk().1,
+                                                    )),
                                             );
                                             for feat in self.generator.features() {
-                                                feat.generate(&mut ctx, 2, &mut rng, registries);
+                                                feat.generate(&mut ctx, seed, &mut rng, registries);
                                             }
                                         }
 
                                         self.generator.populators().populate(
                                             cur_stage + 1,
                                             &mut chunks,
-                                            2,
+                                            seed,
                                             registries,
                                         );
 
