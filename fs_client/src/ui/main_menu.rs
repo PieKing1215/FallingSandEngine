@@ -25,6 +25,7 @@ pub enum MainMenuState {
 pub enum MainMenuAction {
     Quit,
     LoadWorld(PathBuf),
+    LoadRandomSeed,
 }
 
 impl MainMenu {
@@ -100,6 +101,9 @@ impl MainMenu {
                             log::debug!("{:?}", metas);
 
                             new_state = Some(MainMenuState::WorldSelect { context: metas });
+                        }
+                        if ui.button("Random Seed").clicked() {
+                            self.action_queue.push(MainMenuAction::LoadRandomSeed);
                         }
                         if ui.button("Quit").clicked() {
                             self.action_queue.push(MainMenuAction::Quit);

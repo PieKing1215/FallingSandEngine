@@ -1,4 +1,10 @@
-use std::{borrow::BorrowMut, path::PathBuf, time::Duration};
+use std::{
+    borrow::BorrowMut,
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+    path::PathBuf,
+    time::Duration,
+};
 
 use crate::game::{
     common::{
@@ -120,10 +126,13 @@ impl<C: Chunk> World<C> {
             rigidbodies: Vec::new(),
             physics: Physics::new(),
             seed: seed.unwrap_or_else(|| {
-                std::time::SystemTime::now()
+                let mut h = DefaultHasher::new();
+                (std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
-                    .as_millis() as i32
+                    .as_millis() as i32)
+                    .hash(&mut h);
+                h.finish() as i32
             }),
         };
 

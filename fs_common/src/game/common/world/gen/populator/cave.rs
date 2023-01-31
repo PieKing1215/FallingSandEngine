@@ -25,14 +25,19 @@ impl Populator<0> for CavePopulator {
 
             let turbulance_scale = CHUNK_SIZE as usize * 15;
 
-            let noise_turbulance =
-                NoiseBuilder::fbm_2d_offset(cofs_x, CHUNK_SIZE.into(), cofs_y, CHUNK_SIZE.into())
-                    .with_octaves(6)
-                    .with_lacunarity(2.0)
-                    .with_gain(0.5)
-                    .with_freq(0.00075)
-                    .with_seed(seed)
-                    .generate();
+            // offsetting by seed is a workaround for https://github.com/verpeteren/rust-simd-noise/issues/42
+            let noise_turbulance = NoiseBuilder::fbm_2d_offset(
+                cofs_x + seed as f32 / 100_000.0,
+                CHUNK_SIZE.into(),
+                cofs_y,
+                CHUNK_SIZE.into(),
+            )
+            .with_octaves(6)
+            .with_lacunarity(2.0)
+            .with_gain(0.5)
+            .with_freq(0.00075)
+            .with_seed(seed)
+            .generate();
 
             for x in 0..i32::from(CHUNK_SIZE) {
                 for y in 0..i32::from(CHUNK_SIZE) {
@@ -44,14 +49,19 @@ impl Populator<0> for CavePopulator {
                     let t_x = x as f32 + t_ofs;
                     let t_y = y as f32;
 
-                    let noise_base =
-                        NoiseBuilder::ridge_2d_offset(cofs_x + t_x, 1, cofs_y + t_y, 1)
-                            .with_octaves(1)
-                            .with_lacunarity(1.8)
-                            .with_gain(0.65)
-                            .with_freq(0.0005)
-                            .with_seed(seed)
-                            .generate();
+                    // offsetting by seed is a workaround for https://github.com/verpeteren/rust-simd-noise/issues/42
+                    let noise_base = NoiseBuilder::ridge_2d_offset(
+                        cofs_x + t_x + seed as f32 / 100_000.0,
+                        1,
+                        cofs_y + t_y,
+                        1,
+                    )
+                    .with_octaves(1)
+                    .with_lacunarity(1.8)
+                    .with_gain(0.65)
+                    .with_freq(0.0005)
+                    .with_seed(seed + 1)
+                    .generate();
 
                     let f = (noise_base.0[0] - 0.98) / 0.02;
                     if f > 0.7 {

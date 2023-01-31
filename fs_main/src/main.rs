@@ -4,7 +4,7 @@ use backtrace::Backtrace;
 use fs_client::{render::Renderer, world::ClientWorld, ClientGame};
 use fs_common::game::common::{
     cli::{CLArgs, CLSubcommand},
-    world::{entity::Player, AutoTarget, Camera, Position, Target, TargetStyle, Velocity},
+    world::{entity::Player, Camera, Target},
     FileHelper,
 };
 use fs_server::ServerGame;
@@ -12,7 +12,6 @@ use log::{error, info, LevelFilter};
 
 // use salva2d::{integrations::rapier::ColliderSampling, object::Boundary};
 use simplelog::{CombinedLogger, ConfigBuilder, TermLogger, TerminalMode, WriteLogger};
-use specs::{Builder, WorldExt};
 use tui::{
     backend::{Backend, CrosstermBackend},
     Terminal,
@@ -177,18 +176,7 @@ pub fn main() -> Result<(), String> {
         if let Some(w) = &mut game.data.world {
             let player = Player::create_and_add(w);
 
-            let _camera = w
-                .ecs
-                .create_entity()
-                .with(Camera)
-                .with(Position { x: 0.0, y: 0.0 })
-                .with(Velocity { x: 0.0, y: 0.0 })
-                .with(AutoTarget {
-                    target: Target::Entity(player),
-                    offset: (0.0, 0.0),
-                    style: TargetStyle::Locked,
-                })
-                .build();
+            Camera::create_and_add(w, Target::Entity(player));
 
             game.client.world = Some(ClientWorld { local_entity: Some(player) });
         };

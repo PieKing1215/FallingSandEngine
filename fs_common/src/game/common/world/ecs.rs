@@ -9,13 +9,13 @@ use rapier2d::{
 use serde::{Deserialize, Serialize};
 use specs::{
     storage::{BTreeStorage, MaskedStorage},
-    Component, Entities, Join, NullStorage, Read, ReadStorage, Storage, System, VecStorage,
-    WriteStorage,
+    Builder, Component, Entities, Entity, Join, NullStorage, Read, ReadStorage, Storage, System,
+    VecStorage, WorldExt, WriteStorage,
 };
 
 use crate::game::common::world::physics::PHYSICS_SCALE;
 
-use super::{entity::Hitbox, physics::Physics, ChunkHandlerGeneric};
+use super::{entity::Hitbox, physics::Physics, Chunk, ChunkHandlerGeneric, World};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Position {
@@ -62,6 +62,25 @@ impl Component for Loader {
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct Camera;
+
+impl Camera {
+    pub fn create_and_add<C: Chunk>(world: &mut World<C>, target: Target) -> Entity {
+        let camera = world
+            .ecs
+            .create_entity()
+            .with(Camera)
+            .with(Position { x: 0.0, y: 0.0 })
+            .with(Velocity { x: 0.0, y: 0.0 })
+            .with(AutoTarget {
+                target,
+                offset: (0.0, 0.0),
+                style: TargetStyle::Locked,
+            })
+            .build();
+
+        camera
+    }
+}
 
 impl Component for Camera {
     type Storage = NullStorage<Self>;

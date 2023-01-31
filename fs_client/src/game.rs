@@ -26,8 +26,8 @@ use fs_common::game::{
         cli::CLArgs,
         networking::{Packet, PacketType},
         world::{
-            entity::Player, physics::PHYSICS_SCALE, Camera, ChunkHandlerGeneric, Position, World,
-            WorldNetworkMode,
+            entity::Player, physics::PHYSICS_SCALE, Camera, ChunkHandlerGeneric, Position, Target,
+            World, WorldNetworkMode,
         },
         FileHelper, Settings,
     },
@@ -469,6 +469,26 @@ impl ClientGame {
                                             Some(ClientWorld { local_entity: Some(player) });
                                     };
                                 },
+                                MainMenuAction::LoadRandomSeed => {
+                                    if let Some(w) = &mut self.data.world {
+                                        info!("Unload current world...");
+                                        w.save().expect("World save failed");
+                                        w.close().expect("World unload failed");
+                                    }
+
+                                    info!("Loading new world...");
+                                    self.data.world = Some(World::create(None, None));
+                                    info!("Seed is {}", self.data.world.as_ref().unwrap().seed);
+
+                                    if let Some(w) = &mut self.data.world {
+                                        let player = Player::create_and_add(w);
+
+                                        Camera::create_and_add(w, Target::Entity(player));
+
+                                        self.client.world =
+                                            Some(ClientWorld { local_entity: Some(player) });
+                                    };
+                                }
                             }
                         }
 
