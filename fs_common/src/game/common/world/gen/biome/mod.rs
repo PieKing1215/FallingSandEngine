@@ -7,7 +7,7 @@ pub trait Biome {
 }
 
 pub struct BiomePlacement {
-    pub points: Vec<(BiomePlacementParameter, &'static (dyn Biome + Send + Sync))>,
+    pub points: Vec<(BiomePlacementParameter, Box<dyn Biome + Send + Sync>)>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -27,11 +27,12 @@ impl BiomePlacementParameter {
 }
 
 impl BiomePlacement {
-    pub fn nearest(&self, test: BiomePlacementParameter) -> &'static dyn Biome {
+    pub fn nearest(&self, test: BiomePlacementParameter) -> &dyn Biome {
         self.points
             .iter()
             .min_by(|a, b| test.dist_sq(&a.0).partial_cmp(&test.dist_sq(&b.0)).unwrap())
             .unwrap()
             .1
+            .as_ref()
     }
 }

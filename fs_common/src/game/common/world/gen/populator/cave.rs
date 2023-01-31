@@ -54,7 +54,7 @@ impl Populator<0> for CavePopulator {
                             .generate();
 
                     let f = (noise_base.0[0] - 0.98) / 0.02;
-                    if f > 0.6 {
+                    if f > 0.7 {
                         chunks.set(x, y, MaterialInstance::air()).unwrap();
                     }
 

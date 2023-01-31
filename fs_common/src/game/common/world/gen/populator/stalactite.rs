@@ -35,9 +35,12 @@ impl Populator<1> for StalactitePopulator {
                     }
                 }
 
-                for dy in -2..20 {
-                    let size = (20 - dy.max(0)) / 5 + 1;
+                let height = rng.gen_range(16..=24);
+                let dx_per_dy = rng.gen_range(-0.15..=0.15);
+                for dy in -2..height {
+                    let size = (height - dy.max(0)) / 5 + 1;
                     for dx in -size..=size {
+                        let dx = dx + (dy as f32 * dx_per_dy) as i32;
                         let m2 = chunks.get(x + dx, y + dy).unwrap();
                         if let Some(rep) = (self.replace)(
                             m2,

@@ -43,7 +43,7 @@ impl BiomeTestGenerator {
         populators.add(SpawnPopulator);
 
         populators.add(PlaceAbovePopulator {
-            add_surface_height: 0,
+            add_surface_height: 1,
             replace_surface_depth: 1,
             searching_for: |m| m.material_id == material::SMOOTH_DIRT,
             replace: |_mat, x, y, registries| {

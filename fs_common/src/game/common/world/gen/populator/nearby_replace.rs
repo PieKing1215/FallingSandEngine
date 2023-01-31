@@ -18,7 +18,7 @@ impl Populator<1> for NearbyReplacePopulator {
         // otherwise this is basically just brute force
         // for each pixel that matches `searching_for`, scan around it and try to `replace`
 
-        const OVERSCAN: u16 = 2;
+        const OVERSCAN: u16 = 4;
 
         let mut skip_y = [0; CHUNK_SIZE as usize + OVERSCAN as usize * 2];
 
