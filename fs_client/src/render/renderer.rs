@@ -138,11 +138,25 @@ impl<'a> Renderer<'a> {
                     // let last_vsync = game.settings.vsync;
                     // let last_minimize_on_lost_focus = game.settings.minimize_on_lost_focus;
 
-                    egui::Window::new("Debug").show(egui_ctx, |ui| {
-                        if let Some(w) = &client.world {
-                            if let Some(eid) = w.local_entity {
-                                if let Some(world) = &game.world {
-                                    let (
+                    let mut visuals = egui::Visuals::dark();
+                    visuals.window_fill = egui::Color32::from_black_alpha(127);
+                    visuals.window_shadow.extrusion = 10.0;
+                    visuals.window_shadow.color = egui::Color32::from_black_alpha(64);
+                    visuals.widgets.noninteractive.fg_stroke.color = egui::Color32::from_gray(180);
+                    visuals.widgets.inactive.fg_stroke.color = egui::Color32::from_gray(200);
+                    egui_ctx.set_visuals(visuals);
+
+                    // let mut style = *egui_ctx.style();
+                    // style.te
+                    // egui_ctx.set_style(style);
+
+                    egui::Window::new("Debug")
+                        .resizable(false)
+                        .show(egui_ctx, |ui| {
+                            if let Some(w) = &client.world {
+                                if let Some(eid) = w.local_entity {
+                                    if let Some(world) = &game.world {
+                                        let (
                                         velocity_storage,
                                         position_storage,
                                     ) = world.ecs.system_data::<(
@@ -150,22 +164,22 @@ impl<'a> Renderer<'a> {
                                         ReadStorage<Position>,
                                     )>();
 
-                                    let pos = position_storage
-                                        .get(eid)
-                                        .expect("Missing Position component on local_entity");
+                                        let pos = position_storage
+                                            .get(eid)
+                                            .expect("Missing Position component on local_entity");
 
-                                    let vel = velocity_storage
-                                        .get(eid)
-                                        .expect("Missing Velocity component on local_entity");
+                                        let vel = velocity_storage
+                                            .get(eid)
+                                            .expect("Missing Velocity component on local_entity");
 
-                                    ui.label(format!("({:.2}, {:.2})", pos.x, pos.y));
-                                    ui.label(format!("({:.2}, {:.2})", vel.x, vel.y));
+                                        ui.label(format!("({:.2}, {:.2})", pos.x, pos.y));
+                                        ui.label(format!("({:.2}, {:.2})", vel.x, vel.y));
+                                    }
                                 }
                             }
-                        }
 
-                        game.settings.debug_ui(ui);
-                    });
+                            game.settings.debug_ui(ui);
+                        });
 
                     // TODO: this should be somewhere better
                     // maybe clone the Settings before each frame and at the end compare it?
