@@ -1,5 +1,6 @@
 pub mod biome;
 pub mod biome_test;
+pub mod feature;
 pub mod populator;
 mod test;
 
@@ -14,6 +15,7 @@ use crate::game::common::world::gen::populator::ChunkContext;
 use crate::game::common::world::Chunk;
 use crate::game::Registries;
 
+use self::feature::PlacedFeature;
 use self::populator::Populator;
 
 use super::{material::MaterialInstance, CHUNK_SIZE};
@@ -56,10 +58,10 @@ impl PopulatorList {
         }
     }
 
-    pub fn populate<'a>(
+    pub fn populate(
         &self,
         phase: u8,
-        chunks: &'a mut [&'a mut dyn Chunk],
+        chunks: &mut [&mut dyn Chunk],
         seed: i32,
         registries: &Registries,
     ) {
@@ -105,5 +107,7 @@ pub trait WorldGenerator: Send + Sync + std::fmt::Debug {
 
     fn max_gen_stage(&self) -> u8;
 
-    fn get_populators(&self) -> &PopulatorList;
+    fn populators(&self) -> &PopulatorList;
+
+    fn features(&self) -> &[PlacedFeature];
 }

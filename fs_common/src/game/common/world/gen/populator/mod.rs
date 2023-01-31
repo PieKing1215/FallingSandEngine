@@ -17,10 +17,10 @@ pub trait Populator<const S: u8> {
 
 // where S=0 means 1x1, S=1 means 3x3, etc
 // when generic_const_exprs gets stablized eventually, could use [&mut dyn Chunk; (S * 2 + 1) * (S * 2 + 1)]
-pub struct ChunkContext<'a, const S: u8>(&'a mut [&'a mut dyn Chunk]);
+pub struct ChunkContext<'a, 'b, const S: u8>(&'a mut [&'b mut dyn Chunk]);
 
-impl<'a, const S: u8> ChunkContext<'a, S> {
-    pub fn new(slice: &'a mut [&'a mut dyn Chunk]) -> Result<Self, String> {
+impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
+    pub fn new(slice: &'a mut [&'b mut dyn Chunk]) -> Result<Self, String> {
         if slice.len() == ((S * 2 + 1) * (S * 2 + 1)) as usize {
             Ok(Self(slice))
         } else {

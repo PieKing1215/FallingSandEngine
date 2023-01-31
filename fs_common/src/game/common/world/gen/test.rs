@@ -7,7 +7,7 @@ use simdnoise::NoiseBuilder;
 
 use crate::game::common::world::CHUNK_SIZE;
 
-use super::{PopulatorList, WorldGenerator};
+use super::{feature::PlacedFeature, PopulatorList, WorldGenerator};
 
 #[derive(Debug)]
 pub struct TestGenerator {
@@ -112,7 +112,11 @@ impl WorldGenerator for TestGenerator {
         2
     }
 
-    fn get_populators(&self) -> &super::PopulatorList {
+    fn populators(&self) -> &PopulatorList {
         &self.populators
+    }
+
+    fn features(&self) -> &[PlacedFeature] {
+        &[]
     }
 }

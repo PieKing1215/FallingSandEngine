@@ -1,3 +1,4 @@
+use crate::game::common::world::gen::populator::ChunkContext;
 use crate::game::common::world::particle::ParticleSystem;
 use crate::game::common::world::simulator::Simulator;
 use crate::game::common::world::{Loader, Position};
@@ -504,7 +505,7 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
 
                         // TODO: non constant seed
                         // TODO: populating stage 0 should be able to be multithreaded
-                        self.generator.get_populators().populate(
+                        self.generator.populators().populate(
                             0,
                             &mut [chunk as &mut dyn Chunk],
                             2,
@@ -619,12 +620,21 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     if !failed {
                                         // TODO: make not hardcoded
                                         // TODO: non constant seed
-                                        self.generator.get_populators().populate(
+                                        let sl = chunks.as_mut_slice();
+                                        self.generator.populators().populate(
                                             cur_stage + 1,
-                                            chunks.as_mut_slice(),
+                                            sl,
                                             2,
                                             registries,
                                         );
+
+                                        if cur_stage + 1 == 1 {
+                                            let mut ctx =
+                                                ChunkContext::<1>::new(&mut chunks).unwrap();
+                                            for feat in self.generator.features() {
+                                                feat.generate(&mut ctx, 2, registries);
+                                            }
+                                        }
 
                                         self.loaded_chunks
                                             .get_mut(&key)

@@ -1,5 +1,5 @@
 use crate::game::{
-    common::world::material::{self, placer, MaterialInstance},
+    common::world::material::{self, placer, MaterialInstance, PhysicsType},
     Registries,
 };
 
@@ -9,6 +9,13 @@ use crate::game::common::world::CHUNK_SIZE;
 
 use super::{
     biome::BiomePlacementParameter,
+    feature::{
+        features::simple::SinglePixel,
+        placement_mods::{
+            count::Count, material_match::MaterialMatch, random_offset::RandomOffset,
+        },
+        PlacedFeature,
+    },
     populator::{
         cave::CavePopulator, nearby_replace::NearbyReplacePopulator,
         place_above::PlaceAbovePopulator, spawn::SpawnPopulator, stalactite::StalactitePopulator,
@@ -19,10 +26,12 @@ use super::{
 #[derive(Debug)]
 pub struct BiomeTestGenerator {
     populators: PopulatorList,
+    features: Vec<PlacedFeature>,
 }
 
 impl BiomeTestGenerator {
     #[allow(clippy::new_without_default)]
+    #[allow(clippy::too_many_lines)]
     pub fn new() -> Self {
         let mut populators = PopulatorList::new();
 
@@ -123,7 +132,14 @@ impl BiomeTestGenerator {
             },
         });
 
-        Self { populators }
+        let features = vec![PlacedFeature::new(SinglePixel::new(placer::TEST_PLACER_1))
+            .placement(Count::range(0..=3))
+            .placement(RandomOffset::chunk())
+            .placement(Count::range(5..=10))
+            .placement(RandomOffset::new(-5..6, -5..6))
+            .placement(MaterialMatch::physics(PhysicsType::Solid))];
+
+        Self { populators, features }
     }
 }
 
@@ -286,7 +302,11 @@ impl WorldGenerator for BiomeTestGenerator {
         2
     }
 
-    fn get_populators(&self) -> &super::PopulatorList {
+    fn populators(&self) -> &PopulatorList {
         &self.populators
+    }
+
+    fn features(&self) -> &[PlacedFeature] {
+        &self.features
     }
 }
