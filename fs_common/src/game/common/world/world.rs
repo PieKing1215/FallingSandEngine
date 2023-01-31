@@ -51,7 +51,7 @@ pub struct World<C: Chunk> {
 
 impl<C: Chunk> World<C> {
     #[profiling::function]
-    pub fn create(path: Option<PathBuf>) -> Self {
+    pub fn create(path: Option<PathBuf>, seed: Option<i32>) -> Self {
         let mut ecs = specs::World::new();
         ecs.register::<SimpleMarker<FilePersistent>>();
         ecs.insert(SimpleMarkerAllocator::<FilePersistent>::default());
@@ -119,7 +119,12 @@ impl<C: Chunk> World<C> {
             net_mode: WorldNetworkMode::Local,
             rigidbodies: Vec::new(),
             physics: Physics::new(),
-            seed: 2, // TODO: non constant seed
+            seed: seed.unwrap_or_else(|| {
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_millis() as i32
+            }),
         };
 
         // add a rigidbody

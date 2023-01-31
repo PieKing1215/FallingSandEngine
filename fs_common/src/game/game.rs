@@ -60,7 +60,7 @@ impl<C: Chunk> GameData<C> {
     #[profiling::function]
     pub fn new(file_helper: FileHelper) -> Self {
         GameData {
-            world: Some(World::create(None)),
+            world: Some(World::create(None, Some(2))), // TODO: non constant seed
             tick_time: 0,
             frame_count: 0,
             fps_counter: FPSCounter {

@@ -458,7 +458,9 @@ impl ClientGame {
                                         path.parent()
                                             .expect("World meta file has no parent directory ??")
                                             .to_path_buf(),
-                                    )));
+                                        ),
+                                        Some(2), // TODO: save/load seed from file
+                                    ));
 
                                     if let Some(w) = &mut self.data.world {
                                         let player = Player::create_and_add(w);
