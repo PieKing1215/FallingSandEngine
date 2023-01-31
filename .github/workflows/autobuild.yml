@@ -15,12 +15,12 @@ jobs:
     
     steps:
     - uses: actions/checkout@v2
-    - uses: benjlevesque/short-sha@v1.2
+    - uses: benjlevesque/short-sha@v2.1
       id: short-sha
-    - uses: Swatinem/rust-cache@v1.3.0
+    - uses: Swatinem/rust-cache@v2.2
     
     - name: Install cargo-lichking
-      uses: baptiste0928/cargo-install@v1.2.0
+      uses: baptiste0928/cargo-install@v1.3
       with:
         crate: cargo-lichking
     
@@ -34,12 +34,12 @@ jobs:
       run: sh package.sh
 
     - name: Run UPX
-      uses: crazy-max/ghaction-upx@v1
+      uses: crazy-max/ghaction-upx@v2.2
       with:
         files: package/fs_main.exe
       
     - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v3.0.0
+      uses: actions/upload-artifact@v3.1
       with:
         name: "fss-${{ steps.short-sha.outputs.sha }}"
         path: package/
@@ -50,17 +50,17 @@ jobs:
     needs: build
     
     steps:
-    - uses: benjlevesque/short-sha@v1.2
+    - uses: benjlevesque/short-sha@v2.1
       id: short-sha
       
     - name: Download a Build Artifact
-      uses: actions/download-artifact@v3.0.0
+      uses: actions/download-artifact@v3.0
       with:
         name: "fss-${{ steps.short-sha.outputs.sha }}"
         path: package/
         
     - name: Steam Deploy
-      uses: game-ci/steam-deploy@v1.3.0
+      uses: game-ci/steam-deploy@v1.3
       with:
         username: ${{ secrets.STEAM_USERNAME }}
         password: ${{ secrets.STEAM_PASSWORD }}
