@@ -14,13 +14,13 @@ jobs:
     runs-on: windows-latest
     
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - uses: benjlevesque/short-sha@v2.1
       id: short-sha
-    - uses: Swatinem/rust-cache@v2.2
+    - uses: Swatinem/rust-cache@v2.2.0
     
     - name: Install cargo-lichking
-      uses: baptiste0928/cargo-install@v1.3
+      uses: baptiste0928/cargo-install@v1.3.0
       with:
         crate: cargo-lichking
     
@@ -34,12 +34,12 @@ jobs:
       run: sh package.sh
 
     - name: Run UPX
-      uses: crazy-max/ghaction-upx@v2.2
+      uses: crazy-max/ghaction-upx@v2.2.0
       with:
         files: package/fs_main.exe
       
     - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v3.1
+      uses: actions/upload-artifact@v3
       with:
         name: "fss-${{ steps.short-sha.outputs.sha }}"
         path: package/
@@ -54,7 +54,7 @@ jobs:
       id: short-sha
       
     - name: Download a Build Artifact
-      uses: actions/download-artifact@v3.0
+      uses: actions/download-artifact@v3
       with:
         name: "fss-${{ steps.short-sha.outputs.sha }}"
         path: package/
