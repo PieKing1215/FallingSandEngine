@@ -815,13 +815,7 @@ impl Client {
                         }
 
                         if self.controls.free_fly.get() {
-                            player.movement = PlayerMovementMode::Normal {
-                                state: PlayerJumpState::None,
-                                coyote_time: 0,
-                                boost: 1.0,
-                                launch_state: PlayerLaunchState::Ready,
-                                grapple_state: PlayerGrappleState::Ready,
-                            };
+                            player.movement = PlayerMovementMode::default_normal();
                         }
                     },
                 }

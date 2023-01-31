@@ -54,6 +54,18 @@ pub enum PlayerMovementMode {
     Free,
 }
 
+impl PlayerMovementMode {
+    pub fn default_normal() -> Self {
+        Self::Normal {
+            state: PlayerJumpState::None,
+            coyote_time: 0,
+            boost: 1.0,
+            launch_state: PlayerLaunchState::Ready,
+            grapple_state: PlayerGrappleState::Ready,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PlayerClipboard {
     pub clipboard: Option<MaterialBuf>,
@@ -120,7 +132,7 @@ impl Player {
             .ecs
             .create_entity()
             .with(Player {
-                movement: PlayerMovementMode::Free,
+                movement: PlayerMovementMode::default_normal(),
                 clipboard: PlayerClipboard::default(),
             })
             .with(GameEntity)
