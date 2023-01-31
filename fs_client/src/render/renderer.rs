@@ -208,7 +208,7 @@ impl<'a> Renderer<'a> {
                             None => "CPU: n/a".to_string(),
                         };
                         let b = match game.process_stats.memory {
-                            Some(m) => format!(" mem: {:.1} MB", m as f32 / 1000.0),
+                            Some(m) => format!(" mem: {:.1} MB", m as f32 / 1000000.0),
                             None => " mem: n/a".to_string(),
                         };
 

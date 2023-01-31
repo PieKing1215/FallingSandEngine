@@ -732,7 +732,7 @@ impl ClientGame {
                             sys.refresh_process(sysinfo::get_current_pid().unwrap());
                             if let Some(pc) = sys.process(sysinfo::get_current_pid().unwrap()) {
                                 self.data.process_stats.cpu_usage =
-                                    Some(pc.cpu_usage() / sys.cpus().len() as f32);
+                                    Some(pc.cpu_usage() / sys.cpus().len() as f32 * 2.0);
                                 self.data.process_stats.memory = Some(pc.memory());
                             }
                         }
