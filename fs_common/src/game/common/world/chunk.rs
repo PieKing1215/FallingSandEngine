@@ -9,6 +9,8 @@ use std::convert::TryInto;
 use std::hash::BuildHasherDefault;
 use std::path::PathBuf;
 
+use rand::rngs::StdRng;
+use rand::SeedableRng;
 use rapier2d::prelude::{Collider, RigidBody, RigidBodyHandle};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
@@ -620,21 +622,27 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     if !failed {
                                         // TODO: make not hardcoded
                                         // TODO: non constant seed
-                                        let sl = chunks.as_mut_slice();
-                                        self.generator.populators().populate(
-                                            cur_stage + 1,
-                                            sl,
-                                            2,
-                                            registries,
-                                        );
 
                                         if cur_stage + 1 == 1 {
                                             let mut ctx =
                                                 ChunkContext::<1>::new(&mut chunks).unwrap();
+                                            let mut rng = StdRng::seed_from_u64(
+                                                2 + u64::from(chunk_index(
+                                                    ctx.center_chunk().0,
+                                                    ctx.center_chunk().1,
+                                                )),
+                                            );
                                             for feat in self.generator.features() {
-                                                feat.generate(&mut ctx, 2, registries);
+                                                feat.generate(&mut ctx, 2, &mut rng, registries);
                                             }
                                         }
+
+                                        self.generator.populators().populate(
+                                            cur_stage + 1,
+                                            &mut chunks,
+                                            2,
+                                            registries,
+                                        );
 
                                         self.loaded_chunks
                                             .get_mut(&key)

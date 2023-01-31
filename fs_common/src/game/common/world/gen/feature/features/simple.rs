@@ -25,6 +25,7 @@ impl ConfiguredFeature for SinglePixel {
         &self,
         chunks: &mut ChunkContext<1>,
         pos: (i32, i32),
+        _seed: i32,
         _rng: &mut dyn RngCore,
         registries: &Registries,
     ) {

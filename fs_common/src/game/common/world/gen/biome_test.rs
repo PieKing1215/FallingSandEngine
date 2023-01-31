@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use crate::game::{
     common::world::material::{self, placer, MaterialInstance, PhysicsType},
     Registries,
 };
 
+use rand::Rng;
 use simdnoise::NoiseBuilder;
 
 use crate::game::common::world::CHUNK_SIZE;
@@ -10,9 +13,10 @@ use crate::game::common::world::CHUNK_SIZE;
 use super::{
     biome::BiomePlacementParameter,
     feature::{
-        features::simple::SinglePixel,
+        features::blob::Blob,
         placement_mods::{
-            count::Count, material_match::MaterialMatch, random_offset::RandomOffset,
+            chance::Chance, count::Count, material_match::MaterialMatch,
+            random_offset::RandomOffset,
         },
         PlacedFeature,
     },
@@ -132,12 +136,32 @@ impl BiomeTestGenerator {
             },
         });
 
-        let features = vec![PlacedFeature::new(SinglePixel::new(placer::TEST_PLACER_1))
-            .placement(Count::range(0..=3))
+        let features = vec![
+            // PlacedFeature::new(SinglePixel::new(placer::TEST_PLACER_1))
+            //     .placement(Count::range(0..=3))
+            //     .placement(RandomOffset::chunk())
+            //     .placement(Count::range(5..=10))
+            //     .placement(RandomOffset::new(-5..6, -5..6))
+            //     .placement(MaterialMatch::physics(PhysicsType::Solid)),
+            PlacedFeature::new(Blob::new(
+                placer::SMOOTH_DIRT,
+                Arc::new(|rng| rng.gen_range(16..64)),
+                Arc::new(|m| m.physics == PhysicsType::Solid),
+            ))
+            .placement(Chance(0.25))
+            .placement(Count::range(0..=2))
             .placement(RandomOffset::chunk())
-            .placement(Count::range(5..=10))
-            .placement(RandomOffset::new(-5..6, -5..6))
-            .placement(MaterialMatch::physics(PhysicsType::Solid))];
+            .placement(MaterialMatch::material(material::SMOOTH_STONE)),
+            PlacedFeature::new(Blob::new(
+                placer::TEST_PLACER_2,
+                Arc::new(|rng| rng.gen_range(10..32)),
+                Arc::new(|m| m.physics == PhysicsType::Solid),
+            ))
+            .placement(Chance(0.5))
+            .placement(Count::range(0..=2))
+            .placement(RandomOffset::chunk())
+            .placement(MaterialMatch::physics(PhysicsType::Solid)),
+        ];
 
         Self { populators, features }
     }

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::game::{
     common::world::{
         gen::{feature::PlacementModifier, populator::ChunkContext},
-        material::{self, MaterialInstance, PhysicsType},
+        material::{self, MaterialID, MaterialInstance, PhysicsType},
     },
     Registries,
 };
@@ -26,6 +26,10 @@ impl MaterialMatch {
     pub fn physics(typ: PhysicsType) -> Self {
         Self::new(Arc::new(move |m| m.physics == typ))
     }
+
+    pub fn material(mat: MaterialID) -> Self {
+        Self::new(Arc::new(move |m| m.material_id == mat))
+    }
 }
 
 impl std::fmt::Debug for MaterialMatch {
@@ -39,6 +43,7 @@ impl PlacementModifier for MaterialMatch {
         &self,
         chunks: &mut ChunkContext<1>,
         pos: (i32, i32),
+        _seed: i32,
         _rng: &mut dyn rand::RngCore,
         _registries: &Registries,
     ) -> Vec<(i32, i32)> {

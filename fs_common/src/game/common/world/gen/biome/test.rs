@@ -36,7 +36,7 @@ impl Biome for TestBiome {
     fn pixel(&self, _x: i64, _y: i64, _registries: &Registries) -> MaterialInstance {
         MaterialInstance {
             material_id: material::TEST,
-            physics: PhysicsType::Object,
+            physics: PhysicsType::Solid,
             color: self.0,
         }
     }

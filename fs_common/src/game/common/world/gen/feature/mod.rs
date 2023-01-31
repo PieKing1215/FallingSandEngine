@@ -3,17 +3,20 @@ pub mod placement_mods;
 
 use std::fmt::Debug;
 
-use rand::{rngs::StdRng, RngCore, SeedableRng};
+use rand::RngCore;
 
-use crate::game::{common::world, Registries};
+use crate::game::Registries;
 
 use super::populator::ChunkContext;
+
+pub type ProviderFn<T> = dyn Fn(&mut dyn rand::RngCore) -> T + Send + Sync;
 
 pub trait ConfiguredFeature: Debug {
     fn try_place(
         &self,
         chunks: &mut ChunkContext<1>,
         pos: (i32, i32),
+        seed: i32,
         rng: &mut dyn RngCore,
         registries: &Registries,
     );
@@ -36,25 +39,23 @@ impl PlacedFeature {
         self
     }
 
-    pub fn generate(&self, chunks: &mut ChunkContext<1>, seed: i32, registries: &Registries) {
-        let mut rng = StdRng::seed_from_u64(
-            seed as u64
-                + u64::from(world::chunk_index(
-                    chunks.center_chunk().0,
-                    chunks.center_chunk().1,
-                )),
-        );
-
+    pub fn generate(
+        &self,
+        chunks: &mut ChunkContext<1>,
+        seed: i32,
+        rng: &mut dyn RngCore,
+        registries: &Registries,
+    ) {
         let mut positions = vec![(0, 0)];
         for m in &self.placement_mods {
             positions = positions
                 .into_iter()
-                .flat_map(|p| m.process(chunks, p, &mut rng, registries))
+                .flat_map(|p| m.process(chunks, p, seed, rng, registries))
                 .collect();
         }
 
         for pos in positions {
-            self.feature.try_place(chunks, pos, &mut rng, registries);
+            self.feature.try_place(chunks, pos, seed, rng, registries);
         }
     }
 }
@@ -64,6 +65,7 @@ pub trait PlacementModifier: Debug {
         &self,
         chunks: &mut ChunkContext<1>,
         pos: (i32, i32),
+        seed: i32,
         rng: &mut dyn RngCore,
         registries: &Registries,
     ) -> Vec<(i32, i32)>;

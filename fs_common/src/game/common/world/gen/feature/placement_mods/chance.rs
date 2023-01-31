@@ -13,6 +13,7 @@ impl PlacementModifier for Chance {
         &self,
         _chunks: &mut ChunkContext<1>,
         pos: (i32, i32),
+        _seed: i32,
         rng: &mut dyn rand::RngCore,
         _registries: &Registries,
     ) -> Vec<(i32, i32)> {

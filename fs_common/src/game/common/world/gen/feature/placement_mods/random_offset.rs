@@ -34,6 +34,7 @@ impl PlacementModifier for RandomOffset {
         &self,
         _chunks: &mut ChunkContext<1>,
         pos: (i32, i32),
+        _seed: i32,
         rng: &mut dyn RngCore,
         _registries: &Registries,
     ) -> Vec<(i32, i32)> {

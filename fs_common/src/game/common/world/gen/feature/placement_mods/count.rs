@@ -3,18 +3,19 @@ use std::{fmt::Debug, sync::Arc};
 use rand::{distributions::uniform::SampleRange, Rng};
 
 use crate::game::{
-    common::world::gen::{feature::PlacementModifier, populator::ChunkContext},
+    common::world::gen::{
+        feature::{PlacementModifier, ProviderFn},
+        populator::ChunkContext,
+    },
     Registries,
 };
 
-pub type CountFn = dyn Fn(&mut dyn rand::RngCore) -> u16 + Send + Sync;
-
 pub struct Count {
-    func: Arc<CountFn>,
+    func: Arc<ProviderFn<u16>>,
 }
 
 impl Count {
-    pub fn new(func: Arc<CountFn>) -> Self {
+    pub fn new(func: Arc<ProviderFn<u16>>) -> Self {
         Self { func }
     }
 
@@ -34,6 +35,7 @@ impl PlacementModifier for Count {
         &self,
         _chunks: &mut ChunkContext<1>,
         pos: (i32, i32),
+        _seed: i32,
         rng: &mut dyn rand::RngCore,
         _registries: &Registries,
     ) -> Vec<(i32, i32)> {
