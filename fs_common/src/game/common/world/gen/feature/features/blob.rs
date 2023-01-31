@@ -11,7 +11,7 @@ use crate::game::{
             },
             populator::ChunkContext,
         },
-        material::placer::MaterialPlacerID,
+        material::{self, placer::MaterialPlacerID},
         CHUNK_SIZE,
     },
     Registries,
@@ -21,6 +21,7 @@ pub struct Blob {
     placer_id: MaterialPlacerID,
     radius: Arc<ProviderFn<u8>>,
     replace: Arc<MaterialMatchFn>,
+    check_air_below: bool,
 }
 
 impl Blob {
@@ -28,8 +29,9 @@ impl Blob {
         placer_id: MaterialPlacerID,
         radius: Arc<ProviderFn<u8>>,
         replace: Arc<MaterialMatchFn>,
+        check_air_below: bool,
     ) -> Self {
-        Self { placer_id, radius, replace }
+        Self { placer_id, radius, replace, check_air_below }
     }
 }
 
@@ -77,8 +79,6 @@ impl ConfiguredFeature for Blob {
         .with_seed(seed)
         .generate();
 
-        // log::debug!("{} {}", noise.1, noise.2);
-
         for dx in -i32::from(radius_x)..=i32::from(radius_x) {
             for dy in -i32::from(radius_y)..=i32::from(radius_y) {
                 let n = noise.0[((dx + i32::from(radius_x))
@@ -95,12 +95,22 @@ impl ConfiguredFeature for Blob {
                     let y = pos.1 + dy;
 
                     if (self.replace)(chunks.get(x, y).unwrap()) {
-                        let mat = placer.pixel(
-                            i64::from(chunk_pixel_x) + i64::from(x),
-                            i64::from(chunk_pixel_y) + i64::from(y),
-                        );
+                        let air_below = self.check_air_below
+                            && (1..=4).into_iter().any(|i| {
+                                chunks
+                                    .get(x, y + i)
+                                    .map(|m| m.material_id == material::AIR)
+                                    .unwrap_or(false)
+                            });
 
-                        chunks.set(x, y, mat).unwrap();
+                        if !air_below {
+                            let mat = placer.pixel(
+                                i64::from(chunk_pixel_x) + i64::from(x),
+                                i64::from(chunk_pixel_y) + i64::from(y),
+                            );
+
+                            chunks.set(x, y, mat).unwrap();
+                        }
                     }
                 }
             }

@@ -147,6 +147,7 @@ impl BiomeTestGenerator {
                 placer::SMOOTH_DIRT,
                 Arc::new(|rng| rng.gen_range(16..64)),
                 Arc::new(|m| m.physics == PhysicsType::Solid),
+                false,
             ))
             .placement(Chance(0.25))
             .placement(Count::range(0..=2))
@@ -156,6 +157,7 @@ impl BiomeTestGenerator {
                 placer::TEST_PLACER_2,
                 Arc::new(|rng| rng.gen_range(10..32)),
                 Arc::new(|m| m.physics == PhysicsType::Solid),
+                true,
             ))
             .placement(Chance(0.5))
             .placement(Count::range(0..=2))

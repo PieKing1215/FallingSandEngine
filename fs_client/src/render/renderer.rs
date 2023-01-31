@@ -146,10 +146,6 @@ impl<'a> Renderer<'a> {
                     visuals.widgets.inactive.fg_stroke.color = egui::Color32::from_gray(200);
                     egui_ctx.set_visuals(visuals);
 
-                    // let mut style = *egui_ctx.style();
-                    // style.te
-                    // egui_ctx.set_style(style);
-
                     egui::Window::new("Debug")
                         .resizable(false)
                         .show(egui_ctx, |ui| {
