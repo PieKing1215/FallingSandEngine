@@ -38,6 +38,12 @@ pub struct GameData<C: Chunk> {
     pub settings: Settings,
     pub file_helper: FileHelper,
     pub registries: Registries,
+    pub build_data: BuildData,
+}
+
+pub struct BuildData {
+    pub datetime: Option<&'static str>,
+    pub git_hash: Option<&'static str>,
 }
 
 pub struct ProcessStats {
@@ -58,7 +64,7 @@ pub struct FPSCounter {
 
 impl<C: Chunk> GameData<C> {
     #[profiling::function]
-    pub fn new(file_helper: FileHelper) -> Self {
+    pub fn new(file_helper: FileHelper, build_data: BuildData) -> Self {
         GameData {
             world: Some(World::create(None, Some(2))), // TODO: non constant seed
             tick_time: 0,
@@ -77,6 +83,7 @@ impl<C: Chunk> GameData<C> {
             settings: Settings::default(),
             registries: Registries::init(&file_helper),
             file_helper,
+            build_data,
         }
     }
 }

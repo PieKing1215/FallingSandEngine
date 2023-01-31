@@ -31,7 +31,7 @@ use fs_common::game::{
         },
         FileHelper, Settings,
     },
-    GameData,
+    BuildData, GameData,
 };
 
 use crate::{
@@ -47,9 +47,9 @@ pub struct ClientGame {
 }
 
 impl ClientGame {
-    pub fn new(file_helper: FileHelper) -> Self {
+    pub fn new(file_helper: FileHelper, build_data: BuildData) -> Self {
         Self {
-            data: GameData::new(file_helper),
+            data: GameData::new(file_helper, build_data),
             client: Client::new(),
         }
     }

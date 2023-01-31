@@ -24,9 +24,6 @@ use crate::{
 
 use super::{drawing::RenderTarget, shaders::Shaders};
 
-pub static mut BUILD_DATETIME: Option<&str> = None;
-pub static mut GIT_HASH: Option<&str> = None;
-
 pub struct Renderer<'a> {
     // pub fonts: Fonts,
     pub glyph_brush: GlyphBrush<'a, FontVec>,
@@ -116,8 +113,8 @@ impl<'a> Renderer<'a> {
                         Text::new(
                             format!(
                                 "{} ({})",
-                                unsafe { BUILD_DATETIME }.unwrap_or("???"),
-                                unsafe { GIT_HASH }.unwrap_or("???")
+                                game.build_data.datetime.unwrap_or("???"),
+                                game.build_data.git_hash.unwrap_or("???")
                             )
                             .as_str(),
                         )

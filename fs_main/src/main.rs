@@ -2,10 +2,13 @@ use std::{fs::File, thread};
 
 use backtrace::Backtrace;
 use fs_client::{render::Renderer, world::ClientWorld, ClientGame};
-use fs_common::game::common::{
-    cli::{CLArgs, CLSubcommand},
-    world::{entity::Player, Camera, Target},
-    FileHelper,
+use fs_common::game::{
+    common::{
+        cli::{CLArgs, CLSubcommand},
+        world::{entity::Player, Camera, Target},
+        FileHelper,
+    },
+    BuildData,
 };
 use fs_server::ServerGame;
 use log::{error, info, LevelFilter};
@@ -19,10 +22,10 @@ use tui::{
 
 #[profiling::function]
 pub fn main() -> Result<(), String> {
-    unsafe {
-        fs_client::render::BUILD_DATETIME = option_env!("BUILD_DATETIME");
-        fs_client::render::GIT_HASH = option_env!("GIT_HASH");
-    }
+    let build_data = BuildData {
+        datetime: option_env!("BUILD_DATETIME"),
+        git_hash: option_env!("GIT_HASH"),
+    };
 
     let cl_args = CLArgs::parse_args();
 
@@ -83,7 +86,7 @@ pub fn main() -> Result<(), String> {
 
         let res = std::panic::catch_unwind(move || {
             println!("Starting server...");
-            let mut game: ServerGame = ServerGame::new(file_helper);
+            let mut game: ServerGame = ServerGame::new(file_helper, build_data);
 
             if let Some(w) = &mut game.0.world {
                 Player::create_and_add(w);
@@ -171,7 +174,7 @@ pub fn main() -> Result<(), String> {
 
         info!("Finished init.");
 
-        let mut game: ClientGame = ClientGame::new(file_helper);
+        let mut game: ClientGame = ClientGame::new(file_helper, build_data);
 
         if let Some(w) = &mut game.data.world {
             let player = Player::create_and_add(w);
