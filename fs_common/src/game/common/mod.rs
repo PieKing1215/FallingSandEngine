@@ -2,6 +2,7 @@ pub mod networking;
 pub mod world;
 
 pub mod cli;
+pub mod hashmap_ext;
 mod settings;
 use std::ops::Range;
 

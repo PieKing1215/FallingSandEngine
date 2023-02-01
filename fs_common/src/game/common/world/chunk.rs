@@ -1,3 +1,4 @@
+use crate::game::common::hashmap_ext::HashMapExt;
 use crate::game::common::world::gen::populator::ChunkContext;
 use crate::game::common::world::particle::ParticleSystem;
 use crate::game::common::world::simulator::Simulator;
@@ -128,7 +129,7 @@ struct ChunkSaveFormat {
     colors: Vec<u8>,
 }
 
-impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
+impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
     #[profiling::function]
     fn update_chunk_graphics(&mut self) {
         let keys = self.loaded_chunks.keys().copied().collect::<Vec<u32>>();
@@ -498,22 +499,30 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                             })
                             .collect()
                     };
-                    for ch in generated {
-                        profiling::scope!("finish chunk");
 
-                        // TODO: this is very slow
+                    let keys: Vec<_> = generated
+                        .into_iter()
+                        .map(|ch| {
+                            profiling::scope!("finish chunk");
 
-                        let chunk = self.loaded_chunks.get_mut(ch.0).unwrap();
-                        chunk.set_pixels(*ch.1);
-                        chunk.set_pixel_colors(*ch.2);
+                            let chunk = self.loaded_chunks.get_mut(ch.0).unwrap();
+                            chunk.set_pixels(*ch.1);
+                            chunk.set_pixel_colors(*ch.2);
 
-                        // TODO: populating stage 0 should be able to be multithreaded
-                        self.generator.populators().populate(
-                            0,
-                            &mut [chunk as &mut dyn Chunk],
-                            seed,
-                            registries,
-                        );
+                            *ch.0
+                        })
+                        .collect();
+
+                    let pops = self.generator.populators();
+                    {
+                        profiling::scope!("populate stage 0");
+                        self.loaded_chunks
+                            .get_many_var_mut(&keys)
+                            .unwrap()
+                            .into_par_iter()
+                            .for_each(|chunk| {
+                                pops.populate(0, &mut [chunk as &mut dyn Chunk], seed, registries);
+                            });
                     }
                 }
             }
@@ -596,36 +605,31 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                         _ => false,
                                     }
                                 }) {
-                                    let mut chunks = Vec::new();
+                                    let mut keys = Vec::new();
 
                                     let range = i32::from(cur_stage + 1);
 
                                     // try to gather the nearby chunks needed to populate this one
-                                    let mut failed = false;
-                                    'outer: for y in -range..=range {
+                                    for y in -range..=range {
                                         for x in -range..=range {
-                                            let c = self
-                                                .loaded_chunks
-                                                .get_mut(&chunk_index(chunk_x + x, chunk_y + y));
-                                            if let Some(c) = c {
-                                                let c = c as &mut dyn Chunk as *mut _;
-                                                // this is just blatantly bypassing the borrow checker to get mutable refs to multiple unique hashmap entries
-                                                // TODO: can probably use get_many_mut once stabilized: https://github.com/rust-lang/rust/issues/97601
-                                                chunks.push(unsafe { &mut *c });
-                                            } else {
-                                                failed = true;
-                                                break 'outer;
-                                            }
+                                            keys.push(chunk_index(chunk_x + x, chunk_y + y));
                                         }
                                     }
 
+                                    let chunks = self.loaded_chunks.get_many_var_mut(&keys);
+
                                     // if we failed to get all nearby chunks, don't populate and don't go to the next stage
-                                    if !failed {
+                                    if let Some(chunks) = chunks {
+                                        let mut chunks_dyn: Vec<_> = chunks
+                                            .into_iter()
+                                            .map(|c| c as &mut dyn Chunk)
+                                            .collect();
+
                                         // TODO: make not hardcoded
 
                                         if cur_stage + 1 == 1 {
                                             let mut ctx =
-                                                ChunkContext::<1>::new(&mut chunks).unwrap();
+                                                ChunkContext::<1>::new(&mut chunks_dyn).unwrap();
                                             let mut rng = StdRng::seed_from_u64(
                                                 seed as u64
                                                     + u64::from(chunk_index(
@@ -640,7 +644,7 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
 
                                         self.generator.populators().populate(
                                             cur_stage + 1,
-                                            &mut chunks,
+                                            &mut chunks_dyn,
                                             seed,
                                             registries,
                                         );
@@ -742,7 +746,6 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     .as_mut()
                                     .unwrap();
                                 // blatantly bypassing the borrow checker, see safety comment above
-                                // TODO: can probably use get_many_mut once stabilized: https://github.com/rust-lang/rust/issues/97601
                                 unsafe { &mut *raw }
                             });
 
@@ -766,7 +769,6 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     .unwrap()
                                     .get_colors_mut();
                                 // blatantly bypassing the borrow checker, see safety comment above
-                                // TODO: can probably use get_many_mut once stabilized: https://github.com/rust-lang/rust/issues/97601
                                 unsafe { &mut *raw }
                             });
 

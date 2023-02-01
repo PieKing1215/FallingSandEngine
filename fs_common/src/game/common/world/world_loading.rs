@@ -20,7 +20,7 @@ pub struct WorldMeta {
     pub last_played_time: toml::value::Datetime,
 }
 
-impl<C: Chunk> World<C> {
+impl<C: Chunk + Send> World<C> {
     pub fn find_files(root: PathBuf) -> Result<WorldTreeNode<PathBuf, PathBuf>, std::io::Error> {
         let mut res = Vec::new();
         for entry in fs::read_dir(&root)? {

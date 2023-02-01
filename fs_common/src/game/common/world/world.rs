@@ -55,7 +55,7 @@ pub struct World<C: Chunk> {
     pub seed: i32,
 }
 
-impl<C: Chunk> World<C> {
+impl<C: Chunk + Send> World<C> {
     #[profiling::function]
     pub fn create(path: Option<PathBuf>, seed: Option<i32>) -> Self {
         let mut ecs = specs::World::new();

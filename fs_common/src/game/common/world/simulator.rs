@@ -233,7 +233,7 @@ struct SimulationHelperRigidBody<'a, C: Chunk> {
     physics: &'a mut Physics,
 }
 
-impl<C: Chunk> SimulationHelper for SimulationHelperRigidBody<'_, C> {
+impl<C: Chunk + Send> SimulationHelper for SimulationHelperRigidBody<'_, C> {
     fn get_pixel_local(&self, x: i32, y: i32) -> MaterialInstance {
         let world_mat = self.chunk_handler.get(i64::from(x), i64::from(y)); // TODO: consider changing the args to i64
         if let Ok(m) = world_mat {
@@ -402,7 +402,7 @@ impl Simulator {
     #[allow(clippy::unnecessary_unwrap)]
     #[allow(clippy::needless_range_loop)]
     #[profiling::function]
-    pub fn simulate_rigidbodies<C: Chunk>(
+    pub fn simulate_rigidbodies<C: Chunk + Send>(
         chunk_handler: &mut ChunkHandler<C>,
         rigidbodies: &mut Vec<FSRigidBody>,
         physics: &mut Physics,

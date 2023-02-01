@@ -22,7 +22,7 @@ impl MaterialBuf {
         }
     }
 
-    pub fn copy<C: Chunk>(
+    pub fn copy<C: Chunk + Send>(
         chunk_handler: &ChunkHandler<C>,
         x: impl Into<i64>,
         y: impl Into<i64>,
@@ -47,7 +47,7 @@ impl MaterialBuf {
         Ok(Self { width, height, materials: buf })
     }
 
-    pub fn cut<C: Chunk>(
+    pub fn cut<C: Chunk + Send>(
         chunk_handler: &mut ChunkHandler<C>,
         x: impl Into<i64>,
         y: impl Into<i64>,
@@ -73,7 +73,7 @@ impl MaterialBuf {
         Ok(Self { width, height, materials: buf })
     }
 
-    pub fn paste<C: Chunk>(
+    pub fn paste<C: Chunk + Send>(
         &self,
         chunk_handler: &mut ChunkHandler<C>,
         x: impl Into<i64>,
