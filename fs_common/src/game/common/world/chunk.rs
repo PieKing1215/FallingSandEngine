@@ -311,7 +311,9 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
 
                 let mut num_loaded_this_tick = 0;
 
+                // get keys for all chunks
                 let mut keys = self.loaded_chunks.keys().copied().collect::<Vec<u32>>();
+                // sort keys by distance to nearest loader
                 if !loaders.is_empty() {
                     keys.sort_by(|a, b| {
                         let c1_x = self.loaded_chunks.get(a).unwrap().get_chunk_x()
@@ -346,8 +348,10 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                         d1.cmp(&d2)
                     });
                 }
-                let mut to_generate = vec![];
-                for key in &keys {
+
+                // list of chunks that need to be generated
+                // u32 is key, i32s are chunk x and y
+                let to_generate = keys.iter().filter_map(|key| {
                     let state = self.loaded_chunks.get(key).unwrap().get_state(); // copy
                     let rect = Rect::new_wh(
                         self.loaded_chunks.get(key).unwrap().get_chunk_x() * i32::from(CHUNK_SIZE),
@@ -361,17 +365,19 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                     } else if state == ChunkState::Cached {
                         num_cached += 1;
                     } else if state == ChunkState::NotGenerated {
-                        if !unload_zone.iter().any(|z| rect.intersects(z)) {
-                        } else if num_loaded_this_tick < 32 {
+                        // start generating chunks waiting to generate
+                        if unload_zone.iter().any(|z| rect.intersects(z)) && num_loaded_this_tick < 32 {
                             let chunk_x = self.loaded_chunks.get_mut(key).unwrap().get_chunk_x();
                             let chunk_y = self.loaded_chunks.get_mut(key).unwrap().get_chunk_y();
 
                             let mut should_generate = true;
 
+                            // skip if already generating this chunk
                             if self.gen_threads.iter().any(|(k, _)| k == key) {
                                 should_generate = false;
                             }
 
+                            // try to load from file
                             if let Some(path) = &self.path {
                                 let chunk_path_root = path.join("chunks/");
                                 if !chunk_path_root.exists() {
@@ -393,43 +399,21 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                                 if save.pixels.len()
                                                     == (CHUNK_SIZE as usize * CHUNK_SIZE as usize)
                                                 {
-                                                    self.loaded_chunks
-                                                        .get_mut(key)
-                                                        .unwrap()
-                                                        .set_state(ChunkState::Cached);
-                                                    self.loaded_chunks
-                                                        .get_mut(key)
-                                                        .unwrap()
-                                                        .set_pixels(
-                                                            save.pixels.try_into().unwrap(),
-                                                        );
-                                                    self.loaded_chunks
-                                                        .get_mut(key)
-                                                        .unwrap()
-                                                        .mark_dirty();
-                                                    let _ = self
-                                                        .loaded_chunks
-                                                        .get_mut(key)
-                                                        .unwrap()
-                                                        .generate_mesh();
+                                                    let chunk =  self.loaded_chunks.get_mut(key).unwrap();
+                                                    chunk.set_state(ChunkState::Cached);
+                                                    chunk.set_pixels(save.pixels.try_into().unwrap());
+                                                    chunk.mark_dirty();
+                                                    let _ = chunk.generate_mesh();
 
                                                     if save.colors.len()
                                                         == (CHUNK_SIZE as usize
                                                             * CHUNK_SIZE as usize
                                                             * 4)
                                                     {
-                                                        self.loaded_chunks
-                                                            .get_mut(key)
-                                                            .unwrap()
-                                                            .set_pixel_colors(
-                                                                save.colors.try_into().unwrap(),
-                                                            );
+                                                        chunk.set_pixel_colors(save.colors.try_into().unwrap());
                                                     } else {
                                                         log::error!("colors Vec is the wrong size: {} (expected {})", save.colors.len(), CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4);
-                                                        self.loaded_chunks
-                                                            .get_mut(key)
-                                                            .unwrap()
-                                                            .refresh();
+                                                        chunk.refresh();
                                                     }
 
                                                     should_generate = false;
@@ -471,21 +455,21 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                             }
 
                             if should_generate {
-                                to_generate.push((*key, chunk_x, chunk_y));
                                 num_loaded_this_tick += 1;
+                                return Some((*key, chunk_x, chunk_y));
                             }
                         }
                     }
-                }
 
-                if !to_generate.is_empty() {
+                    None
+                }).collect::<Vec<_>>();
+
+                // spawn chunk generation tasks
+                {
                     profiling::scope!("gen chunks");
-
-                    let mt_registries = registries.clone();
-
-                    for e in to_generate {
+                    for (key, chunk_x, chunk_y) in to_generate {
                         let generator = self.generator.clone();
-                        let reg = mt_registries.clone();
+                        let reg = registries.clone();
                         let (tx, rx) = futures::channel::oneshot::channel();
                         self.gen_pool.spawn_fifo(move || {
                             profiling::register_thread!("Generation thread");
@@ -502,23 +486,23 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                 Box::new([0; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]);
 
                             generator.generate(
-                                e.1,
-                                e.2,
+                                chunk_x,
+                                chunk_y,
                                 seed,
                                 &mut pixels,
                                 &mut colors,
                                 reg.as_ref(),
                             );
 
-                            tx.send((e.0, pixels, colors)).unwrap();
+                            tx.send((key, pixels, colors)).unwrap();
                         });
 
-                        self.gen_threads.push((e.0, rx));
+                        self.gen_threads.push((key, rx));
                     }
                 }
 
+                // get data from a number of finished generation tasks
                 let mut generated = vec![];
-
                 self.gen_threads.retain_mut(|(_, v)| {
                     if generated.len() < if num_cached + num_active < 4 { 32 } else { 8 } {
                         if let Ok(Some(g)) = v.try_recv() {
@@ -532,23 +516,25 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                     }
                 });
 
+                // put generated data into chunk
                 let keys: Vec<_> = generated
                     .into_iter()
-                    .filter_map(|ch| {
+                    .filter_map(|(key, pixels, colors)| {
                         profiling::scope!("finish chunk");
 
-                        self.loaded_chunks.get_mut(&ch.0).map(|chunk| {
+                        self.loaded_chunks.get_mut(&key).map(|chunk| {
                             chunk.set_state(ChunkState::Generating(0));
-                            chunk.set_pixels(*ch.1);
-                            chunk.set_pixel_colors(*ch.2);
-                            ch.0
+                            chunk.set_pixels(*pixels);
+                            chunk.set_pixel_colors(*colors);
+                            key
                         })
                     })
                     .collect();
 
-                let pops = self.generator.populators();
+                // do population stage 0
                 {
                     profiling::scope!("populate stage 0");
+                    let pops = self.generator.populators();
                     self.loaded_chunks
                         .get_many_var_mut(&keys)
                         .unwrap()
