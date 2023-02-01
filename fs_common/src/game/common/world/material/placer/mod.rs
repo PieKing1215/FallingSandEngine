@@ -34,6 +34,7 @@ pub type MaterialPlacerID = u16;
 pub const AIR_PLACER: MaterialPlacerID = 0;
 pub const TEST_PLACER_1: MaterialPlacerID = 1;
 pub const TEST_PLACER_2: MaterialPlacerID = 2;
+pub const TEST_GRASS: MaterialPlacerID = 9;
 
 pub const COBBLE_STONE: MaterialPlacerID = 3;
 pub const COBBLE_DIRT: MaterialPlacerID = 4;
@@ -78,6 +79,18 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
                 PhysicsType::Sand,
                 &fs::read(file_helper.asset_path("texture/material/test.png")).unwrap(),
             )),
+        ),
+    );
+
+    registry.register(
+        TEST_GRASS,
+        (
+            MaterialPlacerMeta { display_name: "Test Grass".to_string() },
+            Box::new(MaterialInstance {
+                material_id: super::TEST,
+                physics: PhysicsType::Solid,
+                color: Color::rgb(0, 127, 0),
+            }),
         ),
     );
 

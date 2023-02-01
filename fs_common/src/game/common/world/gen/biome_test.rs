@@ -44,13 +44,13 @@ impl BiomeTestGenerator {
 
         populators.add(PlaceAbovePopulator {
             add_surface_height: 1,
-            replace_surface_depth: 1,
+            replace_surface_depth: 2,
             searching_for: |m| m.material_id == material::SMOOTH_DIRT,
             replace: |_mat, x, y, registries| {
                 Some(
                     registries
                         .material_placers
-                        .get(&placer::TEST_PLACER_1)
+                        .get(&placer::TEST_GRASS)
                         .unwrap()
                         .1
                         .pixel(x, y),
