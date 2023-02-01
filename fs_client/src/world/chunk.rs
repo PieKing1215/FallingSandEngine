@@ -305,7 +305,7 @@ impl ChunkGraphics {
 
 impl ClientChunk {
     pub fn prep_render(&mut self, target: &mut RenderTarget, settings: &Settings) {
-        self.graphics.render(target, settings);
+        self.graphics.prep_render(target, settings);
     }
 
     pub fn render(&mut self, target: &mut RenderTarget, settings: &Settings) {
@@ -320,31 +320,38 @@ impl ClientChunk {
                     Color::rgb(255, 32, 255),
                 ];
 
-                f.iter().enumerate().for_each(|(j, f)| {
-                    f.iter().enumerate().for_each(|(_k, pts)| {
-                        for i in 1..pts.len() {
-                            let (x1, y1) = (pts[i - 1][0], pts[i - 1][1]);
-                            let (x2, y2) = (pts[i][0], pts[i][1]);
-                            target.line(
-                                (x1 as f32, y1 as f32),
-                                (x2 as f32, y2 as f32),
-                                colors[j % colors.len()],
-                                DrawParameters {
-                                    polygon_mode: PolygonMode::Line,
-                                    line_width: Some(1.0),
-                                    blend: Blend::alpha_blending(),
-                                    ..Default::default()
-                                },
-                            );
-                        }
+                let lines = f
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(j, f)| {
+                        let c = colors[j % colors.len()];
+                        f.iter().flat_map(move |pts| {
+                            let mut v = vec![];
+                            for i in 1..pts.len() {
+                                let (x1, y1) = (pts[i - 1][0], pts[i - 1][1]);
+                                let (x2, y2) = (pts[i][0], pts[i][1]);
+                                v.push(((x1 as f32, y1 as f32), (x2 as f32, y2 as f32), (c)));
+                            }
+                            v
 
-                        // draw individual points
-                        // for i in 0..pts.len() {
-                        //     let (x1, y1) = transform.transform((pts[i][0], pts[i][1]));
-                        //     canvas.rectangle(x1 as f32 - 1.0, y1 as f32 - 1.0, x1 as f32 + 1.0, y1 as f32 + 1.0, colors[(j + k) % colors.len()]);
-                        // }
-                    });
-                });
+                            // draw individual points
+                            // for i in 0..pts.len() {
+                            //     let (x1, y1) = transform.transform((pts[i][0], pts[i][1]));
+                            //     canvas.rectangle(x1 as f32 - 1.0, y1 as f32 - 1.0, x1 as f32 + 1.0, y1 as f32 + 1.0, colors[(j + k) % colors.len()]);
+                            // }
+                        })
+                    })
+                    .collect::<Vec<_>>();
+
+                target.lines(
+                    lines,
+                    DrawParameters {
+                        polygon_mode: PolygonMode::Line,
+                        line_width: Some(1.0),
+                        blend: Blend::alpha_blending(),
+                        ..Default::default()
+                    },
+                );
             }
         } else if settings.debug && settings.draw_chunk_collision == 2 {
             if let Some(f) = &self.mesh_simplified {
@@ -357,28 +364,37 @@ impl ClientChunk {
                     Color::rgb(255, 32, 255),
                 ];
 
-                f.iter().enumerate().for_each(|(j, f)| {
-                    f.iter().enumerate().for_each(|(_k, pts)| {
-                        for i in 1..pts.len() {
-                            let (x1, y1) = (pts[i - 1][0], pts[i - 1][1]);
-                            let (x2, y2) = (pts[i][0], pts[i][1]);
-                            target.line(
-                                (x1 as f32, y1 as f32),
-                                (x2 as f32, y2 as f32),
-                                colors[j % colors.len()],
-                                DrawParameters {
-                                    polygon_mode: PolygonMode::Line,
-                                    line_width: Some(1.0),
-                                    blend: Blend::alpha_blending(),
-                                    ..Default::default()
-                                },
-                            );
-                        }
-                    });
-                });
+                let lines = f
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(j, f)| {
+                        let c = colors[j % colors.len()];
+                        f.iter().flat_map(move |pts| {
+                            let mut v = vec![];
+                            for i in 1..pts.len() {
+                                let (x1, y1) = (pts[i - 1][0], pts[i - 1][1]);
+                                let (x2, y2) = (pts[i][0], pts[i][1]);
+                                v.push(((x1 as f32, y1 as f32), (x2 as f32, y2 as f32), (c)));
+                            }
+                            v
+                        })
+                    })
+                    .collect::<Vec<_>>();
+
+                target.lines(
+                    lines,
+                    DrawParameters {
+                        polygon_mode: PolygonMode::Line,
+                        line_width: Some(1.0),
+                        blend: Blend::alpha_blending(),
+                        ..Default::default()
+                    },
+                );
             }
         } else if settings.debug && settings.draw_chunk_collision == 3 {
             if let Some(t) = &self.tris {
+                let mut tris = vec![];
+
                 for part in t {
                     for tri in part {
                         let (x1, y1) = tri.0;
@@ -387,20 +403,24 @@ impl ClientChunk {
 
                         let color = Color::rgba(32, 255, 255, 255);
 
-                        target.triangle(
+                        tris.push((
                             (x1 as f32, y1 as f32),
                             (x2 as f32, y2 as f32),
                             (x3 as f32, y3 as f32),
                             color,
-                            DrawParameters {
-                                polygon_mode: PolygonMode::Line,
-                                line_width: Some(1.0),
-                                blend: Blend::alpha_blending(),
-                                ..Default::default()
-                            },
-                        );
+                        ));
                     }
                 }
+
+                target.triangles(
+                    tris,
+                    DrawParameters {
+                        polygon_mode: PolygonMode::Line,
+                        line_width: Some(1.0),
+                        blend: Blend::alpha_blending(),
+                        ..Default::default()
+                    },
+                );
             }
         }
     }
@@ -408,7 +428,7 @@ impl ClientChunk {
 
 impl ChunkGraphics {
     #[profiling::function]
-    pub fn render(&mut self, target: &mut RenderTarget, _settings: &Settings) {
+    pub fn prep_render(&mut self, target: &mut RenderTarget, _settings: &Settings) {
         if self.texture.is_none() {
             let image = glium::texture::RawImage2d::from_raw_rgba(
                 self.pixel_data.to_vec(),

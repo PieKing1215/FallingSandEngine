@@ -124,6 +124,68 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
         self.frame.draw(&vertex_buffer, indices, &self.shaders.common, &uniform! { matrix: view, col: [color.r_f32(), color.g_f32(), color.b_f32(), color.a_f32()] }, &param).unwrap();
     }
 
+    pub fn lines(
+        &mut self,
+        lines: Vec<(impl Into<Vertex2>, impl Into<Vertex2>, Color)>,
+        param: DrawParameters,
+    ) {
+        let shape = lines
+            .into_iter()
+            .flat_map(|l| {
+                let a = l.0.into();
+                let b = l.1.into();
+                [
+                    Vertex2C { position: a.position, color: l.2.into() },
+                    Vertex2C { position: b.position, color: l.2.into() },
+                ]
+            })
+            .collect::<Vec<_>>();
+
+        let model_view =
+            *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
+        let view: [[f32; 4]; 4] = model_view.into();
+
+        let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
+        let indices = glium::index::NoIndices(glium::index::PrimitiveType::LinesList);
+
+        self.frame
+            .draw(
+                &vertex_buffer,
+                indices,
+                &self.shaders.vertex_colors,
+                &uniform! { matrix: view },
+                &param,
+            )
+            .unwrap();
+    }
+
+    pub fn line_strip(&mut self, points: Vec<(impl Into<Vertex2>, Color)>, param: DrawParameters) {
+        let shape = points
+            .into_iter()
+            .map(|(p, c)| {
+                let p = p.into();
+                Vertex2C { position: p.position, color: c.into() }
+            })
+            .collect::<Vec<_>>();
+
+        let model_view =
+            *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
+        let view: [[f32; 4]; 4] = model_view.into();
+
+        let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
+        let indices = glium::index::NoIndices(glium::index::PrimitiveType::LineStrip);
+
+        self.frame
+            .draw(
+                &vertex_buffer,
+                indices,
+                &self.shaders.vertex_colors,
+                &uniform! { matrix: view },
+                &param,
+            )
+            .unwrap();
+    }
+
     pub fn triangle(
         &mut self,
         p1: impl Into<Vertex2>,
@@ -145,6 +207,48 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
         let indices = glium::index::NoIndices(glium::index::PrimitiveType::TriangleStrip);
 
         self.frame.draw(&vertex_buffer, indices, &self.shaders.common, &uniform! { matrix: view, col: [color.r_f32(), color.g_f32(), color.b_f32(), color.a_f32()] }, &param).unwrap();
+    }
+
+    pub fn triangles(
+        &mut self,
+        tris: Vec<(
+            impl Into<Vertex2>,
+            impl Into<Vertex2>,
+            impl Into<Vertex2>,
+            Color,
+        )>,
+        param: DrawParameters,
+    ) {
+        let shape = tris
+            .into_iter()
+            .flat_map(|(a, b, c, color)| {
+                let a = a.into();
+                let b = b.into();
+                let c = c.into();
+                [
+                    Vertex2C { position: a.position, color: color.into() },
+                    Vertex2C { position: b.position, color: color.into() },
+                    Vertex2C { position: c.position, color: color.into() },
+                ]
+            })
+            .collect::<Vec<_>>();
+
+        let model_view =
+            *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
+        let view: [[f32; 4]; 4] = model_view.into();
+
+        let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
+        let indices = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
+
+        self.frame
+            .draw(
+                &vertex_buffer,
+                indices,
+                &self.shaders.vertex_colors,
+                &uniform! { matrix: view },
+                &param,
+            )
+            .unwrap();
     }
 
     pub fn rectangle(&mut self, rect: impl Into<Rect<f32>>, color: Color, param: DrawParameters) {
