@@ -1,3 +1,4 @@
+use fastrand::Rng;
 use rapier2d::na::Isometry2;
 
 use crate::game::common::world::material::{MaterialInstance, PhysicsType};
@@ -366,31 +367,30 @@ impl Simulator {
 
         let rng = fastrand::Rng::new();
         {
+            #[inline(always)]
+            fn process(x: i32, y: i32, helper: &mut SimulationHelperChunk, rng: &Rng) {
+                // Safety: dirty rects are always within the chunk
+                let cur = unsafe { helper.get_pixel_local_unchecked(x, y) };
+
+                if let Some(mat) = Simulator::simulate_pixel(x, y, cur, helper, rng) {
+                    unsafe {
+                        helper.set_color_local_unchecked(x, y, mat.color);
+                        helper.set_pixel_local_unchecked(x, y, mat);
+                    }
+                }
+            }
+
             profiling::scope!("loop");
             if rng.bool() {
                 for y in my_dirty_rect.range_tb().rev() {
                     for x in my_dirty_rect.range_lr() {
-                        let cur = unsafe { helper.get_pixel_local_unchecked(x, y) };
-
-                        if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper, &rng) {
-                            unsafe {
-                                helper.set_color_local_unchecked(x, y, mat.color);
-                                helper.set_pixel_local_unchecked(x, y, mat);
-                            }
-                        }
+                        process(x, y, &mut helper, &rng);
                     }
                 }
             } else {
                 for y in my_dirty_rect.range_tb().rev() {
                     for x in my_dirty_rect.range_lr().rev() {
-                        let cur = unsafe { helper.get_pixel_local_unchecked(x, y) };
-
-                        if let Some(mat) = Self::simulate_pixel(x, y, cur, &mut helper, &rng) {
-                            unsafe {
-                                helper.set_color_local_unchecked(x, y, mat.color);
-                                helper.set_pixel_local_unchecked(x, y, mat);
-                            }
-                        }
+                        process(x, y, &mut helper, &rng);
                     }
                 }
             }

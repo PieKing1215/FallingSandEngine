@@ -610,7 +610,7 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                             if let Some(c) = c {
                                                 let c = c as &mut dyn Chunk as *mut _;
                                                 // this is just blatantly bypassing the borrow checker to get mutable refs to multiple unique hashmap entries
-                                                // TODO: profile this and see if removing and readding to the map isn't slow (since it would avoid unsafe)
+                                                // TODO: can probably use get_many_mut once stabilized: https://github.com/rust-lang/rust/issues/97601
                                                 chunks.push(unsafe { &mut *c });
                                             } else {
                                                 failed = true;
@@ -742,6 +742,7 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     .as_mut()
                                     .unwrap();
                                 // blatantly bypassing the borrow checker, see safety comment above
+                                // TODO: can probably use get_many_mut once stabilized: https://github.com/rust-lang/rust/issues/97601
                                 unsafe { &mut *raw }
                             });
 
@@ -765,6 +766,7 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     .unwrap()
                                     .get_colors_mut();
                                 // blatantly bypassing the borrow checker, see safety comment above
+                                // TODO: can probably use get_many_mut once stabilized: https://github.com/rust-lang/rust/issues/97601
                                 unsafe { &mut *raw }
                             });
 

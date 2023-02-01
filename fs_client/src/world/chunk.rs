@@ -99,9 +99,8 @@ impl Chunk for ClientChunk {
             if let Some(px) = &mut self.pixels {
                 let i = (x + y * CHUNK_SIZE) as usize;
                 // we do our own bounds check
+                self.graphics.set(x, y, mat.color)?;
                 *unsafe { px.get_unchecked_mut(i) } = mat;
-                self.graphics
-                    .set(x, y, unsafe { px.get_unchecked_mut(i) }.color)?;
 
                 self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
 
