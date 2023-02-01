@@ -302,9 +302,11 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
             }
         }
 
-        if settings.load_chunks {
+        if settings.load_chunks && tick_time % 2 == 0 {
+            let mut num_active = 0;
+            let mut num_cached = 0;
             // generate new chunks
-            if tick_time % 2 == 0 {
+            {
                 profiling::scope!("chunk update B");
 
                 let mut num_loaded_this_tick = 0;
@@ -354,7 +356,11 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                         CHUNK_SIZE,
                     );
 
-                    if state == ChunkState::NotGenerated {
+                    if state == ChunkState::Active {
+                        num_active += 1;
+                    } else if state == ChunkState::Cached {
+                        num_cached += 1;
+                    } else if state == ChunkState::NotGenerated {
                         if !unload_zone.iter().any(|z| rect.intersects(z)) {
                         } else if num_loaded_this_tick < 32 {
                             let chunk_x = self.loaded_chunks.get_mut(key).unwrap().get_chunk_x();
@@ -509,45 +515,12 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
 
                         self.gen_threads.push((e.0, rx));
                     }
-
-                    // let generated: Vec<_> = {
-                    //     profiling::scope!("gen");
-                    //     to_generate
-                    //         .into_par_iter()
-                    //         .map(|e| {
-                    //             profiling::register_thread!("Generation thread");
-                    //             profiling::scope!("chunk");
-
-                    //             // these arrays are too large for the stack
-
-                    //             let mut pixels = Box::new(
-                    //                 [MaterialInstance::air(); (CHUNK_SIZE * CHUNK_SIZE) as usize],
-                    //             );
-
-                    //             #[allow(clippy::cast_lossless)]
-                    //             let mut colors = Box::new(
-                    //                 [0; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize],
-                    //             );
-
-                    //             self.generator.generate(
-                    //                 e.1,
-                    //                 e.2,
-                    //                 seed,
-                    //                 &mut pixels,
-                    //                 &mut colors,
-                    //                 &mt_registries.read().unwrap(),
-                    //             );
-
-                    //             (e.0, pixels, colors)
-                    //         })
-                    //         .collect()
-                    // };
                 }
 
                 let mut generated = vec![];
 
                 self.gen_threads.retain_mut(|(_, v)| {
-                    if generated.len() < 16 {
+                    if generated.len() < if num_cached + num_active < 4 { 32 } else { 8 } {
                         if let Ok(Some(g)) = v.try_recv() {
                             generated.push(g);
                             false
@@ -558,9 +531,6 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                         true
                     }
                 });
-
-                // TODO
-                // let generated: Vec<(&u32, Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>, Box<[u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]>)> = vec![];
 
                 let keys: Vec<_> = generated
                     .into_iter()
@@ -597,7 +567,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
 
             // unloading NotGenerated or Generating chunks
             // populate chunks
-            if tick_time % 2 == 0 {
+            {
                 profiling::scope!("chunk update C");
 
                 let mut keep_map = vec![true; self.loaded_chunks.len()];
@@ -649,7 +619,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                     .unwrap()
                                     .set_state(ChunkState::Cached);
                             } else {
-                                if populated_num < 8
+                                if populated_num < if num_active < 16 { 32 } else { 8 }
                                     && [
                                         self.get_chunk(chunk_x - 1, chunk_y - 1),
                                         self.get_chunk(chunk_x, chunk_y - 1),
