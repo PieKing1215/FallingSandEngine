@@ -33,6 +33,7 @@ rayon = "1.5"
 itertools = "0.10"
 image = { version = "0.24", default_features = false, features = ["png"] }
 akin = "0.4"
+bracket-noise = "0.8"
 
 # mesh generation
 contour = "0.7"

@@ -1,3 +1,4 @@
+use bracket_noise::prelude::{FastNoise, NoiseType};
 use simdnoise::NoiseBuilder;
 
 use crate::game::{
@@ -39,39 +40,35 @@ impl Populator<0> for CavePopulator {
             .with_seed(seed)
             .generate();
 
-            for x in 0..i32::from(CHUNK_SIZE) {
-                for y in 0..i32::from(CHUNK_SIZE) {
-                    let i = (x + y * i32::from(CHUNK_SIZE)) as usize;
-                    let tu = (noise_turbulance.0[i] - -0.03) / 0.06;
+            let mut noise_ridge = FastNoise::seeded(seed as _);
+            noise_ridge.set_noise_type(NoiseType::Simplex);
+            noise_ridge.set_fractal_octaves(1);
+            noise_ridge.set_frequency(0.0005);
 
-                    let t_ofs = (tu * turbulance_scale as f32)
-                        .clamp(-(turbulance_scale as f32), turbulance_scale as f32);
-                    let t_x = x as f32 + t_ofs;
-                    let t_y = y as f32;
+            {
+                profiling::scope!("loop");
+                for x in 0..i32::from(CHUNK_SIZE) {
+                    for y in 0..i32::from(CHUNK_SIZE) {
+                        let i = (x + y * i32::from(CHUNK_SIZE)) as usize;
+                        let tu = (noise_turbulance.0[i] - -0.03) / 0.06;
 
-                    // offsetting by seed is a workaround for https://github.com/verpeteren/rust-simd-noise/issues/42
-                    let noise_base = NoiseBuilder::ridge_2d_offset(
-                        cofs_x + t_x + seed as f32 / 100_000.0,
-                        1,
-                        cofs_y + t_y,
-                        1,
-                    )
-                    .with_octaves(1)
-                    .with_lacunarity(1.8)
-                    .with_gain(0.65)
-                    .with_freq(0.0005)
-                    .with_seed(seed + 1)
-                    .generate();
+                        let t_ofs = (tu * turbulance_scale as f32)
+                            .clamp(-(turbulance_scale as f32), turbulance_scale as f32);
+                        let t_x = x as f32 + t_ofs;
+                        let t_y = y as f32;
 
-                    let f = (noise_base.0[0] - 0.98) / 0.02;
-                    if f > 0.7 {
-                        chunks.set(x, y, MaterialInstance::air()).unwrap();
+                        let nv = noise_ridge.get_noise(cofs_x + t_x, cofs_y + t_y);
+
+                        let f = 1.0 - (nv.abs()).clamp(0.0, 1.0);
+                        if f > 0.8 {
+                            chunks.set(x, y, MaterialInstance::air()).unwrap();
+                        }
+
+                        // let f = if f > 0.7 { 0.0 } else { 1.0 };
+                        // let mut m = *chunks.get(x, y).unwrap();
+                        // m.color = crate::game::common::world::material::color::Color::rgba(f, f, f, 1.0);
+                        // chunks.set(x, y, m).unwrap();
                     }
-
-                    // let f = if f > 0.6 { 0.0 } else { 1.0 };
-                    // let mut m = *chunks.get(x, y).unwrap();
-                    // m.color = Color::rgba(f, f, f, 1.0);
-                    // chunks.set(x, y, m).unwrap();
                 }
             }
         }
