@@ -201,6 +201,36 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
 
             {
                 profiling::scope!("chunk loading");
+
+                self.load_queue.sort_by(|(a_x, a_y), (b_x, b_y)| {
+                    let c1_x = a_x * i32::from(CHUNK_SIZE);
+                    let c1_y = a_y * i32::from(CHUNK_SIZE);
+                    let c2_x = b_x * i32::from(CHUNK_SIZE);
+                    let c2_y = b_y * i32::from(CHUNK_SIZE);
+
+                    let d1 = (&loaders, &positions)
+                        .join()
+                        .map(|(_, p)| {
+                            let x = (p.x as i32 - c1_x).abs();
+                            let y = (p.y as i32 - c1_y).abs();
+                            x + y
+                        })
+                        .min()
+                        .unwrap();
+
+                    let d2 = (&loaders, &positions)
+                        .join()
+                        .map(|(_, p)| {
+                            let x = (p.x as i32 - c2_x).abs();
+                            let y = (p.y as i32 - c2_y).abs();
+                            x + y
+                        })
+                        .min()
+                        .unwrap();
+
+                    d2.cmp(&d1)
+                });
+
                 for _ in 0..64 {
                     // TODO: don't load queued chunks if they are no longer in range
                     if let Some(to_load) = self.load_queue.pop() {
@@ -305,15 +335,13 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
         if settings.load_chunks && tick_time % 2 == 0 {
             let mut num_active = 0;
             let mut num_cached = 0;
+
             // generate new chunks
             {
                 profiling::scope!("chunk update B");
 
-                let mut num_loaded_this_tick = 0;
-
-                // get keys for all chunks
+                // get keys for all chunks sorted by distance to nearest loader
                 let mut keys = self.loaded_chunks.keys().copied().collect::<Vec<u32>>();
-                // sort keys by distance to nearest loader
                 if !loaders.is_empty() {
                     keys.sort_by(|a, b| {
                         let c1_x = self.loaded_chunks.get(a).unwrap().get_chunk_x()
@@ -348,6 +376,8 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                         d1.cmp(&d2)
                     });
                 }
+
+                let mut num_loaded_this_tick = 0;
 
                 // list of chunks that need to be generated
                 // u32 is key, i32s are chunk x and y
@@ -605,7 +635,14 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                     .unwrap()
                                     .set_state(ChunkState::Cached);
                             } else {
-                                if populated_num < if num_active < 16 { 32 } else { 8 }
+                                if populated_num
+                                    < if num_active < 16 {
+                                        32
+                                    } else if num_active < 64 {
+                                        16
+                                    } else {
+                                        8
+                                    }
                                     && [
                                         self.get_chunk(chunk_x - 1, chunk_y - 1),
                                         self.get_chunk(chunk_x, chunk_y - 1),
@@ -759,7 +796,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                             //   so multiple threads will not modify the same index in the array at the same time
                             // Assuming the hack here to mutably borrow multiple things out of a hashmap is sound (idk), the rest should be sound I think (TM)
 
-                            let arr = [
+                            let Some(arr) = [
                                 (-1, -1),
                                 (0, -1),
                                 (1, -1),
@@ -770,20 +807,23 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                 (0, 1),
                                 (1, 1),
                             ]
-                            .map(|(x, y)| {
-                                let raw: *mut [MaterialInstance;
-                                    (CHUNK_SIZE as usize * CHUNK_SIZE as usize)] = self
-                                    .loaded_chunks
-                                    .get_mut(&chunk_index(ch_pos.0 + x, ch_pos.1 + y))
-                                    .unwrap()
-                                    .get_pixels_mut()
-                                    .as_mut()
-                                    .unwrap();
-                                // blatantly bypassing the borrow checker, see safety comment above
-                                unsafe { &mut *raw }
-                            });
+                                .into_iter()
+                                .map(|(x, y)| {
+                                    let chunk = self.loaded_chunks.get_mut(&chunk_index(ch_pos.0 + x, ch_pos.1 + y));
+                                    chunk.and_then(|c| {
+                                        c.get_pixels_mut().as_mut().map(|raw| {
+                                            // blatantly bypassing the borrow checker, see safety comment above
+                                            unsafe { &mut *(raw as *mut _) }
+                                        })
+                                    })
+                                })
+                                .collect::<Option<Vec<_>>>()
+                                .map(|v| v.try_into().unwrap())
+                            else {
+                                continue;
+                            };
 
-                            let gr_arr = [
+                            let Some(gr_arr) = [
                                 (-1, -1),
                                 (0, -1),
                                 (1, -1),
@@ -794,17 +834,20 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                 (0, 1),
                                 (1, 1),
                             ]
-                            .map(|(x, y)| {
-                                let raw: *mut [u8; (CHUNK_SIZE as usize
-                                    * CHUNK_SIZE as usize
-                                    * 4)] = self
-                                    .loaded_chunks
-                                    .get_mut(&chunk_index(ch_pos.0 + x, ch_pos.1 + y))
-                                    .unwrap()
-                                    .get_colors_mut();
-                                // blatantly bypassing the borrow checker, see safety comment above
-                                unsafe { &mut *raw }
-                            });
+                                .into_iter()
+                                .map(|(x, y)| {
+                                    let chunk = self.loaded_chunks.get_mut(&chunk_index(ch_pos.0 + x, ch_pos.1 + y));
+                                    chunk.map(|c| {
+                                        let raw: *mut [u8; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)] = c.get_colors_mut();
+                                        // blatantly bypassing the borrow checker, see safety comment above
+                                        unsafe { &mut *raw }
+                                    })
+                                })
+                                .collect::<Option<Vec<_>>>()
+                                .map(|v| v.try_into().unwrap())
+                            else {
+                                continue;
+                            };
 
                             let dirty_arr = [
                                 (-1, -1),
