@@ -284,25 +284,21 @@ impl WorldGenerator for BiomeTestGenerator {
 
                     let biome = vals
                         .iter()
-                        .min_by(|((x1, y1), _v1), ((x2, y2), _v2)| {
-                            let dx1 = x1
-                                - (x as i64
-                                    + cofs_x as i64
-                                    + (ofs_x_1[i] * 1000.0 + ofs_x_2[i] * 500.0) as i64);
-                            let dy1 = y1
-                                - (y as i64
-                                    + cofs_y as i64
-                                    + (ofs_y_1[i] * 1000.0 + ofs_y_2[i] * 500.0) as i64);
+                        .min_by(|((x1, y1), _v1), ((x2, y2), _v2)| unsafe {
+                            let ox1 = ofs_x_1.get_unchecked(i) * 1000.0;
+                            let ox2 = ofs_x_2.get_unchecked(i) * 500.0;
+                            let oy1 = ofs_y_1.get_unchecked(i) * 1000.0;
+                            let oy2 = ofs_y_2.get_unchecked(i) * 500.0;
+
+                            let ox = x as i64 + cofs_x as i64 + (ox1 + ox2) as i64;
+                            let oy = y as i64 + cofs_y as i64 + (oy1 + oy2) as i64;
+
+                            let dx1 = x1 - ox;
+                            let dy1 = y1 - oy;
                             let d1 = dx1 * dx1 + dy1 * dy1;
 
-                            let dx2 = x2
-                                - (x as i64
-                                    + cofs_x as i64
-                                    + (ofs_x_1[i] * 1000.0 + ofs_x_2[i] * 500.0) as i64);
-                            let dy2 = y2
-                                - (y as i64
-                                    + cofs_y as i64
-                                    + (ofs_y_1[i] * 1000.0 + ofs_y_2[i] * 500.0) as i64);
+                            let dx2 = x2 - ox;
+                            let dy2 = y2 - oy;
                             let d2 = dx2 * dx2 + dy2 * dy2;
 
                             d1.cmp(&d2)
@@ -310,6 +306,7 @@ impl WorldGenerator for BiomeTestGenerator {
                         .unwrap()
                         .1;
 
+                    // using `get_unchecked` has no noticeable performance effect here
                     pixels[i] = biome.pixel(
                         chunk_pixel_x + x as i64,
                         chunk_pixel_y + y as i64,
