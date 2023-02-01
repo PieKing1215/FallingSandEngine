@@ -27,6 +27,7 @@ rapier2d = { version = "0.17", features = ["simd-stable"] }
 specs = { version = "0.18", features = ["serde", "specs-derive"] }
 num_cpus = "1.13"
 glutin = "0.29"
+# windows-sys = { version = "0.36", features = ["Win32_Graphics_OpenGL"] }
 
 [build-dependencies]
 chrono = "0.4"

@@ -24,6 +24,19 @@ pub fn main() -> Result<(), String> {
     #[cfg(feature = "profile")]
     profiling::tracy_client::Client::start();
 
+    // speeds up EventLoop::new but takes like 200ms
+    // only useful if something else can load first at the same time
+    // https://hero.handmade.network/forums/code-discussion/t/2503-%5Bday_235%5D_opengls_pixel_format_takes_a_long_time
+    //
+    // std::thread::spawn(|| {
+    //     profiling::scope!("glSpeedUp");
+    //     unsafe {
+    //         let dc = windows_sys::Win32::Graphics::Gdi::GetDC(0);
+    //         windows_sys::Win32::Graphics::OpenGL::DescribePixelFormat(dc, 0, 0, std::ptr::null_mut());
+    //         windows_sys::Win32::Graphics::Gdi::ReleaseDC(0, dc);
+    //     }
+    // });
+
     profiling::scope!("main");
 
     let build_data = BuildData {

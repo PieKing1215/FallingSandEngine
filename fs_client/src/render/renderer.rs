@@ -49,7 +49,12 @@ impl<'a> Renderer<'a> {
         let cb = glutin::ContextBuilder::new();
         let display = {
             profiling::scope!("glium::Display::new");
-            glium::Display::new(wb, cb, event_loop).unwrap()
+
+            let gl_window = {
+                profiling::scope!("build_windowed");
+                cb.build_windowed(wb, event_loop).unwrap()
+            };
+            unsafe { glium::Display::unchecked(gl_window) }.unwrap()
         };
 
         let egui_glium = {
