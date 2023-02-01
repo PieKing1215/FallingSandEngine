@@ -1243,7 +1243,7 @@ impl<C: Chunk> ChunkHandler<C> {
     #[profiling::function]
     pub fn new(generator: impl WorldGenerator + 'static, path: Option<PathBuf>) -> Self {
         ChunkHandler {
-            loaded_chunks: HashMap::<u32, C, BuildHasherDefault<PassThroughHasherU32>>::default(),
+            loaded_chunks: HashMap::with_capacity_and_hasher(1000, BuildHasherDefault::default()),
             load_queue: vec![],
             gen_pool: rayon::ThreadPoolBuilder::new()
                 .num_threads(2)
