@@ -18,6 +18,9 @@ impl Populator<1> for NearbyReplacePopulator {
         // otherwise this is basically just brute force
         // for each pixel that matches `searching_for`, scan around it and try to `replace`
 
+        let cofs_x = i64::from(chunks.center_chunk().0) * i64::from(CHUNK_SIZE);
+        let cofs_y = i64::from(chunks.center_chunk().1) * i64::from(CHUNK_SIZE);
+
         const OVERSCAN: u16 = 4;
 
         let mut skip_y = [0; CHUNK_SIZE as usize + OVERSCAN as usize * 2];
@@ -44,12 +47,8 @@ impl Populator<1> for NearbyReplacePopulator {
                             let m2 = chunks.get(x + dx, y + dy).unwrap();
                             if let Some(rep) = (self.replace)(
                                 m2,
-                                (i64::from(chunks.center_chunk().0) * i64::from(CHUNK_SIZE))
-                                    + i64::from(x)
-                                    + i64::from(dx),
-                                (i64::from(chunks.center_chunk().1) * i64::from(CHUNK_SIZE))
-                                    + i64::from(y)
-                                    + i64::from(dy),
+                                cofs_x + i64::from(x) + i64::from(dx),
+                                cofs_y + i64::from(y) + i64::from(dy),
                                 registries,
                             ) {
                                 chunks.set(x + dx, y + dy, rep).unwrap();
