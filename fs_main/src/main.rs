@@ -20,8 +20,12 @@ use tui::{
     Terminal,
 };
 
-#[profiling::function]
 pub fn main() -> Result<(), String> {
+    #[cfg(feature = "profile")]
+    profiling::tracy_client::Client::start();
+
+    profiling::scope!("main");
+
     let build_data = BuildData {
         datetime: option_env!("BUILD_DATETIME"),
         git_hash: option_env!("GIT_HASH"),

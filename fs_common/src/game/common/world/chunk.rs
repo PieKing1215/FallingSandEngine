@@ -225,7 +225,7 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     chunk_index_inv(key).1,
                                     e
                                 );
-                            };
+                            }
                             if let Err(e) = self.unload_chunk(key, physics) {
                                 log::error!(
                                     "Chunk @ {}, {} failed to unload: {:?}",
@@ -233,7 +233,7 @@ impl<C: Chunk> ChunkHandlerGeneric for ChunkHandler<C> {
                                     chunk_index_inv(key).1,
                                     e
                                 );
-                            };
+                            }
                             keep_map[i] = false;
                         } else if active_zone.iter().any(|z| rect.intersects(z)) {
                             let chunk_x = self.loaded_chunks.get(&key).unwrap().get_chunk_x();
