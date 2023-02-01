@@ -345,7 +345,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
 
                     if state == ChunkState::NotGenerated {
                         if !unload_zone.iter().any(|z| rect.intersects(z)) {
-                        } else if num_loaded_this_tick < 32 {
+                        } else if num_loaded_this_tick < 24 {
                             let chunk_x = self.loaded_chunks.get_mut(key).unwrap().get_chunk_x();
                             let chunk_y = self.loaded_chunks.get_mut(key).unwrap().get_chunk_y();
 
@@ -534,6 +534,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
 
                 let mut keep_map = vec![true; self.loaded_chunks.len()];
                 let keys = self.loaded_chunks.keys().copied().collect::<Vec<u32>>();
+                let mut populated_num = 0;
                 for i in 0..keys.len() {
                     let key = keys[i];
                     let state = self.loaded_chunks.get(&key).unwrap().get_state(); // copy
@@ -580,31 +581,33 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                     .unwrap()
                                     .set_state(ChunkState::Cached);
                             } else {
-                                if [
-                                    self.get_chunk(chunk_x - 1, chunk_y - 1),
-                                    self.get_chunk(chunk_x, chunk_y - 1),
-                                    self.get_chunk(chunk_x + 1, chunk_y - 1),
-                                    self.get_chunk(chunk_x - 1, chunk_y),
-                                    self.get_chunk(chunk_x, chunk_y),
-                                    self.get_chunk(chunk_x + 1, chunk_y),
-                                    self.get_chunk(chunk_x - 1, chunk_y + 1),
-                                    self.get_chunk(chunk_x, chunk_y + 1),
-                                    self.get_chunk(chunk_x + 1, chunk_y + 1),
-                                ]
-                                .iter()
-                                .all(|ch| {
-                                    if ch.is_none() {
-                                        return false;
-                                    }
+                                if populated_num < 8
+                                    && [
+                                        self.get_chunk(chunk_x - 1, chunk_y - 1),
+                                        self.get_chunk(chunk_x, chunk_y - 1),
+                                        self.get_chunk(chunk_x + 1, chunk_y - 1),
+                                        self.get_chunk(chunk_x - 1, chunk_y),
+                                        self.get_chunk(chunk_x, chunk_y),
+                                        self.get_chunk(chunk_x + 1, chunk_y),
+                                        self.get_chunk(chunk_x - 1, chunk_y + 1),
+                                        self.get_chunk(chunk_x, chunk_y + 1),
+                                        self.get_chunk(chunk_x + 1, chunk_y + 1),
+                                    ]
+                                    .iter()
+                                    .all(|ch| {
+                                        if ch.is_none() {
+                                            return false;
+                                        }
 
-                                    let state = ch.unwrap().get_state();
+                                        let state = ch.unwrap().get_state();
 
-                                    match state {
-                                        ChunkState::Cached | ChunkState::Active => true,
-                                        ChunkState::Generating(st) if st >= cur_stage => true,
-                                        _ => false,
-                                    }
-                                }) {
+                                        match state {
+                                            ChunkState::Cached | ChunkState::Active => true,
+                                            ChunkState::Generating(st) if st >= cur_stage => true,
+                                            _ => false,
+                                        }
+                                    })
+                                {
                                     let mut keys = Vec::new();
 
                                     let range = i32::from(cur_stage + 1);
@@ -653,6 +656,8 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                             .get_mut(&key)
                                             .unwrap()
                                             .set_state(ChunkState::Generating(cur_stage + 1));
+
+                                        populated_num += 1;
                                     }
                                 }
 
