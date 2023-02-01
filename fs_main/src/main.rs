@@ -48,7 +48,11 @@ pub fn main() -> Result<(), String> {
     let server = matches!(cl_args.subcommand, Some(CLSubcommand::Server { .. }));
     let client = !server;
 
-    std::env::set_var("RAYON_NUM_THREADS", format!("{}", num_cpus::get() - 1));
+    let cpus = num_cpus::get();
+    std::env::set_var(
+        "RAYON_NUM_THREADS",
+        format!("{}", (cpus - 4).max(2).min(cpus)),
+    );
 
     if server {
         crossterm::terminal::enable_raw_mode().unwrap();

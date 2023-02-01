@@ -453,7 +453,11 @@ impl ServerGame {
         self.0.tick_time += 1;
 
         if let Some(w) = &mut self.0.world {
-            w.tick(self.0.tick_time, &self.0.settings, &self.0.registries);
+            w.tick(
+                self.0.tick_time,
+                &self.0.settings,
+                self.0.registries.clone(),
+            );
         }
     }
 

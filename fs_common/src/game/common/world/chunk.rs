@@ -9,7 +9,9 @@ use std::collections::HashMap;
 use std::convert::TryInto;
 use std::hash::BuildHasherDefault;
 use std::path::PathBuf;
+use std::sync::Arc;
 
+use futures::channel::oneshot::Receiver;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
 use rapier2d::prelude::{Collider, RigidBody, RigidBodyHandle};
@@ -84,11 +86,20 @@ pub enum ChunkState {
 pub struct ChunkHandler<C: Chunk> {
     pub loaded_chunks: HashMap<u32, C, BuildHasherDefault<PassThroughHasherU32>>,
     pub load_queue: Vec<(i32, i32)>,
+    pub gen_pool: rayon::ThreadPool,
+    pub gen_threads: Vec<(u32, Receiver<ChunkGenOutput>)>,
     /** The size of the "presentable" area (not necessarily the current window size) */
     pub screen_size: (u16, u16),
-    pub generator: Box<dyn WorldGenerator>,
+    pub generator: Arc<dyn WorldGenerator>,
     pub path: Option<PathBuf>,
 }
+
+#[allow(clippy::cast_lossless)]
+pub type ChunkGenOutput = (
+    u32,
+    Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
+    Box<[u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]>,
+);
 
 pub trait ChunkHandlerGeneric {
     fn update_chunk_graphics(&mut self);
@@ -98,7 +109,7 @@ pub trait ChunkHandlerGeneric {
         settings: &Settings,
         world: &mut specs::World,
         physics: &mut Physics,
-        registries: &Registries,
+        registries: Arc<Registries>,
         seed: i32,
     );
     fn save_chunk(&mut self, index: u32) -> Result<(), Box<dyn std::error::Error>>;
@@ -150,7 +161,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
         settings: &Settings,
         world: &mut specs::World,
         physics: &mut Physics,
-        registries: &Registries,
+        registries: Arc<Registries>,
         seed: i32,
     ) {
         profiling::scope!("tick");
@@ -345,11 +356,15 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
 
                     if state == ChunkState::NotGenerated {
                         if !unload_zone.iter().any(|z| rect.intersects(z)) {
-                        } else if num_loaded_this_tick < 24 {
+                        } else if num_loaded_this_tick < 32 {
                             let chunk_x = self.loaded_chunks.get_mut(key).unwrap().get_chunk_x();
                             let chunk_y = self.loaded_chunks.get_mut(key).unwrap().get_chunk_y();
 
                             let mut should_generate = true;
+
+                            if self.gen_threads.iter().any(|(k, _)| k == key) {
+                                should_generate = false;
+                            }
 
                             if let Some(path) = &self.path {
                                 let chunk_path_root = path.join("chunks/");
@@ -450,14 +465,9 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                             }
 
                             if should_generate {
-                                self.loaded_chunks
-                                    .get_mut(key)
-                                    .unwrap()
-                                    .set_state(ChunkState::Generating(0));
-                                to_generate.push((key, chunk_x, chunk_y));
+                                to_generate.push((*key, chunk_x, chunk_y));
+                                num_loaded_this_tick += 1;
                             }
-
-                            num_loaded_this_tick += 1;
                         }
                     }
                 }
@@ -465,65 +475,123 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                 if !to_generate.is_empty() {
                     profiling::scope!("gen chunks");
 
-                    let mt_registries = std::sync::RwLock::new(registries);
+                    let mt_registries = registries.clone();
 
-                    let generated: Vec<_> = {
-                        profiling::scope!("gen");
-                        to_generate
-                            .into_par_iter()
-                            .map(|e| {
-                                profiling::register_thread!("Generation thread");
-                                profiling::scope!("chunk");
+                    for e in to_generate {
+                        let generator = self.generator.clone();
+                        let reg = mt_registries.clone();
+                        let (tx, rx) = futures::channel::oneshot::channel();
+                        self.gen_pool.spawn_fifo(move || {
+                            profiling::register_thread!("Generation thread");
+                            profiling::scope!("chunk");
 
-                                // these arrays are too large for the stack
+                            // these arrays are too large for the stack
 
-                                let mut pixels = Box::new(
-                                    [MaterialInstance::air(); (CHUNK_SIZE * CHUNK_SIZE) as usize],
-                                );
+                            let mut pixels = Box::new(
+                                [MaterialInstance::air(); (CHUNK_SIZE * CHUNK_SIZE) as usize],
+                            );
 
-                                #[allow(clippy::cast_lossless)]
-                                let mut colors = Box::new(
-                                    [0; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize],
-                                );
+                            #[allow(clippy::cast_lossless)]
+                            let mut colors =
+                                Box::new([0; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]);
 
-                                self.generator.generate(
-                                    e.1,
-                                    e.2,
-                                    seed,
-                                    &mut pixels,
-                                    &mut colors,
-                                    &mt_registries.read().unwrap(),
-                                );
+                            generator.generate(
+                                e.1,
+                                e.2,
+                                seed,
+                                &mut pixels,
+                                &mut colors,
+                                reg.as_ref(),
+                            );
 
-                                (e.0, pixels, colors)
-                            })
-                            .collect()
-                    };
+                            tx.send((e.0, pixels, colors)).unwrap();
+                        });
 
-                    let keys: Vec<_> = generated
-                        .into_iter()
-                        .map(|ch| {
-                            profiling::scope!("finish chunk");
+                        self.gen_threads.push((e.0, rx));
+                    }
 
-                            let chunk = self.loaded_chunks.get_mut(ch.0).unwrap();
+                    // let generated: Vec<_> = {
+                    //     profiling::scope!("gen");
+                    //     to_generate
+                    //         .into_par_iter()
+                    //         .map(|e| {
+                    //             profiling::register_thread!("Generation thread");
+                    //             profiling::scope!("chunk");
+
+                    //             // these arrays are too large for the stack
+
+                    //             let mut pixels = Box::new(
+                    //                 [MaterialInstance::air(); (CHUNK_SIZE * CHUNK_SIZE) as usize],
+                    //             );
+
+                    //             #[allow(clippy::cast_lossless)]
+                    //             let mut colors = Box::new(
+                    //                 [0; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize],
+                    //             );
+
+                    //             self.generator.generate(
+                    //                 e.1,
+                    //                 e.2,
+                    //                 seed,
+                    //                 &mut pixels,
+                    //                 &mut colors,
+                    //                 &mt_registries.read().unwrap(),
+                    //             );
+
+                    //             (e.0, pixels, colors)
+                    //         })
+                    //         .collect()
+                    // };
+                }
+
+                let mut generated = vec![];
+
+                self.gen_threads.retain_mut(|(_, v)| {
+                    if generated.len() < 16 {
+                        if let Ok(Some(g)) = v.try_recv() {
+                            generated.push(g);
+                            false
+                        } else {
+                            true
+                        }
+                    } else {
+                        true
+                    }
+                });
+
+                // TODO
+                // let generated: Vec<(&u32, Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>, Box<[u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]>)> = vec![];
+
+                let keys: Vec<_> = generated
+                    .into_iter()
+                    .filter_map(|ch| {
+                        profiling::scope!("finish chunk");
+
+                        self.loaded_chunks.get_mut(&ch.0).map(|chunk| {
+                            chunk.set_state(ChunkState::Generating(0));
                             chunk.set_pixels(*ch.1);
                             chunk.set_pixel_colors(*ch.2);
-
-                            *ch.0
+                            ch.0
                         })
-                        .collect();
+                    })
+                    .collect();
 
-                    let pops = self.generator.populators();
-                    {
-                        profiling::scope!("populate stage 0");
-                        self.loaded_chunks
-                            .get_many_var_mut(&keys)
-                            .unwrap()
-                            .into_par_iter()
-                            .for_each(|chunk| {
-                                pops.populate(0, &mut [chunk as &mut dyn Chunk], seed, registries);
-                            });
-                    }
+                let pops = self.generator.populators();
+                {
+                    profiling::scope!("populate stage 0");
+                    self.loaded_chunks
+                        .get_many_var_mut(&keys)
+                        .unwrap()
+                        .into_par_iter()
+                        .for_each(|chunk| {
+                            profiling::scope!("populate thread");
+                            pops.populate(
+                                0,
+                                &mut [chunk as &mut dyn Chunk],
+                                seed,
+                                registries.as_ref(),
+                            );
+                        });
                 }
             }
 
@@ -641,7 +709,12 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                                     )),
                                             );
                                             for feat in self.generator.features() {
-                                                feat.generate(&mut ctx, seed, &mut rng, registries);
+                                                feat.generate(
+                                                    &mut ctx,
+                                                    seed,
+                                                    &mut rng,
+                                                    registries.as_ref(),
+                                                );
                                             }
                                         }
 
@@ -649,7 +722,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                             cur_stage + 1,
                                             &mut chunks_dyn,
                                             seed,
-                                            registries,
+                                            registries.as_ref(),
                                         );
 
                                         self.loaded_chunks
@@ -1172,8 +1245,13 @@ impl<C: Chunk> ChunkHandler<C> {
         ChunkHandler {
             loaded_chunks: HashMap::<u32, C, BuildHasherDefault<PassThroughHasherU32>>::default(),
             load_queue: vec![],
+            gen_pool: rayon::ThreadPoolBuilder::new()
+                .num_threads(2)
+                .build()
+                .expect("Failed to build gen_poool"),
+            gen_threads: vec![],
             screen_size: (1920 / 2, 1080 / 2),
-            generator: Box::new(generator),
+            generator: Arc::new(generator),
             path,
         }
     }

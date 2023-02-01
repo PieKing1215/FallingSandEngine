@@ -3,6 +3,7 @@ use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
     path::PathBuf,
+    sync::Arc,
     time::Duration,
 };
 
@@ -385,7 +386,7 @@ impl<C: Chunk + Send> World<C> {
 
 impl<C: Chunk + Send + Sync> World<C> {
     #[profiling::function]
-    pub fn tick(&mut self, tick_time: u32, settings: &Settings, registries: &Registries) {
+    pub fn tick(&mut self, tick_time: u32, settings: &Settings, registries: Arc<Registries>) {
         *self.ecs.write_resource::<TickTime>() = TickTime(tick_time);
 
         {

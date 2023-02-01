@@ -780,7 +780,7 @@ impl ClientGame {
             w.tick(
                 self.data.tick_time,
                 &self.data.settings,
-                &self.data.registries,
+                self.data.registries.clone(),
             );
         }
     }

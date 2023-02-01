@@ -43,7 +43,7 @@ pub const SMOOTH_STONE: MaterialPlacerID = 7;
 pub const SMOOTH_DIRT: MaterialPlacerID = 8;
 
 pub type MaterialPlacerRegistry =
-    Registry<MaterialID, (MaterialPlacerMeta, Box<dyn MaterialPlacer>)>;
+    Registry<MaterialID, (MaterialPlacerMeta, Box<dyn MaterialPlacer + Send>)>;
 
 #[allow(clippy::too_many_lines)]
 pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry {
@@ -53,7 +53,7 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
         AIR_PLACER,
         (
             MaterialPlacerMeta { display_name: "Air".to_string() },
-            Box::new(MaterialInstance::air) as Box<dyn MaterialPlacer>,
+            Box::new(MaterialInstance::air) as Box<dyn MaterialPlacer + Send>,
         ),
     );
 

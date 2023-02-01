@@ -19,7 +19,7 @@ mod tests {
 
     #[test]
     fn chunk_loading() {
-        let registries = Registries::empty();
+        let registries = std::sync::Arc::new(Registries::empty());
 
         let mut ch: ChunkHandler<ServerChunk> =
             ChunkHandler::<ServerChunk>::new(TestGenerator::new(), None);
@@ -68,9 +68,23 @@ mod tests {
 
         let mut phys = Physics::new();
 
-        ch.tick(0, &Settings::default(), &mut ecs, &mut phys, &registries, 2);
+        ch.tick(
+            0,
+            &Settings::default(),
+            &mut ecs,
+            &mut phys,
+            registries.clone(),
+            2,
+        );
         while !ch.load_queue.is_empty() {
-            ch.tick(0, &Settings::default(), &mut ecs, &mut phys, &registries, 2);
+            ch.tick(
+                0,
+                &Settings::default(),
+                &mut ecs,
+                &mut phys,
+                registries.clone(),
+                2,
+            );
         }
 
         assert!(ch.is_chunk_loaded(11, -12));
@@ -102,7 +116,7 @@ mod tests {
 
         // should unload since no loaders are nearby
         assert_eq!(ecs.delete_entity(loader), Ok(()));
-        ch.tick(0, &Settings::default(), &mut ecs, &mut phys, &registries, 2);
+        ch.tick(0, &Settings::default(), &mut ecs, &mut phys, registries, 2);
 
         assert!(!ch.is_chunk_loaded(11, -12));
         assert!(!ch.is_chunk_loaded(-3, 2));

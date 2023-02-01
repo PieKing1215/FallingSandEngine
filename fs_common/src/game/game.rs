@@ -1,6 +1,7 @@
 use crate::game::common::world::World;
 use crate::game::common::Settings;
 
+use std::sync::Arc;
 use std::time::Instant;
 
 use super::common::world::material::placer::MaterialPlacerRegistry;
@@ -37,7 +38,7 @@ pub struct GameData<C: Chunk> {
     pub process_stats: ProcessStats,
     pub settings: Settings,
     pub file_helper: FileHelper,
-    pub registries: Registries,
+    pub registries: Arc<Registries>,
     pub build_data: BuildData,
 }
 
@@ -81,7 +82,7 @@ impl<C: Chunk + Send> GameData<C> {
             },
             process_stats: ProcessStats { cpu_usage: None, memory: None },
             settings: Settings::default(),
-            registries: Registries::init(&file_helper),
+            registries: Arc::new(Registries::init(&file_helper)),
             file_helper,
             build_data,
         }
