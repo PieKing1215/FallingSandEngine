@@ -459,7 +459,7 @@ impl ClientGame {
                                             .expect("World meta file has no parent directory ??")
                                             .to_path_buf(),
                                         ),
-                                        Some(2), // TODO: save/load seed from file
+                                        Some(3), // TODO: save/load seed from file
                                     ));
 
                                     if let Some(w) = &mut self.data.world {
