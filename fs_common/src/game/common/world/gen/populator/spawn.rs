@@ -35,7 +35,7 @@ impl Populator<0> for SpawnPopulator {
                                 .pixel(wx, wy),
                         )
                         .unwrap();
-                } else if (wy + 32).abs() < 64 {
+                } else if wx.abs() < 150 && (wy + 32).abs() < 64 {
                     chunks.set(x, y, MaterialInstance::air()).unwrap();
                 }
             }
