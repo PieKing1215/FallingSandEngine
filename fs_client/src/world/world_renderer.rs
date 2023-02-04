@@ -7,6 +7,7 @@ use fs_common::game::common::{
         entity::{
             GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState, PlayerMovementMode,
         },
+        gen::structure::StructureNode,
         material::color::Color,
         particle::ParticleSystem,
         physics::PHYSICS_SCALE,
@@ -603,13 +604,52 @@ impl WorldRenderer {
         {
             profiling::scope!("ecs debug");
 
-            let (game_entity_storage, position_storage, velocity_storage, physics_storage) =
-                world.ecs.system_data::<(
-                    ReadStorage<GameEntity>,
-                    ReadStorage<Position>,
-                    ReadStorage<Velocity>,
-                    ReadStorage<PhysicsEntity>,
-                )>();
+            let (
+                game_entity_storage,
+                position_storage,
+                velocity_storage,
+                physics_storage,
+                node_storage,
+            ) = world.ecs.system_data::<(
+                ReadStorage<GameEntity>,
+                ReadStorage<Position>,
+                ReadStorage<Velocity>,
+                ReadStorage<PhysicsEntity>,
+                ReadStorage<StructureNode>,
+            )>();
+
+            (&position_storage, &node_storage)
+                .join()
+                .for_each(|(pos, node)| {
+                    let mut draw = |x: f64, y: f64, alpha: u8| {
+                        target.transform.push();
+                        target.transform.translate(x, y);
+
+                        let (x1, y1) = (
+                            -((node.depth + 1) as f64 * 3.0),
+                            -((node.depth + 1) as f64 * 3.0),
+                        );
+                        let (x2, y2) = (
+                            ((node.depth + 1) as f64 * 3.0),
+                            ((node.depth + 1) as f64 * 3.0),
+                        );
+
+                        target.rectangle(
+                            Rect::new(x1 as f32, y1 as f32, x2 as f32, y2 as f32),
+                            Color::rgba(64, 64, 255, alpha),
+                            DrawParameters {
+                                polygon_mode: PolygonMode::Fill,
+                                line_width: Some(1.0),
+                                blend: Blend::alpha_blending(),
+                                ..Default::default()
+                            },
+                        );
+
+                        target.transform.pop();
+                    };
+
+                    draw(pos.x, pos.y, if node.generated { 80 } else { 255 });
+                });
 
             (
                 &game_entity_storage,

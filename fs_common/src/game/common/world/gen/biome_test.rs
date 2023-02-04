@@ -13,7 +13,7 @@ use crate::game::common::world::CHUNK_SIZE;
 use super::{
     biome::BiomePlacementParameter,
     feature::{
-        features::blob::Blob,
+        features::{blob::Blob, test_structure::TestStructure},
         placement_mods::{
             chance::Chance, count::Count, material_match::MaterialMatch,
             random_offset::RandomOffset,
@@ -163,6 +163,9 @@ impl BiomeTestGenerator {
             .placement(Count::range(0..=2))
             .placement(RandomOffset::chunk())
             .placement(MaterialMatch::physics(PhysicsType::Solid)),
+            PlacedFeature::new(TestStructure)
+                .placement(Chance(0.025))
+                .placement(RandomOffset::chunk()),
         ];
 
         Self { populators, features }

@@ -28,6 +28,7 @@ impl ConfiguredFeature for SinglePixel {
         _seed: i32,
         _rng: &mut dyn RngCore,
         registries: &Registries,
+        _ecs: &mut specs::World,
     ) {
         let (cx, cy) = chunks.center_chunk();
         let m = registries

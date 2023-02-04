@@ -1,5 +1,6 @@
 use crate::game::common::hashmap_ext::HashMapExt;
 use crate::game::common::world::gen::populator::ChunkContext;
+use crate::game::common::world::gen::structure::UpdateStructureNodes;
 use crate::game::common::world::particle::ParticleSystem;
 use crate::game::common::world::simulator::Simulator;
 use crate::game::common::world::{Loader, Position};
@@ -17,7 +18,7 @@ use rand::SeedableRng;
 use rapier2d::prelude::{Collider, RigidBody, RigidBodyHandle};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
-use specs::{Join, ReadStorage, WorldExt};
+use specs::{Join, ReadStorage, RunNow, WorldExt};
 
 use super::gen::WorldGenerator;
 use super::material::{color::Color, PhysicsType};
@@ -581,6 +582,9 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                 }
             }
 
+            drop(loaders);
+            drop(positions);
+
             // unloading NotGenerated or Generating chunks
             // populate chunks
             {
@@ -707,6 +711,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                                     seed,
                                                     &mut rng,
                                                     registries.as_ref(),
+                                                    world,
                                                 );
                                             }
                                         }
@@ -752,13 +757,14 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                     }
                 }
 
+                let mut update_particles = UpdateStructureNodes { chunk_handler: self };
+                update_particles.run_now(world);
+                world.maintain();
+
                 let mut iter = keep_map.iter();
                 self.loaded_chunks.retain(|_, _| *iter.next().unwrap());
             }
         }
-
-        drop(loaders);
-        drop(positions);
 
         if settings.simulate_chunks {
             profiling::scope!("chunk simulate");

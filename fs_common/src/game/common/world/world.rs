@@ -30,7 +30,7 @@ use super::{
         CollisionDetector, GameEntity, Hitbox, Persistent, PhysicsEntity, Player,
         UpdatePhysicsEntities,
     },
-    gen::biome_test::BiomeTestGenerator,
+    gen::{biome_test::BiomeTestGenerator, structure::StructureNode},
     material::{self, color::Color, MaterialInstance, PhysicsType},
     particle::{Particle, ParticleSystem, UpdateParticles},
     physics::Physics,
@@ -77,6 +77,7 @@ impl<C: Chunk + Send> World<C> {
         ecs.register::<Persistent>();
         ecs.register::<RigidBodyComponent>();
         ecs.register::<CollisionDetector>();
+        ecs.register::<StructureNode>();
 
         if let Some(path) = &path {
             let particles_path = path.join("particles.dat");

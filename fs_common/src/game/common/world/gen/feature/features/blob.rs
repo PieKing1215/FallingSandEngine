@@ -51,6 +51,7 @@ impl ConfiguredFeature for Blob {
         seed: i32,
         rng: &mut dyn rand::RngCore,
         registries: &Registries,
+        _ecs: &mut specs::World,
     ) {
         let (chunk_x, chunk_y) = chunks.center_chunk();
         let chunk_pixel_x = chunk_x * i32::from(CHUNK_SIZE);

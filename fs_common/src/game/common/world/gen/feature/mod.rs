@@ -19,6 +19,7 @@ pub trait ConfiguredFeature: Debug {
         seed: i32,
         rng: &mut dyn RngCore,
         registries: &Registries,
+        ecs: &mut specs::World,
     );
 }
 
@@ -45,6 +46,7 @@ impl PlacedFeature {
         seed: i32,
         rng: &mut dyn RngCore,
         registries: &Registries,
+        ecs: &mut specs::World,
     ) {
         let mut positions = vec![(0, 0)];
         for m in &self.placement_mods {
@@ -55,7 +57,8 @@ impl PlacedFeature {
         }
 
         for pos in positions {
-            self.feature.try_place(chunks, pos, seed, rng, registries);
+            self.feature
+                .try_place(chunks, pos, seed, rng, registries, ecs);
         }
     }
 }

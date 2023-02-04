@@ -2,6 +2,7 @@ pub mod biome;
 pub mod biome_test;
 pub mod feature;
 pub mod populator;
+pub mod structure;
 mod test;
 
 use std::boxed::Box;
