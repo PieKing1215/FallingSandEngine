@@ -644,12 +644,9 @@ impl WorldRenderer {
                             );
 
                             if let Some(vel) = vel {
-                                let (vel_x1, vel_y1) = target.transform.transform((0.0, 0.0));
-                                let (vel_x2, vel_y2) = target.transform.transform((vel.x, vel.y));
-
                                 target.line(
-                                    (vel_x1, vel_y1),
-                                    (vel_x2, vel_y2),
+                                    (0.0, 0.0),
+                                    (vel.x, vel.y),
                                     Color::rgba(64, 255, 64, alpha),
                                     DrawParameters {
                                         polygon_mode: PolygonMode::Line,

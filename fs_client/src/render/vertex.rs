@@ -19,6 +19,18 @@ impl From<(f32, f32)> for Vertex2 {
     }
 }
 
+impl From<[f64; 2]> for Vertex2 {
+    fn from(position: [f64; 2]) -> Self {
+        Vertex2 { position: [position[0] as _, position[1] as _] }
+    }
+}
+
+impl From<(f64, f64)> for Vertex2 {
+    fn from(v: (f64, f64)) -> Self {
+        Vertex2 { position: [v.0 as _, v.1 as _] }
+    }
+}
+
 #[derive(Copy, Clone)]
 pub struct Vertex2T {
     pub position: [f32; 2],
