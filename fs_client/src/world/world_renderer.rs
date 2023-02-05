@@ -646,9 +646,31 @@ impl WorldRenderer {
                         );
 
                         target.transform.pop();
+
+                        if let Some(Ok(gen)) = &node.generated {
+                            target.rectangle(
+                                Rect::new(
+                                    gen.bounds.x1 as f32,
+                                    gen.bounds.y1 as f32,
+                                    gen.bounds.x2 as f32,
+                                    gen.bounds.y2 as f32,
+                                ),
+                                Color::rgba(64, 255, 255, alpha),
+                                DrawParameters {
+                                    polygon_mode: PolygonMode::Fill,
+                                    line_width: Some(1.0),
+                                    blend: Blend::alpha_blending(),
+                                    ..Default::default()
+                                },
+                            );
+                        }
                     };
 
-                    draw(pos.x, pos.y, if node.generated { 80 } else { 255 });
+                    draw(
+                        pos.x,
+                        pos.y,
+                        if node.generated.is_some() { 80 } else { 255 },
+                    );
                 });
 
             (

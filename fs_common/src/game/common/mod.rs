@@ -87,6 +87,17 @@ impl<T: Copy + std::ops::Add<Output = T> + std::cmp::PartialOrd + std::ops::Sub<
     }
 
     #[inline]
+    #[must_use]
+    pub fn inflated(&self, add: T) -> Self {
+        Self {
+            x1: self.x1 - add,
+            y1: self.y1 - add,
+            x2: self.x2 + add,
+            y2: self.y2 + add,
+        }
+    }
+
+    #[inline]
     pub fn intersects(&self, other: &Self) -> bool {
         !(self.bottom() < other.top()
             || self.top() > other.bottom()

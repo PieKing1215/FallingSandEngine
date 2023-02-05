@@ -21,6 +21,6 @@ impl ConfiguredFeature for TestStructure {
         let (cx, cy) = chunks.center_chunk();
         let x = i64::from(cx * i32::from(CHUNK_SIZE)) + i64::from(pos.0);
         let y = i64::from(cy * i32::from(CHUNK_SIZE)) + i64::from(pos.1);
-        StructureNode::create_and_add(ecs, Position { x: x as _, y: y as _ }, 2, rng.gen());
+        StructureNode::create_and_add(ecs, Position { x: x as _, y: y as _ }, 4, rng.gen());
     }
 }
