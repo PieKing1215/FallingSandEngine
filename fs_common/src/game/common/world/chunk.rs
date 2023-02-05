@@ -716,6 +716,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                                     registries.as_ref(),
                                                     world,
                                                 );
+                                                world.maintain();
                                             }
                                         }
 

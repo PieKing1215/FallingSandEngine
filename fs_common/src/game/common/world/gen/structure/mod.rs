@@ -1,4 +1,6 @@
-use rand::{rngs::StdRng, Rng, RngCore, SeedableRng};
+use rand::{
+    distributions::Standard, prelude::Distribution, rngs::StdRng, Rng, RngCore, SeedableRng,
+};
 use specs::{
     Builder, Component, Entities, Entity, HashMapStorage, Join, System, WorldExt, WriteStorage,
 };
@@ -13,12 +15,55 @@ use crate::game::common::{
     Rect,
 };
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+impl Direction {
+    #[must_use]
+    pub fn others(self) -> [Self; 3] {
+        match self {
+            Direction::Up => [Direction::Down, Direction::Left, Direction::Right],
+            Direction::Down => [Direction::Up, Direction::Left, Direction::Right],
+            Direction::Left => [Direction::Up, Direction::Down, Direction::Right],
+            Direction::Right => [Direction::Up, Direction::Down, Direction::Left],
+        }
+    }
+
+    #[must_use]
+    pub fn opposite(self) -> Self {
+        match self {
+            Direction::Up => Direction::Down,
+            Direction::Down => Direction::Up,
+            Direction::Left => Direction::Right,
+            Direction::Right => Direction::Left,
+        }
+    }
+}
+
+impl Distribution<Direction> for Standard {
+    fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Direction {
+        match rng.gen_range(0..=3) {
+            0 => Direction::Up,
+            1 => Direction::Down,
+            2 => Direction::Left,
+            _ => Direction::Right,
+        }
+    }
+}
+
 pub struct StructureNode {
     pub parent: Option<Entity>,
     pub children: Vec<Entity>,
     pub generated: Option<Result<StructureNodeGenData, ()>>,
     pub depth: u8,
     pub rng: Box<dyn RngCore + Send + Sync>,
+    /// Direction to parent
+    pub direction: Direction,
 }
 
 pub struct StructureNodeGenData {
@@ -27,7 +72,7 @@ pub struct StructureNodeGenData {
 
 impl StructureNode {
     pub fn create_and_add(ecs: &mut specs::World, pos: Position, depth: u8, seed: i32) -> Entity {
-        let rng = StdRng::seed_from_u64(seed as u64);
+        let mut rng = StdRng::seed_from_u64(seed as u64);
         let player = ecs
             .create_entity()
             .with(StructureNode {
@@ -35,6 +80,7 @@ impl StructureNode {
                 children: vec![],
                 generated: None,
                 depth,
+                direction: rng.gen(),
                 rng: Box::new(rng),
             })
             .with(Persistent)
@@ -53,10 +99,10 @@ pub struct UpdateStructureNodes<'a, H: ChunkHandlerGeneric + Send> {
     pub chunk_handler: &'a mut H,
 }
 
-fn is_finished(p: Entity, node_storage: &WriteStorage<StructureNode>) -> bool {
-    let n = node_storage.get(p).unwrap();
-    n.generated.is_some() && n.children.iter().all(|c| is_finished(*c, node_storage))
-}
+// fn is_finished(p: Entity, node_storage: &WriteStorage<StructureNode>) -> bool {
+//     let n = node_storage.get(p).unwrap();
+//     n.generated.is_some() && n.children.iter().all(|c| is_finished(*c, node_storage))
+// }
 
 fn root<'a>(
     e: Entity,
@@ -150,9 +196,23 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
 
                 // 4 placement attempts
                 for _ in 0..4 {
-                    let w = node.rng.gen_range(100.0..=200.0);
-                    let h = node.rng.gen_range(25.0..=200.0);
-                    let bounds = Rect::new(pos.x, pos.y - h / 2.0, pos.x + w, pos.y + h / 2.0);
+                    let w = node.rng.gen_range(100.0..=200.0_f64).trunc();
+                    let h = node.rng.gen_range(25.0..=200.0_f64).trunc();
+
+                    let bounds = match node.direction {
+                        Direction::Up => {
+                            Rect::new(pos.x - w / 2.0, pos.y, pos.x + w / 2.0, pos.y + h)
+                        },
+                        Direction::Down => {
+                            Rect::new(pos.x - w / 2.0, pos.y - h, pos.x + w / 2.0, pos.y)
+                        },
+                        Direction::Left => {
+                            Rect::new(pos.x, pos.y - h / 2.0, pos.x + w, pos.y + h / 2.0)
+                        },
+                        Direction::Right => {
+                            Rect::new(pos.x - w, pos.y - h / 2.0, pos.x, pos.y + h / 2.0)
+                        },
+                    };
 
                     let ok = !all_bounds
                         .iter()
@@ -187,6 +247,28 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
                             let mut children = vec![];
 
                             for _ in 0..5 {
+                                let new_dir =
+                                    node.direction.opposite().others()[node.rng.gen_range(0..3)];
+
+                                let (x, y) = match new_dir {
+                                    Direction::Up => (
+                                        node.rng.gen_range(bounds.range_lr()).trunc(),
+                                        bounds.bottom().trunc() + 1.0,
+                                    ),
+                                    Direction::Down => (
+                                        node.rng.gen_range(bounds.range_lr()).trunc(),
+                                        bounds.top().trunc() - 1.0,
+                                    ),
+                                    Direction::Left => (
+                                        bounds.right().trunc() + 1.0,
+                                        node.rng.gen_range(bounds.range_tb()).trunc(),
+                                    ),
+                                    Direction::Right => (
+                                        bounds.left().trunc() - 1.0,
+                                        node.rng.gen_range(bounds.range_tb()).trunc(),
+                                    ),
+                                };
+
                                 let rng = StdRng::seed_from_u64(node.rng.gen());
                                 children.push((
                                     entity,
@@ -196,11 +278,9 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
                                         generated: None,
                                         depth: node.depth - 1,
                                         rng: Box::new(rng),
+                                        direction: new_dir,
                                     },
-                                    Position {
-                                        x: bounds.right(),
-                                        y: node.rng.gen_range(bounds.range_tb()),
-                                    },
+                                    Position { x, y },
                                 ));
                             }
 
@@ -227,10 +307,10 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
             node_storage.get_mut(parent).unwrap().children.push(c);
         }
 
-        for p in to_check {
-            if is_finished(p, &node_storage) {
-                entities.delete(p).unwrap();
-            }
-        }
+        // for p in to_check {
+        //     if is_finished(p, &node_storage) {
+        //         entities.delete(p).unwrap();
+        //     }
+        // }
     }
 }

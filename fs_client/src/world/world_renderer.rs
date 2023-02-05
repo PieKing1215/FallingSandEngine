@@ -618,60 +618,64 @@ impl WorldRenderer {
                 ReadStorage<StructureNode>,
             )>();
 
+            let mut snode_rects_1 = vec![];
+            let mut snode_rects_2 = vec![];
             (&position_storage, &node_storage)
                 .join()
                 .for_each(|(pos, node)| {
-                    let mut draw = |x: f64, y: f64, alpha: u8| {
-                        target.transform.push();
-                        target.transform.translate(x, y);
+                    target.transform.push();
+                    target.transform.translate(pos.x, pos.y);
 
-                        let (x1, y1) = (
-                            -((node.depth + 1) as f64 * 3.0),
-                            -((node.depth + 1) as f64 * 3.0),
-                        );
-                        let (x2, y2) = (
-                            ((node.depth + 1) as f64 * 3.0),
-                            ((node.depth + 1) as f64 * 3.0),
-                        );
-
-                        target.rectangle(
-                            Rect::new(x1 as f32, y1 as f32, x2 as f32, y2 as f32),
-                            Color::rgba(64, 64, 255, alpha),
-                            DrawParameters {
-                                polygon_mode: PolygonMode::Fill,
-                                line_width: Some(1.0),
-                                blend: Blend::alpha_blending(),
-                                ..Default::default()
-                            },
-                        );
-
-                        target.transform.pop();
-
-                        if let Some(Ok(gen)) = &node.generated {
-                            target.rectangle(
-                                Rect::new(
-                                    gen.bounds.x1 as f32,
-                                    gen.bounds.y1 as f32,
-                                    gen.bounds.x2 as f32,
-                                    gen.bounds.y2 as f32,
-                                ),
-                                Color::rgba(64, 255, 255, alpha),
-                                DrawParameters {
-                                    polygon_mode: PolygonMode::Fill,
-                                    line_width: Some(1.0),
-                                    blend: Blend::alpha_blending(),
-                                    ..Default::default()
-                                },
-                            );
-                        }
-                    };
-
-                    draw(
-                        pos.x,
-                        pos.y,
-                        if node.generated.is_some() { 80 } else { 255 },
+                    let (x1, y1) = (
+                        -((node.depth + 1) as f64 * 3.0) + pos.x,
+                        -((node.depth + 1) as f64 * 3.0) + pos.y,
                     );
+                    let (x2, y2) = (
+                        ((node.depth + 1) as f64 * 3.0) + pos.x,
+                        ((node.depth + 1) as f64 * 3.0) + pos.y,
+                    );
+
+                    let alpha = if node.generated.is_some() { 80 } else { 255 };
+
+                    snode_rects_1.push((
+                        Rect::new(x1 as f32, y1 as f32, x2 as f32, y2 as f32),
+                        Color::rgba(64, 64, 255, alpha),
+                    ));
+
+                    target.transform.pop();
+
+                    if let Some(Ok(gen)) = &node.generated {
+                        snode_rects_2.push((
+                            Rect::new(
+                                gen.bounds.x1 as f32,
+                                gen.bounds.y1 as f32,
+                                gen.bounds.x2 as f32,
+                                gen.bounds.y2 as f32,
+                            ),
+                            Color::rgba(64, 255, 255, alpha),
+                        ));
+                    }
                 });
+
+            target.rectangles_colored(
+                &snode_rects_2,
+                DrawParameters {
+                    polygon_mode: PolygonMode::Fill,
+                    line_width: Some(1.0),
+                    blend: Blend::alpha_blending(),
+                    ..Default::default()
+                },
+            );
+
+            target.rectangles_colored(
+                &snode_rects_1,
+                DrawParameters {
+                    polygon_mode: PolygonMode::Fill,
+                    line_width: Some(1.0),
+                    blend: Blend::alpha_blending(),
+                    ..Default::default()
+                },
+            );
 
             (
                 &game_entity_storage,

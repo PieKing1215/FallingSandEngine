@@ -103,6 +103,13 @@ impl TransformStack {
         Rect::new(pos1.0, pos1.1, pos2.0, pos2.1)
     }
 
+    pub fn transform_rect_f32(&self, rect: Rect<f32>) -> Rect<f32> {
+        let pos1 = self.transform((rect.x1, rect.y1));
+        let pos2 = self.transform((rect.x2, rect.y2));
+
+        Rect::new(pos1.0, pos1.1, pos2.0, pos2.1)
+    }
+
     #[allow(dead_code)]
     pub fn inv_transform<T: Into<f64>>(&self, point: (T, T)) -> (f32, f32) {
         let t = self.stack.last().unwrap();
