@@ -16,7 +16,7 @@ pub struct ClientChunk {
     pub chunk_x: i32,
     pub chunk_y: i32,
     pub state: ChunkState,
-    pub pixels: Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
+    pub pixels: Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
     pub graphics: Box<ChunkGraphics>,
     pub dirty_rect: Option<Rect<i32>>,
     pub rigidbody: Option<RigidBodyState>,
@@ -34,7 +34,7 @@ impl Chunk for ClientChunk {
             pixels: None,
             graphics: Box::new(ChunkGraphics {
                 texture: None,
-                pixel_data: [0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)],
+                pixel_data: Box::new([0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]),
                 dirty: true,
                 was_dirty: true,
             }),
@@ -77,7 +77,7 @@ impl Chunk for ClientChunk {
                     .set(
                         x,
                         y,
-                        self.pixels.unwrap()[(x + y * CHUNK_SIZE) as usize].color,
+                        self.pixels.as_ref().unwrap()[(x + y * CHUNK_SIZE) as usize].color,
                     )
                     .unwrap();
             }
@@ -151,21 +151,24 @@ impl Chunk for ClientChunk {
         }
     }
 
-    fn set_pixels(&mut self, pixels: [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]) {
+    fn set_pixels(&mut self, pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>) {
         self.pixels = Some(pixels);
     }
 
     fn get_pixels_mut(
         &mut self,
-    ) -> &mut Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]> {
+    ) -> &mut Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
         &mut self.pixels
     }
 
-    fn get_pixels(&self) -> &Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]> {
+    fn get_pixels(&self) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
         &self.pixels
     }
 
-    fn set_pixel_colors(&mut self, colors: [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]) {
+    fn set_pixel_colors(
+        &mut self,
+        colors: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
+    ) {
         self.graphics.replace(colors);
     }
 
@@ -186,7 +189,7 @@ impl Chunk for ClientChunk {
             return Err("generate_mesh failed: self.pixels is None".to_owned());
         }
 
-        let vs: Vec<f64> = mesh::pixels_to_valuemap(&self.pixels.unwrap());
+        let vs: Vec<f64> = mesh::pixels_to_valuemap(self.pixels.as_ref().unwrap().as_ref());
 
         let generated =
             mesh::generate_mesh_with_simplified(&vs, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
@@ -227,7 +230,7 @@ impl Chunk for ClientChunk {
 
 pub struct ChunkGraphics {
     pub texture: Option<Texture2d>,
-    pub pixel_data: [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4],
+    pub pixel_data: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
     pub dirty: bool,
     pub was_dirty: bool,
 }
@@ -295,7 +298,10 @@ impl ChunkGraphics {
 
     #[profiling::function]
     #[allow(clippy::cast_lossless)]
-    pub fn replace(&mut self, colors: [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]) {
+    pub fn replace(
+        &mut self,
+        colors: Box<[u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]>,
+    ) {
         // let sf = Surface::from_data(&mut colors, CHUNK_SIZE as u32, CHUNK_SIZE as u32, self.surface.pitch(), self.surface.pixel_format_enum()).unwrap();
         // sf.blit(None, &mut self.surface, None).unwrap();
         self.pixel_data = colors;

@@ -27,7 +27,9 @@ impl Populator<1> for NearbyReplacePopulator {
 
         for y in -i32::from(OVERSCAN)..i32::from(CHUNK_SIZE) + i32::from(OVERSCAN) {
             let mut skip_x = 0;
+            // log::trace!("{} {} {}", i32::from(OVERSCAN), i32::from(CHUNK_SIZE), i32::from(CHUNK_SIZE) + i32::from(OVERSCAN));
             for x in -i32::from(OVERSCAN)..i32::from(CHUNK_SIZE) + i32::from(OVERSCAN) {
+                // log::trace!("{} / {}", x, x as usize);
                 let m = chunks.get(x, y).unwrap();
                 if (self.searching_for)(m) {
                     let range = i32::from(self.radius);
@@ -35,8 +37,9 @@ impl Populator<1> for NearbyReplacePopulator {
                         if x + dx < 0 || x + dx >= i32::from(CHUNK_SIZE) {
                             continue;
                         }
+                        // log::trace!("{} + {}", x as usize, OVERSCAN as usize);
                         for dy in
-                            (-range + i32::from(skip_y[x as usize + OVERSCAN as usize]))..=range
+                            (-range + i32::from(skip_y[(x + i32::from(OVERSCAN)) as usize]))..=range
                         {
                             if dx == 0 && dy == 0 {
                                 continue;
@@ -57,13 +60,13 @@ impl Populator<1> for NearbyReplacePopulator {
                     }
 
                     skip_x = self.radius * 2;
-                    skip_y[x as usize + OVERSCAN as usize] = self.radius * 2;
+                    skip_y[(x + i32::from(OVERSCAN)) as usize] = self.radius * 2;
                 } else if skip_x > 0 {
                     skip_x -= 1;
                 }
 
-                if skip_y[x as usize + OVERSCAN as usize] > 0 {
-                    skip_y[x as usize + OVERSCAN as usize] -= 1;
+                if skip_y[(x + i32::from(OVERSCAN)) as usize] > 0 {
+                    skip_y[(x + i32::from(OVERSCAN)) as usize] -= 1;
                 }
             }
         }

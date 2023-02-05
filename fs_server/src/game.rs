@@ -100,7 +100,7 @@ impl ServerGame {
                             packet_type: PacketType::SyncChunkPacket {
                                 chunk_x,
                                 chunk_y,
-                                pixels: ci.1.get_pixels().unwrap().to_vec(),
+                                pixels: ci.1.get_pixels().as_ref().unwrap().to_vec(),
                                 colors: ci.1.get_colors().to_vec(),
                             },
                         };
@@ -185,7 +185,7 @@ impl ServerGame {
                                 for c in &mut connections {
                                     // println!("Writing SyncChunkPacket");
                                     let (chunk_x, chunk_y) = chunk_index_inv(*ci.0);
-                                    let pixels_vec = ci.1.get_pixels().unwrap().to_vec();
+                                    let pixels_vec = ci.1.get_pixels().as_ref().unwrap().to_vec();
                                     let colors_vec = ci.1.get_colors().to_vec();
 
                                     assert!(

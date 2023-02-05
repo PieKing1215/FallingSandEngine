@@ -137,7 +137,7 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
             };
 
             if matches!(ch.get_state(), ChunkState::Cached | ChunkState::Active)
-                || matches!(ch.get_state(), ChunkState::Generating(n) if n >= 1)
+                || matches!(ch.get_state(), ChunkState::Generating(n) if n >= 2)
             {
                 node_storage.insert(entity, node).unwrap();
                 pos_storage.insert(entity, pos).unwrap();
@@ -150,8 +150,8 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
 
                 // 4 placement attempts
                 for _ in 0..4 {
-                    let w = node.rng.gen_range(25.0..=100.0);
-                    let h = node.rng.gen_range(25.0..=100.0);
+                    let w = node.rng.gen_range(100.0..=200.0);
+                    let h = node.rng.gen_range(25.0..=200.0);
                     let bounds = Rect::new(pos.x, pos.y - h / 2.0, pos.x + w, pos.y + h / 2.0);
 
                     let ok = !all_bounds

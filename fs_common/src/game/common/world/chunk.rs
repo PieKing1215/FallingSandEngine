@@ -48,12 +48,15 @@ pub trait Chunk {
     fn get_dirty_rect(&self) -> Option<Rect<i32>>;
     fn set_dirty_rect(&mut self, rect: Option<Rect<i32>>);
 
-    fn set_pixels(&mut self, pixels: [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]);
+    fn set_pixels(&mut self, pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>);
     fn get_pixels_mut(
         &mut self,
-    ) -> &mut Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>;
-    fn get_pixels(&self) -> &Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>;
-    fn set_pixel_colors(&mut self, colors: [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]);
+    ) -> &mut Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>;
+    fn get_pixels(&self) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>;
+    fn set_pixel_colors(
+        &mut self,
+        colors: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
+    );
     fn get_colors_mut(&mut self) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
     fn get_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
 
@@ -555,8 +558,8 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
 
                         self.loaded_chunks.get_mut(&key).map(|chunk| {
                             chunk.set_state(ChunkState::Generating(0));
-                            chunk.set_pixels(*pixels);
-                            chunk.set_pixel_colors(*colors);
+                            chunk.set_pixels(pixels);
+                            chunk.set_pixel_colors(colors);
                             key
                         })
                     })
@@ -819,7 +822,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                     chunk.and_then(|c| {
                                         c.get_pixels_mut().as_mut().map(|raw| {
                                             // blatantly bypassing the borrow checker, see safety comment above
-                                            unsafe { &mut *(raw as *mut _) }
+                                            unsafe { &mut *(raw.as_mut() as *mut _) }
                                         })
                                     })
                                 })

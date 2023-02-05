@@ -11,9 +11,9 @@ pub struct ServerChunk {
     pub chunk_x: i32,
     pub chunk_y: i32,
     pub state: ChunkState,
-    pub pixels: Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
+    pub pixels: Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
     pub dirty_rect: Option<Rect<i32>>,
-    pub pixel_data: [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4],
+    pub pixel_data: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
     pub dirty: bool,
     pub rigidbody: Option<RigidBodyState>,
     pub mesh_simplified: Option<Vec<Vec<Vec<Vec<f64>>>>>,
@@ -27,7 +27,7 @@ impl Chunk for ServerChunk {
             state: ChunkState::NotGenerated,
             pixels: None,
             dirty_rect: None,
-            pixel_data: [0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)],
+            pixel_data: Box::new([0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]),
             dirty: true,
             rigidbody: None,
             mesh_simplified: None,
@@ -135,21 +135,24 @@ impl Chunk for ServerChunk {
         }
     }
 
-    fn set_pixels(&mut self, pixels: [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]) {
+    fn set_pixels(&mut self, pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>) {
         self.pixels = Some(pixels);
     }
 
     fn get_pixels_mut(
         &mut self,
-    ) -> &mut Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]> {
+    ) -> &mut Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
         &mut self.pixels
     }
 
-    fn get_pixels(&self) -> &Option<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]> {
+    fn get_pixels(&self) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
         &self.pixels
     }
 
-    fn set_pixel_colors(&mut self, colors: [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]) {
+    fn set_pixel_colors(
+        &mut self,
+        colors: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
+    ) {
         self.pixel_data = colors;
     }
 
@@ -170,7 +173,7 @@ impl Chunk for ServerChunk {
             return Err("generate_mesh failed: self.pixels is None".to_owned());
         }
 
-        let vs: Vec<f64> = mesh::pixels_to_valuemap(&self.pixels.unwrap());
+        let vs: Vec<f64> = mesh::pixels_to_valuemap(self.pixels.as_ref().unwrap().as_ref());
 
         let generated =
             mesh::generate_mesh_only_simplified(&vs, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));

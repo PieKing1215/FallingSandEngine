@@ -24,7 +24,7 @@ impl Populator<0> for CavePopulator {
         if enable_caves {
             // based on techniques discussed here: https://accidentalnoise.sourceforge.net/minecraftworlds.html
 
-            let turbulance_scale = CHUNK_SIZE as usize * 15;
+            let turbulance_scale = 100 * 15;
 
             // offsetting by seed is a workaround for https://github.com/verpeteren/rust-simd-noise/issues/42
             let noise_turbulance = NoiseBuilder::fbm_2d_offset(
