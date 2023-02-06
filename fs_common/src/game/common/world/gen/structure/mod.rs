@@ -1,5 +1,10 @@
+pub mod structure;
+
+use std::{collections::HashMap, sync::Arc};
+
 use rand::{
-    distributions::Standard, prelude::Distribution, rngs::StdRng, Rng, RngCore, SeedableRng,
+    distributions::Standard, prelude::Distribution, rngs::StdRng, seq::SliceRandom, Rng, RngCore,
+    SeedableRng,
 };
 use specs::{
     Builder, Component, Entities, Entity, HashMapStorage, Join, System, WorldExt, WriteStorage,
@@ -8,7 +13,9 @@ use specs::{
 use crate::game::common::{
     world::{
         self,
+        copy_paste::MaterialBuf,
         entity::Persistent,
+        gen::structure::structure::{Structure, StructureNodeConfig, StructureNodeLocalPlacement},
         material::{self, color::Color, MaterialInstance, PhysicsType},
         ChunkHandlerGeneric, ChunkState, Position,
     },
@@ -43,6 +50,78 @@ impl Direction {
             Direction::Right => Direction::Left,
         }
     }
+
+    #[must_use]
+    pub fn rotated(self, angle: AngleMod) -> Self {
+        match angle {
+            AngleMod::None => self,
+            AngleMod::Clockwise90 => match self {
+                Direction::Up => Direction::Right,
+                Direction::Down => Direction::Left,
+                Direction::Left => Direction::Up,
+                Direction::Right => Direction::Down,
+            },
+            AngleMod::CounterClockwise90 => match self {
+                Direction::Up => Direction::Left,
+                Direction::Down => Direction::Right,
+                Direction::Left => Direction::Down,
+                Direction::Right => Direction::Up,
+            },
+            AngleMod::Angle180 => self.opposite(),
+        }
+    }
+
+    pub fn angle(self, other: Self) -> AngleMod {
+        // TODO: there's probably a better way to implement this
+
+        if self == other {
+            return AngleMod::None;
+        }
+
+        if other
+            == match self {
+                Direction::Up => Direction::Right,
+                Direction::Down => Direction::Left,
+                Direction::Left => Direction::Up,
+                Direction::Right => Direction::Down,
+            }
+        {
+            return AngleMod::Clockwise90;
+        }
+
+        if other
+            == match self {
+                Direction::Up => Direction::Left,
+                Direction::Down => Direction::Right,
+                Direction::Left => Direction::Down,
+                Direction::Right => Direction::Up,
+            }
+        {
+            return AngleMod::CounterClockwise90;
+        }
+
+        AngleMod::Angle180
+    }
+}
+
+// TODO: think of better names
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum AngleMod {
+    None,
+    Clockwise90,
+    CounterClockwise90,
+    Angle180,
+}
+
+impl AngleMod {
+    pub fn degrees(&self) -> f32 {
+        match self {
+            AngleMod::None => 0.0,
+            AngleMod::Clockwise90 => 90.0,
+            AngleMod::CounterClockwise90 => -90.0,
+            AngleMod::Angle180 => 180.0,
+        }
+    }
 }
 
 impl Distribution<Direction> for Standard {
@@ -64,14 +143,21 @@ pub struct StructureNode {
     pub rng: Box<dyn RngCore + Send + Sync>,
     /// Direction to parent
     pub direction: Direction,
+    pub config: StructureNodeConfig,
 }
 
 pub struct StructureNodeGenData {
-    pub bounds: Rect<f64>,
+    pub bounds: Rect<i64>,
 }
 
 impl StructureNode {
-    pub fn create_and_add(ecs: &mut specs::World, pos: Position, depth: u8, seed: i32) -> Entity {
+    pub fn create_and_add(
+        ecs: &mut specs::World,
+        pos: Position,
+        depth: u8,
+        seed: i32,
+        config: StructureNodeConfig,
+    ) -> Entity {
         let mut rng = StdRng::seed_from_u64(seed as u64);
         let player = ecs
             .create_entity()
@@ -82,6 +168,7 @@ impl StructureNode {
                 depth,
                 direction: rng.gen(),
                 rng: Box::new(rng),
+                config,
             })
             .with(Persistent)
             .with(pos)
@@ -116,7 +203,7 @@ fn root<'a>(
     }
 }
 
-fn all_bounds(node: &StructureNode, node_storage: &WriteStorage<StructureNode>) -> Vec<Rect<f64>> {
+fn all_bounds(node: &StructureNode, node_storage: &WriteStorage<StructureNode>) -> Vec<Rect<i64>> {
     let mut v = vec![];
     if let Some(Ok(gen)) = &node.generated {
         v.push(gen.bounds);
@@ -153,6 +240,95 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
             .collect::<Vec<_>>();
 
         let mut to_add = vec![];
+
+        // TODO: this should be in a registry
+        let structure_a = Arc::new(Structure {
+            buf: MaterialBuf::new(
+                120,
+                120,
+                vec![MaterialInstance::air(); (120 * 120) as usize],
+            )
+            .unwrap(),
+            child_nodes: vec![
+                (
+                    StructureNodeLocalPlacement { x: 0, y: 60, direction_out: Direction::Left },
+                    StructureNodeConfig::new("hallways"),
+                ),
+                (
+                    StructureNodeLocalPlacement { x: 120, y: 40, direction_out: Direction::Right },
+                    StructureNodeConfig::new("hallways"),
+                ),
+                (
+                    StructureNodeLocalPlacement { x: 120, y: 80, direction_out: Direction::Right },
+                    StructureNodeConfig::new("hallways"),
+                ),
+                (
+                    StructureNodeLocalPlacement { x: 40, y: 0, direction_out: Direction::Up },
+                    StructureNodeConfig::new("hallways"),
+                ),
+                (
+                    StructureNodeLocalPlacement { x: 80, y: 120, direction_out: Direction::Down },
+                    StructureNodeConfig::new("hallways"),
+                ),
+            ],
+        });
+        let structure_a2 = Arc::new(Structure {
+            buf: MaterialBuf::new(
+                200,
+                100,
+                vec![MaterialInstance::air(); (200 * 100) as usize],
+            )
+            .unwrap(),
+            child_nodes: vec![
+                (
+                    StructureNodeLocalPlacement { x: 0, y: 50, direction_out: Direction::Left },
+                    StructureNodeConfig::new("hallways")
+                        .block_in_dirs(vec![Direction::Up, Direction::Down]),
+                ),
+                (
+                    StructureNodeLocalPlacement { x: 200, y: 20, direction_out: Direction::Right },
+                    StructureNodeConfig::new("hallways")
+                        .block_in_dirs(vec![Direction::Up, Direction::Down]),
+                ),
+            ],
+        });
+
+        let structure_b = Arc::new(Structure {
+            buf: MaterialBuf::new(100, 25, vec![MaterialInstance::air(); (100 * 25) as usize])
+                .unwrap(),
+            child_nodes: vec![
+                (
+                    StructureNodeLocalPlacement { x: 0, y: 12, direction_out: Direction::Left },
+                    StructureNodeConfig::new("rooms").override_depth(),
+                ),
+                (
+                    StructureNodeLocalPlacement { x: 100, y: 12, direction_out: Direction::Right },
+                    StructureNodeConfig::new("rooms").override_depth(),
+                ),
+            ],
+        });
+        let structure_b2 = Arc::new(Structure {
+            buf: MaterialBuf::new(80, 80, vec![MaterialInstance::air(); (80 * 80) as usize])
+                .unwrap(),
+            child_nodes: vec![
+                (
+                    StructureNodeLocalPlacement { x: 0, y: 60, direction_out: Direction::Left },
+                    StructureNodeConfig::new("rooms_or_straight_hallways").override_depth(),
+                ),
+                (
+                    StructureNodeLocalPlacement { x: 60, y: 0, direction_out: Direction::Up },
+                    StructureNodeConfig::new("rooms_or_straight_hallways").override_depth(),
+                ),
+            ],
+        });
+
+        let mut structure_pools: HashMap<&str, Vec<Arc<Structure>>> = HashMap::new();
+        structure_pools.insert("rooms", vec![structure_a.clone(), structure_a2.clone()]);
+        structure_pools.insert("hallways", vec![structure_b.clone(), structure_b2]);
+        structure_pools.insert(
+            "rooms_or_straight_hallways",
+            vec![structure_a, structure_a2, structure_b.clone(), structure_b],
+        );
 
         for entity in all {
             let mut node = node_storage.remove(entity).unwrap();
@@ -194,100 +370,78 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
 
                 node.generated = Some(Err(()));
 
-                // 4 placement attempts
-                for _ in 0..4 {
-                    let w = node.rng.gen_range(100.0..=200.0_f64).trunc();
-                    let h = node.rng.gen_range(25.0..=200.0_f64).trunc();
+                // try every structure in desired pool
+                let mut pool = structure_pools.get(node.config.pool).unwrap().clone();
+                pool.shuffle(&mut node.rng);
+                'outer: for pool_structure in pool {
+                    let mut opts =
+                        pool_structure.options((pos.x as i64, pos.y as i64), node.direction);
+                    opts.shuffle(&mut node.rng);
 
-                    let bounds = match node.direction {
-                        Direction::Up => {
-                            Rect::new(pos.x - w / 2.0, pos.y, pos.x + w / 2.0, pos.y + h)
-                        },
-                        Direction::Down => {
-                            Rect::new(pos.x - w / 2.0, pos.y - h, pos.x + w / 2.0, pos.y)
-                        },
-                        Direction::Left => {
-                            Rect::new(pos.x, pos.y - h / 2.0, pos.x + w, pos.y + h / 2.0)
-                        },
-                        Direction::Right => {
-                            Rect::new(pos.x - w, pos.y - h / 2.0, pos.x, pos.y + h / 2.0)
-                        },
-                    };
+                    // log::debug!("{} {:?} {:?}", opts.len(), node.direction, node.parent);
 
-                    let ok = !all_bounds
-                        .iter()
-                        .any(|r| r.inflated(-0.1).intersects(&bounds));
+                    // try every connection in structure
+                    for o in opts {
+                        // log::debug!("{o:?}");
 
-                    if ok {
-                        for x in bounds.left() as i64..=bounds.right() as i64 {
-                            for y in bounds.top() as i64..=bounds.bottom() as i64 {
-                                let m = *self.chunk_handler.get(x, y).unwrap();
+                        let (bounds, children) = o;
 
-                                self.chunk_handler
-                                    .set(
-                                        x,
-                                        y,
-                                        MaterialInstance {
-                                            material_id: material::COBBLE_STONE,
-                                            physics: PhysicsType::Solid,
-                                            color: Color::rgb(
-                                                (m.color.r_f32() + 1.0) / 2.0,
-                                                m.color.g_f32(),
-                                                m.color.b_f32(),
-                                            ),
+                        let ok = !all_bounds
+                            .iter()
+                            .any(|r| r.inflated(-1).intersects(&bounds));
+
+                        if ok {
+                            // TODO
+                            // structure.place(self.chunk_handler, pos.x as i64, pos.y as i64);
+                            for x in bounds.left()..=bounds.right() {
+                                for y in bounds.top()..=bounds.bottom() {
+                                    let m = *self.chunk_handler.get(x, y).unwrap();
+
+                                    self.chunk_handler
+                                        .set(
+                                            x,
+                                            y,
+                                            MaterialInstance {
+                                                material_id: material::COBBLE_STONE,
+                                                physics: PhysicsType::Solid,
+                                                color: Color::rgb(
+                                                    (m.color.r_f32() + 1.0) / 2.0,
+                                                    m.color.g_f32(),
+                                                    m.color.b_f32(),
+                                                ),
+                                            },
+                                        )
+                                        .unwrap();
+                                }
+                            }
+
+                            node.generated = Some(Ok(StructureNodeGenData { bounds }));
+
+                            let mut children = children
+                                .into_iter()
+                                .filter(|(_, config)| node.depth > 0 || config.depth_override)
+                                .map(|(placement, config)| {
+                                    let rng = StdRng::seed_from_u64(node.rng.gen());
+                                    (
+                                        entity,
+                                        StructureNode {
+                                            parent: Some(entity),
+                                            children: vec![],
+                                            generated: None,
+                                            depth: if node.depth == 0 { 0 } else { node.depth - 1 },
+                                            rng: Box::new(rng),
+                                            direction: placement.direction_out,
+                                            config,
                                         },
+                                        Position { x: placement.x as _, y: placement.y as _ },
                                     )
-                                    .unwrap();
-                            }
-                        }
-
-                        node.generated = Some(Ok(StructureNodeGenData { bounds }));
-
-                        if node.depth > 0 {
-                            let mut children = vec![];
-
-                            for _ in 0..5 {
-                                let new_dir =
-                                    node.direction.opposite().others()[node.rng.gen_range(0..3)];
-
-                                let (x, y) = match new_dir {
-                                    Direction::Up => (
-                                        node.rng.gen_range(bounds.range_lr()).trunc(),
-                                        bounds.bottom().trunc() + 1.0,
-                                    ),
-                                    Direction::Down => (
-                                        node.rng.gen_range(bounds.range_lr()).trunc(),
-                                        bounds.top().trunc() - 1.0,
-                                    ),
-                                    Direction::Left => (
-                                        bounds.right().trunc() + 1.0,
-                                        node.rng.gen_range(bounds.range_tb()).trunc(),
-                                    ),
-                                    Direction::Right => (
-                                        bounds.left().trunc() - 1.0,
-                                        node.rng.gen_range(bounds.range_tb()).trunc(),
-                                    ),
-                                };
-
-                                let rng = StdRng::seed_from_u64(node.rng.gen());
-                                children.push((
-                                    entity,
-                                    StructureNode {
-                                        parent: Some(entity),
-                                        children: vec![],
-                                        generated: None,
-                                        depth: node.depth - 1,
-                                        rng: Box::new(rng),
-                                        direction: new_dir,
-                                    },
-                                    Position { x, y },
-                                ));
-                            }
+                                })
+                                .collect();
 
                             to_add.append(&mut children);
-                        }
 
-                        break;
+                            break 'outer;
+                        }
                     }
                 }
             }

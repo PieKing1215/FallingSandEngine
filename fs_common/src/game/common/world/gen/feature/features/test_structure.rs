@@ -2,7 +2,10 @@ use rand::Rng;
 use specs::{Join, ReadStorage};
 
 use crate::game::common::world::{
-    gen::{feature::ConfiguredFeature, structure::StructureNode},
+    gen::{
+        feature::ConfiguredFeature,
+        structure::{structure::StructureNodeConfig, StructureNode},
+    },
     Position, CHUNK_SIZE,
 };
 
@@ -41,7 +44,13 @@ impl ConfiguredFeature for TestStructure {
         drop(node_storage);
 
         if ok {
-            StructureNode::create_and_add(ecs, Position { x: x as _, y: y as _ }, 3, rng.gen());
+            StructureNode::create_and_add(
+                ecs,
+                Position { x: x as _, y: y as _ },
+                3,
+                rng.gen(),
+                StructureNodeConfig::new("rooms"),
+            );
         }
     }
 }
