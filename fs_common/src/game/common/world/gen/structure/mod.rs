@@ -1,6 +1,7 @@
+pub mod registry;
 pub mod structure;
 
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use rand::{
     distributions::Standard, prelude::Distribution, rngs::StdRng, seq::SliceRandom, Rng, RngCore,
@@ -10,16 +11,18 @@ use specs::{
     Builder, Component, Entities, Entity, HashMapStorage, Join, System, WorldExt, WriteStorage,
 };
 
-use crate::game::common::{
-    world::{
-        self,
-        copy_paste::MaterialBuf,
-        entity::Persistent,
-        gen::structure::structure::{Structure, StructureNodeConfig, StructureNodeLocalPlacement},
-        material::{self, color::Color, MaterialInstance, PhysicsType},
-        ChunkHandlerGeneric, ChunkState, Position,
+use crate::game::{
+    common::{
+        world::{
+            self,
+            entity::Persistent,
+            gen::structure::structure::StructureNodeConfig,
+            material::{self, color::Color, MaterialInstance, PhysicsType},
+            ChunkHandlerGeneric, ChunkState, Position,
+        },
+        Rect,
     },
-    Rect,
+    Registries,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -184,6 +187,7 @@ impl Component for StructureNode {
 
 pub struct UpdateStructureNodes<'a, H: ChunkHandlerGeneric + Send> {
     pub chunk_handler: &'a mut H,
+    pub registries: Arc<Registries>,
 }
 
 // fn is_finished(p: Entity, node_storage: &WriteStorage<StructureNode>) -> bool {
@@ -241,95 +245,6 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
 
         let mut to_add = vec![];
 
-        // TODO: this should be in a registry
-        let structure_a = Arc::new(Structure {
-            buf: MaterialBuf::new(
-                120,
-                120,
-                vec![MaterialInstance::air(); (120 * 120) as usize],
-            )
-            .unwrap(),
-            child_nodes: vec![
-                (
-                    StructureNodeLocalPlacement { x: 0, y: 60, direction_out: Direction::Left },
-                    StructureNodeConfig::new("hallways"),
-                ),
-                (
-                    StructureNodeLocalPlacement { x: 120, y: 40, direction_out: Direction::Right },
-                    StructureNodeConfig::new("hallways"),
-                ),
-                (
-                    StructureNodeLocalPlacement { x: 120, y: 80, direction_out: Direction::Right },
-                    StructureNodeConfig::new("hallways"),
-                ),
-                (
-                    StructureNodeLocalPlacement { x: 40, y: 0, direction_out: Direction::Up },
-                    StructureNodeConfig::new("hallways"),
-                ),
-                (
-                    StructureNodeLocalPlacement { x: 80, y: 120, direction_out: Direction::Down },
-                    StructureNodeConfig::new("hallways"),
-                ),
-            ],
-        });
-        let structure_a2 = Arc::new(Structure {
-            buf: MaterialBuf::new(
-                200,
-                100,
-                vec![MaterialInstance::air(); (200 * 100) as usize],
-            )
-            .unwrap(),
-            child_nodes: vec![
-                (
-                    StructureNodeLocalPlacement { x: 0, y: 50, direction_out: Direction::Left },
-                    StructureNodeConfig::new("hallways")
-                        .block_in_dirs(vec![Direction::Up, Direction::Down]),
-                ),
-                (
-                    StructureNodeLocalPlacement { x: 200, y: 20, direction_out: Direction::Right },
-                    StructureNodeConfig::new("hallways")
-                        .block_in_dirs(vec![Direction::Up, Direction::Down]),
-                ),
-            ],
-        });
-
-        let structure_b = Arc::new(Structure {
-            buf: MaterialBuf::new(100, 25, vec![MaterialInstance::air(); (100 * 25) as usize])
-                .unwrap(),
-            child_nodes: vec![
-                (
-                    StructureNodeLocalPlacement { x: 0, y: 12, direction_out: Direction::Left },
-                    StructureNodeConfig::new("rooms").override_depth(),
-                ),
-                (
-                    StructureNodeLocalPlacement { x: 100, y: 12, direction_out: Direction::Right },
-                    StructureNodeConfig::new("rooms").override_depth(),
-                ),
-            ],
-        });
-        let structure_b2 = Arc::new(Structure {
-            buf: MaterialBuf::new(80, 80, vec![MaterialInstance::air(); (80 * 80) as usize])
-                .unwrap(),
-            child_nodes: vec![
-                (
-                    StructureNodeLocalPlacement { x: 0, y: 60, direction_out: Direction::Left },
-                    StructureNodeConfig::new("rooms_or_straight_hallways").override_depth(),
-                ),
-                (
-                    StructureNodeLocalPlacement { x: 60, y: 0, direction_out: Direction::Up },
-                    StructureNodeConfig::new("rooms_or_straight_hallways").override_depth(),
-                ),
-            ],
-        });
-
-        let mut structure_pools: HashMap<&str, Vec<Arc<Structure>>> = HashMap::new();
-        structure_pools.insert("rooms", vec![structure_a.clone(), structure_a2.clone()]);
-        structure_pools.insert("hallways", vec![structure_b.clone(), structure_b2]);
-        structure_pools.insert(
-            "rooms_or_straight_hallways",
-            vec![structure_a, structure_a2, structure_b.clone(), structure_b],
-        );
-
         for entity in all {
             let mut node = node_storage.remove(entity).unwrap();
             let mut pos = pos_storage.remove(entity).unwrap();
@@ -371,7 +286,12 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
                 node.generated = Some(Err(()));
 
                 // try every structure in desired pool
-                let mut pool = structure_pools.get(node.config.pool).unwrap().clone();
+                let mut pool = self
+                    .registries
+                    .structure_pools
+                    .get(&node.config.pool)
+                    .unwrap()
+                    .clone();
                 pool.shuffle(&mut node.rng);
                 'outer: for pool_structure in pool {
                     let mut opts =

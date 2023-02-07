@@ -4,6 +4,8 @@ use crate::game::common::Settings;
 use std::sync::Arc;
 use std::time::Instant;
 
+use super::common::world::gen::structure;
+use super::common::world::gen::structure::registry::StructurePoolRegistry;
 use super::common::world::material::placer::MaterialPlacerRegistry;
 use super::common::world::material::{placer, MaterialRegistry};
 use super::common::world::{material, Chunk};
@@ -12,6 +14,7 @@ use super::common::FileHelper;
 pub struct Registries {
     pub materials: MaterialRegistry,
     pub material_placers: MaterialPlacerRegistry,
+    pub structure_pools: StructurePoolRegistry,
 }
 
 impl Registries {
@@ -19,6 +22,7 @@ impl Registries {
         Self {
             materials: material::init_material_types(),
             material_placers: placer::init_material_placers(file_helper),
+            structure_pools: structure::registry::init_structure_pools(file_helper),
         }
     }
 
@@ -26,6 +30,7 @@ impl Registries {
         Self {
             materials: MaterialRegistry::new(),
             material_placers: MaterialPlacerRegistry::new(),
+            structure_pools: StructurePoolRegistry::new(),
         }
     }
 }

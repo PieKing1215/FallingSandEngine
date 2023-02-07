@@ -761,7 +761,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                     }
                 }
 
-                let mut update_particles = UpdateStructureNodes { chunk_handler: self };
+                let mut update_particles = UpdateStructureNodes { chunk_handler: self, registries };
                 update_particles.run_now(world);
                 world.maintain();
 

@@ -3,7 +3,7 @@ use crate::game::common::{
     Rect,
 };
 
-use super::Direction;
+use super::{registry::StructurePoolID, Direction};
 
 #[derive(Debug, Clone)]
 pub struct Structure {
@@ -24,8 +24,6 @@ pub struct StructureNodeGlobalPlacement {
     pub y: i64,
     pub direction_out: Direction,
 }
-
-pub type StructurePoolID = &'static str;
 
 #[derive(Debug, Clone)]
 pub struct StructureNodeConfig {
