@@ -3,7 +3,7 @@ use std::fs;
 use egui::{plot::HLine, Align2, RichText, WidgetText};
 use fs_common::game::{
     common::{
-        world::{material::color::Color, Position, Velocity},
+        world::{entity::Player, material::color::Color, Position, Velocity},
         FileHelper, Rect,
     },
     GameData,
@@ -14,10 +14,11 @@ use glium_glyph::{
     GlyphBrush, GlyphBrushBuilder,
 };
 use glutin::{dpi::LogicalSize, event_loop::EventLoop};
-use specs::ReadStorage;
+use specs::{ReadStorage, WriteStorage};
 
 use crate::{
     render::egui::DebugUI,
+    ui::DebugUIsContext,
     world::{ClientChunk, WorldRenderer},
     Client,
 };
@@ -338,7 +339,23 @@ impl<'a> Renderer<'a> {
 
                 client.main_menu.render(egui_ctx, &game.file_helper);
                 if let Some(debug_ui) = &mut client.debug_ui {
-                    debug_ui.render(egui_ctx, &game.registries);
+                    if let (Some(cw), Some(gw)) = (&mut client.world, &mut game.world) {
+                        if let Some(eid) = cw.local_entity {
+                            let (mut player,) = gw.ecs.system_data::<(WriteStorage<Player>,)>();
+
+                            let player = player
+                                .get_mut(eid)
+                                .expect("Missing Player component on local_entity");
+
+                            debug_ui.render(
+                                egui_ctx,
+                                DebugUIsContext {
+                                    registries: &game.registries,
+                                    local_player: player,
+                                },
+                            );
+                        }
+                    }
                 }
             });
 

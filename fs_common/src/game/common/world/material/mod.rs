@@ -23,7 +23,7 @@ pub struct Material {
     pub display_name: String,
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct MaterialInstance {
     pub material_id: u16,
     pub physics: PhysicsType,

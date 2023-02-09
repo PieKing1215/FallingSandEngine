@@ -35,6 +35,7 @@ pub struct Client {
     pub mouse_joint: Option<(RigidBodyHandle, Vector2<f32>)>,
     pub main_menu: MainMenu,
     pub debug_ui: Option<DebugUIs>,
+    // TODO: unused
     pub clipboard: Option<MaterialBuf>,
 }
 

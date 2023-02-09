@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use super::{material::MaterialInstance, Chunk, ChunkHandler, ChunkHandlerGeneric};
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct MaterialBuf {
     pub width: u16,
     pub height: u16,

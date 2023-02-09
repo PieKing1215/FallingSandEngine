@@ -1,10 +1,9 @@
 use std::collections::BTreeMap;
 
 use egui::TextureOptions;
-use fs_common::game::{
-    common::world::material::placer::{self, MaterialPlacer, MaterialPlacerID},
-    Registries,
-};
+use fs_common::game::common::world::material::placer::{self, MaterialPlacer, MaterialPlacerID};
+
+use super::DebugUIsContext;
 
 pub struct DrawUI {
     textures: BTreeMap<u16, egui::TextureHandle>,
@@ -20,8 +19,8 @@ impl DrawUI {
         }
     }
 
-    pub fn render(&mut self, egui_ctx: &egui::Context, registries: &Registries) {
-        for (id, (_meta, placer)) in &registries.material_placers {
+    pub fn render(&mut self, egui_ctx: &egui::Context, ctx: &DebugUIsContext) {
+        for (id, (_meta, placer)) in &ctx.registries.material_placers {
             self.textures.entry(*id).or_insert_with(|| {
                 egui_ctx.load_texture(
                     format!("{id}"),
@@ -46,7 +45,7 @@ impl DrawUI {
                                         .selected(*id == self.selected),
                                 )
                                 .on_hover_text(
-                                    registries
+                                    ctx.registries
                                         .material_placers
                                         .get(id)
                                         .unwrap()

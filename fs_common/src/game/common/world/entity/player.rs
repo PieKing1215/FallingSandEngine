@@ -72,6 +72,12 @@ pub struct PlayerClipboard {
     pub state: PlayerClipboardState,
 }
 
+impl PlayerClipboard {
+    pub fn clear(&mut self) {
+        self.clipboard = None;
+    }
+}
+
 impl Default for PlayerClipboard {
     fn default() -> Self {
         Self { clipboard: None, state: PlayerClipboardState::Idle }
