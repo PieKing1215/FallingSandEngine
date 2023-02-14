@@ -19,6 +19,7 @@ impl StructureType for JigsawFeatureType {}
 pub struct ConfiguredJigsawFeature {
     pub start_pool: StructurePoolID,
     pub depth: u8,
+    // TODO: implement
     pub max_distance: u16,
 }
 
@@ -33,7 +34,7 @@ impl ConfiguredStructure for ConfiguredJigsawFeature {
         StructureNode::create_and_add(
             ctx.ecs,
             Position { x: x as _, y: y as _ },
-            0,
+            self.depth,
             rng.gen(),
             StructureNodeConfig::new(self.start_pool),
         );

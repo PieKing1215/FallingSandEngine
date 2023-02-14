@@ -23,7 +23,7 @@ impl ConfiguredFeature for TestStructure {
         let y = i64::from(cy * i32::from(CHUNK_SIZE)) + i64::from(pos.1);
 
         for (_, v) in &registries.structure_sets {
-            if v.should_generate_at((cx, cy), world_seed as _) {
+            if v.should_generate_at((cx, cy), world_seed as _, registries, true) {
                 let configured_structure = registries
                     .configured_structures
                     .get(&v.sample_structure())

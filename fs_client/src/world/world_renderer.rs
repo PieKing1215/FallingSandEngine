@@ -199,6 +199,12 @@ impl WorldRenderer {
                         if let Some(v) = registries.structure_sets.get(&set) {
                             let (start_x, start_y) =
                                 v.nearest_start_chunk((ch.chunk_x, ch.chunk_y), world.seed as _);
+                            let should_gen_start = v.should_generate_at(
+                                (start_x, start_y),
+                                world.seed as _,
+                                &registries,
+                                true,
+                            );
                             structure_lines.push((
                                 (
                                     (ch.chunk_x * i32::from(CHUNK_SIZE)) as f32,
@@ -210,8 +216,10 @@ impl WorldRenderer {
                                 ),
                                 if start_x == ch.chunk_x && start_y == ch.chunk_y {
                                     Color::GREEN
-                                } else {
+                                } else if should_gen_start {
                                     Color::ORANGE.with_a(0.25)
+                                } else {
+                                    Color::RED.with_a(0.125)
                                 },
                             ));
                         }
