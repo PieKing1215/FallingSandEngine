@@ -1222,12 +1222,12 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
 
     #[profiling::function]
     fn get_load_zone(&self, center: (f64, f64)) -> Rect<i32> {
-        self.get_zone(center, CHUNK_SIZE * 5)
+        self.get_zone(center, CHUNK_SIZE * 25)
     }
 
     #[profiling::function]
     fn get_unload_zone(&self, center: (f64, f64)) -> Rect<i32> {
-        self.get_zone(center, CHUNK_SIZE * 10)
+        self.get_zone(center, CHUNK_SIZE * 30)
     }
 }
 

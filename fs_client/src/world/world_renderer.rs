@@ -1,19 +1,25 @@
+use std::sync::Arc;
+
 use glium::{Blend, DrawParameters, PolygonMode};
 use rapier2d::prelude::Shape;
 use specs::{Join, ReadStorage, WorldExt};
 
-use fs_common::game::common::{
-    world::{
-        entity::{
-            GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState, PlayerMovementMode,
+use fs_common::game::{
+    common::{
+        world::{
+            entity::{
+                GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState, PlayerMovementMode,
+            },
+            gen::structure::StructureNode,
+            material::color::Color,
+            particle::ParticleSystem,
+            physics::PHYSICS_SCALE,
+            AutoTarget, Camera, ChunkHandlerGeneric, ChunkState, Position, Velocity, World,
+            CHUNK_SIZE,
         },
-        gen::structure::StructureNode,
-        material::color::Color,
-        particle::ParticleSystem,
-        physics::PHYSICS_SCALE,
-        AutoTarget, Camera, ChunkHandlerGeneric, ChunkState, Position, Velocity, World, CHUNK_SIZE,
+        Rect, Settings,
     },
-    Rect, Settings,
+    Registries,
 };
 
 use crate::{
@@ -58,6 +64,7 @@ impl WorldRenderer {
         settings: &Settings,
         client: &mut Client,
         partial_ticks: f64,
+        registries: Arc<Registries>,
     ) {
         // TODO
         // if world.lqf_world.get_debug_draw().is_none() {
@@ -175,6 +182,7 @@ impl WorldRenderer {
 
         {
             profiling::scope!("chunks overlay");
+            let mut structure_lines = vec![];
             world
                 .chunk_handler
                 .loaded_chunks
@@ -186,6 +194,28 @@ impl WorldRenderer {
                         CHUNK_SIZE,
                         CHUNK_SIZE,
                     );
+
+                    if let (true, Some(set)) = (settings.debug, settings.draw_structure_set) {
+                        if let Some(v) = registries.structure_sets.get(&set) {
+                            let (start_x, start_y) =
+                                v.nearest_start_chunk((ch.chunk_x, ch.chunk_y), world.seed as _);
+                            structure_lines.push((
+                                (
+                                    (ch.chunk_x * i32::from(CHUNK_SIZE)) as f32,
+                                    (ch.chunk_y * i32::from(CHUNK_SIZE)) as f32,
+                                ),
+                                (
+                                    (start_x * i32::from(CHUNK_SIZE)) as f32,
+                                    (start_y * i32::from(CHUNK_SIZE)) as f32,
+                                ),
+                                if start_x == ch.chunk_x && start_y == ch.chunk_y {
+                                    Color::GREEN
+                                } else {
+                                    Color::ORANGE.with_a(0.25)
+                                },
+                            ));
+                        }
+                    }
 
                     target.transform.push();
                     target.transform.translate(
@@ -303,6 +333,16 @@ impl WorldRenderer {
 
                     target.transform.pop();
                 });
+
+            target.lines(
+                structure_lines,
+                DrawParameters {
+                    polygon_mode: PolygonMode::Line,
+                    line_width: Some(1.0),
+                    blend: Blend::alpha_blending(),
+                    ..Default::default()
+                },
+            );
         }
 
         // draw liquids

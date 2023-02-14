@@ -2,6 +2,8 @@ pub mod test;
 
 use crate::game::{common::world::material::MaterialInstance, Registries};
 
+pub type BiomeID = &'static str;
+
 pub trait Biome {
     fn pixel(&self, x: i64, y: i64, registries: &Registries) -> MaterialInstance;
 }

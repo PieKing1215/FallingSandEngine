@@ -8,19 +8,19 @@ use crate::game::common::{
 use std::sync::Arc;
 
 use super::{
-    structure::{Structure, StructureNodeConfig, StructureNodeLocalPlacement},
+    template::{StructureNodeConfig, StructureNodeLocalPlacement, StructureTemplate},
     Direction,
 };
 
 pub type StructurePoolID = &'static str;
 
-pub type StructurePoolRegistry = Registry<StructurePoolID, Vec<Arc<Structure>>>;
+pub type StructurePoolRegistry = Registry<StructurePoolID, Vec<Arc<StructureTemplate>>>;
 
 #[allow(clippy::too_many_lines)]
 pub fn init_structure_pools(_file_helper: &FileHelper) -> StructurePoolRegistry {
     let mut registry = Registry::new();
 
-    let structure_a = Arc::new(Structure {
+    let structure_a = Arc::new(StructureTemplate {
         buf: MaterialBuf::new(
             120,
             120,
@@ -50,7 +50,7 @@ pub fn init_structure_pools(_file_helper: &FileHelper) -> StructurePoolRegistry 
             ),
         ],
     });
-    let structure_a2 = Arc::new(Structure {
+    let structure_a2 = Arc::new(StructureTemplate {
         buf: MaterialBuf::new(
             200,
             100,
@@ -71,7 +71,7 @@ pub fn init_structure_pools(_file_helper: &FileHelper) -> StructurePoolRegistry 
         ],
     });
 
-    let structure_b = Arc::new(Structure {
+    let structure_b = Arc::new(StructureTemplate {
         buf: MaterialBuf::new(100, 25, vec![MaterialInstance::air(); (100 * 25) as usize]).unwrap(),
         child_nodes: vec![
             (
@@ -84,7 +84,7 @@ pub fn init_structure_pools(_file_helper: &FileHelper) -> StructurePoolRegistry 
             ),
         ],
     });
-    let structure_b2 = Arc::new(Structure {
+    let structure_b2 = Arc::new(StructureTemplate {
         buf: MaterialBuf::new(80, 80, vec![MaterialInstance::air(); (80 * 80) as usize]).unwrap(),
         child_nodes: vec![
             (

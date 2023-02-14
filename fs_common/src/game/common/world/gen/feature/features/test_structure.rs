@@ -1,12 +1,8 @@
-use rand::Rng;
-use specs::{Join, ReadStorage};
-
 use crate::game::common::world::{
     gen::{
-        feature::ConfiguredFeature,
-        structure::{structure::StructureNodeConfig, StructureNode},
+        feature::ConfiguredFeature, structure::configured_structure::ConfiguredStructurePlaceCtx,
     },
-    Position, CHUNK_SIZE,
+    CHUNK_SIZE,
 };
 
 #[derive(Debug)]
@@ -17,40 +13,28 @@ impl ConfiguredFeature for TestStructure {
         &self,
         chunks: &mut crate::game::common::world::gen::populator::ChunkContext<1>,
         pos: (i32, i32),
-        _seed: i32,
-        rng: &mut dyn rand::RngCore,
-        _registries: &crate::game::Registries,
+        world_seed: i32,
+        _rng: &mut dyn rand::RngCore,
+        registries: &crate::game::Registries,
         ecs: &mut specs::World,
     ) {
         let (cx, cy) = chunks.center_chunk();
         let x = i64::from(cx * i32::from(CHUNK_SIZE)) + i64::from(pos.0);
         let y = i64::from(cy * i32::from(CHUNK_SIZE)) + i64::from(pos.1);
 
-        let (position_storage, node_storage) =
-            ecs.system_data::<(ReadStorage<Position>, ReadStorage<StructureNode>)>();
+        for (_, v) in &registries.structure_sets {
+            if v.should_generate_at((cx, cy), world_seed as _) {
+                let configured_structure = registries
+                    .configured_structures
+                    .get(&v.sample_structure())
+                    .unwrap();
 
-        let ok = (&position_storage, &node_storage)
-            .join()
-            .all(|(pos, node)| {
-                node.parent.is_some() || {
-                    let dx = pos.x - x as f64;
-                    let dy = pos.y - y as f64;
-                    let dist = dx * dx + dy * dy;
-                    dist > 1000.0 * 1000.0
-                }
-            });
-
-        drop(position_storage);
-        drop(node_storage);
-
-        if ok {
-            StructureNode::create_and_add(
-                ecs,
-                Position { x: x as _, y: y as _ },
-                3,
-                rng.gen(),
-                StructureNodeConfig::new("rooms"),
-            );
+                configured_structure.place(
+                    x,
+                    y,
+                    ConfiguredStructurePlaceCtx { ecs, world_seed: world_seed as _ },
+                );
+            }
         }
     }
 }

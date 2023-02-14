@@ -1,3 +1,5 @@
+use super::world::gen::structure::set::StructureSetID;
+
 pub struct Settings {
     pub debug: bool,
 
@@ -9,6 +11,7 @@ pub struct Settings {
     pub draw_chunk_collision: usize,
     pub draw_origin: bool,
     pub draw_load_zones: bool,
+    pub draw_structure_set: Option<StructureSetID>,
     pub cull_chunks: bool,
     pub physics_dbg_draw: bool,
     pub physics_dbg_draw_shape: bool,
@@ -47,6 +50,7 @@ impl Default for Settings {
             draw_chunk_collision: 0,
             draw_origin: true,
             draw_load_zones: false,
+            draw_structure_set: None,
             cull_chunks: true,
             physics_dbg_draw: false,
             physics_dbg_draw_shape: true,

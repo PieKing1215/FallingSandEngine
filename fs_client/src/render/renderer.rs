@@ -177,7 +177,7 @@ impl<'a> Renderer<'a> {
                                 }
                             }
 
-                            game.settings.debug_ui(ui);
+                            game.settings.debug_ui(ui, game.registries.clone());
                         });
 
                     // TODO: this should be somewhere better
@@ -449,7 +449,15 @@ impl<'a> Renderer<'a> {
             //     .unwrap();
             // let f = Fonts { pixel_operator: pixel_operator2 };
 
-            world_renderer.render(w, target, delta_time, &game.settings, client, partial_ticks);
+            world_renderer.render(
+                w,
+                target,
+                delta_time,
+                &game.settings,
+                client,
+                partial_ticks,
+                game.registries.clone(),
+            );
         }
 
         target.base_transform.pop();

@@ -16,7 +16,7 @@ pub trait ConfiguredFeature: Debug {
         &self,
         chunks: &mut ChunkContext<1>,
         pos: (i32, i32),
-        seed: i32,
+        world_seed: i32,
         rng: &mut dyn RngCore,
         registries: &Registries,
         ecs: &mut specs::World,

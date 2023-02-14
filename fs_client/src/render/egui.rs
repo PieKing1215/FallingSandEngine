@@ -1,12 +1,14 @@
-use fs_common::game::common::Settings;
+use std::sync::Arc;
+
+use fs_common::game::{common::Settings, Registries};
 
 pub trait DebugUI {
-    fn debug_ui(&mut self, ui: &mut egui::Ui);
+    fn debug_ui(&mut self, ui: &mut egui::Ui, registries: Arc<Registries>);
 }
 
 impl DebugUI for Settings {
     #[profiling::function]
-    fn debug_ui(&mut self, ui: &mut egui::Ui) {
+    fn debug_ui(&mut self, ui: &mut egui::Ui, registries: Arc<Registries>) {
         ui.collapsing("rendering", |ui| {
             ui.checkbox(
                 &mut self.draw_chunk_state_overlay,
@@ -26,6 +28,19 @@ impl DebugUI for Settings {
             ui.checkbox(&mut self.draw_chunk_grid, "draw_chunk_grid");
             ui.checkbox(&mut self.draw_origin, "draw_origin");
             ui.checkbox(&mut self.draw_load_zones, "draw_load_zones");
+
+            let mut opt = vec![("none", None)];
+            for (k, v) in &registries.structure_sets {
+                opt.push((k, Some(v)));
+            }
+            egui::ComboBox::from_label("draw_structure_set")
+                .selected_text(self.draw_structure_set.unwrap_or("none"))
+                .show_ui(ui, |ui| {
+                    for (k, v) in opt {
+                        ui.selectable_value(&mut self.draw_structure_set, v.map(|_| k), k);
+                    }
+                });
+
             ui.checkbox(&mut self.cull_chunks, "cull_chunks");
 
             let opt = [

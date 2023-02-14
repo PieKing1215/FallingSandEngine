@@ -1,5 +1,7 @@
-pub mod registry;
-pub mod structure;
+pub mod configured_structure;
+pub mod pool;
+pub mod set;
+pub mod template;
 
 use std::sync::Arc;
 
@@ -16,7 +18,7 @@ use crate::game::{
         world::{
             self,
             entity::Persistent,
-            gen::structure::structure::StructureNodeConfig,
+            gen::structure::template::StructureNodeConfig,
             material::{self, color::Color, MaterialInstance, PhysicsType},
             ChunkHandlerGeneric, ChunkState, Position,
         },

@@ -163,9 +163,7 @@ impl BiomeTestGenerator {
             .placement(Count::range(0..=2))
             .placement(RandomOffset::chunk())
             .placement(MaterialMatch::physics(PhysicsType::Solid)),
-            PlacedFeature::new(TestStructure)
-                .placement(Chance(0.025))
-                .placement(RandomOffset::chunk()),
+            PlacedFeature::new(TestStructure),
         ];
 
         Self { populators, features }

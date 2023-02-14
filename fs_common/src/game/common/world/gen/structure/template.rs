@@ -3,10 +3,10 @@ use crate::game::common::{
     Rect,
 };
 
-use super::{registry::StructurePoolID, Direction};
+use super::{pool::StructurePoolID, Direction};
 
 #[derive(Debug, Clone)]
-pub struct Structure {
+pub struct StructureTemplate {
     pub buf: MaterialBuf,
     pub child_nodes: Vec<(StructureNodeLocalPlacement, StructureNodeConfig)>,
 }
@@ -34,7 +34,7 @@ pub struct StructureNodeConfig {
 }
 
 impl StructureNodeConfig {
-    pub fn new(pool: &'static str) -> Self {
+    pub fn new(pool: StructurePoolID) -> Self {
         Self { pool, depth_override: false, block_in_dirs: None }
     }
 
@@ -51,7 +51,7 @@ impl StructureNodeConfig {
     }
 }
 
-impl Structure {
+impl StructureTemplate {
     #[allow(clippy::type_complexity)]
     pub fn options(
         &self,
