@@ -16,10 +16,7 @@ use specs::{
 use crate::game::{
     common::{
         world::{
-            self,
-            entity::Persistent,
-            gen::structure::template::StructureNodeConfig,
-            material::{self, color::Color, MaterialInstance, PhysicsType},
+            self, entity::Persistent, gen::structure::template::StructureNodeConfig,
             ChunkHandlerGeneric, ChunkState, Position,
         },
         Rect,
@@ -121,11 +118,33 @@ pub enum AngleMod {
 impl AngleMod {
     pub fn degrees(&self) -> f32 {
         match self {
-            AngleMod::None => 0.0,
-            AngleMod::Clockwise90 => 90.0,
-            AngleMod::CounterClockwise90 => -90.0,
-            AngleMod::Angle180 => 180.0,
+            Self::None => 0.0,
+            Self::Clockwise90 => 90.0,
+            Self::CounterClockwise90 => -90.0,
+            Self::Angle180 => 180.0,
         }
+    }
+
+    #[must_use]
+    pub fn inverse(&self) -> Self {
+        match self {
+            Self::None => Self::Angle180,
+            Self::Clockwise90 => Self::CounterClockwise90,
+            Self::CounterClockwise90 => Self::Clockwise90,
+            Self::Angle180 => Self::None,
+        }
+    }
+
+    #[inline]
+    pub fn rotate_point(&self, point: (i64, i64), pivot: (i64, i64)) -> (i64, i64) {
+        let sin = self.degrees().to_radians().sin();
+        let cos = self.degrees().to_radians().cos();
+        (
+            (cos * (point.0 - pivot.0) as f32 - sin * (point.1 - pivot.1) as f32 + pivot.0 as f32)
+                as i64,
+            (sin * (point.0 - pivot.0) as f32 + cos * (point.1 - pivot.1) as f32 + pivot.1 as f32)
+                as i64,
+        )
     }
 }
 
@@ -145,6 +164,7 @@ pub struct StructureNode {
     pub children: Vec<Entity>,
     pub generated: Option<Result<StructureNodeGenData, ()>>,
     pub depth: u8,
+    pub max_distance: u16,
     pub rng: Box<dyn RngCore + Send + Sync>,
     /// Direction to parent
     pub direction: Direction,
@@ -160,6 +180,7 @@ impl StructureNode {
         ecs: &mut specs::World,
         pos: Position,
         depth: u8,
+        max_distance: u16,
         seed: i32,
         config: StructureNodeConfig,
     ) -> Entity {
@@ -171,6 +192,7 @@ impl StructureNode {
                 children: vec![],
                 generated: None,
                 depth,
+                max_distance,
                 direction: rng.gen(),
                 rng: Box::new(rng),
                 config,
@@ -281,6 +303,7 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
                 node_storage.insert(entity, node).unwrap();
                 pos_storage.insert(entity, pos).unwrap();
                 let root = root(entity, node_storage.get(entity).unwrap(), &node_storage);
+                let root_pos = pos_storage.get(root.0).unwrap().clone();
                 let all_bounds = all_bounds(root.1, &node_storage);
                 node = node_storage.remove(entity).unwrap();
                 pos = pos_storage.remove(entity).unwrap();
@@ -306,7 +329,7 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
                     for o in opts {
                         // log::debug!("{o:?}");
 
-                        let (bounds, children) = o;
+                        let (bounds, children, place_fn) = o;
 
                         let ok = !all_bounds
                             .iter()
@@ -314,34 +337,21 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
 
                         if ok {
                             // TODO
-                            // structure.place(self.chunk_handler, pos.x as i64, pos.y as i64);
-                            for x in bounds.left()..=bounds.right() {
-                                for y in bounds.top()..=bounds.bottom() {
-                                    let m = *self.chunk_handler.get(x, y).unwrap();
-
-                                    self.chunk_handler
-                                        .set(
-                                            x,
-                                            y,
-                                            MaterialInstance {
-                                                material_id: material::COBBLE_STONE,
-                                                physics: PhysicsType::Solid,
-                                                color: Color::rgb(
-                                                    (m.color.r_f32() + 1.0) / 2.0,
-                                                    m.color.g_f32(),
-                                                    m.color.b_f32(),
-                                                ),
-                                            },
-                                        )
-                                        .unwrap();
-                                }
-                            }
+                            place_fn(&pool_structure, self.chunk_handler).unwrap();
 
                             node.generated = Some(Ok(StructureNodeGenData { bounds }));
 
                             let mut children = children
                                 .into_iter()
-                                .filter(|(_, config)| node.depth > 0 || config.depth_override)
+                                .filter(|(pos, config)| {
+                                    (node.depth > 0 || config.depth_override) && {
+                                        let dx = root_pos.x as i64 - pos.x;
+                                        let dy = root_pos.y as i64 - pos.y;
+                                        dx * dx + dy * dy
+                                            < (i64::from(node.max_distance)
+                                                * i64::from(node.max_distance))
+                                    }
+                                })
                                 .map(|(placement, config)| {
                                     let rng = StdRng::seed_from_u64(node.rng.gen());
                                     (
@@ -351,6 +361,7 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
                                             children: vec![],
                                             generated: None,
                                             depth: if node.depth == 0 { 0 } else { node.depth - 1 },
+                                            max_distance: node.max_distance,
                                             rng: Box::new(rng),
                                             direction: placement.direction_out,
                                             config,

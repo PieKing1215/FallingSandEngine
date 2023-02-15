@@ -28,6 +28,7 @@ impl DebugUI for Settings {
             ui.checkbox(&mut self.draw_chunk_grid, "draw_chunk_grid");
             ui.checkbox(&mut self.draw_origin, "draw_origin");
             ui.checkbox(&mut self.draw_load_zones, "draw_load_zones");
+            ui.checkbox(&mut self.draw_structure_bounds, "draw_structure_bounds");
 
             let mut opt = vec![("none", None)];
             for (k, v) in &registries.structure_sets {

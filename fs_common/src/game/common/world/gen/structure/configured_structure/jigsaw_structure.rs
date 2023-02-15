@@ -35,6 +35,7 @@ impl ConfiguredStructure for ConfiguredJigsawFeature {
             ctx.ecs,
             Position { x: x as _, y: y as _ },
             self.depth,
+            self.max_distance,
             rng.gen(),
             StructureNodeConfig::new(self.start_pool),
         );

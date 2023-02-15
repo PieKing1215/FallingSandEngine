@@ -1,5 +1,5 @@
 use crate::game::common::{
-    world::{copy_paste::MaterialBuf, gen::structure::AngleMod, Chunk, ChunkHandler},
+    world::{copy_paste::MaterialBuf, gen::structure::AngleMod, ChunkHandlerGeneric},
     Rect,
 };
 
@@ -51,6 +51,8 @@ impl StructureNodeConfig {
     }
 }
 
+type PlaceFn = dyn Fn(&StructureTemplate, &mut dyn ChunkHandlerGeneric) -> Result<(), String>;
+
 impl StructureTemplate {
     #[allow(clippy::type_complexity)]
     pub fn options(
@@ -60,31 +62,19 @@ impl StructureTemplate {
     ) -> Vec<(
         Rect<i64>,
         Vec<(StructureNodeGlobalPlacement, StructureNodeConfig)>,
+        Box<PlaceFn>,
     )> {
         #[inline]
         #[must_use]
         fn rotated(rect: Rect<i64>, pivot: (i64, i64), angle: AngleMod) -> Rect<i64> {
-            let (x1_r, y1_r) = rotate_point((rect.x1, rect.y1), pivot, angle.degrees());
-            let (x2_r, y2_r) = rotate_point((rect.x2, rect.y2), pivot, angle.degrees());
+            let (x1_r, y1_r) = angle.rotate_point((rect.x1, rect.y1), pivot);
+            let (x2_r, y2_r) = angle.rotate_point((rect.x2, rect.y2), pivot);
 
             Rect::new(
                 x1_r.min(x2_r),
                 y1_r.min(y2_r),
                 x1_r.max(x2_r),
                 y1_r.max(y2_r),
-            )
-        }
-
-        #[inline]
-        fn rotate_point(point: (i64, i64), pivot: (i64, i64), deg: f32) -> (i64, i64) {
-            let sin = deg.to_radians().sin();
-            let cos = deg.to_radians().cos();
-            (
-                (cos * (point.0 - pivot.0) as f32 - sin * (point.1 - pivot.1) as f32
-                    + pivot.0 as f32) as i64,
-                (sin * (point.0 - pivot.0) as f32
-                    + cos * (point.1 - pivot.1) as f32
-                    + pivot.1 as f32) as i64,
             )
         }
 
@@ -124,7 +114,7 @@ impl StructureTemplate {
                 .map(|(_, (ch_placement, config))| {
                     let src_x = src.x1 + i64::from(ch_placement.x);
                     let src_y = src.y1 + i64::from(ch_placement.y);
-                    let (dst_x, dst_y) = rotate_point((src_x, src_y), origin, angle.degrees());
+                    let (dst_x, dst_y) = angle.rotate_point((src_x, src_y), origin);
                     (
                         StructureNodeGlobalPlacement {
                             x: dst_x,
@@ -136,20 +126,19 @@ impl StructureTemplate {
                 })
                 .collect();
 
-            opts.push((bounds, children));
+            opts.push((
+                bounds,
+                children,
+                Box::new(
+                    move |st: &Self, chunk_handler: &mut dyn ChunkHandlerGeneric| {
+                        st.buf
+                            .rotated(angle)
+                            .paste(chunk_handler, bounds.left(), bounds.top())
+                    },
+                ) as Box<PlaceFn>,
+            ));
         }
 
         opts
-    }
-
-    pub fn place<C: Chunk + Send>(
-        &self,
-        _chunk_handler: &mut ChunkHandler<C>,
-        _origin: (i64, i64),
-        _dir_in: Direction,
-    ) {
-        // TODO
-        todo!();
-        // self.buf.paste(chunk_handler, origin.0, origin.1).unwrap();
     }
 }

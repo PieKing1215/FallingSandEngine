@@ -1,6 +1,8 @@
 use std::fmt::Debug;
 
-use super::{material::MaterialInstance, Chunk, ChunkHandler, ChunkHandlerGeneric};
+use super::{
+    gen::structure::AngleMod, material::MaterialInstance, Chunk, ChunkHandler, ChunkHandlerGeneric,
+};
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct MaterialBuf {
@@ -8,6 +10,9 @@ pub struct MaterialBuf {
     pub height: u16,
     pub materials: Vec<MaterialInstance>,
 }
+
+#[derive(Debug)]
+pub struct OutOfBoundsError;
 
 impl MaterialBuf {
     pub fn new(width: u16, height: u16, materials: Vec<MaterialInstance>) -> Result<Self, String> {
@@ -73,9 +78,9 @@ impl MaterialBuf {
         Ok(Self { width, height, materials: buf })
     }
 
-    pub fn paste<C: Chunk + Send>(
+    pub fn paste(
         &self,
-        chunk_handler: &mut ChunkHandler<C>,
+        chunk_handler: &mut dyn ChunkHandlerGeneric,
         x: impl Into<i64>,
         y: impl Into<i64>,
     ) -> Result<(), String> {
@@ -95,6 +100,53 @@ impl MaterialBuf {
         }
 
         Ok(())
+    }
+
+    pub fn get(&self, x: u16, y: u16) -> Result<MaterialInstance, OutOfBoundsError> {
+        if x < self.width && y < self.height {
+            Ok(self.materials[x as usize + y as usize * self.width as usize])
+        } else {
+            Err(OutOfBoundsError)
+        }
+    }
+
+    pub fn set(&mut self, x: u16, y: u16, mat: MaterialInstance) {
+        if x < self.width && y < self.height {
+            self.materials[x as usize + y as usize * self.width as usize] = mat;
+        }
+    }
+
+    #[must_use]
+    pub fn rotated(&self, angle: AngleMod) -> Self {
+        let (new_w, new_h) = match angle {
+            AngleMod::Clockwise90 | AngleMod::CounterClockwise90 => (self.height, self.width),
+            _ => (self.width, self.height),
+        };
+
+        let mut new = Self {
+            width: new_w,
+            height: new_h,
+            materials: vec![MaterialInstance::air(); new_w as usize * new_h as usize],
+        };
+
+        for new_x in 0..new_w {
+            for new_y in 0..new_h {
+                let (old_x, old_y) = match angle {
+                    AngleMod::None => (new_x, new_y),
+                    AngleMod::Clockwise90 => (new_y, new_w - new_x - 1),
+                    AngleMod::CounterClockwise90 => (new_h - new_y - 1, new_x),
+                    AngleMod::Angle180 => (new_w - new_x - 1, new_h - new_y - 1),
+                };
+                new.set(
+                    new_x,
+                    new_y,
+                    self.get(old_x, old_y)
+                        .expect(format!("{new_x} {new_y} {old_x} {old_y}").as_str()),
+                );
+            }
+        }
+
+        new
     }
 }
 
