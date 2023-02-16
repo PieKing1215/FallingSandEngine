@@ -584,6 +584,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
         }
     }
 
+    #[profiling::function]
     pub fn draw_chunks_2(&mut self, chunks: Vec<((f32, f32), &Texture2d)>) {
         let model_view =
             *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
@@ -609,12 +610,8 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
         };
 
         for (p, texture) in chunks {
-            profiling::scope!("chunk");
-
-            {
-                profiling::scope!("draw");
-                self.frame.draw(&vertex_buffer, &indices, &self.shaders.chunk, &uniform! { matrix: view, c_pos: p, tex: texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest) }, &params).unwrap();
-            }
+            profiling::scope!("draw chunk");
+            self.frame.draw(&vertex_buffer, &indices, &self.shaders.chunk, &uniform! { matrix: view, c_pos: p, tex: texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest) }, &params).unwrap();
         }
     }
 }
