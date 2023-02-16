@@ -31,11 +31,12 @@ pub struct MaterialInstance {
 }
 
 impl MaterialInstance {
-    pub fn air() -> Self {
+    #[inline]
+    pub const fn air() -> Self {
         Self {
             material_id: AIR,
             physics: PhysicsType::Air,
-            color: Color::rgba(0, 0, 0, 0),
+            color: Color::TRANSPARENT,
         }
     }
 }

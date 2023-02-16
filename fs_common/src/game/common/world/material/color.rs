@@ -58,18 +58,22 @@ impl Color {
         Self::rgba_const(self.r, self.g, self.b, a.col_num())
     }
 
+    #[inline]
     pub fn r_f32(&self) -> f32 {
         f32::from(self.r) / f32::from(u8::MAX)
     }
 
+    #[inline]
     pub fn g_f32(&self) -> f32 {
         f32::from(self.g) / f32::from(u8::MAX)
     }
 
+    #[inline]
     pub fn b_f32(&self) -> f32 {
         f32::from(self.b) / f32::from(u8::MAX)
     }
 
+    #[inline]
     pub fn a_f32(&self) -> f32 {
         f32::from(self.a) / f32::from(u8::MAX)
     }
@@ -92,6 +96,8 @@ impl Color {
     pub const VIOLET: Color = Color::rgb_const(0x7f, 0, 0xff);
     pub const SPRING_GREEN: Color = Color::rgb_const(0, 0xff, 0x7f);
     pub const AZURE: Color = Color::rgb_const(0, 0x7f, 0xff);
+
+    pub const TRANSPARENT: Color = Color::rgba_const(0, 0, 0, 0);
 }
 
 impl From<Color> for [f32; 4] {
