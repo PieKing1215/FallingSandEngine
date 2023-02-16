@@ -256,7 +256,7 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
 
     #[allow(clippy::too_many_lines)]
     fn run(&mut self, data: Self::SystemData) {
-        profiling::scope!("UpdateAutoTargets::run");
+        profiling::scope!("UpdateStructureNodes::run");
 
         let (entities, mut node_storage, mut pos_storage) = data;
 

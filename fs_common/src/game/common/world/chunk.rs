@@ -337,16 +337,36 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
         }
 
         if settings.load_chunks && tick_time % 2 == 0 {
-            let mut num_active = 0;
-            let mut num_cached = 0;
+            let num_active = self
+                .loaded_chunks
+                .values()
+                .filter(|c| c.get_state() == ChunkState::Active)
+                .count();
+            let num_cached = self
+                .loaded_chunks
+                .values()
+                .filter(|c| c.get_state() == ChunkState::Cached)
+                .count();
 
             // generate new chunks
             {
                 profiling::scope!("chunk update B");
 
                 // get keys for all chunks sorted by distance to nearest loader
-                let mut keys = self.loaded_chunks.keys().copied().collect::<Vec<u32>>();
+                let mut keys = self
+                    .loaded_chunks
+                    .iter()
+                    .filter_map(|(k, c)| {
+                        if c.get_state() == ChunkState::NotGenerated {
+                            Some(k)
+                        } else {
+                            None
+                        }
+                    })
+                    .copied()
+                    .collect::<Vec<u32>>();
                 if !loaders.is_empty() {
+                    profiling::scope!("sort");
                     keys.sort_by(|a, b| {
                         let c1_x = self.loaded_chunks.get(a).unwrap().get_chunk_x()
                             * i32::from(CHUNK_SIZE);
@@ -386,7 +406,6 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                 // list of chunks that need to be generated
                 // u32 is key, i32s are chunk x and y
                 let to_generate = keys.iter().filter_map(|key| {
-                    let state = self.loaded_chunks.get(key).unwrap().get_state(); // copy
                     let rect = Rect::new_wh(
                         self.loaded_chunks.get(key).unwrap().get_chunk_x() * i32::from(CHUNK_SIZE),
                         self.loaded_chunks.get(key).unwrap().get_chunk_y() * i32::from(CHUNK_SIZE),
@@ -394,106 +413,104 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                         CHUNK_SIZE,
                     );
 
-                    if state == ChunkState::Active {
-                        num_active += 1;
-                    } else if state == ChunkState::Cached {
-                        num_cached += 1;
-                    } else if state == ChunkState::NotGenerated {
-                        // start generating chunks waiting to generate
-                        if unload_zone.iter().any(|z| rect.intersects(z)) && num_loaded_this_tick < 32 {
-                            let chunk_x = self.loaded_chunks.get_mut(key).unwrap().get_chunk_x();
-                            let chunk_y = self.loaded_chunks.get_mut(key).unwrap().get_chunk_y();
+                    // keys are filtered by state == NotGenerated already
+                    assert!(self.loaded_chunks.get(key).unwrap().get_state() == ChunkState::NotGenerated);
 
-                            let mut should_generate = true;
+                    // start generating chunks waiting to generate
+                    if unload_zone.iter().any(|z| rect.intersects(z)) && num_loaded_this_tick < 32 {
+                        let chunk_x = self.loaded_chunks.get_mut(key).unwrap().get_chunk_x();
+                        let chunk_y = self.loaded_chunks.get_mut(key).unwrap().get_chunk_y();
 
-                            // skip if already generating this chunk
-                            if self.gen_threads.iter().any(|(k, _)| k == key) {
-                                should_generate = false;
+                        let mut should_generate = true;
+
+                        // skip if already generating this chunk
+                        if self.gen_threads.iter().any(|(k, _)| k == key) {
+                            should_generate = false;
+                        }
+
+                        // try to load from file
+                        if let Some(path) = &self.path {
+                            let chunk_path_root = path.join("chunks/");
+                            if !chunk_path_root.exists() {
+                                std::fs::create_dir_all(&chunk_path_root).expect(
+                                    format!(
+                                        "Failed to create chunk directory @ {chunk_path_root:?}"
+                                    )
+                                    .as_str(),
+                                );
                             }
+                            let chunk_path =
+                                chunk_path_root.join(format!("{chunk_x}_{chunk_y}.chunk"));
+                            if chunk_path.exists() {
+                                if let Ok(data) = std::fs::read(&chunk_path) {
+                                    match bincode::deserialize(&data) {
+                                        Ok(res) => {
+                                            let save: ChunkSaveFormat = res;
 
-                            // try to load from file
-                            if let Some(path) = &self.path {
-                                let chunk_path_root = path.join("chunks/");
-                                if !chunk_path_root.exists() {
-                                    std::fs::create_dir_all(&chunk_path_root).expect(
-                                        format!(
-                                            "Failed to create chunk directory @ {chunk_path_root:?}"
-                                        )
-                                        .as_str(),
-                                    );
-                                }
-                                let chunk_path =
-                                    chunk_path_root.join(format!("{chunk_x}_{chunk_y}.chunk"));
-                                if chunk_path.exists() {
-                                    if let Ok(data) = std::fs::read(&chunk_path) {
-                                        match bincode::deserialize(&data) {
-                                            Ok(res) => {
-                                                let save: ChunkSaveFormat = res;
+                                            if save.pixels.len()
+                                                == (CHUNK_SIZE as usize * CHUNK_SIZE as usize)
+                                            {
+                                                let chunk =  self.loaded_chunks.get_mut(key).unwrap();
+                                                chunk.set_state(ChunkState::Cached);
+                                                chunk.set_pixels(save.pixels.try_into().unwrap());
+                                                chunk.mark_dirty();
+                                                let _ = chunk.generate_mesh();
 
-                                                if save.pixels.len()
-                                                    == (CHUNK_SIZE as usize * CHUNK_SIZE as usize)
+                                                if save.colors.len()
+                                                    == (CHUNK_SIZE as usize
+                                                        * CHUNK_SIZE as usize
+                                                        * 4)
                                                 {
-                                                    let chunk =  self.loaded_chunks.get_mut(key).unwrap();
-                                                    chunk.set_state(ChunkState::Cached);
-                                                    chunk.set_pixels(save.pixels.try_into().unwrap());
-                                                    chunk.mark_dirty();
-                                                    let _ = chunk.generate_mesh();
-
-                                                    if save.colors.len()
-                                                        == (CHUNK_SIZE as usize
-                                                            * CHUNK_SIZE as usize
-                                                            * 4)
-                                                    {
-                                                        chunk.set_pixel_colors(save.colors.try_into().unwrap());
-                                                    } else {
-                                                        log::error!("colors Vec is the wrong size: {} (expected {})", save.colors.len(), CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4);
-                                                        chunk.refresh();
-                                                    }
-
-                                                    should_generate = false;
+                                                    chunk.set_pixel_colors(save.colors.try_into().unwrap());
                                                 } else {
-                                                    log::error!("pixels Vec is the wrong size: {} (expected {})", save.pixels.len(), CHUNK_SIZE * CHUNK_SIZE);
-                                                    self.loaded_chunks
-                                                        .get_mut(key)
-                                                        .unwrap()
-                                                        .set_state(ChunkState::Cached);
+                                                    log::error!("colors Vec is the wrong size: {} (expected {})", save.colors.len(), CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4);
+                                                    chunk.refresh();
                                                 }
-                                            },
-                                            Err(e) => {
-                                                log::error!(
-                                                    "Chunk parse failed @ {},{} -> {:?}: {:?}",
-                                                    chunk_x,
-                                                    chunk_y,
-                                                    chunk_path,
-                                                    e
-                                                );
+
+                                                should_generate = false;
+                                            } else {
+                                                log::error!("pixels Vec is the wrong size: {} (expected {})", save.pixels.len(), CHUNK_SIZE * CHUNK_SIZE);
                                                 self.loaded_chunks
                                                     .get_mut(key)
                                                     .unwrap()
                                                     .set_state(ChunkState::Cached);
-                                            },
-                                        }
-                                    } else {
-                                        log::error!(
-                                            "Chunk load failed @ {},{} -> {:?}",
-                                            chunk_x,
-                                            chunk_y,
-                                            chunk_path
-                                        );
-                                        self.loaded_chunks
-                                            .get_mut(key)
-                                            .unwrap()
-                                            .set_state(ChunkState::Cached);
+                                            }
+                                        },
+                                        Err(e) => {
+                                            log::error!(
+                                                "Chunk parse failed @ {},{} -> {:?}: {:?}",
+                                                chunk_x,
+                                                chunk_y,
+                                                chunk_path,
+                                                e
+                                            );
+                                            self.loaded_chunks
+                                                .get_mut(key)
+                                                .unwrap()
+                                                .set_state(ChunkState::Cached);
+                                        },
                                     }
+                                } else {
+                                    log::error!(
+                                        "Chunk load failed @ {},{} -> {:?}",
+                                        chunk_x,
+                                        chunk_y,
+                                        chunk_path
+                                    );
+                                    self.loaded_chunks
+                                        .get_mut(key)
+                                        .unwrap()
+                                        .set_state(ChunkState::Cached);
                                 }
                             }
+                        }
 
-                            if should_generate {
-                                num_loaded_this_tick += 1;
-                                return Some((*key, chunk_x, chunk_y));
-                            }
+                        if should_generate {
+                            num_loaded_this_tick += 1;
+                            return Some((*key, chunk_x, chunk_y));
                         }
                     }
+                    
 
                     None
                 }).collect::<Vec<_>>();
@@ -761,8 +778,10 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                     }
                 }
 
-                let mut update_particles = UpdateStructureNodes { chunk_handler: self, registries };
-                update_particles.run_now(world);
+                // tick structures
+                let mut update_structures =
+                    UpdateStructureNodes { chunk_handler: self, registries };
+                update_structures.run_now(world);
                 world.maintain();
 
                 let mut iter = keep_map.iter();
