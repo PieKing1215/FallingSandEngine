@@ -745,27 +745,20 @@ impl<C: Chunk + Send + Sync> World<C> {
                 let rb_h = rb.height;
                 let body_opt = rb.get_body(&self.physics);
 
-                if body_opt.is_some() {
-                    let s = body_opt.unwrap().rotation().angle().sin();
-                    let c = body_opt.unwrap().rotation().angle().cos();
-                    let pos_x = body_opt.unwrap().translation().x * PHYSICS_SCALE;
-                    let pos_y = body_opt.unwrap().translation().y * PHYSICS_SCALE;
+                if let Some(body) = body_opt {
+                    let (s, c) = body.rotation().angle().sin_cos();
+                    let pos_x = body.translation().x * PHYSICS_SCALE;
+                    let pos_y = body.translation().y * PHYSICS_SCALE;
 
                     for rb_y in 0..rb_w {
                         for rb_x in 0..rb_h {
                             let tx = f32::from(rb_x) * c - f32::from(rb_y) * s + pos_x;
                             let ty = f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y;
 
-                            let world = self.chunk_handler.get(tx as i64, ty as i64);
-                            if let Ok(mat) = world {
-                                if mat.physics == PhysicsType::Object {
-                                    let _ignore = self.chunk_handler.set(
-                                        tx as i64,
-                                        ty as i64,
-                                        MaterialInstance::air(),
-                                    );
-                                }
-                            }
+                            // ok to fail since the chunk might just not be ready
+                            let _ignore = self.chunk_handler.replace(tx as i64, ty as i64, |mat| {
+                                (mat.physics == PhysicsType::Object).then(MaterialInstance::air)
+                            });
                         }
                     }
                 }

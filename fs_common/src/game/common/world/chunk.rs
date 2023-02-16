@@ -73,6 +73,10 @@ pub trait Chunk {
     fn update_graphics(&mut self) -> Result<(), String>;
     fn set(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String>;
     fn get(&self, x: u16, y: u16) -> Result<&MaterialInstance, String>;
+    fn replace<F>(&mut self, x: u16, y: u16, cb: F) -> Result<(), String>
+    where
+        Self: Sized,
+        F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>;
     fn set_color(&mut self, x: u16, y: u16, color: Color) -> Result<(), String>;
     fn get_color(&self, x: u16, y: u16) -> Result<Color, String>;
     fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]);
@@ -129,6 +133,10 @@ pub trait ChunkHandlerGeneric {
     fn get_chunk_mut(&mut self, chunk_x: i32, chunk_y: i32) -> Option<&mut dyn Chunk>;
     fn set(&mut self, x: i64, y: i64, mat: MaterialInstance) -> Result<(), String>;
     fn get(&self, x: i64, y: i64) -> Result<&MaterialInstance, String>;
+    fn replace<F>(&mut self, x: i64, y: i64, cb: F) -> Result<(), String>
+    where
+        Self: Sized,
+        F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>;
     fn displace(&mut self, x: i64, y: i64, material: MaterialInstance) -> bool;
     fn force_update_chunk(&mut self, chunk_x: i32, chunk_y: i32);
     fn get_zone(&self, center: (f64, f64), padding: u16) -> Rect<i32>;
@@ -368,14 +376,12 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                 if !loaders.is_empty() {
                     profiling::scope!("sort");
                     keys.sort_by(|a, b| {
-                        let c1_x = self.loaded_chunks.get(a).unwrap().get_chunk_x()
-                            * i32::from(CHUNK_SIZE);
-                        let c1_y = self.loaded_chunks.get(a).unwrap().get_chunk_y()
-                            * i32::from(CHUNK_SIZE);
-                        let c2_x = self.loaded_chunks.get(b).unwrap().get_chunk_x()
-                            * i32::from(CHUNK_SIZE);
-                        let c2_y = self.loaded_chunks.get(b).unwrap().get_chunk_y()
-                            * i32::from(CHUNK_SIZE);
+                        let a = self.loaded_chunks.get(a).unwrap();
+                        let b = self.loaded_chunks.get(b).unwrap();
+                        let c1_x = a.get_chunk_x() * i32::from(CHUNK_SIZE);
+                        let c1_y = a.get_chunk_y() * i32::from(CHUNK_SIZE);
+                        let c2_x = b.get_chunk_x() * i32::from(CHUNK_SIZE);
+                        let c2_y = b.get_chunk_y() * i32::from(CHUNK_SIZE);
 
                         let d1 = (&loaders, &positions)
                             .join()
@@ -510,7 +516,6 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                             return Some((*key, chunk_x, chunk_y));
                         }
                     }
-                    
 
                     None
                 }).collect::<Vec<_>>();
@@ -1149,6 +1154,25 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
             )
     }
 
+    fn replace<F>(&mut self, x: i64, y: i64, cb: F) -> Result<(), String>
+    where
+        F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>,
+    {
+        let (chunk_x, chunk_y) = pixel_to_chunk_pos(x, y);
+        self.loaded_chunks
+            .get_mut(&chunk_index(chunk_x, chunk_y))
+            .map_or_else(
+                || Err("Position is not loaded".to_string()),
+                |ch| {
+                    ch.replace(
+                        (x - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16,
+                        (y - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16,
+                        cb,
+                    )
+                },
+            )
+    }
+
     // #[profiling::function]
     fn displace(&mut self, x: i64, y: i64, material: MaterialInstance) -> bool {
         let mut succeeded = false;
@@ -1435,22 +1459,25 @@ mod tests {
 // #[profiling::function]
 #[inline]
 pub fn pixel_to_chunk_pos(x: i64, y: i64) -> (i32, i32) {
+    // div_euclid is the same as div_floor in this case (div_floor is currenlty unstable)
     (
-        (x as f64 / f64::from(CHUNK_SIZE)).floor() as i32,
-        (y as f64 / f64::from(CHUNK_SIZE)).floor() as i32,
+        x.div_euclid(CHUNK_SIZE.into()) as _,
+        y.div_euclid(CHUNK_SIZE.into()) as _,
     )
 }
 
 #[inline]
 pub fn pixel_to_chunk_pos_with_chunk_size(x: i64, y: i64, chunk_size: u16) -> (i32, i32) {
+    // div_euclid is the same as div_floor in this case (div_floor is currenlty unstable)
     (
-        (x as f64 / f64::from(chunk_size)).floor() as i32,
-        (y as f64 / f64::from(chunk_size)).floor() as i32,
+        x.div_euclid(chunk_size.into()) as _,
+        y.div_euclid(chunk_size.into()) as _,
     )
 }
 
 #[inline]
 pub fn chunk_index(chunk_x: i32, chunk_y: i32) -> u32 {
+    #[inline]
     fn int_to_nat(i: i32) -> u32 {
         if i >= 0 {
             (2 * i) as u32

@@ -98,7 +98,7 @@ impl Chunk for ClientChunk {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             if let Some(px) = &mut self.pixels {
                 let i = (x + y * CHUNK_SIZE) as usize;
-                // we do our own bounds check
+                // Safety: we do our own bounds check
                 self.graphics.set(x, y, mat.color)?;
                 *unsafe { px.get_unchecked_mut(i) } = mat;
 
@@ -118,8 +118,34 @@ impl Chunk for ClientChunk {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             if let Some(px) = &self.pixels {
                 let i = (x + y * CHUNK_SIZE) as usize;
-                // we do our own bounds check
+                // Safety: we do our own bounds check
                 return Ok(unsafe { px.get_unchecked(i) });
+            }
+
+            return Err("Chunk is not ready yet.".to_string());
+        }
+
+        Err("Invalid pixel coordinate.".to_string())
+    }
+
+    fn replace<F>(&mut self, x: u16, y: u16, cb: F) -> Result<(), String>
+    where
+        Self: Sized,
+        F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>,
+    {
+        if x < CHUNK_SIZE && y < CHUNK_SIZE {
+            if let Some(px) = &mut self.pixels {
+                let i = (x + y * CHUNK_SIZE) as usize;
+                // Safety: we do our own bounds check
+                let px = unsafe { px.get_unchecked_mut(i) };
+                if let Some(mat) = (cb)(px) {
+                    self.graphics.set(x, y, mat.color)?;
+                    *px = mat;
+
+                    self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
+                }
+
+                return Ok(());
             }
 
             return Err("Chunk is not ready yet.".to_string());
