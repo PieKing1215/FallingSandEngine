@@ -73,7 +73,7 @@ pub trait Chunk {
     fn update_graphics(&mut self) -> Result<(), String>;
     fn set(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String>;
     fn get(&self, x: u16, y: u16) -> Result<&MaterialInstance, String>;
-    fn replace<F>(&mut self, x: u16, y: u16, cb: F) -> Result<(), String>
+    fn replace<F>(&mut self, x: u16, y: u16, cb: F) -> Result<bool, String>
     where
         Self: Sized,
         F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>;
@@ -133,7 +133,7 @@ pub trait ChunkHandlerGeneric {
     fn get_chunk_mut(&mut self, chunk_x: i32, chunk_y: i32) -> Option<&mut dyn Chunk>;
     fn set(&mut self, x: i64, y: i64, mat: MaterialInstance) -> Result<(), String>;
     fn get(&self, x: i64, y: i64) -> Result<&MaterialInstance, String>;
-    fn replace<F>(&mut self, x: i64, y: i64, cb: F) -> Result<(), String>
+    fn replace<F>(&mut self, x: i64, y: i64, cb: F) -> Result<bool, String>
     where
         Self: Sized,
         F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>;
@@ -1154,7 +1154,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
             )
     }
 
-    fn replace<F>(&mut self, x: i64, y: i64, cb: F) -> Result<(), String>
+    fn replace<F>(&mut self, x: i64, y: i64, cb: F) -> Result<bool, String>
     where
         F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>,
     {
@@ -1173,7 +1173,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
             )
     }
 
-    // #[profiling::function]
+    #[profiling::function]
     fn displace(&mut self, x: i64, y: i64, material: MaterialInstance) -> bool {
         let mut succeeded = false;
 
@@ -1191,15 +1191,13 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                 && (scan_y >= -scan_h / 2)
                 && (scan_y <= scan_h / 2)
             {
-                if let Ok(scan_mat) = self.get(x + i64::from(scan_x), y + i64::from(scan_y)) {
-                    if scan_mat.physics == PhysicsType::Air
-                        && self
-                            .set(x + i64::from(scan_x), y + i64::from(scan_y), material)
-                            .is_ok()
-                    {
-                        succeeded = true;
-                        break;
-                    }
+                if let Ok(true) =
+                    self.replace(x + i64::from(scan_x), y + i64::from(scan_y), |scan_mat| {
+                        (scan_mat.physics == PhysicsType::Air).then_some(material)
+                    })
+                {
+                    succeeded = true;
+                    break;
                 }
             }
 

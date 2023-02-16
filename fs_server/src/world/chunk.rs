@@ -99,7 +99,7 @@ impl Chunk for ServerChunk {
         Err("Invalid pixel coordinate.".to_string())
     }
 
-    fn replace<F>(&mut self, x: u16, y: u16, cb: F) -> Result<(), String>
+    fn replace<F>(&mut self, x: u16, y: u16, cb: F) -> Result<bool, String>
     where
         Self: Sized,
         F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>,
@@ -113,9 +113,11 @@ impl Chunk for ServerChunk {
                     *px = mat;
 
                     self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
+
+                    return Ok(true);
                 }
 
-                return Ok(());
+                return Ok(false);
             }
 
             return Err("Chunk is not ready yet.".to_string());

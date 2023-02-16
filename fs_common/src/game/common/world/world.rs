@@ -415,6 +415,7 @@ impl<C: Chunk + Send + Sync> World<C> {
                                 let world = self.chunk_handler.get(tx as i64, ty as i64);
                                 if let Ok(mat) = world {
                                     if mat.material_id == material::AIR {
+                                        // ok to fail since the chunk might just not be ready
                                         let _ignore = self.chunk_handler.set(
                                             tx as i64,
                                             ty as i64,
@@ -625,27 +626,15 @@ impl<C: Chunk + Send + Sync> World<C> {
                         let pos_x = pos.x + f64::from(dx);
                         let pos_y = pos.y + f64::from(dy);
 
-                        let world = ch.get(pos_x.floor() as i64, pos_y.floor() as i64);
-                        if let Ok(mat) = world.map(|m| *m) {
-                            if mat.material_id == material::AIR {
-                                let _ignore = ch.set(
-                                    pos_x.floor() as i64,
-                                    pos_y.floor() as i64,
-                                    MaterialInstance {
-                                        physics: PhysicsType::Object,
-                                        color: Color::rgb(0, 255, 0),
-                                        ..mat
-                                    },
-                                );
-                            }
-                            // else if mat.physics == PhysicsType::Sand && ch.set(pos_x as i64, pos_y as i64, MaterialInstance::air()).is_ok() {
-                            //     create_particles.push((
-                            //         Particle::of(mat),
-                            //         Position { x: pos_x, y: pos_y },
-                            //         Velocity { x: 0.0, y: 0.0 },
-                            //     ));
-                            // }
-                        }
+                        // ok to fail since the chunk might just not be ready
+                        let _ignore =
+                            ch.replace(pos_x.floor() as i64, pos_y.floor() as i64, |mat| {
+                                (mat.material_id == material::AIR).then_some(MaterialInstance {
+                                    physics: PhysicsType::Object,
+                                    color: Color::rgb(0, 255, 0),
+                                    ..*mat
+                                })
+                            });
                     }
                 });
 
@@ -719,16 +708,11 @@ impl<C: Chunk + Send + Sync> World<C> {
                         let pos_x = pos.x + f64::from(dx);
                         let pos_y = pos.y + f64::from(dy);
 
-                        let world = ch.get(pos_x.floor() as i64, pos_y.floor() as i64);
-                        if let Ok(mat) = world {
-                            if mat.physics == PhysicsType::Object {
-                                let _ignore = ch.set(
-                                    pos_x.floor() as i64,
-                                    pos_y.floor() as i64,
-                                    MaterialInstance::air(),
-                                );
-                            }
-                        }
+                        // ok to fail since the chunk might just not be ready
+                        let _ignore =
+                            ch.replace(pos_x.floor() as i64, pos_y.floor() as i64, |mat| {
+                                (mat.physics == PhysicsType::Object).then(MaterialInstance::air)
+                            });
                     }
                 });
         }
