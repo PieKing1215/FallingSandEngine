@@ -71,12 +71,22 @@ pub trait Chunk {
 
     fn refresh(&mut self);
     fn update_graphics(&mut self) -> Result<(), String>;
+
     fn set(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String>;
+    /// # Safety
+    /// x and y must be in `0..CHUNK_SIZE`
+    unsafe fn set_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance);
+
     fn get(&self, x: u16, y: u16) -> Result<&MaterialInstance, String>;
+    /// # Safety
+    /// x and y must be in `0..CHUNK_SIZE`
+    unsafe fn get_unchecked(&self, x: u16, y: u16) -> &MaterialInstance;
+
     fn replace<F>(&mut self, x: u16, y: u16, cb: F) -> Result<bool, String>
     where
         Self: Sized,
         F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>;
+
     fn set_color(&mut self, x: u16, y: u16, color: Color) -> Result<(), String>;
     fn get_color(&self, x: u16, y: u16) -> Result<Color, String>;
     fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]);

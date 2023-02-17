@@ -25,48 +25,50 @@ impl Populator<1> for NearbyReplacePopulator {
 
         let mut skip_y = [0; CHUNK_SIZE as usize + OVERSCAN as usize * 2];
 
-        for y in -i32::from(OVERSCAN)..i32::from(CHUNK_SIZE) + i32::from(OVERSCAN) {
-            let mut skip_x = 0;
-            // log::trace!("{} {} {}", i32::from(OVERSCAN), i32::from(CHUNK_SIZE), i32::from(CHUNK_SIZE) + i32::from(OVERSCAN));
-            for x in -i32::from(OVERSCAN)..i32::from(CHUNK_SIZE) + i32::from(OVERSCAN) {
-                // log::trace!("{} / {}", x, x as usize);
-                let m = chunks.get(x, y).unwrap();
-                if (self.searching_for)(m) {
-                    let range = i32::from(self.radius);
-                    for dx in (-range + i32::from(skip_x))..=range {
-                        if x + dx < 0 || x + dx >= i32::from(CHUNK_SIZE) {
-                            continue;
-                        }
-                        // log::trace!("{} + {}", x as usize, OVERSCAN as usize);
-                        for dy in
-                            (-range + i32::from(skip_y[(x + i32::from(OVERSCAN)) as usize]))..=range
-                        {
-                            if dx == 0 && dy == 0 {
+        {
+            profiling::scope!("loop");
+            let range = i32::from(self.radius);
+            for y in -i32::from(OVERSCAN)..i32::from(CHUNK_SIZE) + i32::from(OVERSCAN) {
+                let mut skip_x = 0;
+                for x in -i32::from(OVERSCAN)..i32::from(CHUNK_SIZE) + i32::from(OVERSCAN) {
+                    let m = chunks.get(x, y).unwrap();
+                    let cur_skip_y =
+                        unsafe { skip_y.get_unchecked_mut((x + i32::from(OVERSCAN)) as usize) };
+                    if (self.searching_for)(m) {
+                        for dx in (-range + i32::from(skip_x))..=range {
+                            if x + dx < 0 {
                                 continue;
                             }
-                            if y + dy < 0 || y + dy >= i32::from(CHUNK_SIZE) {
-                                continue;
+                            if x + dx >= i32::from(CHUNK_SIZE) {
+                                break;
                             }
-                            let m2 = chunks.get(x + dx, y + dy).unwrap();
-                            if let Some(rep) = (self.replace)(
-                                m2,
-                                cofs_x + i64::from(x) + i64::from(dx),
-                                cofs_y + i64::from(y) + i64::from(dy),
-                                registries,
-                            ) {
-                                chunks.set(x + dx, y + dy, rep).unwrap();
+                            for dy in (-range + i32::from(*cur_skip_y))..=range {
+                                if (dx == 0 && dy == 0) || y + dy < 0 {
+                                    continue;
+                                }
+                                if y + dy >= i32::from(CHUNK_SIZE) {
+                                    break;
+                                }
+                                chunks.replace(x + dx, y + dy, |mat| {
+                                    (self.replace)(
+                                        mat,
+                                        cofs_x + i64::from(x + dx),
+                                        cofs_y + i64::from(y + dy),
+                                        registries,
+                                    )
+                                });
                             }
                         }
+
+                        skip_x = self.radius * 2;
+                        *cur_skip_y = self.radius * 2;
+                    } else if skip_x > 0 {
+                        skip_x -= 1;
                     }
 
-                    skip_x = self.radius * 2;
-                    skip_y[(x + i32::from(OVERSCAN)) as usize] = self.radius * 2;
-                } else if skip_x > 0 {
-                    skip_x -= 1;
-                }
-
-                if skip_y[(x + i32::from(OVERSCAN)) as usize] > 0 {
-                    skip_y[(x + i32::from(OVERSCAN)) as usize] -= 1;
+                    if *cur_skip_y > 0 {
+                        *cur_skip_y -= 1;
+                    }
                 }
             }
         }

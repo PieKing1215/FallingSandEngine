@@ -35,6 +35,7 @@ image = { version = "0.24", default_features = false, features = ["png"] }
 akin = "0.4"
 bracket-noise = "0.8"
 futures = "0.3"
+ahash = "0.8"
 
 # mesh generation
 contour = "0.7"

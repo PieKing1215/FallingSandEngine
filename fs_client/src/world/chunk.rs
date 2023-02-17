@@ -113,6 +113,15 @@ impl Chunk for ClientChunk {
         Err("Invalid pixel coordinate.".to_string())
     }
 
+    unsafe fn set_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance) {
+        let i = (x + y * CHUNK_SIZE) as usize;
+        // Safety: input index assumed to be valid
+        self.graphics.set(x, y, mat.color).unwrap();
+        *unsafe { self.pixels.as_mut().unwrap().get_unchecked_mut(i) } = mat;
+
+        self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
+    }
+
     // #[profiling::function] // huge performance impact
     fn get(&self, x: u16, y: u16) -> Result<&MaterialInstance, String> {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
@@ -126,6 +135,12 @@ impl Chunk for ClientChunk {
         }
 
         Err("Invalid pixel coordinate.".to_string())
+    }
+
+    unsafe fn get_unchecked(&self, x: u16, y: u16) -> &MaterialInstance {
+        let i = (x + y * CHUNK_SIZE) as usize;
+        // Safety: input index assumed to be valid
+        unsafe { self.pixels.as_ref().unwrap().get_unchecked(i) }
     }
 
     fn replace<F>(&mut self, x: u16, y: u16, cb: F) -> Result<bool, String>

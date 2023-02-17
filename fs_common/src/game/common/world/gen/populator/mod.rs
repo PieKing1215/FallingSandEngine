@@ -21,7 +21,9 @@ pub struct ChunkContext<'a, 'b, const S: u8>(&'a mut [&'b mut dyn Chunk]);
 
 impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
     pub fn new(slice: &'a mut [&'b mut dyn Chunk]) -> Result<Self, String> {
-        if slice.len() == ((S * 2 + 1) * (S * 2 + 1)) as usize {
+        if slice.len() == ((S * 2 + 1) * (S * 2 + 1)) as usize
+            && slice.iter().all(|c| c.get_pixels().is_some())
+        {
             Ok(Self(slice))
         } else {
             Err(format!(
@@ -37,13 +39,15 @@ impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
         (ch.get_chunk_x(), ch.get_chunk_y())
     }
 
+    #[inline]
     pub fn pixel_to_chunk(x: i32, y: i32) -> (i8, i8) {
         (
-            (x as f32 / f32::from(CHUNK_SIZE)).floor() as i8,
-            (y as f32 / f32::from(CHUNK_SIZE)).floor() as i8,
+            x.div_euclid(i32::from(CHUNK_SIZE)) as i8,
+            y.div_euclid(i32::from(CHUNK_SIZE)) as i8,
         )
     }
 
+    #[inline]
     pub fn chunk_index(cx: i8, cy: i8) -> usize {
         let center = S;
         let abs_x = (i16::from(cx) + i16::from(center)) as usize;
@@ -55,11 +59,16 @@ impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
     pub fn set(&mut self, x: i32, y: i32, mat: MaterialInstance) -> Result<(), String> {
         let (cx, cy) = Self::pixel_to_chunk(x, y);
         let i = Self::chunk_index(cx, cy);
-        self.0[i].set(
-            x.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
-            y.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
-            mat,
-        )
+        // Safety: rem_euclid covers bounds check and we check in `Self::new` if the chunks have a pixel buffer
+        unsafe {
+            let ch = self.0.get_unchecked_mut(i);
+            ch.set_unchecked(
+                x.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
+                y.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
+                mat,
+            );
+            Ok(())
+        }
     }
 
     pub fn get(&self, x: impl Into<i32>, y: impl Into<i32>) -> Result<&MaterialInstance, String> {
@@ -67,9 +76,36 @@ impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
         let y = y.into();
         let (cx, cy) = Self::pixel_to_chunk(x, y);
         let i = Self::chunk_index(cx, cy);
-        self.0[i].get(
-            x.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
-            y.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
-        )
+        // Safety: rem_euclid covers bounds check and we check in `Self::new` if the chunks have a pixel buffer
+        unsafe {
+            let ch = self.0.get_unchecked(i);
+            Ok(ch.get_unchecked(
+                x.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
+                y.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
+            ))
+        }
+    }
+
+    fn replace<F>(&mut self, x: impl Into<i32>, y: impl Into<i32>, cb: F) -> bool
+    where
+        F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>,
+    {
+        let x = x.into();
+        let y = y.into();
+
+        let (cx, cy) = Self::pixel_to_chunk(x, y);
+        let i = Self::chunk_index(cx, cy);
+
+        let x = x.rem_euclid(i32::from(CHUNK_SIZE)) as u16;
+        let y = y.rem_euclid(i32::from(CHUNK_SIZE)) as u16;
+        unsafe {
+            let ch = self.0.get_unchecked_mut(i);
+            if let Some(mat) = (cb)(ch.get_unchecked(x, y)) {
+                ch.set_unchecked(x, y, mat);
+                true
+            } else {
+                false
+            }
+        }
     }
 }
