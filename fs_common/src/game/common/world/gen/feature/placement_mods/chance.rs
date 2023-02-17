@@ -1,7 +1,7 @@
 use rand::Rng;
 
-use crate::game::{
-    common::world::gen::{feature::PlacementModifier, populator::ChunkContext},
+use crate::game::common::{
+    world::gen::{feature::PlacementModifier, populator::ChunkContext},
     Registries,
 };
 

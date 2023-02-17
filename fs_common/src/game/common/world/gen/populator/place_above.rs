@@ -1,5 +1,5 @@
-use crate::game::{
-    common::world::{
+use crate::game::common::{
+    world::{
         material::{self, MaterialInstance},
         CHUNK_SIZE,
     },

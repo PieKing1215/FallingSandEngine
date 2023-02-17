@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use crate::game::{
-    common::world::{
+use crate::game::common::{
+    world::{
         gen::{feature::PlacementModifier, populator::ChunkContext},
         material::{self, MaterialID, MaterialInstance, PhysicsType},
     },

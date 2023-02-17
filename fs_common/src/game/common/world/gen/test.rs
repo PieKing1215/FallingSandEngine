@@ -1,5 +1,5 @@
-use crate::game::{
-    common::world::material::{self, color::Color, MaterialInstance, PhysicsType},
+use crate::game::common::{
+    world::material::{self, color::Color, MaterialInstance, PhysicsType},
     Registries,
 };
 

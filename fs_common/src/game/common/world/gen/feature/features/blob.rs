@@ -3,8 +3,8 @@ use std::{fmt::Debug, sync::Arc};
 use rand::Rng;
 use simdnoise::NoiseBuilder;
 
-use crate::game::{
-    common::world::{
+use crate::game::common::{
+    world::{
         gen::{
             feature::{
                 placement_mods::material_match::MaterialMatchFn, ConfiguredFeature, ProviderFn,

@@ -1,6 +1,6 @@
 pub mod test;
 
-use crate::game::{common::world::material::MaterialInstance, Registries};
+use crate::game::common::{world::material::MaterialInstance, Registries};
 
 pub type BiomeID = &'static str;
 

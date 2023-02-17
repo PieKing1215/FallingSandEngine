@@ -8,8 +8,8 @@ mod tests {
     use fs_common::game::common::world::{
         chunk_index, ChunkHandler, ChunkHandlerGeneric, Loader, Position,
     };
+    use fs_common::game::common::Registries;
     use fs_common::game::common::Settings;
-    use fs_common::game::Registries;
 
     use fs_common::game::common::world::{gen::TestGenerator, FilePersistent, Velocity};
     use specs::saveload::{SimpleMarker, SimpleMarkerAllocator};

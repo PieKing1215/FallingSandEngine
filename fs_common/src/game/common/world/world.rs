@@ -7,12 +7,9 @@ use std::{
     time::Duration,
 };
 
-use crate::game::{
-    common::{
-        world::{physics::PHYSICS_SCALE, RigidBodyState},
-        Settings,
-    },
-    Registries,
+use crate::game::common::{
+    world::{physics::PHYSICS_SCALE, RigidBodyState},
+    Registries, Settings,
 };
 
 use rapier2d::{

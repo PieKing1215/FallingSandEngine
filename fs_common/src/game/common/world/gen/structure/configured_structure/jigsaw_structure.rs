@@ -16,6 +16,7 @@ pub struct JigsawFeatureType {}
 
 impl StructureType for JigsawFeatureType {}
 
+#[derive(Debug)]
 pub struct ConfiguredJigsawFeature {
     pub start_pool: StructurePoolID,
     pub depth: u8,

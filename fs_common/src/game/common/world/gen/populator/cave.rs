@@ -1,8 +1,8 @@
 use bracket_noise::prelude::{FastNoise, NoiseType};
 use simdnoise::NoiseBuilder;
 
-use crate::game::{
-    common::world::{material::MaterialInstance, CHUNK_SIZE},
+use crate::game::common::{
+    world::{material::MaterialInstance, CHUNK_SIZE},
     Registries,
 };
 

@@ -13,15 +13,12 @@ use specs::{
     Builder, Component, Entities, Entity, HashMapStorage, Join, System, WorldExt, WriteStorage,
 };
 
-use crate::game::{
-    common::{
-        world::{
-            self, entity::Persistent, gen::structure::template::StructureNodeConfig,
-            ChunkHandlerGeneric, ChunkState, Position,
-        },
-        Rect,
+use crate::game::common::{
+    world::{
+        self, entity::Persistent, gen::structure::template::StructureNodeConfig,
+        ChunkHandlerGeneric, ChunkState, Position,
     },
-    Registries,
+    Rect, Registries,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -103,6 +100,15 @@ impl Direction {
         }
 
         AngleMod::Angle180
+    }
+
+    pub fn vec(&self) -> (i8, i8) {
+        match self {
+            Direction::Up => (0, -1),
+            Direction::Down => (0, 1),
+            Direction::Left => (-1, 0),
+            Direction::Right => (1, 0),
+        }
     }
 }
 

@@ -1,49 +1,10 @@
 use crate::game::common::world::World;
 use crate::game::common::Settings;
 
+use super::common::world::Chunk;
+use super::common::{FileHelper, Registries};
 use std::sync::Arc;
 use std::time::Instant;
-
-use super::common::world::gen::structure;
-use super::common::world::gen::structure::configured_structure::ConfiguredStructureRegistry;
-use super::common::world::gen::structure::pool::StructurePoolRegistry;
-use super::common::world::gen::structure::set::StructureSetRegistry;
-use super::common::world::material::placer::MaterialPlacerRegistry;
-use super::common::world::material::{placer, MaterialRegistry};
-use super::common::world::{material, Chunk};
-use super::common::FileHelper;
-
-pub struct Registries {
-    pub materials: MaterialRegistry,
-    pub material_placers: MaterialPlacerRegistry,
-    pub structure_pools: StructurePoolRegistry,
-    pub configured_structures: ConfiguredStructureRegistry,
-    pub structure_sets: StructureSetRegistry,
-}
-
-impl Registries {
-    fn init(file_helper: &FileHelper) -> Self {
-        Self {
-            materials: material::init_material_types(),
-            material_placers: placer::init_material_placers(file_helper),
-            structure_pools: structure::pool::init_structure_pools(file_helper),
-            configured_structures: structure::configured_structure::init_configured_structures(
-                file_helper,
-            ),
-            structure_sets: structure::set::init_structure_sets(file_helper),
-        }
-    }
-
-    pub fn empty() -> Self {
-        Self {
-            materials: MaterialRegistry::new(),
-            material_placers: MaterialPlacerRegistry::new(),
-            structure_pools: StructurePoolRegistry::new(),
-            configured_structures: ConfiguredStructureRegistry::new(),
-            structure_sets: StructureSetRegistry::new(),
-        }
-    }
-}
 
 pub struct GameData<C: Chunk> {
     pub world: Option<World<C>>,

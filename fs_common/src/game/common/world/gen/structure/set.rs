@@ -5,10 +5,7 @@ use std::{
 
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
-use crate::game::{
-    common::{world::material::registry::Registry, FileHelper},
-    Registries,
-};
+use crate::game::common::{world::material::registry::Registry, FileHelper, Registries};
 
 use super::configured_structure::ConfiguredStructureID;
 
@@ -23,6 +20,7 @@ pub struct StructureSet {
     pub salt: u64,
 }
 
+#[derive(Debug)]
 pub struct ExclusionZone {
     pub chunk_distance: u8,
     pub other_set: StructureSetID,

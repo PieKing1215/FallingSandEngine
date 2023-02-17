@@ -1,8 +1,12 @@
-use crate::game::common::world::{
-    gen::{
-        feature::ConfiguredFeature, structure::configured_structure::ConfiguredStructurePlaceCtx,
+use crate::game::common::{
+    world::{
+        gen::{
+            feature::ConfiguredFeature, populator::ChunkContext,
+            structure::configured_structure::ConfiguredStructurePlaceCtx,
+        },
+        CHUNK_SIZE,
     },
-    CHUNK_SIZE,
+    Registries,
 };
 
 #[derive(Debug)]
@@ -11,11 +15,11 @@ pub struct TestStructure;
 impl ConfiguredFeature for TestStructure {
     fn try_place(
         &self,
-        chunks: &mut crate::game::common::world::gen::populator::ChunkContext<1>,
+        chunks: &mut ChunkContext<1>,
         pos: (i32, i32),
         world_seed: i32,
         _rng: &mut dyn rand::RngCore,
-        registries: &crate::game::Registries,
+        registries: &Registries,
         ecs: &mut specs::World,
     ) {
         let (cx, cy) = chunks.center_chunk();

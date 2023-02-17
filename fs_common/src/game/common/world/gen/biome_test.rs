@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use crate::game::{
-    common::world::material::{self, placer, MaterialInstance, PhysicsType},
+use crate::game::common::{
+    world::material::{self, placer, MaterialInstance, PhysicsType},
     Registries,
 };
 

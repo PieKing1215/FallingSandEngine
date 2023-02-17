@@ -2,8 +2,8 @@ use std::ops::Range;
 
 use rand::{Rng, RngCore};
 
-use crate::game::{
-    common::world::{
+use crate::game::common::{
+    world::{
         gen::{feature::PlacementModifier, populator::ChunkContext},
         CHUNK_SIZE,
     },

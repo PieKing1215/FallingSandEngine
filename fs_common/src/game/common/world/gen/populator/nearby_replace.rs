@@ -1,5 +1,5 @@
-use crate::game::{
-    common::world::{material::MaterialInstance, CHUNK_SIZE},
+use crate::game::common::{
+    world::{material::MaterialInstance, CHUNK_SIZE},
     Registries,
 };
 

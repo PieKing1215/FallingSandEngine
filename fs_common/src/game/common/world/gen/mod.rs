@@ -14,7 +14,7 @@ pub use test::*;
 
 use crate::game::common::world::gen::populator::ChunkContext;
 use crate::game::common::world::Chunk;
-use crate::game::Registries;
+use crate::game::common::Registries;
 
 use self::feature::PlacedFeature;
 use self::populator::Populator;

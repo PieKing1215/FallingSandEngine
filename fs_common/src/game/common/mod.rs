@@ -3,7 +3,9 @@ pub mod world;
 
 pub mod cli;
 pub mod hashmap_ext;
+mod registries;
 mod settings;
+pub use registries::*;
 use std::ops::Range;
 
 use serde::{Deserialize, Serialize};

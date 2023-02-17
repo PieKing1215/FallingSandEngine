@@ -5,8 +5,8 @@ pub mod spawn;
 pub mod stalactite;
 pub mod test;
 
-use crate::game::{
-    common::world::{material::MaterialInstance, Chunk, CHUNK_SIZE},
+use crate::game::common::{
+    world::{material::MaterialInstance, Chunk, CHUNK_SIZE},
     Registries,
 };
 

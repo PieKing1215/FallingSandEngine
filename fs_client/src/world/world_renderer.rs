@@ -4,22 +4,18 @@ use glium::{Blend, DrawParameters, PolygonMode};
 use rapier2d::prelude::Shape;
 use specs::{Join, ReadStorage, WorldExt};
 
-use fs_common::game::{
-    common::{
-        world::{
-            entity::{
-                GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState, PlayerMovementMode,
-            },
-            gen::structure::StructureNode,
-            material::color::Color,
-            particle::ParticleSystem,
-            physics::PHYSICS_SCALE,
-            AutoTarget, Camera, ChunkHandlerGeneric, ChunkState, Position, Velocity, World,
-            CHUNK_SIZE,
+use fs_common::game::common::{
+    world::{
+        entity::{
+            GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState, PlayerMovementMode,
         },
-        Rect, Settings,
+        gen::structure::StructureNode,
+        material::color::Color,
+        particle::ParticleSystem,
+        physics::PHYSICS_SCALE,
+        AutoTarget, Camera, ChunkHandlerGeneric, ChunkState, Position, Velocity, World, CHUNK_SIZE,
     },
-    Registries,
+    Rect, Registries, Settings,
 };
 
 use crate::{

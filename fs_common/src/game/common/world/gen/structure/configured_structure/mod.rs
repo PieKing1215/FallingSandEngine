@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use crate::game::common::{world::material::registry::Registry, FileHelper};
 
 use self::jigsaw_structure::ConfiguredJigsawFeature;
@@ -11,7 +13,7 @@ pub struct ConfiguredStructurePlaceCtx<'a> {
     pub world_seed: u64,
 }
 
-pub trait ConfiguredStructure {
+pub trait ConfiguredStructure: Debug {
     fn place(&self, x: i64, y: i64, ctx: ConfiguredStructurePlaceCtx);
 }
 

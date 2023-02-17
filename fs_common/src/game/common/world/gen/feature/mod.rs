@@ -5,7 +5,7 @@ use std::fmt::Debug;
 
 use rand::RngCore;
 
-use crate::game::Registries;
+use crate::game::common::Registries;
 
 use super::populator::ChunkContext;
 

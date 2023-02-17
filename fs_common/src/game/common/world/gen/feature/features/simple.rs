@@ -1,7 +1,7 @@
 use rand::RngCore;
 
-use crate::game::{
-    common::world::{
+use crate::game::common::{
+    world::{
         gen::{feature::ConfiguredFeature, populator::ChunkContext},
         material::placer::MaterialPlacerID,
         CHUNK_SIZE,

@@ -2,8 +2,8 @@ use std::{fmt::Debug, sync::Arc};
 
 use rand::{distributions::uniform::SampleRange, Rng};
 
-use crate::game::{
-    common::world::gen::{
+use crate::game::common::{
+    world::gen::{
         feature::{PlacementModifier, ProviderFn},
         populator::ChunkContext,
     },

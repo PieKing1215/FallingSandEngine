@@ -1,5 +1,5 @@
-use crate::game::{
-    common::world::material::{
+use crate::game::common::{
+    world::material::{
         self,
         color::Color,
         placer::{self, MaterialPlacerID},

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use fs_common::game::{common::Settings, Registries};
+use fs_common::game::common::{Registries, Settings};
 
 pub trait DebugUI {
     fn debug_ui(&mut self, ui: &mut egui::Ui, registries: Arc<Registries>);
