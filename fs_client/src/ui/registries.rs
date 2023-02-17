@@ -1,23 +1,24 @@
 use egui::{
     epaint::ahash::HashMap,
     plot::{Arrows, Plot, PlotImage, PlotPoint, PlotPoints, Points, Text},
-    CollapsingHeader, Color32, RichText, ScrollArea, TextureOptions, Vec2,
+    Color32, RichText, ScrollArea, TextureOptions, Vec2,
 };
 use fs_common::game::common::world::{
-    copy_paste::MaterialBuf, gen::structure::pool::StructurePoolID,
+    copy_paste::MaterialBuf, gen::structure::template::StructureTemplateID,
 };
 
 use super::DebugUIsContext;
 
 pub struct RegistriesUI {
     cur_tab: Tab,
-    structure_pool_images: Option<HashMap<StructurePoolID, Vec<egui::TextureHandle>>>,
+    structure_template_images: HashMap<StructureTemplateID, egui::TextureHandle>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Tab {
     Material,
     MaterialPlacer,
+    StructureTemplate,
     StructurePool,
     ConfiguredStructure,
     StructureSet,
@@ -28,7 +29,7 @@ impl RegistriesUI {
     pub fn new() -> Self {
         Self {
             cur_tab: Tab::Material,
-            structure_pool_images: None,
+            structure_template_images: HashMap::default(),
         }
     }
 
@@ -39,6 +40,11 @@ impl RegistriesUI {
                 ui.horizontal_wrapped(|ui| {
                     ui.selectable_value(&mut self.cur_tab, Tab::Material, "Material");
                     ui.selectable_value(&mut self.cur_tab, Tab::MaterialPlacer, "MaterialPlacer");
+                    ui.selectable_value(
+                        &mut self.cur_tab,
+                        Tab::StructureTemplate,
+                        "StructureTemplate",
+                    );
                     ui.selectable_value(&mut self.cur_tab, Tab::StructurePool, "StructurePool");
                     ui.selectable_value(
                         &mut self.cur_tab,
@@ -63,131 +69,99 @@ impl RegistriesUI {
                             });
                         }
                     },
-                    Tab::StructurePool => {
-                        let images = self.structure_pool_images.get_or_insert_with(|| {
-                            let mut map = HashMap::default();
-                            for (id, pool) in &ctx.registries.structure_pools {
-                                map.insert(
-                                    *id,
-                                    pool.iter()
-                                        .map(|s| {
-                                            egui_ctx.load_texture(
-                                                "structure template preview",
-                                                gen_preview(&s.buf),
-                                                TextureOptions::LINEAR,
+                    Tab::StructureTemplate => {
+                        let mut entries: Vec<_> =
+                            (&ctx.registries.structure_templates).into_iter().collect();
+                        entries.sort_by(|(k_a, _), (k_b, _)| k_a.cmp(k_b));
+                        for (id, template) in entries {
+                            ui.collapsing(format!("{id:?}"), |ui| {
+                                let tex =
+                                    self.structure_template_images.entry(id).or_insert_with(|| {
+                                        egui_ctx.load_texture(
+                                            "structure template preview",
+                                            gen_preview(&template.buf),
+                                            TextureOptions::LINEAR,
+                                        )
+                                    });
+                                let size = tex.size_vec2();
+                                let margin = 24.0;
+                                Plot::new("plot")
+                                    .width(size.x + margin)
+                                    .height(size.y + margin)
+                                    .allow_drag(false)
+                                    .allow_boxed_zoom(false)
+                                    .allow_scroll(false)
+                                    .allow_zoom(false)
+                                    // .show_background(false)
+                                    .set_margin_fraction(Vec2::new(
+                                        margin / (size.x + margin),
+                                        margin / (size.y + margin),
+                                    ))
+                                    .show(ui, |ui| {
+                                        ui.image(PlotImage::new(
+                                            tex,
+                                            PlotPoint::new(size.x / 2.0, -size.y / 2.0),
+                                            size,
+                                        ));
+                                        let points_config: Vec<_> = template
+                                            .child_nodes
+                                            .iter()
+                                            .map(|(p, c)| (PlotPoint::new(p.x, -(p.y as f32)), c))
+                                            .collect();
+                                        let points: Vec<_> =
+                                            points_config.iter().map(|(p, _)| *p).collect();
+                                        let tips: Vec<_> = template
+                                            .child_nodes
+                                            .iter()
+                                            .map(|(p, _)| {
+                                                PlotPoint::new(
+                                                    p.x as f32
+                                                        + p.direction_out.vec().0 as f32 * 10.0,
+                                                    -(p.y as f32)
+                                                        + -p.direction_out.vec().1 as f32 * 10.0,
+                                                )
+                                            })
+                                            .collect();
+                                        ui.points(
+                                            Points::new(PlotPoints::Owned(points.clone()))
+                                                .radius(1.5),
+                                        );
+                                        ui.arrows(
+                                            Arrows::new(
+                                                PlotPoints::Owned(points),
+                                                PlotPoints::Owned(tips),
                                             )
-                                        })
-                                        .collect(),
-                                );
-                            }
-                            map
-                        });
+                                            .highlight(true),
+                                        );
+                                        for (i, (p, _)) in points_config.iter().enumerate() {
+                                            ui.text(Text::new(
+                                                *p,
+                                                RichText::new(format!("{i}"))
+                                                    .size(14.0)
+                                                    .color(Color32::WHITE),
+                                            ))
+                                        }
+                                    });
+
+                                for (i, (p, c)) in template.child_nodes.iter().enumerate() {
+                                    ui.collapsing(format!("connection #{i}"), |ui| {
+                                        ui.label(format!("pos = ({}, {})", p.x, p.y));
+                                        ui.label(format!("pool = {:?}", c.pool));
+                                        ui.label(format!(
+                                            "depth_override = {:?}",
+                                            c.depth_override
+                                        ));
+                                        ui.label(format!("block_in_dirs = {:?}", c.block_in_dirs));
+                                    });
+                                }
+                            });
+                        }
+                    },
+                    Tab::StructurePool => {
                         ScrollArea::new([false, true]).show(ui, |ui| {
                             for (id, pool) in &ctx.registries.structure_pools {
                                 ui.collapsing(format!("{id:?}"), |ui| {
-                                    if let Some(pool_images) = images.get(id) {
-                                        for (i, structure) in pool.iter().enumerate() {
-                                            let tex = &pool_images[i];
-                                            let size = tex.size_vec2();
-                                            let margin = 24.0;
-                                            Plot::new(format!("plot{i}"))
-                                                .width(size.x + margin)
-                                                .height(size.y + margin)
-                                                .allow_drag(false)
-                                                .allow_boxed_zoom(false)
-                                                .allow_scroll(false)
-                                                .allow_zoom(false)
-                                                // .show_background(false)
-                                                .set_margin_fraction(Vec2::new(
-                                                    margin / (size.x + margin),
-                                                    margin / (size.y + margin),
-                                                ))
-                                                .show(ui, |ui| {
-                                                    ui.image(PlotImage::new(
-                                                        tex,
-                                                        PlotPoint::new(size.x / 2.0, -size.y / 2.0),
-                                                        tex.size_vec2(),
-                                                    ));
-                                                    let points_config: Vec<_> = structure
-                                                        .child_nodes
-                                                        .iter()
-                                                        .map(|(p, c)| {
-                                                            (PlotPoint::new(p.x, -(p.y as f32)), c)
-                                                        })
-                                                        .collect();
-                                                    let points: Vec<_> = points_config
-                                                        .iter()
-                                                        .map(|(p, _)| *p)
-                                                        .collect();
-                                                    let tips: Vec<_> = structure
-                                                        .child_nodes
-                                                        .iter()
-                                                        .map(|(p, _)| {
-                                                            PlotPoint::new(
-                                                                p.x as f32
-                                                                    + p.direction_out.vec().0
-                                                                        as f32
-                                                                        * 10.0,
-                                                                -(p.y as f32)
-                                                                    + -p.direction_out.vec().1
-                                                                        as f32
-                                                                        * 10.0,
-                                                            )
-                                                        })
-                                                        .collect();
-                                                    ui.points(
-                                                        Points::new(PlotPoints::Owned(
-                                                            points.clone(),
-                                                        ))
-                                                        .radius(1.5),
-                                                    );
-                                                    ui.arrows(
-                                                        Arrows::new(
-                                                            PlotPoints::Owned(points),
-                                                            PlotPoints::Owned(tips),
-                                                        )
-                                                        .highlight(true),
-                                                    );
-                                                    for (i, (p, _)) in
-                                                        points_config.iter().enumerate()
-                                                    {
-                                                        ui.text(Text::new(
-                                                            *p,
-                                                            RichText::new(format!("{i}"))
-                                                                .size(14.0)
-                                                                .color(Color32::WHITE),
-                                                        ))
-                                                    }
-                                                });
-                                            CollapsingHeader::new("children").id_source(i).show(
-                                                ui,
-                                                |ui| {
-                                                    for (i, (p, c)) in
-                                                        structure.child_nodes.iter().enumerate()
-                                                    {
-                                                        ui.collapsing(format!("{i}"), |ui| {
-                                                            ui.label(format!(
-                                                                "pos = ({}, {})",
-                                                                p.x, p.y
-                                                            ));
-                                                            ui.label(format!(
-                                                                "pool = {:?}",
-                                                                c.pool
-                                                            ));
-                                                            ui.label(format!(
-                                                                "depth_override = {:?}",
-                                                                c.depth_override
-                                                            ));
-                                                            ui.label(format!(
-                                                                "block_in_dirs = {:?}",
-                                                                c.block_in_dirs
-                                                            ));
-                                                        });
-                                                    }
-                                                },
-                                            );
-                                        }
-                                    }
+                                    ui.label(format!("pool = {pool:?}"));
                                 });
                             }
                         });

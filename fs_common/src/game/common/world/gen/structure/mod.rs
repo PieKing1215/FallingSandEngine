@@ -324,7 +324,10 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
                     .unwrap()
                     .clone();
                 pool.shuffle(&mut node.rng);
-                'outer: for pool_structure in pool {
+                'outer: for pool_structure in pool
+                    .iter()
+                    .map(|k| self.registries.structure_templates.get(k).unwrap())
+                {
                     let mut opts =
                         pool_structure.options((pos.x as i64, pos.y as i64), node.direction);
                     opts.shuffle(&mut node.rng);
@@ -343,7 +346,7 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
 
                         if ok {
                             // TODO
-                            place_fn(&pool_structure, self.chunk_handler).unwrap();
+                            place_fn(pool_structure, self.chunk_handler).unwrap();
 
                             node.generated = Some(Ok(StructureNodeGenData { bounds }));
 
