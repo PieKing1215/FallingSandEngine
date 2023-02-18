@@ -1,7 +1,9 @@
 use std::fmt::Debug;
 
 use super::{
-    gen::structure::AngleMod, material::MaterialInstance, Chunk, ChunkHandler, ChunkHandlerGeneric,
+    gen::structure::AngleMod,
+    material::{self, MaterialInstance},
+    Chunk, ChunkHandler, ChunkHandlerGeneric,
 };
 
 #[derive(Clone, PartialEq, Eq)]
@@ -91,11 +93,10 @@ impl MaterialBuf {
             for dy in 0..self.height {
                 let wx = x + i64::from(dx);
                 let wy = y + i64::from(dy);
-                chunk_handler.set(
-                    wx,
-                    wy,
-                    self.materials[dx as usize + dy as usize * self.width as usize],
-                )?;
+                let m = self.materials[dx as usize + dy as usize * self.width as usize];
+                if m.material_id != material::STRUCTURE_VOID {
+                    chunk_handler.set(wx, wy, m)?;
+                }
             }
         }
 

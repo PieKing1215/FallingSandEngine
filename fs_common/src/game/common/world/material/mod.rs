@@ -57,6 +57,8 @@ pub const FADED_COBBLE_DIRT: MaterialID = 5;
 pub const SMOOTH_STONE: MaterialID = 6;
 pub const SMOOTH_DIRT: MaterialID = 7;
 
+pub const STRUCTURE_VOID: MaterialID = 8;
+
 pub type MaterialRegistry = Registry<MaterialID, Material>;
 
 pub fn init_material_types() -> MaterialRegistry {
@@ -85,6 +87,10 @@ pub fn init_material_types() -> MaterialRegistry {
         Material { display_name: "Smoth Stone".to_string() },
     );
     registry.register(SMOOTH_DIRT, Material { display_name: "Dirt".to_string() });
+    registry.register(
+        STRUCTURE_VOID,
+        Material { display_name: "Structure Void".to_string() },
+    );
 
     registry
 }

@@ -1,3 +1,7 @@
+use std::fs;
+
+use image::{DynamicImage, GenericImageView};
+
 use crate::game::common::{
     world::{
         copy_paste::MaterialBuf,
@@ -155,7 +159,7 @@ pub type StructureTemplateID = &'static str;
 pub type StructureTemplateRegistry = Registry<StructureTemplateID, StructureTemplate>;
 
 #[allow(clippy::too_many_lines)]
-pub fn init_structure_templates(_file_helper: &FileHelper) -> StructureTemplateRegistry {
+pub fn init_structure_templates(file_helper: &FileHelper) -> StructureTemplateRegistry {
     let mut registry = Registry::new();
 
     registry.register(
@@ -224,11 +228,13 @@ pub fn init_structure_templates(_file_helper: &FileHelper) -> StructureTemplateR
             ],
         ),
     );
+
+    let data = &fs::read(file_helper.asset_path("data/structure/template/corner.png")).unwrap();
+    let img = image::load_from_memory(data).unwrap();
     registry.register(
         "b2",
-        make_test_structure(
-            80,
-            80,
+        make_test_structure_from_img(
+            &img,
             vec![
                 (
                     StructureNodeLocalPlacement { x: 0, y: 60, direction_out: Direction::Left },
@@ -271,6 +277,44 @@ fn make_test_structure(
                             f32::from(y) / f32::from(h),
                             0.0,
                         ),
+                    },
+                );
+            }
+        }
+    }
+
+    StructureTemplate { buf, child_nodes }
+}
+
+fn make_test_structure_from_img(
+    img: &DynamicImage,
+    child_nodes: Vec<(StructureNodeLocalPlacement, StructureNodeConfig)>,
+) -> StructureTemplate {
+    let w = img.width() as u16;
+    let h = img.height() as u16;
+    let mut buf = MaterialBuf::new(w, h, vec![MaterialInstance::air(); (w * h) as usize]).unwrap();
+
+    for x in 0..w {
+        for y in 0..h {
+            let c = img.get_pixel(u32::from(x), u32::from(y));
+            if c.0 == [0, 0, 0, 255] {
+                buf.set(
+                    x,
+                    y,
+                    MaterialInstance {
+                        material_id: material::STRUCTURE_VOID,
+                        physics: PhysicsType::Air,
+                        color: Color::rgb(0, 0, 0),
+                    },
+                );
+            } else if c.0[3] > 0 {
+                buf.set(
+                    x,
+                    y,
+                    MaterialInstance {
+                        material_id: material::TEST,
+                        physics: PhysicsType::Solid,
+                        color: Color::rgb(c.0[0], c.0[1], c.0[2]),
                     },
                 );
             }
