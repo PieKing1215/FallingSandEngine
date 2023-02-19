@@ -791,6 +791,8 @@ impl Client {
                                     velocity_storage.get_mut(eid).unwrap().x += (target_x
                                         - velocity_storage.get_mut(eid).unwrap().x)
                                         / inv_accel_x;
+                                } else if phys_ent.on_ground {
+                                    velocity_storage.get_mut(eid).unwrap().x *= 0.75;
                                 }
                             }
                         }
