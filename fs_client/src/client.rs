@@ -721,6 +721,14 @@ impl Client {
                                 phys_ent.gravity = 0.0;
                             }
 
+                            // this stuff needs to be outside of do_normal_movement or they act weird with other abilities
+                            let jump = self.controls.jump.get();
+                            if phys_ent.on_ground {
+                                *coyote_time = 6;
+                            } else if *coyote_time > 0 {
+                                *coyote_time -= 1;
+                            }
+
                             if do_normal_movement {
                                 let mut target_x: f64 =
                                     if self.controls.left.get() { -7.0 } else { 0.0 }
@@ -735,16 +743,7 @@ impl Client {
                                     velocity_storage.get_mut(eid).unwrap().y *= 0.99;
                                 }
 
-                                if phys_ent.on_ground {
-                                    *coyote_time = 6;
-                                } else if *coyote_time > 0 {
-                                    *coyote_time -= 1;
-                                }
-
-                                if self.controls.jump.get()
-                                    && *coyote_time > 0
-                                    && *state == PlayerJumpState::None
-                                {
+                                if jump && *coyote_time > 0 && *state == PlayerJumpState::None {
                                     velocity_storage.get_mut(eid).unwrap().y -= 10.0;
                                     target_x *= 1.5;
                                     inv_accel_x *= 0.5;
