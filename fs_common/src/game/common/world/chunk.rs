@@ -92,7 +92,7 @@ pub trait Chunk {
     fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]);
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChunkState {
     NotGenerated,
     Generating(u8), // stage
@@ -695,7 +695,11 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                     ]
                                     .iter()
                                     .all(|ch| {
-                                        if ch.is_none() {
+                                        let Some(chunk) = ch else {
+                                            return false;
+                                        };
+
+                                        if chunk.get_pixels().is_none() {
                                             return false;
                                         }
 
@@ -723,12 +727,19 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
 
                                     // if we failed to get all nearby chunks, don't populate and don't go to the next stage
                                     if let Some(chunks) = chunks {
+                                        // check chunks for valid state
+                                        for c in &chunks {
+                                            assert!(
+                                                !c.get_pixels().is_none(),
+                                                "Chunk get_pixels was None but had state {:?}",
+                                                c.get_state()
+                                            );
+                                        }
+
                                         let mut chunks_dyn: Vec<_> = chunks
                                             .into_iter()
                                             .map(|c| c as &mut dyn Chunk)
                                             .collect();
-
-                                        // TODO: make not hardcoded
 
                                         if cur_stage + 1 == 1 {
                                             let mut ctx =

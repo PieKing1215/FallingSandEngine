@@ -5,6 +5,8 @@ pub mod spawn;
 pub mod stalactite;
 pub mod test;
 
+use std::usize;
+
 use crate::game::common::{
     world::{material::MaterialInstance, Chunk, CHUNK_SIZE},
     Registries,
@@ -21,10 +23,12 @@ pub struct ChunkContext<'a, 'b, const S: u8>(&'a mut [&'b mut dyn Chunk]);
 
 impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
     pub fn new(slice: &'a mut [&'b mut dyn Chunk]) -> Result<Self, String> {
-        if slice.len() == ((S * 2 + 1) * (S * 2 + 1)) as usize
-            && slice.iter().all(|c| c.get_pixels().is_some())
-        {
-            Ok(Self(slice))
+        if slice.len() == ((S * 2 + 1) * (S * 2 + 1)) as usize {
+            if slice.iter().all(|c| c.get_pixels().is_some()) {
+                Ok(Self(slice))
+            } else {
+                Err("Chunk was missing pixels".into())
+            }
         } else {
             Err(format!(
                 "Incorrect slice length, expected {}, got {}",
