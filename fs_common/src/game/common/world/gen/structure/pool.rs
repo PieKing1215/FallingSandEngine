@@ -11,8 +11,9 @@ pub fn init_structure_pools(_file_helper: &FileHelper) -> StructurePoolRegistry 
     let mut registry = Registry::new();
 
     registry.register("rooms", vec!["a", "a2"]);
-    registry.register("hallways", vec!["b", "b2"]);
+    registry.register("hallways", vec!["b", "b2", "stairs"]);
     registry.register("rooms_or_straight_hallways", vec!["a", "a2", "b", "b"]);
+    registry.register("end_pieces", vec!["end_carve"]);
 
     registry
 }

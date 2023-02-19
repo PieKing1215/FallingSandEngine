@@ -37,6 +37,7 @@ pub struct StructureNodeGlobalPlacement {
 #[derive(Debug, Clone)]
 pub struct StructureNodeConfig {
     pub pool: StructurePoolID,
+    pub fallback_pool: Option<StructurePoolID>,
     /// If `true`, this node will still try to generate a child even if depth is at 0
     pub depth_override: bool,
     pub block_in_dirs: Option<Vec<Direction>>,
@@ -44,7 +45,12 @@ pub struct StructureNodeConfig {
 
 impl StructureNodeConfig {
     pub fn new(pool: StructurePoolID) -> Self {
-        Self { pool, depth_override: false, block_in_dirs: None }
+        Self {
+            pool,
+            fallback_pool: None,
+            depth_override: false,
+            block_in_dirs: None,
+        }
     }
 
     #[must_use]
@@ -56,6 +62,12 @@ impl StructureNodeConfig {
     #[must_use]
     pub fn block_in_dirs(mut self, dirs: Vec<Direction>) -> Self {
         self.block_in_dirs = Some(dirs);
+        self
+    }
+
+    #[must_use]
+    pub fn fallback_pool(mut self, pool: StructurePoolID) -> Self {
+        self.fallback_pool = Some(pool);
         self
     }
 }
@@ -165,28 +177,28 @@ pub fn init_structure_templates(file_helper: &FileHelper) -> StructureTemplateRe
     registry.register(
         "a",
         make_test_structure(
-            120,
-            120,
+            200,
+            150,
             vec![
                 (
-                    StructureNodeLocalPlacement { x: 0, y: 60, direction_out: Direction::Left },
-                    StructureNodeConfig::new("hallways"),
+                    StructureNodeLocalPlacement { x: 0, y: 75, direction_out: Direction::Left },
+                    StructureNodeConfig::new("hallways").fallback_pool("end_pieces"),
                 ),
                 (
-                    StructureNodeLocalPlacement { x: 120, y: 40, direction_out: Direction::Right },
-                    StructureNodeConfig::new("hallways"),
+                    StructureNodeLocalPlacement { x: 200, y: 40, direction_out: Direction::Right },
+                    StructureNodeConfig::new("hallways").fallback_pool("end_pieces"),
                 ),
                 (
-                    StructureNodeLocalPlacement { x: 120, y: 80, direction_out: Direction::Right },
-                    StructureNodeConfig::new("hallways"),
+                    StructureNodeLocalPlacement { x: 200, y: 110, direction_out: Direction::Right },
+                    StructureNodeConfig::new("hallways").fallback_pool("end_pieces"),
                 ),
                 (
                     StructureNodeLocalPlacement { x: 40, y: 0, direction_out: Direction::Up },
-                    StructureNodeConfig::new("hallways"),
+                    StructureNodeConfig::new("hallways").fallback_pool("end_pieces"),
                 ),
                 (
-                    StructureNodeLocalPlacement { x: 80, y: 120, direction_out: Direction::Down },
-                    StructureNodeConfig::new("hallways"),
+                    StructureNodeLocalPlacement { x: 110, y: 150, direction_out: Direction::Down },
+                    StructureNodeConfig::new("hallways").fallback_pool("end_pieces"),
                 ),
             ],
         ),
@@ -200,12 +212,14 @@ pub fn init_structure_templates(file_helper: &FileHelper) -> StructureTemplateRe
                 (
                     StructureNodeLocalPlacement { x: 0, y: 50, direction_out: Direction::Left },
                     StructureNodeConfig::new("hallways")
-                        .block_in_dirs(vec![Direction::Up, Direction::Down]),
+                        .block_in_dirs(vec![Direction::Up, Direction::Down])
+                        .fallback_pool("end_pieces"),
                 ),
                 (
                     StructureNodeLocalPlacement { x: 200, y: 20, direction_out: Direction::Right },
                     StructureNodeConfig::new("hallways")
-                        .block_in_dirs(vec![Direction::Up, Direction::Down]),
+                        .block_in_dirs(vec![Direction::Up, Direction::Down])
+                        .fallback_pool("end_pieces"),
                 ),
             ],
         ),
@@ -219,11 +233,17 @@ pub fn init_structure_templates(file_helper: &FileHelper) -> StructureTemplateRe
             vec![
                 (
                     StructureNodeLocalPlacement { x: 0, y: 16, direction_out: Direction::Left },
-                    StructureNodeConfig::new("rooms").override_depth(),
+                    StructureNodeConfig::new("rooms")
+                        .override_depth()
+                        .block_in_dirs(vec![Direction::Up, Direction::Down])
+                        .fallback_pool("end_pieces"),
                 ),
                 (
                     StructureNodeLocalPlacement { x: 100, y: 16, direction_out: Direction::Right },
-                    StructureNodeConfig::new("rooms").override_depth(),
+                    StructureNodeConfig::new("rooms")
+                        .override_depth()
+                        .block_in_dirs(vec![Direction::Up, Direction::Down])
+                        .fallback_pool("end_pieces"),
                 ),
             ],
         ),
@@ -238,13 +258,55 @@ pub fn init_structure_templates(file_helper: &FileHelper) -> StructureTemplateRe
             vec![
                 (
                     StructureNodeLocalPlacement { x: 0, y: 60, direction_out: Direction::Left },
-                    StructureNodeConfig::new("rooms_or_straight_hallways").override_depth(),
+                    StructureNodeConfig::new("rooms_or_straight_hallways")
+                        .override_depth()
+                        .fallback_pool("end_pieces"),
                 ),
                 (
                     StructureNodeLocalPlacement { x: 60, y: 0, direction_out: Direction::Up },
-                    StructureNodeConfig::new("rooms_or_straight_hallways").override_depth(),
+                    StructureNodeConfig::new("rooms_or_straight_hallways")
+                        .override_depth()
+                        .fallback_pool("end_pieces"),
                 ),
             ],
+        ),
+    );
+
+    let data = &fs::read(file_helper.asset_path("data/structure/template/stairs.png")).unwrap();
+    let img = image::load_from_memory(data).unwrap();
+    registry.register(
+        "stairs",
+        make_test_structure_from_img(
+            &img,
+            vec![
+                (
+                    StructureNodeLocalPlacement { x: 0, y: 60, direction_out: Direction::Left },
+                    StructureNodeConfig::new("rooms_or_straight_hallways")
+                        .override_depth()
+                        .block_in_dirs(vec![Direction::Up, Direction::Down])
+                        .fallback_pool("end_pieces"),
+                ),
+                (
+                    StructureNodeLocalPlacement { x: 80, y: 19, direction_out: Direction::Right },
+                    StructureNodeConfig::new("rooms_or_straight_hallways")
+                        .override_depth()
+                        .block_in_dirs(vec![Direction::Up, Direction::Down])
+                        .fallback_pool("end_pieces"),
+                ),
+            ],
+        ),
+    );
+
+    let data = &fs::read(file_helper.asset_path("data/structure/template/end_carve.png")).unwrap();
+    let img = image::load_from_memory(data).unwrap();
+    registry.register(
+        "end_carve",
+        make_test_structure_from_img(
+            &img,
+            vec![(
+                StructureNodeLocalPlacement { x: 0, y: 11, direction_out: Direction::Left },
+                StructureNodeConfig::new("empty"),
+            )],
         ),
     );
 

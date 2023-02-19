@@ -21,6 +21,8 @@ use crate::game::common::{
     Rect, Registries,
 };
 
+use self::pool::StructurePoolID;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Direction {
     Up,
@@ -324,66 +326,38 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
                     .unwrap()
                     .clone();
                 pool.shuffle(&mut node.rng);
-                'outer: for pool_structure in pool
-                    .iter()
-                    .map(|k| self.registries.structure_templates.get(k).unwrap())
-                {
-                    let mut opts =
-                        pool_structure.options((pos.x as i64, pos.y as i64), node.direction);
-                    opts.shuffle(&mut node.rng);
 
-                    // log::debug!("{} {:?} {:?}", opts.len(), node.direction, node.parent);
+                // try placing normal pool
+                if let Some(mut children) = self.place(
+                    &pool,
+                    &pos,
+                    &mut node,
+                    &all_bounds,
+                    &root_pos,
+                    entity,
+                    false,
+                ) {
+                    to_add.append(&mut children);
+                } else if let Some(fallback_pool) = &node.config.fallback_pool {
+                    // if normal pool failed, try placing fallback pool
+                    let mut fallback_pool = self
+                        .registries
+                        .structure_pools
+                        .get(fallback_pool)
+                        .unwrap()
+                        .clone();
+                    fallback_pool.shuffle(&mut node.rng);
 
-                    // try every connection in structure
-                    for o in opts {
-                        // log::debug!("{o:?}");
-
-                        let (bounds, children, place_fn) = o;
-
-                        let ok = !all_bounds
-                            .iter()
-                            .any(|r| r.inflated(-1).intersects(&bounds));
-
-                        if ok {
-                            // TODO
-                            place_fn(pool_structure, self.chunk_handler).unwrap();
-
-                            node.generated = Some(Ok(StructureNodeGenData { bounds }));
-
-                            let mut children = children
-                                .into_iter()
-                                .filter(|(pos, config)| {
-                                    (node.depth > 0 || config.depth_override) && {
-                                        let dx = root_pos.x as i64 - pos.x;
-                                        let dy = root_pos.y as i64 - pos.y;
-                                        dx * dx + dy * dy
-                                            < (i64::from(node.max_distance)
-                                                * i64::from(node.max_distance))
-                                    }
-                                })
-                                .map(|(placement, config)| {
-                                    let rng = StdRng::seed_from_u64(node.rng.gen());
-                                    (
-                                        entity,
-                                        StructureNode {
-                                            parent: Some(entity),
-                                            children: vec![],
-                                            generated: None,
-                                            depth: if node.depth == 0 { 0 } else { node.depth - 1 },
-                                            max_distance: node.max_distance,
-                                            rng: Box::new(rng),
-                                            direction: placement.direction_out,
-                                            config,
-                                        },
-                                        Position { x: placement.x as _, y: placement.y as _ },
-                                    )
-                                })
-                                .collect();
-
-                            to_add.append(&mut children);
-
-                            break 'outer;
-                        }
+                    if let Some(mut children) = self.place(
+                        &fallback_pool,
+                        &pos,
+                        &mut node,
+                        &all_bounds,
+                        &root_pos,
+                        entity,
+                        true,
+                    ) {
+                        to_add.append(&mut children);
                     }
                 }
             }
@@ -408,5 +382,77 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
         //         entities.delete(p).unwrap();
         //     }
         // }
+    }
+}
+
+impl<H: ChunkHandlerGeneric + Send> UpdateStructureNodes<'_, H> {
+    #[warn(clippy::too_many_arguments)]
+    fn place(
+        &mut self,
+        pool: &[StructurePoolID],
+        pos: &Position,
+        node: &mut StructureNode,
+        all_bounds: &[Rect<i64>],
+        root_pos: &Position,
+        entity: Entity,
+        ignore_restrictions: bool,
+    ) -> Option<Vec<(Entity, StructureNode, Position)>> {
+        // for every structure template in the pool
+        for pool_structure in pool
+            .iter()
+            .map(|k| self.registries.structure_templates.get(k).unwrap())
+        {
+            let mut opts = pool_structure.options((pos.x as i64, pos.y as i64), node.direction);
+            opts.shuffle(&mut node.rng);
+
+            // try every connection in structure
+            for o in opts {
+                let (bounds, children, place_fn) = o;
+
+                let ok = ignore_restrictions
+                    || !all_bounds
+                        .iter()
+                        .any(|r| r.inflated(-1).intersects(&bounds));
+
+                if ok {
+                    place_fn(pool_structure, self.chunk_handler).unwrap();
+
+                    node.generated = Some(Ok(StructureNodeGenData { bounds }));
+
+                    let children = children
+                        .into_iter()
+                        .filter(|(pos, config)| {
+                            (node.depth > 0 || config.depth_override) && {
+                                let dx = root_pos.x as i64 - pos.x;
+                                let dy = root_pos.y as i64 - pos.y;
+                                dx * dx + dy * dy
+                                    < (i64::from(node.max_distance) * i64::from(node.max_distance))
+                            }
+                        })
+                        .map(|(placement, config)| {
+                            let rng = StdRng::seed_from_u64(node.rng.gen());
+                            (
+                                entity,
+                                StructureNode {
+                                    parent: Some(entity),
+                                    children: vec![],
+                                    generated: None,
+                                    depth: if node.depth == 0 { 0 } else { node.depth - 1 },
+                                    max_distance: node.max_distance,
+                                    rng: Box::new(rng),
+                                    direction: placement.direction_out,
+                                    config,
+                                },
+                                Position { x: placement.x as _, y: placement.y as _ },
+                            )
+                        })
+                        .collect();
+
+                    return Some(children);
+                }
+            }
+        }
+
+        None
     }
 }
