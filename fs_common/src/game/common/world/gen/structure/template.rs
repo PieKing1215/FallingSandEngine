@@ -1,12 +1,15 @@
 use std::fs;
 
+use asefile::AsepriteFile;
 use image::{DynamicImage, GenericImageView};
 
 use crate::game::common::{
     world::{
         copy_paste::MaterialBuf,
         gen::structure::AngleMod,
-        material::{self, color::Color, registry::Registry, MaterialInstance, PhysicsType},
+        material::{
+            self, color::Color, registry::Registry, MaterialID, MaterialInstance, PhysicsType,
+        },
         ChunkHandlerGeneric,
     },
     FileHelper, Rect,
@@ -379,6 +382,49 @@ fn make_test_structure_from_img(
                         color: Color::rgb(c.0[0], c.0[1], c.0[2]),
                     },
                 );
+            }
+        }
+    }
+
+    StructureTemplate { buf, child_nodes }
+}
+
+fn load_from_ase(
+    ase: &AsepriteFile,
+    child_nodes: Vec<(StructureNodeLocalPlacement, StructureNodeConfig)>,
+) -> StructureTemplate {
+    let w = ase.width() as u16;
+    let h = ase.height() as u16;
+    let mut buf = MaterialBuf::new(w, h, vec![MaterialInstance::air(); (w * h) as usize]).unwrap();
+
+    for layer in ase.layers() {
+        let img = layer.frame(0).image();
+        // TODO: determine from layer name
+        let material_id: MaterialID = material::TEST;
+        for x in 0..w {
+            for y in 0..h {
+                let c = img.get_pixel(u32::from(x), u32::from(y));
+                if c.0 == [0, 0, 0, 255] {
+                    buf.set(
+                        x,
+                        y,
+                        MaterialInstance {
+                            material_id,
+                            physics: PhysicsType::Air,
+                            color: Color::rgb(0, 0, 0),
+                        },
+                    );
+                } else if c.0[3] > 0 {
+                    buf.set(
+                        x,
+                        y,
+                        MaterialInstance {
+                            material_id: material::TEST,
+                            physics: PhysicsType::Solid,
+                            color: Color::rgb(c.0[0], c.0[1], c.0[2]),
+                        },
+                    );
+                }
             }
         }
     }
