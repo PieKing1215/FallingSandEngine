@@ -190,7 +190,7 @@ impl Chunk for ClientChunk {
     #[profiling::function]
     fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]) {
         for (x, y, mat) in diff {
-            self.set(*x, *y, *mat).unwrap(); // TODO: handle this Err
+            self.set(*x, *y, mat.clone()).unwrap(); // TODO: handle this Err
         }
     }
 

@@ -183,7 +183,7 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdatePhysicsEntities<'a, H> {
 
                 let mut collided_x = false;
                 for &(h_dx, h_dy) in &r {
-                    if let Some(mat) = self.check_collide((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + f64::from(h_dy)).floor() as i64, phys_ent).copied() {
+                    if let Some(mat) = self.check_collide((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + f64::from(h_dy)).floor() as i64, phys_ent).cloned() {
 
                         let clip_ceil = (h_dy - hitbox.y1 < phys_ent.edge_clip_distance).then(|| ((pos.y + f64::from(h_dy)).floor() + 1.0) - (pos.y + f64::from(hitbox.y1)) + 0.05);
                         let clip_floor = (hitbox.y2 - h_dy < phys_ent.edge_clip_distance).then(|| (pos.y + f64::from(h_dy)).floor() - (pos.y + f64::from(hitbox.y2)) - 0.05);
@@ -191,7 +191,7 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdatePhysicsEntities<'a, H> {
                         if let Some(clip_y) = clip_ceil.or(clip_floor) {
                             let mut would_clip_collide = false;
                             for &(h_dx, h_dy) in &r {
-                                if let Some(mat) = self.check_collide((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + clip_y + f64::from(h_dy)).floor() as i64, phys_ent).copied() {
+                                if let Some(mat) = self.check_collide((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + clip_y + f64::from(h_dy)).floor() as i64, phys_ent).cloned() {
                                     would_clip_collide = true;
                                     if debug_visualize {
                                         let _ignore = self.chunk_handler.set((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + clip_y + f64::from(h_dy)).floor() as i64, MaterialInstance {
@@ -251,7 +251,7 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdatePhysicsEntities<'a, H> {
 
                 let mut collided_y = false;
                 for &(h_dx, h_dy) in &r {
-                    if let Some(mat) = self.check_collide((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, phys_ent).copied() {
+                    if let Some(mat) = self.check_collide((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, phys_ent).cloned() {
                         if (vel.y < -0.001 || vel.y > 1.0) && mat.physics == PhysicsType::Sand && self.chunk_handler.set((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, MaterialInstance::air()).is_ok() {
                             create_particles.push(
                                 Particle::new(

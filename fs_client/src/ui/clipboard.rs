@@ -72,7 +72,7 @@ fn gen_preview(buf: &MaterialBuf) -> egui::ColorImage {
     );
     for y in 0..height {
         for x in 0..width {
-            let mat = buf.materials[x + y * width];
+            let mat = buf.materials[x + y * width].clone();
             let col = egui::Rgba::from_srgba_unmultiplied(
                 mat.color.r,
                 mat.color.g,

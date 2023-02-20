@@ -152,7 +152,7 @@ impl BiomeTestGenerator {
             .placement(Chance(0.25))
             .placement(Count::range(0..=2))
             .placement(RandomOffset::chunk())
-            .placement(MaterialMatch::material(material::SMOOTH_STONE)),
+            .placement(MaterialMatch::material(material::SMOOTH_STONE.to_string())),
             PlacedFeature::new(Blob::new(
                 placer::TEST_PLACER_2,
                 Arc::new(|rng| rng.gen_range(10..32)),

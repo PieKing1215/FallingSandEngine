@@ -143,7 +143,7 @@ impl<C: Chunk + Send> World<C> {
                 let y: i32 = i / 40;
                 if (x - 20).abs() < 5 || (y - 20).abs() < 5 {
                     MaterialInstance {
-                        material_id: material::TEST,
+                        material_id: material::TEST.to_string(),
                         physics: PhysicsType::Solid,
                         color: Color::rgb(
                             64,
@@ -168,7 +168,7 @@ impl<C: Chunk + Send> World<C> {
                 let y: i32 = i / 40;
                 if (y <= 5) || ((x - y).abs() <= 5) {
                     MaterialInstance {
-                        material_id: material::TEST,
+                        material_id: material::TEST.to_string(),
                         physics: PhysicsType::Solid,
                         color: Color::rgb(
                             64,
@@ -196,13 +196,13 @@ impl<C: Chunk + Send> World<C> {
                 let dst = (x - 20) * (x - 20) + (y - 20) * (y - 20);
                 if dst <= 10 * 10 {
                     MaterialInstance {
-                        material_id: material::TEST,
+                        material_id: material::TEST.to_string(),
                         physics: PhysicsType::Sand,
                         color: Color::rgb(255, 64, 255),
                     }
                 } else if dst <= 20 * 20 && ((x - 20).abs() >= 5 || y > 20) {
                     MaterialInstance {
-                        material_id: material::TEST,
+                        material_id: material::TEST.to_string(),
                         physics: PhysicsType::Solid,
                         color: Color::rgb(
                             if (x + y) % 4 >= 2 { 191 } else { 64 },
@@ -230,7 +230,7 @@ impl<C: Chunk + Send> World<C> {
                     let dst = (x - 15) * (x - 15) + (y - 15) * (y - 15);
                     if dst > 5 * 5 && dst <= 10 * 10 {
                         MaterialInstance {
-                            material_id: material::TEST,
+                            material_id: material::TEST.to_string(),
                             physics: PhysicsType::Solid,
                             color: Color::rgb(
                                 if (x + y) % 4 >= 2 { 191 } else { 64 },
@@ -407,7 +407,7 @@ impl<C: Chunk + Send + Sync> World<C> {
                             let tx = f32::from(rb_x) * c - f32::from(rb_y) * s + pos_x;
                             let ty = f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y;
 
-                            let cur = rb.pixels[(rb_x + rb_y * rb_w) as usize];
+                            let cur = rb.pixels[(rb_x + rb_y * rb_w) as usize].clone();
                             if cur.material_id != material::AIR {
                                 let world = self.chunk_handler.get(tx as i64, ty as i64);
                                 if let Ok(mat) = world {
@@ -443,7 +443,7 @@ impl<C: Chunk + Send + Sync> World<C> {
                                         if point_velocity.x.abs() > 1.0
                                             || point_velocity.y.abs() > 1.0
                                         {
-                                            let m = *mat;
+                                            let m = mat.clone();
                                             let part_pos =
                                                 Position { x: f64::from(tx), y: f64::from(ty) };
                                             let mut part_vel = Velocity {
@@ -505,10 +505,11 @@ impl<C: Chunk + Send + Sync> World<C> {
                                                         );
                                                     },
                                                     _ => {
-                                                        if !self
-                                                            .chunk_handler
-                                                            .displace(tx as i64, ty as i64, m)
-                                                        {
+                                                        if !self.chunk_handler.displace(
+                                                            tx as i64,
+                                                            ty as i64,
+                                                            m.clone(),
+                                                        ) {
                                                             let part = Particle::new(
                                                                 m, part_pos, part_vel,
                                                             );
@@ -629,7 +630,7 @@ impl<C: Chunk + Send + Sync> World<C> {
                                 (mat.material_id == material::AIR).then_some(MaterialInstance {
                                     physics: PhysicsType::Object,
                                     color: Color::rgb(0, 255, 0),
-                                    ..*mat
+                                    ..mat.clone()
                                 })
                             });
                     }

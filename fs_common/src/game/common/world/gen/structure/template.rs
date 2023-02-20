@@ -335,7 +335,7 @@ fn make_test_structure(
                     x,
                     y,
                     MaterialInstance {
-                        material_id: material::TEST,
+                        material_id: material::TEST.to_string(),
                         physics: PhysicsType::Solid,
                         color: Color::rgb(
                             f32::from(x) / f32::from(w),
@@ -367,7 +367,7 @@ fn make_test_structure_from_img(
                     x,
                     y,
                     MaterialInstance {
-                        material_id: material::STRUCTURE_VOID,
+                        material_id: material::STRUCTURE_VOID.to_string(),
                         physics: PhysicsType::Air,
                         color: Color::rgb(0, 0, 0),
                     },
@@ -377,7 +377,7 @@ fn make_test_structure_from_img(
                     x,
                     y,
                     MaterialInstance {
-                        material_id: material::TEST,
+                        material_id: material::TEST.to_string(),
                         physics: PhysicsType::Solid,
                         color: Color::rgb(c.0[0], c.0[1], c.0[2]),
                     },
@@ -400,7 +400,7 @@ fn load_from_ase(
     for layer in ase.layers() {
         let img = layer.frame(0).image();
         // TODO: determine from layer name
-        let material_id: MaterialID = material::TEST;
+        let material_id: MaterialID = material::TEST.to_string();
         for x in 0..w {
             for y in 0..h {
                 let c = img.get_pixel(u32::from(x), u32::from(y));
@@ -409,7 +409,7 @@ fn load_from_ase(
                         x,
                         y,
                         MaterialInstance {
-                            material_id,
+                            material_id: material_id.clone(),
                             physics: PhysicsType::Air,
                             color: Color::rgb(0, 0, 0),
                         },
@@ -419,7 +419,7 @@ fn load_from_ase(
                         x,
                         y,
                         MaterialInstance {
-                            material_id: material::TEST,
+                            material_id: material::TEST.to_string(),
                             physics: PhysicsType::Solid,
                             color: Color::rgb(c.0[0], c.0[1], c.0[2]),
                         },

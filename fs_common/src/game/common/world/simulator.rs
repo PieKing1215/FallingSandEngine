@@ -41,7 +41,7 @@ struct SimulationHelperChunk<'a> {
 impl SimulationHelperChunk<'_> {
     #[inline]
     fn get_pixel_from_index(&self, (ch, px, ..): (usize, usize, u16, u16)) -> MaterialInstance {
-        self.pixels[ch][px]
+        self.pixels[ch][px].clone()
     }
 
     #[inline]
@@ -49,7 +49,7 @@ impl SimulationHelperChunk<'_> {
         &self,
         (ch, px, ..): (usize, usize, u16, u16),
     ) -> MaterialInstance {
-        *self.pixels.get_unchecked(ch).get_unchecked(px)
+        self.pixels.get_unchecked(ch).get_unchecked(px).clone()
     }
 
     #[inline]
@@ -238,7 +238,7 @@ impl<C: Chunk + Send> SimulationHelper for SimulationHelperRigidBody<'_, C> {
         let world_mat = self.chunk_handler.get(i64::from(x), i64::from(y)); // TODO: consider changing the args to i64
         if let Ok(m) = world_mat {
             if m.material_id != material::AIR {
-                return *m;
+                return m.clone();
             }
         }
 
@@ -255,7 +255,7 @@ impl<C: Chunk + Send> SimulationHelper for SimulationHelperRigidBody<'_, C> {
                 let nt_y = (tx * s + ty * c) as i32;
 
                 if nt_x >= 0 && nt_y >= 0 && nt_x < cur.width.into() && nt_y < cur.width.into() {
-                    let px = cur.pixels[(nt_x + nt_y * i32::from(cur.width)) as usize];
+                    let px = cur.pixels[(nt_x + nt_y * i32::from(cur.width)) as usize].clone();
 
                     if px.material_id != material::AIR {
                         return px;
@@ -300,7 +300,7 @@ impl<C: Chunk + Send> SimulationHelper for SimulationHelperRigidBody<'_, C> {
                 let nt_y = (tx * s + ty * c) as i32;
 
                 if nt_x >= 0 && nt_y >= 0 && nt_x < cur.width.into() && nt_y < cur.width.into() {
-                    let px = cur.pixels[(nt_x + nt_y * i32::from(cur.width)) as usize];
+                    let px = cur.pixels[(nt_x + nt_y * i32::from(cur.width)) as usize].clone();
 
                     if px.material_id != material::AIR {
                         return px.color;
@@ -431,10 +431,16 @@ impl Simulator {
                         let ty = f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y;
 
                         // let cur = helper.get_pixel_local(tx as i32, ty as i32);
-                        let cur = helper.rigidbodies[i].pixels[(rb_x + rb_y * rb_w) as usize];
+                        let cur =
+                            helper.rigidbodies[i].pixels[(rb_x + rb_y * rb_w) as usize].clone();
 
-                        let res =
-                            Self::simulate_pixel(tx as i32, ty as i32, cur, &mut helper, &rng);
+                        let res = Self::simulate_pixel(
+                            tx as i32,
+                            ty as i32,
+                            cur.clone(),
+                            &mut helper,
+                            &rng,
+                        );
 
                         // if cur.material_id != material::AIR {
                         //     // helper.set_pixel_local(tx as i32, ty as i32, MaterialInstance {
@@ -447,7 +453,8 @@ impl Simulator {
                         // }
 
                         if let Some(mat) = res {
-                            helper.rigidbodies[i].pixels[(rb_x + rb_y * rb_w) as usize] = mat;
+                            helper.rigidbodies[i].pixels[(rb_x + rb_y * rb_w) as usize] =
+                                mat.clone();
                             dirty[i] = true;
                             if (cur.physics == PhysicsType::Solid
                                 && mat.physics != PhysicsType::Solid)

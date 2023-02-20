@@ -47,7 +47,7 @@ impl MaterialBuf {
             for dx in 0..width {
                 let wx = x + i64::from(dx);
                 let wy = y + i64::from(dy);
-                buf.push(chunk_handler.get(wx, wy).copied()?);
+                buf.push(chunk_handler.get(wx, wy).cloned()?);
             }
         }
 
@@ -72,7 +72,7 @@ impl MaterialBuf {
             for dx in 0..width {
                 let wx = x + i64::from(dx);
                 let wy = y + i64::from(dy);
-                buf.push(chunk_handler.get(wx, wy).copied()?);
+                buf.push(chunk_handler.get(wx, wy).cloned()?);
                 chunk_handler.set(wx, wy, MaterialInstance::air())?;
             }
         }
@@ -93,9 +93,9 @@ impl MaterialBuf {
             for dy in 0..self.height {
                 let wx = x + i64::from(dx);
                 let wy = y + i64::from(dy);
-                let m = self.materials[dx as usize + dy as usize * self.width as usize];
+                let m = &self.materials[dx as usize + dy as usize * self.width as usize];
                 if m.material_id != material::STRUCTURE_VOID {
-                    chunk_handler.set(wx, wy, m)?;
+                    chunk_handler.set(wx, wy, m.clone())?;
                 }
             }
         }
@@ -105,7 +105,7 @@ impl MaterialBuf {
 
     pub fn get(&self, x: u16, y: u16) -> Result<MaterialInstance, OutOfBoundsError> {
         if x < self.width && y < self.height {
-            Ok(self.materials[x as usize + y as usize * self.width as usize])
+            Ok(self.materials[x as usize + y as usize * self.width as usize].clone())
         } else {
             Err(OutOfBoundsError)
         }

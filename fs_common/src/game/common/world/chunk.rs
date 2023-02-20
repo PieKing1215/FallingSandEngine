@@ -544,7 +544,8 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                             // these arrays are too large for the stack
 
                             let mut pixels = Box::new(
-                                [MaterialInstance::air(); (CHUNK_SIZE * CHUNK_SIZE) as usize],
+                                [(); (CHUNK_SIZE * CHUNK_SIZE) as usize]
+                                    .map(|_| MaterialInstance::air()),
                             );
 
                             #[allow(clippy::cast_lossless)]
@@ -1214,7 +1215,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
             {
                 if let Ok(true) =
                     self.replace(x + i64::from(scan_x), y + i64::from(scan_y), |scan_mat| {
-                        (scan_mat.physics == PhysicsType::Air).then_some(material)
+                        (scan_mat.physics == PhysicsType::Air).then_some(material.clone())
                     })
                 {
                     succeeded = true;

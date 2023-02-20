@@ -71,7 +71,7 @@ impl WorldGenerator for TestGenerator {
                 } else if v2 > 0.0 {
                     let f = (v2 / 0.02).clamp(0.0, 1.0);
                     pixels[i] = MaterialInstance {
-                        material_id: material::TEST,
+                        material_id: material::TEST.to_string(),
                         physics: PhysicsType::Sand,
                         color: Color::rgb(
                             (f * 191.0) as u8 + 64,
@@ -90,7 +90,7 @@ impl WorldGenerator for TestGenerator {
                     // }).unwrap();
                 } else {
                     pixels[i] = MaterialInstance {
-                        material_id: material::TEST,
+                        material_id: material::TEST.to_string(),
                         physics: PhysicsType::Solid,
                         color: Color::rgb(80, 64, 32),
                     };

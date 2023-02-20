@@ -16,25 +16,25 @@ pub enum PhysicsType {
     Object,
 }
 
-pub type MaterialID = u16;
+pub type MaterialID = String;
 
 #[derive(Debug)]
 pub struct Material {
     pub display_name: String,
 }
 
-#[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct MaterialInstance {
-    pub material_id: u16,
+    pub material_id: MaterialID,
     pub physics: PhysicsType,
     pub color: Color,
 }
 
 impl MaterialInstance {
     #[inline]
-    pub const fn air() -> Self {
+    pub fn air() -> Self {
         Self {
-            material_id: AIR,
+            material_id: AIR.to_string(),
             physics: PhysicsType::Air,
             color: Color::TRANSPARENT,
         }
@@ -47,48 +47,57 @@ impl Default for MaterialInstance {
     }
 }
 
-pub const AIR: MaterialID = 0;
-pub const TEST: MaterialID = 1;
+pub const AIR: &str = "air";
+pub const TEST: &str = "test";
 
-pub const COBBLE_STONE: MaterialID = 2;
-pub const COBBLE_DIRT: MaterialID = 3;
-pub const FADED_COBBLE_STONE: MaterialID = 4;
-pub const FADED_COBBLE_DIRT: MaterialID = 5;
-pub const SMOOTH_STONE: MaterialID = 6;
-pub const SMOOTH_DIRT: MaterialID = 7;
+pub const COBBLE_STONE: &str = "cobble_stone";
+pub const COBBLE_DIRT: &str = "cobble_dirt";
+pub const FADED_COBBLE_STONE: &str = "faded_cobble_stone";
+pub const FADED_COBBLE_DIRT: &str = "faded_cobble_dirt";
+pub const SMOOTH_STONE: &str = "smooth_stone";
+pub const SMOOTH_DIRT: &str = "smooth_dirt";
 
-pub const STRUCTURE_VOID: MaterialID = 8;
+pub const STRUCTURE_VOID: &str = "structure_void";
 
 pub type MaterialRegistry = Registry<MaterialID, Material>;
 
 pub fn init_material_types() -> MaterialRegistry {
     let mut registry = Registry::new();
 
-    registry.register(AIR, Material { display_name: "Air".to_string() });
-    registry.register(TEST, Material { display_name: "Test".to_string() });
     registry.register(
-        COBBLE_STONE,
+        AIR.to_string(),
+        Material { display_name: "Air".to_string() },
+    );
+    registry.register(
+        TEST.to_string(),
+        Material { display_name: "Test".to_string() },
+    );
+    registry.register(
+        COBBLE_STONE.to_string(),
         Material { display_name: "Cobblestone".to_string() },
     );
     registry.register(
-        COBBLE_DIRT,
+        COBBLE_DIRT.to_string(),
         Material { display_name: "Cobbledirt".to_string() },
     );
     registry.register(
-        FADED_COBBLE_STONE,
+        FADED_COBBLE_STONE.to_string(),
         Material { display_name: "Faded Cobblestone".to_string() },
     );
     registry.register(
-        FADED_COBBLE_DIRT,
+        FADED_COBBLE_DIRT.to_string(),
         Material { display_name: "Faded Cobbledirt".to_string() },
     );
     registry.register(
-        SMOOTH_STONE,
+        SMOOTH_STONE.to_string(),
         Material { display_name: "Smoth Stone".to_string() },
     );
-    registry.register(SMOOTH_DIRT, Material { display_name: "Dirt".to_string() });
     registry.register(
-        STRUCTURE_VOID,
+        SMOOTH_DIRT.to_string(),
+        Material { display_name: "Dirt".to_string() },
+    );
+    registry.register(
+        STRUCTURE_VOID.to_string(),
         Material { display_name: "Structure Void".to_string() },
     );
 

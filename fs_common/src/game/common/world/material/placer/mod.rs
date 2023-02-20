@@ -14,7 +14,7 @@ pub trait MaterialPlacer: Sync {
 
 impl MaterialPlacer for MaterialInstance {
     fn pixel(&self, _x: i64, _y: i64) -> MaterialInstance {
-        *self
+        self.clone()
     }
 }
 
@@ -63,7 +63,7 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
         (
             MaterialPlacerMeta { display_name: "Test 1".to_string() },
             Box::new(MaterialInstance {
-                material_id: super::TEST,
+                material_id: super::TEST.to_string(),
                 physics: PhysicsType::Solid,
                 color: Color::GRAY,
             }),
@@ -75,7 +75,7 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
         (
             MaterialPlacerMeta { display_name: "Test 2".to_string() },
             Box::new(TexturedPlacer::new(
-                super::TEST,
+                super::TEST.to_string(),
                 PhysicsType::Sand,
                 &fs::read(file_helper.asset_path("texture/material/test.png")).unwrap(),
             )),
@@ -87,7 +87,7 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
         (
             MaterialPlacerMeta { display_name: "Test Grass".to_string() },
             Box::new(MaterialInstance {
-                material_id: super::TEST,
+                material_id: super::TEST.to_string(),
                 physics: PhysicsType::Solid,
                 color: Color::rgb(0, 127, 0),
             }),
@@ -99,7 +99,7 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
         (
             MaterialPlacerMeta { display_name: "Cobblestone".to_string() },
             Box::new(TexturedPlacer::new(
-                super::COBBLE_STONE,
+                super::COBBLE_STONE.to_string(),
                 PhysicsType::Solid,
                 &fs::read(file_helper.asset_path("texture/material/cobble_stone_128x.png"))
                     .unwrap(),
@@ -112,7 +112,7 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
         (
             MaterialPlacerMeta { display_name: "Cobbledirt".to_string() },
             Box::new(TexturedPlacer::new(
-                super::COBBLE_DIRT,
+                super::COBBLE_DIRT.to_string(),
                 PhysicsType::Solid,
                 &fs::read(file_helper.asset_path("texture/material/cobble_dirt_128x.png")).unwrap(),
             )),
@@ -124,7 +124,7 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
         (
             MaterialPlacerMeta { display_name: "Faded Cobblestone".to_string() },
             Box::new(TexturedPlacer::new(
-                super::FADED_COBBLE_STONE,
+                super::FADED_COBBLE_STONE.to_string(),
                 PhysicsType::Solid,
                 &fs::read(file_helper.asset_path("texture/material/flat_cobble_stone_128x.png"))
                     .unwrap(),
@@ -137,7 +137,7 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
         (
             MaterialPlacerMeta { display_name: "Faded Cobbledirt".to_string() },
             Box::new(TexturedPlacer::new(
-                super::FADED_COBBLE_DIRT,
+                super::FADED_COBBLE_DIRT.to_string(),
                 PhysicsType::Solid,
                 &fs::read(file_helper.asset_path("texture/material/flat_cobble_dirt_128x.png"))
                     .unwrap(),
@@ -150,7 +150,7 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
         (
             MaterialPlacerMeta { display_name: "Smooth Stone".to_string() },
             Box::new(TexturedPlacer::new(
-                super::SMOOTH_STONE,
+                super::SMOOTH_STONE.to_string(),
                 PhysicsType::Solid,
                 &fs::read(file_helper.asset_path("texture/material/smooth_stone_128x.png"))
                     .unwrap(),
@@ -163,7 +163,7 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
         (
             MaterialPlacerMeta { display_name: "Dirt".to_string() },
             Box::new(TexturedPlacer::new(
-                super::SMOOTH_DIRT,
+                super::SMOOTH_DIRT.to_string(),
                 PhysicsType::Solid,
                 &fs::read(file_helper.asset_path("texture/material/smooth_dirt_128x.png")).unwrap(),
             )),

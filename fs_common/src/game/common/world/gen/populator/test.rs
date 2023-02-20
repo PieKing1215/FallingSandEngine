@@ -25,7 +25,7 @@ impl<const S: u8> Populator<S> for TestPopulator {
                                         x,
                                         y,
                                         MaterialInstance {
-                                            material_id: material::TEST,
+                                            material_id: material::TEST.to_string(),
                                             physics: PhysicsType::Solid,
                                             color: Color::ROSE,
                                         },

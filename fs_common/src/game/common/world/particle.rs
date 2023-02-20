@@ -249,7 +249,7 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
                                                         let succeeded = chunk_handler.displace(
                                                             part.pos.x as i64,
                                                             part.pos.y as i64,
-                                                            part.material,
+                                                            part.material.clone(),
                                                         );
 
                                                         if succeeded {
@@ -267,7 +267,7 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
                                                             .set(
                                                                 lx as i64,
                                                                 ly as i64,
-                                                                part.material,
+                                                                part.material.clone(),
                                                             )
                                                             .is_ok()
                                                         {
