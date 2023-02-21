@@ -324,7 +324,7 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
                     .registries
                     .structure_pools
                     .get(&node.config.pool)
-                    .unwrap()
+                    .expect(format!("Missing structure pool {:?}", node.config.pool).as_str())
                     .pool
                     .clone();
                 pool.shuffle(&mut node.rng);

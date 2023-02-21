@@ -49,5 +49,14 @@ pub fn init_configured_structures(_file_helper: &FileHelper) -> ConfiguredStruct
         }),
     );
 
+    registry.register(
+        "yellow_thing",
+        ConfiguredStructure::new(ConfiguredJigsawFeature {
+            start_pool: "yellow_thing".into(),
+            depth: 0,
+            max_distance: 100,
+        }),
+    );
+
     registry
 }

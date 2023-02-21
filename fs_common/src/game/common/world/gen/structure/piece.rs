@@ -312,6 +312,21 @@ pub fn init_structure_pieces(file_helper: &FileHelper) -> StructurePieceRegistry
         ),
     );
 
+    let ase = AsepriteFile::read_file(
+        &file_helper.asset_path("data/structure/piece/yellow_thing/yellow_thing.ase"),
+    )
+    .unwrap();
+    registry.register(
+        "yellow_thing",
+        load_from_ase(
+            &ase,
+            vec![(
+                StructureNodeLocalPlacement { x: 25, y: 25, direction_out: Direction::Down },
+                StructureNodeConfig::new("empty"),
+            )],
+        ),
+    );
+
     registry
 }
 
