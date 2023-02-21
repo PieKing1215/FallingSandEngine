@@ -4,6 +4,7 @@ pub mod world;
 pub mod cli;
 pub mod hashmap_ext;
 mod registries;
+pub mod registry;
 mod settings;
 pub use registries::*;
 use std::ops::Range;

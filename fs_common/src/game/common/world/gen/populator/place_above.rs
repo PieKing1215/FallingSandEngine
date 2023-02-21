@@ -30,7 +30,7 @@ impl Populator<1> for PlaceAbovePopulator {
             for y in 0..i32::from(CHUNK_SIZE) {
                 let m = chunks.get(x, y).unwrap();
                 if (self.searching_for)(m)
-                    && chunks.get(x, y - 1).unwrap().material_id == material::AIR
+                    && chunks.get(x, y - 1).unwrap().material_id == *material::AIR
                 {
                     for dy in -add_surface_height..replace_surface_depth {
                         let m2 = chunks.get(x, y + dy).unwrap();

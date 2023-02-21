@@ -237,7 +237,7 @@ impl<C: Chunk + Send> SimulationHelper for SimulationHelperRigidBody<'_, C> {
     fn get_pixel_local(&self, x: i32, y: i32) -> MaterialInstance {
         let world_mat = self.chunk_handler.get(i64::from(x), i64::from(y)); // TODO: consider changing the args to i64
         if let Ok(m) = world_mat {
-            if m.material_id != material::AIR {
+            if m.material_id != *material::AIR {
                 return m.clone();
             }
         }
@@ -257,7 +257,7 @@ impl<C: Chunk + Send> SimulationHelper for SimulationHelperRigidBody<'_, C> {
                 if nt_x >= 0 && nt_y >= 0 && nt_x < cur.width.into() && nt_y < cur.width.into() {
                     let px = cur.pixels[(nt_x + nt_y * i32::from(cur.width)) as usize].clone();
 
-                    if px.material_id != material::AIR {
+                    if px.material_id != *material::AIR {
                         return px;
                     }
                 }
@@ -302,7 +302,7 @@ impl<C: Chunk + Send> SimulationHelper for SimulationHelperRigidBody<'_, C> {
                 if nt_x >= 0 && nt_y >= 0 && nt_x < cur.width.into() && nt_y < cur.width.into() {
                     let px = cur.pixels[(nt_x + nt_y * i32::from(cur.width)) as usize].clone();
 
-                    if px.material_id != material::AIR {
+                    if px.material_id != *material::AIR {
                         return px.color;
                     }
                 }

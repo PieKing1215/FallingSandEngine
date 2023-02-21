@@ -4,12 +4,11 @@ use asefile::AsepriteFile;
 use image::{DynamicImage, GenericImageView};
 
 use crate::game::common::{
+    registry::Registry,
     world::{
         copy_paste::MaterialBuf,
         gen::structure::AngleMod,
-        material::{
-            self, color::Color, registry::Registry, MaterialID, MaterialInstance, PhysicsType,
-        },
+        material::{self, color::Color, MaterialInstance, PhysicsType},
         ChunkHandlerGeneric,
     },
     FileHelper, Rect,
@@ -335,7 +334,7 @@ fn make_test_structure(
                     x,
                     y,
                     MaterialInstance {
-                        material_id: material::TEST.to_string(),
+                        material_id: material::TEST.clone(),
                         physics: PhysicsType::Solid,
                         color: Color::rgb(
                             f32::from(x) / f32::from(w),
@@ -367,7 +366,7 @@ fn make_test_structure_from_img(
                     x,
                     y,
                     MaterialInstance {
-                        material_id: material::STRUCTURE_VOID.to_string(),
+                        material_id: material::STRUCTURE_VOID.clone(),
                         physics: PhysicsType::Air,
                         color: Color::rgb(0, 0, 0),
                     },
@@ -377,7 +376,7 @@ fn make_test_structure_from_img(
                     x,
                     y,
                     MaterialInstance {
-                        material_id: material::TEST.to_string(),
+                        material_id: material::TEST.clone(),
                         physics: PhysicsType::Solid,
                         color: Color::rgb(c.0[0], c.0[1], c.0[2]),
                     },
@@ -400,7 +399,7 @@ fn load_from_ase(
     for layer in ase.layers() {
         let img = layer.frame(0).image();
         // TODO: determine from layer name
-        let material_id: MaterialID = material::TEST.to_string();
+        let material_id = material::TEST.clone();
         for x in 0..w {
             for y in 0..h {
                 let c = img.get_pixel(u32::from(x), u32::from(y));
@@ -419,7 +418,7 @@ fn load_from_ase(
                         x,
                         y,
                         MaterialInstance {
-                            material_id: material::TEST.to_string(),
+                            material_id: material::TEST.clone(),
                             physics: PhysicsType::Solid,
                             color: Color::rgb(c.0[0], c.0[1], c.0[2]),
                         },

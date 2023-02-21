@@ -1,19 +1,20 @@
 use image::{DynamicImage, GenericImageView};
 
-use crate::game::common::world::material::{
-    color::Color, MaterialID, MaterialInstance, PhysicsType,
+use crate::game::common::{
+    registry::RegistryID,
+    world::material::{color::Color, Material, MaterialInstance, PhysicsType},
 };
 
 use super::MaterialPlacer;
 
 pub struct TexturedPlacer {
-    material_id: MaterialID,
+    material_id: RegistryID<Material>,
     physics: PhysicsType,
     image: DynamicImage,
 }
 
 impl TexturedPlacer {
-    pub fn new(material_id: MaterialID, physics: PhysicsType, image_buf: &[u8]) -> Self {
+    pub fn new(material_id: RegistryID<Material>, physics: PhysicsType, image_buf: &[u8]) -> Self {
         let image = image::load_from_memory(image_buf).unwrap();
         Self { material_id, physics, image }
     }

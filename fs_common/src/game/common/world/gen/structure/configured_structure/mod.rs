@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::game::common::{world::material::registry::Registry, FileHelper};
+use crate::game::common::{registry::Registry, FileHelper};
 
 use self::jigsaw_structure::ConfiguredJigsawFeature;
 

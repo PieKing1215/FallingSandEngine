@@ -1,4 +1,4 @@
-use crate::game::common::{world::material::registry::Registry, FileHelper};
+use crate::game::common::{registry::Registry, FileHelper};
 
 use super::template::StructureTemplateID;
 

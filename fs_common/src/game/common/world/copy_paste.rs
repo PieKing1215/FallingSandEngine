@@ -94,7 +94,7 @@ impl MaterialBuf {
                 let wx = x + i64::from(dx);
                 let wy = y + i64::from(dy);
                 let m = &self.materials[dx as usize + dy as usize * self.width as usize];
-                if m.material_id != material::STRUCTURE_VOID {
+                if m.material_id != *material::STRUCTURE_VOID {
                     chunk_handler.set(wx, wy, m.clone())?;
                 }
             }

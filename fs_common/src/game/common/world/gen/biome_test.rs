@@ -45,7 +45,7 @@ impl BiomeTestGenerator {
         populators.add(PlaceAbovePopulator {
             add_surface_height: 1,
             replace_surface_depth: 2,
-            searching_for: |m| m.material_id == material::SMOOTH_DIRT,
+            searching_for: |m| m.material_id == *material::SMOOTH_DIRT,
             replace: |_mat, x, y, registries| {
                 Some(
                     registries
@@ -59,9 +59,9 @@ impl BiomeTestGenerator {
         });
 
         populators.add(StalactitePopulator {
-            searching_for: |m| m.material_id == material::SMOOTH_STONE,
+            searching_for: |m| m.material_id == *material::SMOOTH_STONE,
             replace: |mat, x, y, registries| {
-                if mat.material_id == material::AIR {
+                if mat.material_id == *material::AIR {
                     Some(
                         registries
                             .material_placers
@@ -78,9 +78,9 @@ impl BiomeTestGenerator {
 
         populators.add(NearbyReplacePopulator {
             radius: 10,
-            searching_for: |m| m.material_id == material::AIR,
+            searching_for: |m| m.material_id == *material::AIR,
             replace: |mat, x, y, registries| {
-                if mat.material_id == material::SMOOTH_STONE {
+                if mat.material_id == *material::SMOOTH_STONE {
                     Some(
                         registries
                             .material_placers
@@ -89,7 +89,7 @@ impl BiomeTestGenerator {
                             .1
                             .pixel(x, y),
                     )
-                } else if mat.material_id == material::SMOOTH_DIRT {
+                } else if mat.material_id == *material::SMOOTH_DIRT {
                     Some(
                         registries
                             .material_placers
@@ -106,10 +106,10 @@ impl BiomeTestGenerator {
 
         populators.add(NearbyReplacePopulator {
             radius: 6,
-            searching_for: |m| m.material_id == material::AIR,
+            searching_for: |m| m.material_id == *material::AIR,
             replace: |mat, x, y, registries| {
-                if mat.material_id == material::SMOOTH_STONE
-                    || mat.material_id == material::FADED_COBBLE_STONE
+                if mat.material_id == *material::SMOOTH_STONE
+                    || mat.material_id == *material::FADED_COBBLE_STONE
                 {
                     Some(
                         registries
@@ -119,8 +119,8 @@ impl BiomeTestGenerator {
                             .1
                             .pixel(x, y),
                     )
-                } else if mat.material_id == material::SMOOTH_DIRT
-                    || mat.material_id == material::FADED_COBBLE_DIRT
+                } else if mat.material_id == *material::SMOOTH_DIRT
+                    || mat.material_id == *material::FADED_COBBLE_DIRT
                 {
                     Some(
                         registries
@@ -152,7 +152,7 @@ impl BiomeTestGenerator {
             .placement(Chance(0.25))
             .placement(Count::range(0..=2))
             .placement(RandomOffset::chunk())
-            .placement(MaterialMatch::material(material::SMOOTH_STONE.to_string())),
+            .placement(MaterialMatch::material(material::SMOOTH_STONE.clone())),
             PlacedFeature::new(Blob::new(
                 placer::TEST_PLACER_2,
                 Arc::new(|rng| rng.gen_range(10..32)),

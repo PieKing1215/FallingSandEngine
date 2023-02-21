@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use crate::game::common::{
+    registry::RegistryID,
     world::{
         gen::{feature::PlacementModifier, populator::ChunkContext},
-        material::{self, MaterialID, MaterialInstance, PhysicsType},
+        material::{self, Material, MaterialInstance, PhysicsType},
     },
     Registries,
 };
@@ -20,14 +21,14 @@ impl MaterialMatch {
     }
 
     pub fn non_air() -> Self {
-        Self::new(Arc::new(|m| m.material_id != material::AIR))
+        Self::new(Arc::new(|m| m.material_id != *material::AIR))
     }
 
     pub fn physics(typ: PhysicsType) -> Self {
         Self::new(Arc::new(move |m| m.physics == typ))
     }
 
-    pub fn material(mat: MaterialID) -> Self {
+    pub fn material(mat: RegistryID<Material>) -> Self {
         Self::new(Arc::new(move |m| m.material_id == mat))
     }
 }

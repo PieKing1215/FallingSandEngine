@@ -100,7 +100,7 @@ impl ConfiguredFeature for Blob {
                             && (1..=4).into_iter().any(|i| {
                                 chunks
                                     .get(x, y + i)
-                                    .map(|m| m.material_id == material::AIR)
+                                    .map(|m| m.material_id == *material::AIR)
                                     .unwrap_or(false)
                             });
 

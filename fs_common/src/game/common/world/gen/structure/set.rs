@@ -5,7 +5,7 @@ use std::{
 
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
-use crate::game::common::{world::material::registry::Registry, FileHelper, Registries};
+use crate::game::common::{registry::Registry, FileHelper, Registries};
 
 use super::configured_structure::ConfiguredStructureID;
 

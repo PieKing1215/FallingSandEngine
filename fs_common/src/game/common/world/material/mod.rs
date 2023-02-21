@@ -1,10 +1,12 @@
 pub mod color;
 pub mod placer;
-pub mod registry;
 
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 
-use self::{color::Color, registry::Registry};
+use crate::game::common::registry::{Registry, RegistryID};
+
+use self::color::Color;
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Debug)]
 pub enum PhysicsType {
@@ -16,8 +18,6 @@ pub enum PhysicsType {
     Object,
 }
 
-pub type MaterialID = String;
-
 #[derive(Debug)]
 pub struct Material {
     pub display_name: String,
@@ -25,7 +25,7 @@ pub struct Material {
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct MaterialInstance {
-    pub material_id: MaterialID,
+    pub material_id: RegistryID<Material>,
     pub physics: PhysicsType,
     pub color: Color,
 }
@@ -34,7 +34,7 @@ impl MaterialInstance {
     #[inline]
     pub fn air() -> Self {
         Self {
-            material_id: AIR.to_string(),
+            material_id: AIR.clone(),
             physics: PhysicsType::Air,
             color: Color::TRANSPARENT,
         }
@@ -47,57 +47,52 @@ impl Default for MaterialInstance {
     }
 }
 
-pub const AIR: &str = "air";
-pub const TEST: &str = "test";
+pub static AIR: Lazy<RegistryID<Material>> = Lazy::new(|| "air".into());
+pub static TEST: Lazy<RegistryID<Material>> = Lazy::new(|| "test".into());
 
-pub const COBBLE_STONE: &str = "cobble_stone";
-pub const COBBLE_DIRT: &str = "cobble_dirt";
-pub const FADED_COBBLE_STONE: &str = "faded_cobble_stone";
-pub const FADED_COBBLE_DIRT: &str = "faded_cobble_dirt";
-pub const SMOOTH_STONE: &str = "smooth_stone";
-pub const SMOOTH_DIRT: &str = "smooth_dirt";
+pub static COBBLE_STONE: Lazy<RegistryID<Material>> = Lazy::new(|| "cobble_stone".into());
+pub static COBBLE_DIRT: Lazy<RegistryID<Material>> = Lazy::new(|| "cobble_dirt".into());
+pub static FADED_COBBLE_STONE: Lazy<RegistryID<Material>> =
+    Lazy::new(|| "faded_cobble_stone".into());
+pub static FADED_COBBLE_DIRT: Lazy<RegistryID<Material>> = Lazy::new(|| "faded_cobble_dirt".into());
+pub static SMOOTH_STONE: Lazy<RegistryID<Material>> = Lazy::new(|| "smooth_stone".into());
+pub static SMOOTH_DIRT: Lazy<RegistryID<Material>> = Lazy::new(|| "smooth_dirt".into());
 
-pub const STRUCTURE_VOID: &str = "structure_void";
+pub static STRUCTURE_VOID: Lazy<RegistryID<Material>> = Lazy::new(|| "structure_void".into());
 
-pub type MaterialRegistry = Registry<MaterialID, Material>;
+pub type MaterialRegistry = Registry<RegistryID<Material>, Material>;
 
 pub fn init_material_types() -> MaterialRegistry {
     let mut registry = Registry::new();
 
+    registry.register(AIR.clone(), Material { display_name: "Air".to_string() });
+    registry.register(TEST.clone(), Material { display_name: "Test".to_string() });
     registry.register(
-        AIR.to_string(),
-        Material { display_name: "Air".to_string() },
-    );
-    registry.register(
-        TEST.to_string(),
-        Material { display_name: "Test".to_string() },
-    );
-    registry.register(
-        COBBLE_STONE.to_string(),
+        COBBLE_STONE.clone(),
         Material { display_name: "Cobblestone".to_string() },
     );
     registry.register(
-        COBBLE_DIRT.to_string(),
+        COBBLE_DIRT.clone(),
         Material { display_name: "Cobbledirt".to_string() },
     );
     registry.register(
-        FADED_COBBLE_STONE.to_string(),
+        FADED_COBBLE_STONE.clone(),
         Material { display_name: "Faded Cobblestone".to_string() },
     );
     registry.register(
-        FADED_COBBLE_DIRT.to_string(),
+        FADED_COBBLE_DIRT.clone(),
         Material { display_name: "Faded Cobbledirt".to_string() },
     );
     registry.register(
-        SMOOTH_STONE.to_string(),
+        SMOOTH_STONE.clone(),
         Material { display_name: "Smoth Stone".to_string() },
     );
     registry.register(
-        SMOOTH_DIRT.to_string(),
+        SMOOTH_DIRT.clone(),
         Material { display_name: "Dirt".to_string() },
     );
     registry.register(
-        STRUCTURE_VOID.to_string(),
+        STRUCTURE_VOID.clone(),
         Material { display_name: "Structure Void".to_string() },
     );
 

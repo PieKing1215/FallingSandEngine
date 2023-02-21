@@ -25,11 +25,12 @@ impl Populator<1> for StalactitePopulator {
             let y = rng.gen_range(0..i32::from(CHUNK_SIZE));
 
             let m = chunks.get(x, y).unwrap();
-            if (self.searching_for)(m) && chunks.get(x, y + 1).unwrap().material_id == material::AIR
+            if (self.searching_for)(m)
+                && chunks.get(x, y + 1).unwrap().material_id == *material::AIR
             {
                 for dx in -4..=4 {
                     for dy in 0..=2 {
-                        if chunks.get(x + dx, y - dy).unwrap().material_id == material::AIR {
+                        if chunks.get(x + dx, y - dy).unwrap().material_id == *material::AIR {
                             continue 'skip;
                         }
                     }
