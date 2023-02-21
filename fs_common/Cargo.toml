@@ -38,6 +38,7 @@ futures = "0.3"
 ahash = "0.8"
 asefile = "0.3"
 once_cell = "1.17"
+ron = "0.8"
 
 # mesh generation
 contour = "0.7"

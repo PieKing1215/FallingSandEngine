@@ -1,0 +1,10 @@
+StructureSet(
+    structures: [
+        "test_configured_structure",
+    ],
+    frequency: 0.5,
+    exclusion: None,
+    spacing: 16,
+    separation: 6,
+    salt: 79529, // completely arbitrary
+)

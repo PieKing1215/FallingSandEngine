@@ -1,9 +1,11 @@
 use std::{
     collections::hash_map::DefaultHasher,
+    fs,
     hash::{Hash, Hasher},
 };
 
 use rand::{rngs::StdRng, Rng, SeedableRng};
+use serde::Deserialize;
 
 use crate::game::common::{
     registry::{Registry, RegistryID},
@@ -12,6 +14,7 @@ use crate::game::common::{
 
 use super::configured_structure::ConfiguredStructure;
 
+#[derive(Debug, Deserialize)]
 pub struct StructureSet {
     pub structures: Vec<RegistryID<ConfiguredStructure>>,
     pub frequency: f32, // 0.0..=1.0
@@ -23,7 +26,7 @@ pub struct StructureSet {
     pub salt: u64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct ExclusionZone {
     pub chunk_distance: u8,
     pub other_set: RegistryID<StructureSet>,
@@ -32,20 +35,31 @@ pub struct ExclusionZone {
 pub type StructureSetRegistry = Registry<StructureSet>;
 
 #[allow(clippy::too_many_lines)]
-pub fn init_structure_sets(_file_helper: &FileHelper) -> StructureSetRegistry {
+pub fn init_structure_sets(file_helper: &FileHelper) -> StructureSetRegistry {
     let mut registry = Registry::new();
 
-    registry.register(
-        "test_structure_set",
-        StructureSet {
-            structures: vec!["test_configured_structure".into()],
-            frequency: 0.5,
-            exclusion: None,
-            spacing: 16,
-            separation: 6,
-            salt: 79529, // completely arbitrary
-        },
-    );
+    let set_folder = file_helper.asset_path("data/structure/set/");
+    if let Ok(dir) = fs::read_dir(set_folder) {
+        for entry in dir.flatten() {
+            if entry.path().is_file()
+                && entry
+                    .path()
+                    .extension()
+                    .map_or(false, |ext| ext.eq_ignore_ascii_case("ron"))
+            {
+                let name = entry
+                    .path()
+                    .file_stem()
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string();
+                let bytes = fs::read(entry.path()).unwrap();
+                let set: StructureSet = ron::de::from_bytes(&bytes).unwrap();
+
+                registry.register(name, set);
+            }
+        }
+    }
 
     registry
 }

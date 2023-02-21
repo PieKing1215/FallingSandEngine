@@ -9,8 +9,10 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
+#[serde(from = "String")]
 pub struct RegistryID<T> {
     value: Arc<String>,
+    #[serde(skip_serializing, default)]
     _phantom: PhantomData<T>,
 }
 
