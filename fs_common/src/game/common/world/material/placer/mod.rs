@@ -77,11 +77,7 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
         TEST_PLACER_1.clone(),
         MaterialPlacer {
             meta: MaterialPlacerMeta { display_name: "Test 1".to_string() },
-            sampler: Box::new(MaterialInstance {
-                material_id: super::TEST.clone(),
-                physics: PhysicsType::Solid,
-                color: Color::GRAY,
-            }),
+            sampler: Box::new(super::TEST.instance(PhysicsType::Solid, Color::GRAY)),
         },
     );
 
@@ -101,11 +97,7 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
         TEST_GRASS.clone(),
         MaterialPlacer {
             meta: MaterialPlacerMeta { display_name: "Test Grass".to_string() },
-            sampler: Box::new(MaterialInstance {
-                material_id: super::TEST.clone(),
-                physics: PhysicsType::Solid,
-                color: Color::rgb(0, 127, 0),
-            }),
+            sampler: Box::new(super::TEST.instance(PhysicsType::Solid, Color::rgb(0, 127, 0))),
         },
     );
 

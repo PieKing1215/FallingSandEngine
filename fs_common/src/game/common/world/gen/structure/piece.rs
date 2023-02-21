@@ -333,15 +333,14 @@ fn make_test_structure(
                 buf.set(
                     x,
                     y,
-                    MaterialInstance {
-                        material_id: material::TEST.clone(),
-                        physics: PhysicsType::Solid,
-                        color: Color::rgb(
+                    material::TEST.instance(
+                        PhysicsType::Solid,
+                        Color::rgb(
                             f32::from(x) / f32::from(w),
                             f32::from(y) / f32::from(h),
                             0.0,
                         ),
-                    },
+                    ),
                 );
             }
         }
@@ -365,21 +364,13 @@ fn make_test_structure_from_img(
                 buf.set(
                     x,
                     y,
-                    MaterialInstance {
-                        material_id: material::STRUCTURE_VOID.clone(),
-                        physics: PhysicsType::Air,
-                        color: Color::rgb(0, 0, 0),
-                    },
+                    material::STRUCTURE_VOID.instance(PhysicsType::Air, Color::rgb(0, 0, 0)),
                 );
             } else if c.0[3] > 0 {
                 buf.set(
                     x,
                     y,
-                    MaterialInstance {
-                        material_id: material::TEST.clone(),
-                        physics: PhysicsType::Solid,
-                        color: Color::rgb(c.0[0], c.0[1], c.0[2]),
-                    },
+                    material::TEST.instance(PhysicsType::Solid, Color::rgb(c.0[0], c.0[1], c.0[2])),
                 );
             }
         }
@@ -433,11 +424,8 @@ fn load_from_ase(
                     buf.set(
                         x,
                         y,
-                        MaterialInstance {
-                            material_id: material_id.clone(),
-                            physics: phys_type,
-                            color: Color::rgba(c.0[0], c.0[1], c.0[2], c.0[3]),
-                        },
+                        material_id
+                            .instance(phys_type, Color::rgba(c.0[0], c.0[1], c.0[2], c.0[3])),
                     );
                 }
             }

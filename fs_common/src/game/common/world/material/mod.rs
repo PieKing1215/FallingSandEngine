@@ -33,17 +33,20 @@ pub struct MaterialInstance {
 impl MaterialInstance {
     #[inline]
     pub fn air() -> Self {
-        Self {
-            material_id: AIR.clone(),
-            physics: PhysicsType::Air,
-            color: Color::TRANSPARENT,
-        }
+        AIR.instance(PhysicsType::Air, Color::TRANSPARENT)
     }
 }
 
 impl Default for MaterialInstance {
     fn default() -> Self {
         Self::air()
+    }
+}
+
+impl RegistryID<Material> {
+    #[inline]
+    pub fn instance(&self, physics: PhysicsType, color: Color) -> MaterialInstance {
+        MaterialInstance { material_id: self.clone(), physics, color }
     }
 }
 

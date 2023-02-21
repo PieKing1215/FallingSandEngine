@@ -142,15 +142,14 @@ impl<C: Chunk + Send> World<C> {
                 let x: i32 = i % 40;
                 let y: i32 = i / 40;
                 if (x - 20).abs() < 5 || (y - 20).abs() < 5 {
-                    MaterialInstance {
-                        material_id: material::TEST.clone(),
-                        physics: PhysicsType::Solid,
-                        color: Color::rgb(
+                    material::TEST.instance(
+                        PhysicsType::Solid,
+                        Color::rgb(
                             64,
                             if (x + y) % 4 >= 2 { 191 } else { 64 },
                             if (x + y) % 4 > 2 { 64 } else { 191 },
                         ),
-                    }
+                    )
                 } else {
                     MaterialInstance::air()
                 }
@@ -167,15 +166,14 @@ impl<C: Chunk + Send> World<C> {
                 let x: i32 = i % 40;
                 let y: i32 = i / 40;
                 if (y <= 5) || ((x - y).abs() <= 5) {
-                    MaterialInstance {
-                        material_id: material::TEST.clone(),
-                        physics: PhysicsType::Solid,
-                        color: Color::rgb(
+                    material::TEST.instance(
+                        PhysicsType::Solid,
+                        Color::rgb(
                             64,
                             if (x + y) % 4 >= 2 { 191 } else { 64 },
                             if (x + y) % 4 > 2 { 64 } else { 191 },
                         ),
-                    }
+                    )
                 } else {
                     MaterialInstance::air()
                 }
@@ -195,21 +193,16 @@ impl<C: Chunk + Send> World<C> {
                 let y: i32 = i / 40;
                 let dst = (x - 20) * (x - 20) + (y - 20) * (y - 20);
                 if dst <= 10 * 10 {
-                    MaterialInstance {
-                        material_id: material::TEST.clone(),
-                        physics: PhysicsType::Sand,
-                        color: Color::rgb(255, 64, 255),
-                    }
+                    material::TEST.instance(PhysicsType::Sand, Color::rgb(255, 64, 255))
                 } else if dst <= 20 * 20 && ((x - 20).abs() >= 5 || y > 20) {
-                    MaterialInstance {
-                        material_id: material::TEST.clone(),
-                        physics: PhysicsType::Solid,
-                        color: Color::rgb(
+                    material::TEST.instance(
+                        PhysicsType::Solid,
+                        Color::rgb(
                             if (x + y) % 4 >= 2 { 191 } else { 64 },
                             if (x + y) % 4 > 2 { 64 } else { 191 },
                             64,
                         ),
-                    }
+                    )
                 } else {
                     MaterialInstance::air()
                 }
@@ -229,15 +222,14 @@ impl<C: Chunk + Send> World<C> {
                     let y: i32 = i / 30;
                     let dst = (x - 15) * (x - 15) + (y - 15) * (y - 15);
                     if dst > 5 * 5 && dst <= 10 * 10 {
-                        MaterialInstance {
-                            material_id: material::TEST.clone(),
-                            physics: PhysicsType::Solid,
-                            color: Color::rgb(
+                        material::TEST.instance(
+                            PhysicsType::Solid,
+                            Color::rgb(
                                 if (x + y) % 4 >= 2 { 191 } else { 64 },
                                 if (x + y) % 4 > 2 { 64 } else { 191 },
                                 if (x + y) % 4 >= 2 { 191 } else { 64 },
                             ),
-                        }
+                        )
                     } else {
                         MaterialInstance::air()
                     }

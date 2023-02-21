@@ -35,11 +35,7 @@ pub struct TestBiome(Color);
 
 impl Biome for TestBiome {
     fn pixel(&self, _x: i64, _y: i64, _registries: &Registries) -> MaterialInstance {
-        MaterialInstance {
-            material_id: material::TEST.clone(),
-            physics: PhysicsType::Solid,
-            color: self.0,
-        }
+        material::TEST.instance(PhysicsType::Solid, self.0)
     }
 }
 

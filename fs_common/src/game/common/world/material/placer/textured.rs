@@ -30,10 +30,6 @@ impl MaterialPlacerSampler for TexturedPlacer {
 
         let color = Color::rgba(rgba[0], rgba[1], rgba[2], rgba[3]);
 
-        MaterialInstance {
-            material_id: self.material_id.clone(),
-            physics: self.physics,
-            color,
-        }
+        self.material_id.instance(self.physics, color)
     }
 }

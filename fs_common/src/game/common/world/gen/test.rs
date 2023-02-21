@@ -70,15 +70,10 @@ impl WorldGenerator for TestGenerator {
                     // chunk.set(x, y, MaterialInstance::air()).unwrap();
                 } else if v2 > 0.0 {
                     let f = (v2 / 0.02).clamp(0.0, 1.0);
-                    pixels[i] = MaterialInstance {
-                        material_id: material::TEST.clone(),
-                        physics: PhysicsType::Sand,
-                        color: Color::rgb(
-                            (f * 191.0) as u8 + 64,
-                            64,
-                            ((1.0 - f) * 191.0) as u8 + 64,
-                        ),
-                    };
+                    pixels[i] = material::TEST.instance(
+                        PhysicsType::Sand,
+                        Color::rgb((f * 191.0) as u8 + 64, 64, ((1.0 - f) * 191.0) as u8 + 64),
+                    );
                     colors[i * 4] = pixels[i].color.r;
                     colors[i * 4 + 1] = pixels[i].color.g;
                     colors[i * 4 + 2] = pixels[i].color.b;
@@ -89,11 +84,7 @@ impl WorldGenerator for TestGenerator {
                     //     color: Color::rgb(0, 0, 255),
                     // }).unwrap();
                 } else {
-                    pixels[i] = MaterialInstance {
-                        material_id: material::TEST.clone(),
-                        physics: PhysicsType::Solid,
-                        color: Color::rgb(80, 64, 32),
-                    };
+                    pixels[i] = material::TEST.instance(PhysicsType::Solid, Color::rgb(80, 64, 32));
                     colors[i * 4] = pixels[i].color.r;
                     colors[i * 4 + 1] = pixels[i].color.g;
                     colors[i * 4 + 2] = pixels[i].color.b;

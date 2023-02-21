@@ -1,6 +1,6 @@
 use crate::game::common::{
     world::{
-        material::{self, color::Color, MaterialInstance, PhysicsType},
+        material::{self, color::Color, PhysicsType},
         CHUNK_SIZE,
     },
     Registries,
@@ -24,11 +24,7 @@ impl<const S: u8> Populator<S> for TestPopulator {
                                     .set(
                                         x,
                                         y,
-                                        MaterialInstance {
-                                            material_id: material::TEST.clone(),
-                                            physics: PhysicsType::Solid,
-                                            color: Color::ROSE,
-                                        },
+                                        material::TEST.instance(PhysicsType::Solid, Color::ROSE),
                                     )
                                     .unwrap();
                             }
