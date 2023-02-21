@@ -10,12 +10,10 @@ use crate::game::common::{
 };
 
 use rand::Rng;
-use simdnoise::NoiseBuilder;
 
 use crate::game::common::world::CHUNK_SIZE;
 
 use super::{
-    biome::BiomePlacementParameter,
     feature::{
         features::{blob::Blob, test_structure::TestStructure},
         placement_mods::{
@@ -168,34 +166,6 @@ impl BiomeTestGenerator {
     }
 }
 
-const BIOME_SIZE: u16 = 200;
-
-fn single_random_at(x: f32, y: f32, freq: f32, seed: i32) -> f32 {
-    NoiseBuilder::gradient_2d_offset(x, 1, y, 1)
-        .with_freq(freq)
-        .with_seed(seed)
-        .generate()
-        .0[0]
-}
-
-fn biome_params_at(x: i64, y: i64, seed: i32) -> BiomePlacementParameter {
-    let factor_a =
-        (single_random_at(x as f32, y as f32, 0.001, seed + 4) * 20.0 + 0.5).clamp(0.0, 1.0);
-    let factor_b =
-        (single_random_at(x as f32, y as f32, 0.0005, seed + 5) * 20.0 + 0.5).clamp(0.0, 1.0);
-    let factor_c =
-        (single_random_at(x as f32, y as f32, 0.00025, seed + 6) * 20.0 + 0.5).clamp(0.0, 1.0);
-    BiomePlacementParameter { a: factor_a, b: factor_b, c: factor_c }
-}
-
-#[allow(clippy::cast_lossless)]
-fn nearest_biome_point_to(x: i64, y: i64) -> (i64, i64) {
-    let bp_x = ((x as f32) / (BIOME_SIZE as f32)).floor() as i64 * (BIOME_SIZE as i64);
-    let bp_y = ((y as f32) / (BIOME_SIZE as f32)).floor() as i64 * (BIOME_SIZE as i64);
-
-    (bp_x, bp_y)
-}
-
 impl WorldGenerator for BiomeTestGenerator {
     #[allow(clippy::cast_lossless)]
     #[profiling::function]
@@ -210,107 +180,25 @@ impl WorldGenerator for BiomeTestGenerator {
     ) {
         let chunk_pixel_x = chunk_x as i64 * CHUNK_SIZE as i64;
         let chunk_pixel_y = chunk_y as i64 * CHUNK_SIZE as i64;
-        let cofs_x = chunk_pixel_x as f32;
-        let cofs_y = chunk_pixel_y as f32;
 
-        let (center_biome_point_x, center_biome_point_y) = nearest_biome_point_to(
-            (chunk_x as i64 * CHUNK_SIZE as i64) + (CHUNK_SIZE / 2) as i64,
-            (chunk_y as i64 * CHUNK_SIZE as i64) + (CHUNK_SIZE / 2) as i64,
+        let biomes = registries.biomes.biome_block::<CHUNK_SIZE, CHUNK_SIZE>(
+            chunk_pixel_x,
+            chunk_pixel_y,
+            seed,
         );
-
-        let base_pts = (-2..=2)
-            .flat_map(|x| (-2..=2).map(move |y| (x, y)))
-            .map(|(x, y)| {
-                (
-                    center_biome_point_x + x * BIOME_SIZE as i64,
-                    center_biome_point_y + y * BIOME_SIZE as i64,
-                )
-            })
-            .collect::<Vec<_>>();
-
-        let vals = base_pts
-            .iter()
-            .map(|(x, y)| {
-                let disp_x = x
-                    + (single_random_at(*x as f32, *y as f32, 0.003, seed + 1)
-                        * 20.0
-                        * BIOME_SIZE as f32) as i64;
-                let disp_y = y
-                    + (single_random_at(*x as f32, *y as f32, 0.003, seed + 2)
-                        * 20.0
-                        * BIOME_SIZE as f32) as i64;
-
-                let biome = (*super::biome::test::TEST_BIOME_PLACEMENT)
-                    .nearest(biome_params_at(*x, *y, seed));
-
-                ((disp_x, disp_y), biome)
-            })
-            .collect::<Vec<_>>();
-
-        let ofs_x_1 =
-            NoiseBuilder::gradient_2d_offset(cofs_x, CHUNK_SIZE.into(), cofs_y, CHUNK_SIZE.into())
-                .with_freq(0.005)
-                .with_seed(seed + 3)
-                .generate()
-                .0;
-
-        let ofs_y_1 =
-            NoiseBuilder::gradient_2d_offset(cofs_x, CHUNK_SIZE.into(), cofs_y, CHUNK_SIZE.into())
-                .with_freq(0.005)
-                .with_seed(seed + 4)
-                .generate()
-                .0;
-
-        let ofs_x_2 =
-            NoiseBuilder::gradient_2d_offset(cofs_x, CHUNK_SIZE.into(), cofs_y, CHUNK_SIZE.into())
-                .with_freq(0.015)
-                .with_seed(seed + 3)
-                .generate()
-                .0;
-
-        let ofs_y_2 =
-            NoiseBuilder::gradient_2d_offset(cofs_x, CHUNK_SIZE.into(), cofs_y, CHUNK_SIZE.into())
-                .with_freq(0.015)
-                .with_seed(seed + 4)
-                .generate()
-                .0;
 
         {
             profiling::scope!("loop");
             for x in 0..CHUNK_SIZE {
                 for y in 0..CHUNK_SIZE {
                     let i = (x + y * CHUNK_SIZE) as usize;
-
-                    let biome = vals
-                        .iter()
-                        .min_by(|((x1, y1), _v1), ((x2, y2), _v2)| unsafe {
-                            let ox1 = ofs_x_1.get_unchecked(i) * 1000.0;
-                            let ox2 = ofs_x_2.get_unchecked(i) * 500.0;
-                            let oy1 = ofs_y_1.get_unchecked(i) * 1000.0;
-                            let oy2 = ofs_y_2.get_unchecked(i) * 500.0;
-
-                            let ox = x as i64 + cofs_x as i64 + (ox1 + ox2) as i64;
-                            let oy = y as i64 + cofs_y as i64 + (oy1 + oy2) as i64;
-
-                            let dx1 = x1 - ox;
-                            let dy1 = y1 - oy;
-                            let d1 = dx1 * dx1 + dy1 * dy1;
-
-                            let dx2 = x2 - ox;
-                            let dy2 = y2 - oy;
-                            let d2 = dx2 * dx2 + dy2 * dy2;
-
-                            d1.cmp(&d2)
-                        })
-                        .unwrap()
-                        .1;
+                    let biome = biomes[i].1;
 
                     // using `get_unchecked` has no noticeable performance effect here
-                    pixels[i] = biome.pixel(
-                        chunk_pixel_x + x as i64,
-                        chunk_pixel_y + y as i64,
-                        registries,
-                    );
+                    pixels[i] = biome
+                        .base_placer
+                        .as_placer(registries)
+                        .pixel(chunk_pixel_x + x as i64, chunk_pixel_y + y as i64);
                     colors[i * 4] = pixels[i].color.r;
                     colors[i * 4 + 1] = pixels[i].color.g;
                     colors[i * 4 + 2] = pixels[i].color.b;

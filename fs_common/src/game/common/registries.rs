@@ -1,8 +1,12 @@
 use super::{
     world::{
-        gen::structure::{
-            self, configured_structure::ConfiguredStructureRegistry, piece::StructurePieceRegistry,
-            pool::StructurePoolRegistry, set::StructureSetRegistry,
+        gen::{
+            biome::{self, BiomeRegistry},
+            structure::{
+                self, configured_structure::ConfiguredStructureRegistry,
+                piece::StructurePieceRegistry, pool::StructurePoolRegistry,
+                set::StructureSetRegistry,
+            },
         },
         material::{
             self,
@@ -20,6 +24,7 @@ pub struct Registries {
     pub structure_pools: StructurePoolRegistry,
     pub configured_structures: ConfiguredStructureRegistry,
     pub structure_sets: StructureSetRegistry,
+    pub biomes: BiomeRegistry,
 }
 
 impl Registries {
@@ -33,6 +38,7 @@ impl Registries {
                 file_helper,
             ),
             structure_sets: structure::set::init_structure_sets(file_helper),
+            biomes: biome::init_biomes(file_helper),
         }
     }
 
@@ -44,6 +50,7 @@ impl Registries {
             structure_pools: StructurePoolRegistry::new(),
             configured_structures: ConfiguredStructureRegistry::new(),
             structure_sets: StructureSetRegistry::new(),
+            biomes: BiomeRegistry::new(),
         }
     }
 }
