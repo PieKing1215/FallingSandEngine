@@ -6,14 +6,10 @@ use crate::game::common::{
         gen::{
             feature::ConfiguredFeature,
             populator::ChunkContext,
-            structure::{
-                configured_structure::{
-                    ConfiguredStructure, ConfiguredStructurePlaceCtx, ConfiguredStructurePlacer,
-                },
-                piece::StructurePiece,
+            structure::configured_structure::{
+                ConfiguredStructure, ConfiguredStructurePlaceCtx, ConfiguredStructurePlacer,
             },
         },
-        material::placer::MaterialPlacer,
         CHUNK_SIZE,
     },
     Registries,

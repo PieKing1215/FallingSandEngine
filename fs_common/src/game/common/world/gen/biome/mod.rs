@@ -6,10 +6,8 @@ use crate::game::common::{
     registry::{Registry, RegistryID},
     world::{
         material::{
-            self,
-            color::Color,
             placer::{self, MaterialPlacer, MaterialPlacerSampler},
-            MaterialInstance, PhysicsType,
+            MaterialInstance,
         },
         pixel_to_chunk_pos, CHUNK_SIZE,
     },

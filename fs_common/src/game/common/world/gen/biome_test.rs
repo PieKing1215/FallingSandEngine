@@ -16,7 +16,7 @@ use crate::game::common::world::CHUNK_SIZE;
 use super::{
     feature::{
         features::{
-            blob::Blob, configured_Structure::ConfiguredStructureFeature,
+            blob::Blob, configured_structure::ConfiguredStructureFeature,
             test_structure::TestStructure,
         },
         placement_mods::{
