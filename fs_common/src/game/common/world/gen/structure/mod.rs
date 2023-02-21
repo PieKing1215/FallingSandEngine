@@ -14,6 +14,7 @@ use specs::{
 };
 
 use crate::game::common::{
+    registry::RegistryID,
     world::{
         self, entity::Persistent, gen::structure::template::StructureNodeConfig,
         ChunkHandlerGeneric, ChunkState, Position,
@@ -21,7 +22,7 @@ use crate::game::common::{
     Rect, Registries,
 };
 
-use self::pool::StructurePoolID;
+use self::template::StructureTemplate;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Direction {
@@ -389,7 +390,7 @@ impl<H: ChunkHandlerGeneric + Send> UpdateStructureNodes<'_, H> {
     #[warn(clippy::too_many_arguments)]
     fn place(
         &mut self,
-        pool: &[StructurePoolID],
+        pool: &[RegistryID<StructureTemplate>],
         pos: &Position,
         node: &mut StructureNode,
         all_bounds: &[Rect<i64>],

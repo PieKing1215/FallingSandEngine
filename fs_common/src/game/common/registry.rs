@@ -87,8 +87,8 @@ impl<K: Eq + std::hash::Hash, V> Registry<K, V> {
         Self { map: HashMap::default() }
     }
 
-    pub fn register(&mut self, key: K, value: V) {
-        self.map.insert(key, value);
+    pub fn register(&mut self, key: impl Into<K>, value: V) {
+        self.map.insert(key.into(), value);
     }
 
     #[inline]

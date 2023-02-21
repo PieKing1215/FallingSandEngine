@@ -4,7 +4,7 @@ use asefile::AsepriteFile;
 use image::{DynamicImage, GenericImageView};
 
 use crate::game::common::{
-    registry::Registry,
+    registry::{Registry, RegistryID},
     world::{
         copy_paste::MaterialBuf,
         gen::structure::AngleMod,
@@ -168,9 +168,7 @@ impl StructureTemplate {
 
 // registry
 
-pub type StructureTemplateID = &'static str;
-
-pub type StructureTemplateRegistry = Registry<StructureTemplateID, StructureTemplate>;
+pub type StructureTemplateRegistry = Registry<RegistryID<StructureTemplate>, StructureTemplate>;
 
 #[allow(clippy::too_many_lines)]
 pub fn init_structure_templates(file_helper: &FileHelper) -> StructureTemplateRegistry {

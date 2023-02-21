@@ -3,15 +3,16 @@ use egui::{
     plot::{Arrows, Plot, PlotImage, PlotPoint, PlotPoints, Points, Text},
     Color32, RichText, ScrollArea, TextureOptions, Vec2,
 };
-use fs_common::game::common::world::{
-    copy_paste::MaterialBuf, gen::structure::template::StructureTemplateID,
+use fs_common::game::common::{
+    registry::RegistryID,
+    world::{copy_paste::MaterialBuf, gen::structure::template::StructureTemplate},
 };
 
 use super::DebugUIsContext;
 
 pub struct RegistriesUI {
     cur_tab: Tab,
-    structure_template_images: HashMap<StructureTemplateID, egui::TextureHandle>,
+    structure_template_images: HashMap<RegistryID<StructureTemplate>, egui::TextureHandle>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -75,8 +76,10 @@ impl RegistriesUI {
                         entries.sort_by(|(k_a, _), (k_b, _)| k_a.cmp(k_b));
                         for (id, template) in entries {
                             ui.collapsing(format!("{id:?}"), |ui| {
-                                let tex =
-                                    self.structure_template_images.entry(id).or_insert_with(|| {
+                                let tex = self
+                                    .structure_template_images
+                                    .entry(id.clone())
+                                    .or_insert_with(|| {
                                         egui_ctx.load_texture(
                                             "structure template preview",
                                             gen_preview(&template.buf),
