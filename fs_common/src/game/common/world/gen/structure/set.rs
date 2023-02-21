@@ -38,27 +38,12 @@ pub type StructureSetRegistry = Registry<StructureSet>;
 pub fn init_structure_sets(file_helper: &FileHelper) -> StructureSetRegistry {
     let mut registry = Registry::new();
 
-    let set_folder = file_helper.asset_path("data/structure/set/");
-    if let Ok(dir) = fs::read_dir(set_folder) {
-        for entry in dir.flatten() {
-            if entry.path().is_file()
-                && entry
-                    .path()
-                    .extension()
-                    .map_or(false, |ext| ext.eq_ignore_ascii_case("ron"))
-            {
-                let name = entry
-                    .path()
-                    .file_stem()
-                    .unwrap()
-                    .to_string_lossy()
-                    .to_string();
-                let bytes = fs::read(entry.path()).unwrap();
-                let set: StructureSet = ron::de::from_bytes(&bytes).unwrap();
+    for path in file_helper.files_in_dir_with_ext("data/structure/set", "ron") {
+        let name = path.file_stem().unwrap().to_string_lossy().to_string();
+        let bytes = fs::read(path).unwrap();
+        let set: StructureSet = ron::de::from_bytes(&bytes).unwrap();
 
-                registry.register(name, set);
-            }
-        }
+        registry.register(name, set);
     }
 
     registry

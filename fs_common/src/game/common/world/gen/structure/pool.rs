@@ -1,3 +1,7 @@
+use std::fs;
+
+use serde::Deserialize;
+
 use crate::game::common::{
     registry::{Registry, RegistryID},
     FileHelper,
@@ -5,7 +9,7 @@ use crate::game::common::{
 
 use super::template::StructureTemplate;
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct StructurePool {
     pub pool: Vec<RegistryID<StructureTemplate>>,
 }
@@ -21,16 +25,16 @@ impl From<Vec<&str>> for StructurePool {
 pub type StructurePoolRegistry = Registry<StructurePool>;
 
 #[allow(clippy::too_many_lines)]
-pub fn init_structure_pools(_file_helper: &FileHelper) -> StructurePoolRegistry {
+pub fn init_structure_pools(file_helper: &FileHelper) -> StructurePoolRegistry {
     let mut registry = Registry::new();
 
-    registry.register("rooms", vec!["a", "a2"].into());
-    registry.register("hallways", vec!["b", "b2", "stairs"].into());
-    registry.register(
-        "rooms_or_straight_hallways",
-        vec!["a", "a2", "b", "b"].into(),
-    );
-    registry.register("end_pieces", vec!["end_carve"].into());
+    for path in file_helper.files_in_dir_with_ext("data/structure/pool", "ron") {
+        let name = path.file_stem().unwrap().to_string_lossy().to_string();
+        let bytes = fs::read(path).unwrap();
+        let set: StructurePool = ron::de::from_bytes(&bytes).unwrap();
+
+        registry.register(name, set);
+    }
 
     registry
 }

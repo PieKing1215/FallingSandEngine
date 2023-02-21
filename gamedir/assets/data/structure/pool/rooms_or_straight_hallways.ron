@@ -1,0 +1,8 @@
+StructurePool (
+    pool: [
+        "a",
+        "a2",
+        "b",
+        "b",
+    ]
+)
