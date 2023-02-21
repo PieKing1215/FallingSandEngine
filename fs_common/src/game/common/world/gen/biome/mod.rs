@@ -197,63 +197,49 @@ pub fn init_biomes(_file_helper: &FileHelper) -> BiomeRegistry {
         "red",
         Biome {
             placement: [0.75, 0.0, 0.0].into(),
-            base_placer: material::TEST
-                .instance(PhysicsType::Solid, Color::RED)
-                .into(),
+            base_placer: RegistryID::<MaterialPlacer>::from("test_red").into(),
         },
     );
     registry.register(
         "green",
         Biome {
             placement: [0.0, 0.75, 0.0].into(),
-            base_placer: material::TEST
-                .instance(PhysicsType::Solid, Color::GREEN)
-                .into(),
+            base_placer: RegistryID::<MaterialPlacer>::from("test_green").into(),
         },
     );
     registry.register(
         "blue",
         Biome {
             placement: [0.0, 0.0, 0.75].into(),
-            base_placer: material::TEST
-                .instance(PhysicsType::Solid, Color::BLUE)
-                .into(),
+            base_placer: RegistryID::<MaterialPlacer>::from("test_blue").into(),
         },
     );
     registry.register(
         "cyan",
         Biome {
             placement: [0.25, 1.0, 1.0].into(),
-            base_placer: material::TEST
-                .instance(PhysicsType::Solid, Color::CYAN)
-                .into(),
+            base_placer: RegistryID::<MaterialPlacer>::from("test_cyan").into(),
         },
     );
     registry.register(
         "magenta",
         Biome {
             placement: [1.0, 0.25, 1.0].into(),
-            base_placer: material::TEST
-                .instance(PhysicsType::Solid, Color::MAGENTA)
-                .into(),
+            base_placer: RegistryID::<MaterialPlacer>::from("test_magenta").into(),
         },
     );
     registry.register(
         "yellow",
         Biome {
             placement: [1.0, 1.0, 0.25].into(),
-            base_placer: material::TEST
-                .instance(PhysicsType::Solid, Color::YELLOW)
-                .into(),
+            base_placer: RegistryID::<MaterialPlacer>::from("test_yellow").into(),
         },
     );
     registry.register(
         "white",
         Biome {
             placement: [1.0, 1.0, 1.0].into(),
-            base_placer: material::TEST
-                .instance(PhysicsType::Solid, Color::WHITE)
-                .into(),
+            base_placer: RegistryID::<MaterialPlacer>::from("test_white").into(),
         },
     );
 

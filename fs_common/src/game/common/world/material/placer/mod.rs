@@ -177,5 +177,29 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
         },
     );
 
+    // test placers
+
+    let register_test = |color: &str, registry: &mut MaterialPlacerRegistry| {
+        registry.register(
+            format!("test_{color}"),
+            MaterialPlacer {
+                meta: MaterialPlacerMeta { display_name: format!("Test {color}") },
+                sampler: Box::new(TexturedPlacer::new(
+                    super::COBBLE_STONE.clone(),
+                    PhysicsType::Solid,
+                    &fs::read(file_helper.asset_path(format!("texture/material/test_{color}.png")))
+                        .unwrap(),
+                )),
+            },
+        );
+    };
+    register_test("red", &mut registry);
+    register_test("green", &mut registry);
+    register_test("blue", &mut registry);
+    register_test("magenta", &mut registry);
+    register_test("cyan", &mut registry);
+    register_test("yellow", &mut registry);
+    register_test("white", &mut registry);
+
     registry
 }
