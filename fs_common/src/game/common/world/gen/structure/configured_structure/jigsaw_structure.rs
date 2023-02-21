@@ -5,9 +5,12 @@ use std::{
 
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
-use crate::game::common::world::{
-    gen::structure::{pool::StructurePoolID, template::StructureNodeConfig, StructureNode},
-    Position,
+use crate::game::common::{
+    registry::RegistryID,
+    world::{
+        gen::structure::{pool::StructurePool, template::StructureNodeConfig, StructureNode},
+        Position,
+    },
 };
 
 use super::{ConfiguredStructure, ConfiguredStructurePlaceCtx, StructureType};
@@ -18,7 +21,7 @@ impl StructureType for JigsawFeatureType {}
 
 #[derive(Debug)]
 pub struct ConfiguredJigsawFeature {
-    pub start_pool: StructurePoolID,
+    pub start_pool: RegistryID<StructurePool>,
     pub depth: u8,
     // TODO: implement
     pub max_distance: u16,
@@ -38,7 +41,7 @@ impl ConfiguredStructure for ConfiguredJigsawFeature {
             self.depth,
             self.max_distance,
             rng.gen(),
-            StructureNodeConfig::new(self.start_pool),
+            StructureNodeConfig::new(self.start_pool.clone()),
         );
     }
 }

@@ -28,7 +28,11 @@ pub fn init_configured_structures(_file_helper: &FileHelper) -> ConfiguredStruct
 
     registry.register(
         "test_configured_structure",
-        Box::new(ConfiguredJigsawFeature { start_pool: "rooms", depth: 8, max_distance: 400 }) as _,
+        Box::new(ConfiguredJigsawFeature {
+            start_pool: "rooms".into(),
+            depth: 8,
+            max_distance: 400,
+        }) as _,
     );
 
     registry

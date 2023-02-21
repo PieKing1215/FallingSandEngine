@@ -325,6 +325,7 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
                     .structure_pools
                     .get(&node.config.pool)
                     .unwrap()
+                    .pool
                     .clone();
                 pool.shuffle(&mut node.rng);
 
@@ -346,6 +347,7 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
                         .structure_pools
                         .get(fallback_pool)
                         .unwrap()
+                        .pool
                         .clone();
                     fallback_pool.shuffle(&mut node.rng);
 

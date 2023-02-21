@@ -164,7 +164,7 @@ impl RegistriesUI {
                         ScrollArea::new([false, true]).show(ui, |ui| {
                             for (id, pool) in &ctx.registries.structure_pools {
                                 ui.collapsing(format!("{id:?}"), |ui| {
-                                    ui.label(format!("pool = {pool:?}"));
+                                    ui.label(format!("pool = {:?}", pool.pool));
                                 });
                             }
                         });

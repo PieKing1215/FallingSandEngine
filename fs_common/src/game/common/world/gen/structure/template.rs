@@ -14,7 +14,7 @@ use crate::game::common::{
     FileHelper, Rect,
 };
 
-use super::{pool::StructurePoolID, Direction};
+use super::{pool::StructurePool, Direction};
 
 #[derive(Debug, Clone)]
 pub struct StructureTemplate {
@@ -38,17 +38,17 @@ pub struct StructureNodeGlobalPlacement {
 
 #[derive(Debug, Clone)]
 pub struct StructureNodeConfig {
-    pub pool: StructurePoolID,
-    pub fallback_pool: Option<StructurePoolID>,
+    pub pool: RegistryID<StructurePool>,
+    pub fallback_pool: Option<RegistryID<StructurePool>>,
     /// If `true`, this node will still try to generate a child even if depth is at 0
     pub depth_override: bool,
     pub block_in_dirs: Option<Vec<Direction>>,
 }
 
 impl StructureNodeConfig {
-    pub fn new(pool: StructurePoolID) -> Self {
+    pub fn new(pool: impl Into<RegistryID<StructurePool>>) -> Self {
         Self {
-            pool,
+            pool: pool.into(),
             fallback_pool: None,
             depth_override: false,
             block_in_dirs: None,
@@ -68,8 +68,8 @@ impl StructureNodeConfig {
     }
 
     #[must_use]
-    pub fn fallback_pool(mut self, pool: StructurePoolID) -> Self {
-        self.fallback_pool = Some(pool);
+    pub fn fallback_pool(mut self, pool: impl Into<RegistryID<StructurePool>>) -> Self {
+        self.fallback_pool = Some(pool.into());
         self
     }
 }
