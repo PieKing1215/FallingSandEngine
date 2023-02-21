@@ -1,7 +1,7 @@
 pub mod configured_structure;
+pub mod piece;
 pub mod pool;
 pub mod set;
-pub mod template;
 
 use std::sync::Arc;
 
@@ -16,13 +16,13 @@ use specs::{
 use crate::game::common::{
     registry::RegistryID,
     world::{
-        self, entity::Persistent, gen::structure::template::StructureNodeConfig,
-        ChunkHandlerGeneric, ChunkState, Position,
+        self, entity::Persistent, gen::structure::piece::StructureNodeConfig, ChunkHandlerGeneric,
+        ChunkState, Position,
     },
     Rect, Registries,
 };
 
-use self::template::StructureTemplate;
+use self::piece::StructurePiece;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Direction {
@@ -392,7 +392,7 @@ impl<H: ChunkHandlerGeneric + Send> UpdateStructureNodes<'_, H> {
     #[warn(clippy::too_many_arguments)]
     fn place(
         &mut self,
-        pool: &[RegistryID<StructureTemplate>],
+        pool: &[RegistryID<StructurePiece>],
         pos: &Position,
         node: &mut StructureNode,
         all_bounds: &[Rect<i64>],
@@ -400,10 +400,10 @@ impl<H: ChunkHandlerGeneric + Send> UpdateStructureNodes<'_, H> {
         entity: Entity,
         ignore_restrictions: bool,
     ) -> Option<Vec<(Entity, StructureNode, Position)>> {
-        // for every structure template in the pool
+        // for every structure piece in the pool
         for pool_structure in pool
             .iter()
-            .map(|k| self.registries.structure_templates.get(k).unwrap())
+            .map(|k| self.registries.structure_pieces.get(k).unwrap())
         {
             let mut opts = pool_structure.options((pos.x as i64, pos.y as i64), node.direction);
             opts.shuffle(&mut node.rng);

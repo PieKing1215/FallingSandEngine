@@ -5,21 +5,21 @@ use egui::{
 };
 use fs_common::game::common::{
     registry::RegistryID,
-    world::{copy_paste::MaterialBuf, gen::structure::template::StructureTemplate},
+    world::{copy_paste::MaterialBuf, gen::structure::piece::StructurePiece},
 };
 
 use super::DebugUIsContext;
 
 pub struct RegistriesUI {
     cur_tab: Tab,
-    structure_template_images: HashMap<RegistryID<StructureTemplate>, egui::TextureHandle>,
+    structure_piece_images: HashMap<RegistryID<StructurePiece>, egui::TextureHandle>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Tab {
     Material,
     MaterialPlacer,
-    StructureTemplate,
+    StructurePiece,
     StructurePool,
     ConfiguredStructure,
     StructureSet,
@@ -30,7 +30,7 @@ impl RegistriesUI {
     pub fn new() -> Self {
         Self {
             cur_tab: Tab::Material,
-            structure_template_images: HashMap::default(),
+            structure_piece_images: HashMap::default(),
         }
     }
 
@@ -41,11 +41,7 @@ impl RegistriesUI {
                 ui.horizontal_wrapped(|ui| {
                     ui.selectable_value(&mut self.cur_tab, Tab::Material, "Material");
                     ui.selectable_value(&mut self.cur_tab, Tab::MaterialPlacer, "MaterialPlacer");
-                    ui.selectable_value(
-                        &mut self.cur_tab,
-                        Tab::StructureTemplate,
-                        "StructureTemplate",
-                    );
+                    ui.selectable_value(&mut self.cur_tab, Tab::StructurePiece, "StructurePiece");
                     ui.selectable_value(&mut self.cur_tab, Tab::StructurePool, "StructurePool");
                     ui.selectable_value(
                         &mut self.cur_tab,
@@ -70,19 +66,19 @@ impl RegistriesUI {
                             });
                         }
                     },
-                    Tab::StructureTemplate => {
+                    Tab::StructurePiece => {
                         let mut entries: Vec<_> =
-                            (&ctx.registries.structure_templates).into_iter().collect();
+                            (&ctx.registries.structure_pieces).into_iter().collect();
                         entries.sort_by(|(k_a, _), (k_b, _)| k_a.cmp(k_b));
-                        for (id, template) in entries {
+                        for (id, piece) in entries {
                             ui.collapsing(format!("{id}"), |ui| {
                                 let tex = self
-                                    .structure_template_images
+                                    .structure_piece_images
                                     .entry(id.clone())
                                     .or_insert_with(|| {
                                         egui_ctx.load_texture(
-                                            "structure template preview",
-                                            gen_preview(&template.buf),
+                                            "structure piece preview",
+                                            gen_preview(&piece.buf),
                                             TextureOptions::LINEAR,
                                         )
                                     });
@@ -106,14 +102,14 @@ impl RegistriesUI {
                                             PlotPoint::new(size.x / 2.0, -size.y / 2.0),
                                             size,
                                         ));
-                                        let points_config: Vec<_> = template
+                                        let points_config: Vec<_> = piece
                                             .child_nodes
                                             .iter()
                                             .map(|(p, c)| (PlotPoint::new(p.x, -(p.y as f32)), c))
                                             .collect();
                                         let points: Vec<_> =
                                             points_config.iter().map(|(p, _)| *p).collect();
-                                        let tips: Vec<_> = template
+                                        let tips: Vec<_> = piece
                                             .child_nodes
                                             .iter()
                                             .map(|(p, _)| {
@@ -146,7 +142,7 @@ impl RegistriesUI {
                                         }
                                     });
 
-                                for (i, (p, c)) in template.child_nodes.iter().enumerate() {
+                                for (i, (p, c)) in piece.child_nodes.iter().enumerate() {
                                     ui.collapsing(format!("connection #{i}"), |ui| {
                                         ui.label(format!("pos = ({}, {})", p.x, p.y));
                                         ui.label(format!("pool = {:?}", c.pool));

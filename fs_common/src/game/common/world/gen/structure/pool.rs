@@ -7,11 +7,11 @@ use crate::game::common::{
     FileHelper,
 };
 
-use super::template::StructureTemplate;
+use super::piece::StructurePiece;
 
 #[derive(Debug, Deserialize)]
 pub struct StructurePool {
-    pub pool: Vec<RegistryID<StructureTemplate>>,
+    pub pool: Vec<RegistryID<StructurePiece>>,
 }
 
 impl From<Vec<&str>> for StructurePool {

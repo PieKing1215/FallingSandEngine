@@ -17,7 +17,7 @@ use crate::game::common::{
 use super::{pool::StructurePool, Direction};
 
 #[derive(Debug, Clone)]
-pub struct StructureTemplate {
+pub struct StructurePiece {
     pub buf: MaterialBuf,
     pub child_nodes: Vec<(StructureNodeLocalPlacement, StructureNodeConfig)>,
 }
@@ -74,9 +74,9 @@ impl StructureNodeConfig {
     }
 }
 
-type PlaceFn = dyn Fn(&StructureTemplate, &mut dyn ChunkHandlerGeneric) -> Result<(), String>;
+type PlaceFn = dyn Fn(&StructurePiece, &mut dyn ChunkHandlerGeneric) -> Result<(), String>;
 
-impl StructureTemplate {
+impl StructurePiece {
     #[allow(clippy::type_complexity)]
     pub fn options(
         &self,
@@ -168,10 +168,10 @@ impl StructureTemplate {
 
 // registry
 
-pub type StructureTemplateRegistry = Registry<StructureTemplate>;
+pub type StructurePieceRegistry = Registry<StructurePiece>;
 
 #[allow(clippy::too_many_lines)]
-pub fn init_structure_templates(file_helper: &FileHelper) -> StructureTemplateRegistry {
+pub fn init_structure_pieces(file_helper: &FileHelper) -> StructurePieceRegistry {
     let mut registry = Registry::new();
 
     registry.register(
@@ -249,10 +249,9 @@ pub fn init_structure_templates(file_helper: &FileHelper) -> StructureTemplateRe
         ),
     );
 
-    let ase = AsepriteFile::read_file(
-        &file_helper.asset_path("data/structure/template/corner/corner.ase"),
-    )
-    .unwrap();
+    let ase =
+        AsepriteFile::read_file(&file_helper.asset_path("data/structure/piece/corner/corner.ase"))
+            .unwrap();
     registry.register(
         "b2",
         load_from_ase(
@@ -274,10 +273,9 @@ pub fn init_structure_templates(file_helper: &FileHelper) -> StructureTemplateRe
         ),
     );
 
-    let ase = AsepriteFile::read_file(
-        &file_helper.asset_path("data/structure/template/stairs/stairs.ase"),
-    )
-    .unwrap();
+    let ase =
+        AsepriteFile::read_file(&file_helper.asset_path("data/structure/piece/stairs/stairs.ase"))
+            .unwrap();
     registry.register(
         "stairs",
         load_from_ase(
@@ -301,7 +299,7 @@ pub fn init_structure_templates(file_helper: &FileHelper) -> StructureTemplateRe
         ),
     );
 
-    let data = &fs::read(file_helper.asset_path("data/structure/template/end_carve.png")).unwrap();
+    let data = &fs::read(file_helper.asset_path("data/structure/piece/end_carve.png")).unwrap();
     let img = image::load_from_memory(data).unwrap();
     registry.register(
         "end_carve",
@@ -321,7 +319,7 @@ fn make_test_structure(
     w: u16,
     h: u16,
     child_nodes: Vec<(StructureNodeLocalPlacement, StructureNodeConfig)>,
-) -> StructureTemplate {
+) -> StructurePiece {
     let mut buf = MaterialBuf::new(w, h, vec![MaterialInstance::air(); (w * h) as usize]).unwrap();
 
     for x in 0..w {
@@ -349,13 +347,13 @@ fn make_test_structure(
         }
     }
 
-    StructureTemplate { buf, child_nodes }
+    StructurePiece { buf, child_nodes }
 }
 
 fn make_test_structure_from_img(
     img: &DynamicImage,
     child_nodes: Vec<(StructureNodeLocalPlacement, StructureNodeConfig)>,
-) -> StructureTemplate {
+) -> StructurePiece {
     let w = img.width() as u16;
     let h = img.height() as u16;
     let mut buf = MaterialBuf::new(w, h, vec![MaterialInstance::air(); (w * h) as usize]).unwrap();
@@ -387,13 +385,13 @@ fn make_test_structure_from_img(
         }
     }
 
-    StructureTemplate { buf, child_nodes }
+    StructurePiece { buf, child_nodes }
 }
 
 fn load_from_ase(
     ase: &AsepriteFile,
     child_nodes: Vec<(StructureNodeLocalPlacement, StructureNodeConfig)>,
-) -> StructureTemplate {
+) -> StructurePiece {
     let w = ase.width() as u16;
     let h = ase.height() as u16;
     let mut buf = MaterialBuf::new(w, h, vec![MaterialInstance::air(); (w * h) as usize]).unwrap();
@@ -446,5 +444,5 @@ fn load_from_ase(
         }
     }
 
-    StructureTemplate { buf, child_nodes }
+    StructurePiece { buf, child_nodes }
 }

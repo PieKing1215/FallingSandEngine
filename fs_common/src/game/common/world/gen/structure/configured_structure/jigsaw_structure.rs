@@ -8,7 +8,7 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 use crate::game::common::{
     registry::RegistryID,
     world::{
-        gen::structure::{pool::StructurePool, template::StructureNodeConfig, StructureNode},
+        gen::structure::{piece::StructureNodeConfig, pool::StructurePool, StructureNode},
         Position,
     },
 };

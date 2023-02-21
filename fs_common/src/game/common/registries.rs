@@ -1,8 +1,8 @@
 use super::{
     world::{
         gen::structure::{
-            self, configured_structure::ConfiguredStructureRegistry, pool::StructurePoolRegistry,
-            set::StructureSetRegistry, template::StructureTemplateRegistry,
+            self, configured_structure::ConfiguredStructureRegistry, piece::StructurePieceRegistry,
+            pool::StructurePoolRegistry, set::StructureSetRegistry,
         },
         material::{
             self,
@@ -16,7 +16,7 @@ use super::{
 pub struct Registries {
     pub materials: MaterialRegistry,
     pub material_placers: MaterialPlacerRegistry,
-    pub structure_templates: StructureTemplateRegistry,
+    pub structure_pieces: StructurePieceRegistry,
     pub structure_pools: StructurePoolRegistry,
     pub configured_structures: ConfiguredStructureRegistry,
     pub structure_sets: StructureSetRegistry,
@@ -27,7 +27,7 @@ impl Registries {
         Self {
             materials: material::init_material_types(),
             material_placers: placer::init_material_placers(file_helper),
-            structure_templates: structure::template::init_structure_templates(file_helper),
+            structure_pieces: structure::piece::init_structure_pieces(file_helper),
             structure_pools: structure::pool::init_structure_pools(file_helper),
             configured_structures: structure::configured_structure::init_configured_structures(
                 file_helper,
@@ -40,7 +40,7 @@ impl Registries {
         Self {
             materials: MaterialRegistry::new(),
             material_placers: MaterialPlacerRegistry::new(),
-            structure_templates: StructureTemplateRegistry::new(),
+            structure_pieces: StructurePieceRegistry::new(),
             structure_pools: StructurePoolRegistry::new(),
             configured_structures: ConfiguredStructureRegistry::new(),
             structure_sets: StructureSetRegistry::new(),
