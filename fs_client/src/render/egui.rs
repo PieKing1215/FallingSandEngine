@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{borrow::Borrow, sync::Arc};
 
 use fs_common::game::common::{Registries, Settings};
 
@@ -30,15 +30,24 @@ impl DebugUI for Settings {
             ui.checkbox(&mut self.draw_load_zones, "draw_load_zones");
             ui.checkbox(&mut self.draw_structure_bounds, "draw_structure_bounds");
 
-            let mut opt = vec![("none", None)];
+            let mut opt = vec![("none".into(), None)];
             for (k, v) in &registries.structure_sets {
-                opt.push((k, Some(v)));
+                opt.push((k.clone(), Some(v)));
             }
             egui::ComboBox::from_label("draw_structure_set")
-                .selected_text(self.draw_structure_set.unwrap_or("none"))
+                .selected_text(
+                    self.draw_structure_set
+                        .as_ref()
+                        .map_or("none", |id| id.borrow()),
+                )
                 .show_ui(ui, |ui| {
                     for (k, v) in opt {
-                        ui.selectable_value(&mut self.draw_structure_set, v.map(|_| k), k);
+                        let s: &str = k.borrow();
+                        ui.selectable_value(
+                            &mut self.draw_structure_set,
+                            v.map(|_| k.clone()),
+                            s.to_string(),
+                        );
                     }
                 });
 

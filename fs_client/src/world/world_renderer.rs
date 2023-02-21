@@ -191,7 +191,8 @@ impl WorldRenderer {
                         CHUNK_SIZE,
                     );
 
-                    if let (true, Some(set)) = (settings.debug, settings.draw_structure_set) {
+                    if let (true, Some(set)) = (settings.debug, settings.draw_structure_set.clone())
+                    {
                         if let Some(v) = registries.structure_sets.get(&set) {
                             let (start_x, start_y) =
                                 v.nearest_start_chunk((ch.chunk_x, ch.chunk_y), world.seed as _);

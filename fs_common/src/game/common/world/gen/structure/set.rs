@@ -26,12 +26,10 @@ pub struct StructureSet {
 #[derive(Debug)]
 pub struct ExclusionZone {
     pub chunk_distance: u8,
-    pub other_set: StructureSetID,
+    pub other_set: RegistryID<StructureSet>,
 }
 
-pub type StructureSetID = &'static str;
-
-pub type StructureSetRegistry = Registry<StructureSetID, StructureSet>;
+pub type StructureSetRegistry = Registry<RegistryID<StructureSet>, StructureSet>;
 
 #[allow(clippy::too_many_lines)]
 pub fn init_structure_sets(_file_helper: &FileHelper) -> StructureSetRegistry {

@@ -75,7 +75,7 @@ impl RegistriesUI {
                             (&ctx.registries.structure_templates).into_iter().collect();
                         entries.sort_by(|(k_a, _), (k_b, _)| k_a.cmp(k_b));
                         for (id, template) in entries {
-                            ui.collapsing(format!("{id:?}"), |ui| {
+                            ui.collapsing(format!("{id}"), |ui| {
                                 let tex = self
                                     .structure_template_images
                                     .entry(id.clone())
@@ -163,7 +163,7 @@ impl RegistriesUI {
                     Tab::StructurePool => {
                         ScrollArea::new([false, true]).show(ui, |ui| {
                             for (id, pool) in &ctx.registries.structure_pools {
-                                ui.collapsing(format!("{id:?}"), |ui| {
+                                ui.collapsing(format!("{id}"), |ui| {
                                     ui.label(format!("pool = {:?}", pool.pool));
                                 });
                             }
@@ -171,14 +171,14 @@ impl RegistriesUI {
                     },
                     Tab::ConfiguredStructure => {
                         for (id, configured) in &ctx.registries.configured_structures {
-                            ui.collapsing(format!("{id:?}"), |ui| {
+                            ui.collapsing(format!("{id}"), |ui| {
                                 ui.label(format!("{configured:?}"));
                             });
                         }
                     },
                     Tab::StructureSet => {
                         for (id, set) in &ctx.registries.structure_sets {
-                            ui.collapsing(format!("{id:?}"), |ui| {
+                            ui.collapsing(format!("{id}"), |ui| {
                                 ui.label(format!("structures = {:?}", set.structures));
                                 ui.label(format!("frequency = {}", set.frequency));
                                 ui.label(format!("exclusion = {:?}", set.exclusion));

@@ -1,4 +1,4 @@
-use super::world::gen::structure::set::StructureSetID;
+use super::{registry::RegistryID, world::gen::structure::set::StructureSet};
 
 pub struct Settings {
     pub debug: bool,
@@ -12,7 +12,7 @@ pub struct Settings {
     pub draw_origin: bool,
     pub draw_load_zones: bool,
     pub draw_structure_bounds: bool,
-    pub draw_structure_set: Option<StructureSetID>,
+    pub draw_structure_set: Option<RegistryID<StructureSet>>,
     pub cull_chunks: bool,
     pub physics_dbg_draw: bool,
     pub physics_dbg_draw_shape: bool,
