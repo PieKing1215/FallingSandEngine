@@ -1,4 +1,5 @@
 use std::{
+    borrow::Borrow,
     collections::{hash_map, HashMap},
     fmt::Debug,
     marker::PhantomData,
@@ -16,6 +17,14 @@ pub struct RegistryID<T> {
 impl<T> Debug for RegistryID<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("RegistryID").field(&self.value).finish()
+    }
+}
+
+// allows calling `Registry<RegistryID<_>, _>::get` with a `&str` as argument
+impl<T> Borrow<str> for RegistryID<T> {
+    fn borrow(&self) -> &str {
+        let s: &String = self.value.borrow();
+        s.as_str()
     }
 }
 
@@ -65,7 +74,11 @@ impl<K: Eq + std::hash::Hash, V> Registry<K, V> {
     }
 
     #[inline]
-    pub fn get(&self, key: &K) -> Option<&V> {
+    pub fn get<Q>(&self, key: &Q) -> Option<&V>
+    where
+        K: Borrow<Q>,
+        Q: std::hash::Hash + Eq + ?Sized,
+    {
         self.map.get(key)
     }
 }
