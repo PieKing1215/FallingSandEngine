@@ -77,36 +77,36 @@ impl<S: Into<String>, T> From<S> for RegistryID<T> {
     }
 }
 
-pub struct Registry<K: Eq + std::hash::Hash, V> {
-    map: HashMap<K, V, ahash::RandomState>,
+pub struct Registry<V> {
+    map: HashMap<RegistryID<V>, V, ahash::RandomState>,
 }
 
-impl<K: Eq + std::hash::Hash, V> Registry<K, V> {
+impl<V> Registry<V> {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self { map: HashMap::default() }
     }
 
-    pub fn register(&mut self, key: impl Into<K>, value: V) {
+    pub fn register(&mut self, key: impl Into<RegistryID<V>>, value: V) {
         self.map.insert(key.into(), value);
     }
 
     #[inline]
     pub fn get<Q>(&self, key: &Q) -> Option<&V>
     where
-        K: Borrow<Q>,
+        RegistryID<V>: Borrow<Q>,
         Q: std::hash::Hash + Eq + ?Sized,
     {
         self.map.get(key)
     }
 }
 
-impl<'a, K: Eq + std::hash::Hash, V> IntoIterator for &'a Registry<K, V> {
-    type Item = (&'a K, &'a V);
-    type IntoIter = hash_map::Iter<'a, K, V>;
+impl<'a, V> IntoIterator for &'a Registry<V> {
+    type Item = (&'a RegistryID<V>, &'a V);
+    type IntoIter = hash_map::Iter<'a, RegistryID<V>, V>;
 
     #[inline]
-    fn into_iter(self) -> hash_map::Iter<'a, K, V> {
+    fn into_iter(self) -> hash_map::Iter<'a, RegistryID<V>, V> {
         self.map.iter()
     }
 }

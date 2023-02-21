@@ -168,7 +168,7 @@ impl StructureTemplate {
 
 // registry
 
-pub type StructureTemplateRegistry = Registry<RegistryID<StructureTemplate>, StructureTemplate>;
+pub type StructureTemplateRegistry = Registry<StructureTemplate>;
 
 #[allow(clippy::too_many_lines)]
 pub fn init_structure_templates(file_helper: &FileHelper) -> StructureTemplateRegistry {

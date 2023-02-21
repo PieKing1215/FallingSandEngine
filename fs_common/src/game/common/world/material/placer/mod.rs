@@ -59,7 +59,7 @@ pub static FADED_COBBLE_DIRT: Lazy<RegistryID<MaterialPlacer>> =
 pub static SMOOTH_STONE: Lazy<RegistryID<MaterialPlacer>> = Lazy::new(|| "smooth_stone".into());
 pub static SMOOTH_DIRT: Lazy<RegistryID<MaterialPlacer>> = Lazy::new(|| "smooth_dirt".into());
 
-pub type MaterialPlacerRegistry = Registry<RegistryID<MaterialPlacer>, MaterialPlacer>;
+pub type MaterialPlacerRegistry = Registry<MaterialPlacer>;
 
 #[allow(clippy::too_many_lines)]
 pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry {

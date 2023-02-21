@@ -1,9 +1,6 @@
 use std::fmt::Debug;
 
-use crate::game::common::{
-    registry::{Registry, RegistryID},
-    FileHelper,
-};
+use crate::game::common::{registry::Registry, FileHelper};
 
 use self::jigsaw_structure::ConfiguredJigsawFeature;
 
@@ -37,8 +34,7 @@ impl ConfiguredStructure {
     }
 }
 
-pub type ConfiguredStructureRegistry =
-    Registry<RegistryID<ConfiguredStructure>, ConfiguredStructure>;
+pub type ConfiguredStructureRegistry = Registry<ConfiguredStructure>;
 
 #[allow(clippy::too_many_lines)]
 pub fn init_configured_structures(_file_helper: &FileHelper) -> ConfiguredStructureRegistry {

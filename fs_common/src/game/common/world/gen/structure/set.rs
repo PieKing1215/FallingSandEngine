@@ -29,7 +29,7 @@ pub struct ExclusionZone {
     pub other_set: RegistryID<StructureSet>,
 }
 
-pub type StructureSetRegistry = Registry<RegistryID<StructureSet>, StructureSet>;
+pub type StructureSetRegistry = Registry<StructureSet>;
 
 #[allow(clippy::too_many_lines)]
 pub fn init_structure_sets(_file_helper: &FileHelper) -> StructureSetRegistry {

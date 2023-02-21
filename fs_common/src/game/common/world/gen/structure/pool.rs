@@ -18,7 +18,7 @@ impl From<Vec<&str>> for StructurePool {
     }
 }
 
-pub type StructurePoolRegistry = Registry<RegistryID<StructurePool>, StructurePool>;
+pub type StructurePoolRegistry = Registry<StructurePool>;
 
 #[allow(clippy::too_many_lines)]
 pub fn init_structure_pools(_file_helper: &FileHelper) -> StructurePoolRegistry {

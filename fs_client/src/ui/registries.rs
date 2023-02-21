@@ -58,15 +58,15 @@ impl RegistriesUI {
                 match self.cur_tab {
                     Tab::Material => {
                         for (id, mat) in &ctx.registries.materials {
-                            ui.collapsing(format!("{} ({id})", mat.display_name), |ui| {
-                                ui.label("more properties");
+                            ui.collapsing(format!("{id}"), |ui| {
+                                ui.label(format!("display_name = {}", mat.display_name));
                             });
                         }
                     },
                     Tab::MaterialPlacer => {
                         for (id, placer) in &ctx.registries.material_placers {
-                            ui.collapsing(format!("{} ({id})", placer.meta.display_name), |ui| {
-                                ui.label("more properties");
+                            ui.collapsing(format!("{id}"), |ui| {
+                                ui.label(format!("display_name = {}", placer.meta.display_name));
                             });
                         }
                     },
@@ -164,7 +164,7 @@ impl RegistriesUI {
                         ScrollArea::new([false, true]).show(ui, |ui| {
                             for (id, pool) in &ctx.registries.structure_pools {
                                 ui.collapsing(format!("{id}"), |ui| {
-                                    ui.label(format!("pool = {:?}", pool.pool));
+                                    ui.label(format!("pool = {:#?}", pool.pool));
                                 });
                             }
                         });
@@ -172,7 +172,7 @@ impl RegistriesUI {
                     Tab::ConfiguredStructure => {
                         for (id, configured) in &ctx.registries.configured_structures {
                             ui.collapsing(format!("{id}"), |ui| {
-                                ui.label(format!("{configured:?}"));
+                                ui.label(format!("placer = {:#?}", configured.placer));
                             });
                         }
                     },

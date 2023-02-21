@@ -60,7 +60,7 @@ pub static SMOOTH_DIRT: Lazy<RegistryID<Material>> = Lazy::new(|| "smooth_dirt".
 
 pub static STRUCTURE_VOID: Lazy<RegistryID<Material>> = Lazy::new(|| "structure_void".into());
 
-pub type MaterialRegistry = Registry<RegistryID<Material>, Material>;
+pub type MaterialRegistry = Registry<Material>;
 
 pub fn init_material_types() -> MaterialRegistry {
     let mut registry = Registry::new();
