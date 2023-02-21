@@ -53,28 +53,33 @@ pub struct World<C: Chunk> {
     pub seed: i32,
 }
 
+pub fn ecs() -> specs::World {
+    let mut ecs = specs::World::new();
+    ecs.register::<SimpleMarker<FilePersistent>>();
+    ecs.insert(SimpleMarkerAllocator::<FilePersistent>::default());
+    ecs.insert(DeltaTime(Duration::from_millis(1)));
+    ecs.insert(TickTime(0));
+    ecs.insert(ParticleSystem::default());
+    ecs.register::<Position>();
+    ecs.register::<Velocity>();
+    ecs.register::<GameEntity>();
+    ecs.register::<Loader>();
+    ecs.register::<Player>();
+    ecs.register::<PhysicsEntity>();
+    ecs.register::<Hitbox>();
+    ecs.register::<AutoTarget>();
+    ecs.register::<Camera>();
+    ecs.register::<Persistent>();
+    ecs.register::<RigidBodyComponent>();
+    ecs.register::<CollisionDetector>();
+    ecs.register::<StructureNode>();
+    ecs
+}
+
 impl<C: Chunk + Send> World<C> {
     #[profiling::function]
     pub fn create(path: Option<PathBuf>, seed: Option<i32>) -> Self {
-        let mut ecs = specs::World::new();
-        ecs.register::<SimpleMarker<FilePersistent>>();
-        ecs.insert(SimpleMarkerAllocator::<FilePersistent>::default());
-        ecs.insert(DeltaTime(Duration::from_millis(1)));
-        ecs.insert(TickTime(0));
-        ecs.insert(ParticleSystem::default());
-        ecs.register::<Position>();
-        ecs.register::<Velocity>();
-        ecs.register::<GameEntity>();
-        ecs.register::<Loader>();
-        ecs.register::<Player>();
-        ecs.register::<PhysicsEntity>();
-        ecs.register::<Hitbox>();
-        ecs.register::<AutoTarget>();
-        ecs.register::<Camera>();
-        ecs.register::<Persistent>();
-        ecs.register::<RigidBodyComponent>();
-        ecs.register::<CollisionDetector>();
-        ecs.register::<StructureNode>();
+        let mut ecs = ecs();
 
         if let Some(path) = &path {
             let particles_path = path.join("particles.dat");

@@ -4,16 +4,14 @@ pub use chunk::*;
 
 #[cfg(test)]
 mod tests {
-    use fs_common::game::common::world::gen::structure::StructureNode;
     use fs_common::game::common::world::physics::Physics;
     use fs_common::game::common::world::{
-        chunk_index, ChunkHandler, ChunkHandlerGeneric, Loader, Position,
+        self, chunk_index, ChunkHandler, ChunkHandlerGeneric, Loader, Position,
     };
     use fs_common::game::common::Registries;
     use fs_common::game::common::Settings;
 
-    use fs_common::game::common::world::{gen::TestGenerator, FilePersistent, Velocity};
-    use specs::saveload::{SimpleMarker, SimpleMarkerAllocator};
+    use fs_common::game::common::world::gen::TestGenerator;
     use specs::{Builder, WorldExt};
 
     use crate::world::ServerChunk;
@@ -54,13 +52,7 @@ mod tests {
         assert!(!ch.is_chunk_loaded(-3, 2));
 
         // do a few ticks to load some chunks
-        let mut ecs = specs::World::new();
-        ecs.register::<SimpleMarker<FilePersistent>>();
-        ecs.insert(SimpleMarkerAllocator::<FilePersistent>::default());
-        ecs.register::<Position>();
-        ecs.register::<Velocity>();
-        ecs.register::<Loader>();
-        ecs.register::<StructureNode>();
+        let mut ecs = world::ecs();
 
         let loader = ecs
             .create_entity()
