@@ -1,13 +1,16 @@
 use std::collections::BTreeMap;
 
 use egui::TextureOptions;
-use fs_common::game::common::world::material::placer::{self, MaterialPlacer, MaterialPlacerID};
+use fs_common::game::common::{
+    registry::RegistryID,
+    world::material::placer::{self, MaterialPlacer, MaterialPlacerSampler},
+};
 
 use super::DebugUIsContext;
 
 pub struct DrawUI {
-    textures: BTreeMap<u16, egui::TextureHandle>,
-    pub selected: MaterialPlacerID,
+    textures: BTreeMap<RegistryID<MaterialPlacer>, egui::TextureHandle>,
+    pub selected: RegistryID<MaterialPlacer>,
 }
 
 impl DrawUI {
@@ -15,16 +18,16 @@ impl DrawUI {
     pub fn new() -> Self {
         Self {
             textures: BTreeMap::new(),
-            selected: placer::AIR_PLACER,
+            selected: placer::AIR_PLACER.clone(),
         }
     }
 
     pub fn render(&mut self, egui_ctx: &egui::Context, ctx: &DebugUIsContext) {
-        for (id, (_meta, placer)) in &ctx.registries.material_placers {
-            self.textures.entry(*id).or_insert_with(|| {
+        for (id, placer) in &ctx.registries.material_placers {
+            self.textures.entry(id.clone()).or_insert_with(|| {
                 egui_ctx.load_texture(
-                    format!("{id}"),
-                    gen_material_preview(placer.as_ref()),
+                    format!("{id:?}"),
+                    gen_material_preview(placer),
                     TextureOptions::LINEAR,
                 )
             });
@@ -49,13 +52,13 @@ impl DrawUI {
                                         .material_placers
                                         .get(id)
                                         .unwrap()
-                                        .0
+                                        .meta
                                         .display_name
                                         .to_string(),
                                 )
                                 .clicked()
                             {
-                                self.selected = *id;
+                                self.selected = id.clone();
                             };
                         }
                     },
@@ -64,7 +67,7 @@ impl DrawUI {
     }
 }
 
-fn gen_material_preview(placer: &dyn MaterialPlacer) -> egui::ColorImage {
+fn gen_material_preview(placer: &dyn MaterialPlacerSampler) -> egui::ColorImage {
     let width = 20;
     let height = 20;
     let fake_nearest_neighbor_scale = 3;

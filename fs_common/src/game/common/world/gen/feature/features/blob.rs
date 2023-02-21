@@ -4,6 +4,7 @@ use rand::Rng;
 use simdnoise::NoiseBuilder;
 
 use crate::game::common::{
+    registry::RegistryID,
     world::{
         gen::{
             feature::{
@@ -11,14 +12,17 @@ use crate::game::common::{
             },
             populator::ChunkContext,
         },
-        material::{self, placer::MaterialPlacerID},
+        material::{
+            self,
+            placer::{MaterialPlacer, MaterialPlacerSampler},
+        },
         CHUNK_SIZE,
     },
     Registries,
 };
 
 pub struct Blob {
-    placer_id: MaterialPlacerID,
+    placer_id: RegistryID<MaterialPlacer>,
     radius: Arc<ProviderFn<u8>>,
     replace: Arc<MaterialMatchFn>,
     check_air_below: bool,
@@ -26,7 +30,7 @@ pub struct Blob {
 
 impl Blob {
     pub fn new(
-        placer_id: MaterialPlacerID,
+        placer_id: RegistryID<MaterialPlacer>,
         radius: Arc<ProviderFn<u8>>,
         replace: Arc<MaterialMatchFn>,
         check_air_below: bool,
@@ -59,7 +63,7 @@ impl ConfiguredFeature for Blob {
         let cofs_x = chunk_pixel_x as f32 + pos.0 as f32;
         let cofs_y = chunk_pixel_y as f32 + pos.1 as f32;
 
-        let placer = &registries.material_placers.get(&self.placer_id).unwrap().1;
+        let placer = registries.material_placers.get(&self.placer_id).unwrap();
 
         let radius = (self.radius)(rng);
         let alt_radius = (f32::from(radius) * rng.gen_range(0.5..1.0)) as u8;

@@ -26,8 +26,8 @@ use fs_common::game::{
         cli::CLArgs,
         networking::{Packet, PacketType},
         world::{
-            entity::Player, physics::PHYSICS_SCALE, Camera, ChunkHandlerGeneric, Position, Target,
-            World, WorldNetworkMode,
+            entity::Player, material::placer::MaterialPlacerSampler, physics::PHYSICS_SCALE,
+            Camera, ChunkHandlerGeneric, Position, Target, World, WorldNetworkMode,
         },
         FileHelper, Settings,
     },
@@ -215,7 +215,7 @@ impl ClientGame {
                                                         let x = world_x as i64 + xx;
                                                         let y = world_y as i64 + yy;
                                                         let _ = w.chunk_handler.set(x, y,
-                                                            self.data.registries.material_placers.get(&debug_ui.draw.selected).unwrap().1.pixel(x, y),
+                                                            self.data.registries.material_placers.get(&debug_ui.draw.selected).unwrap().pixel(x, y),
                                                         );
                                                     }
                                                 }

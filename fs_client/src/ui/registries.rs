@@ -57,14 +57,14 @@ impl RegistriesUI {
                 match self.cur_tab {
                     Tab::Material => {
                         for (id, mat) in &ctx.registries.materials {
-                            ui.collapsing(format!("{} ({id:?})", mat.display_name), |ui| {
+                            ui.collapsing(format!("{} ({id})", mat.display_name), |ui| {
                                 ui.label("more properties");
                             });
                         }
                     },
                     Tab::MaterialPlacer => {
-                        for (id, (meta, _)) in &ctx.registries.material_placers {
-                            ui.collapsing(format!("{} ({id:?})", meta.display_name), |ui| {
+                        for (id, placer) in &ctx.registries.material_placers {
+                            ui.collapsing(format!("{} ({id})", placer.meta.display_name), |ui| {
                                 ui.label("more properties");
                             });
                         }

@@ -5,7 +5,7 @@ use crate::game::common::{
     world::material::{color::Color, Material, MaterialInstance, PhysicsType},
 };
 
-use super::MaterialPlacer;
+use super::MaterialPlacerSampler;
 
 pub struct TexturedPlacer {
     material_id: RegistryID<Material>,
@@ -20,7 +20,7 @@ impl TexturedPlacer {
     }
 }
 
-impl MaterialPlacer for TexturedPlacer {
+impl MaterialPlacerSampler for TexturedPlacer {
     fn pixel(&self, x: i64, y: i64) -> MaterialInstance {
         let px = (x.rem_euclid(i64::from(self.image.width()))) as u32;
         let py = (y.rem_euclid(i64::from(self.image.height()))) as u32;

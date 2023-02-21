@@ -1,9 +1,10 @@
 use rand::RngCore;
 
 use crate::game::common::{
+    registry::RegistryID,
     world::{
         gen::{feature::ConfiguredFeature, populator::ChunkContext},
-        material::placer::MaterialPlacerID,
+        material::placer::MaterialPlacer,
         CHUNK_SIZE,
     },
     Registries,
@@ -11,11 +12,11 @@ use crate::game::common::{
 
 #[derive(Debug)]
 pub struct SinglePixel {
-    placer_id: MaterialPlacerID,
+    placer_id: RegistryID<MaterialPlacer>,
 }
 
 impl SinglePixel {
-    pub fn new(placer_id: MaterialPlacerID) -> Self {
+    pub fn new(placer_id: RegistryID<MaterialPlacer>) -> Self {
         Self { placer_id }
     }
 }
@@ -35,7 +36,7 @@ impl ConfiguredFeature for SinglePixel {
             .material_placers
             .get(&self.placer_id)
             .unwrap()
-            .1
+            .sampler
             .pixel(
                 i64::from(cx * i32::from(CHUNK_SIZE)) + i64::from(pos.0),
                 i64::from(cy * i32::from(CHUNK_SIZE)) + i64::from(pos.1),

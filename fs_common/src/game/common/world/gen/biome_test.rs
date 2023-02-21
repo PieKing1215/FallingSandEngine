@@ -1,7 +1,11 @@
 use std::sync::Arc;
 
 use crate::game::common::{
-    world::material::{self, placer, MaterialInstance, PhysicsType},
+    world::material::{
+        self,
+        placer::{self, MaterialPlacerSampler},
+        MaterialInstance, PhysicsType,
+    },
     Registries,
 };
 
@@ -50,9 +54,8 @@ impl BiomeTestGenerator {
                 Some(
                     registries
                         .material_placers
-                        .get(&placer::TEST_GRASS)
+                        .get(&*placer::TEST_GRASS)
                         .unwrap()
-                        .1
                         .pixel(x, y),
                 )
             },
@@ -65,9 +68,8 @@ impl BiomeTestGenerator {
                     Some(
                         registries
                             .material_placers
-                            .get(&placer::SMOOTH_STONE)
+                            .get(&*placer::SMOOTH_STONE)
                             .unwrap()
-                            .1
                             .pixel(x, y),
                     )
                 } else {
@@ -84,18 +86,16 @@ impl BiomeTestGenerator {
                     Some(
                         registries
                             .material_placers
-                            .get(&placer::FADED_COBBLE_STONE)
+                            .get(&*placer::FADED_COBBLE_STONE)
                             .unwrap()
-                            .1
                             .pixel(x, y),
                     )
                 } else if mat.material_id == *material::SMOOTH_DIRT {
                     Some(
                         registries
                             .material_placers
-                            .get(&placer::FADED_COBBLE_DIRT)
+                            .get(&*placer::FADED_COBBLE_DIRT)
                             .unwrap()
-                            .1
                             .pixel(x, y),
                     )
                 } else {
@@ -114,9 +114,8 @@ impl BiomeTestGenerator {
                     Some(
                         registries
                             .material_placers
-                            .get(&placer::COBBLE_STONE)
+                            .get(&*placer::COBBLE_STONE)
                             .unwrap()
-                            .1
                             .pixel(x, y),
                     )
                 } else if mat.material_id == *material::SMOOTH_DIRT
@@ -125,9 +124,8 @@ impl BiomeTestGenerator {
                     Some(
                         registries
                             .material_placers
-                            .get(&placer::COBBLE_DIRT)
+                            .get(&*placer::COBBLE_DIRT)
                             .unwrap()
-                            .1
                             .pixel(x, y),
                     )
                 } else {
@@ -137,14 +135,14 @@ impl BiomeTestGenerator {
         });
 
         let features = vec![
-            // PlacedFeature::new(SinglePixel::new(placer::TEST_PLACER_1))
+            // PlacedFeature::new(SinglePixel::new(*placer::TEST_PLACER_1))
             //     .placement(Count::range(0..=3))
             //     .placement(RandomOffset::chunk())
             //     .placement(Count::range(5..=10))
             //     .placement(RandomOffset::new(-5..6, -5..6))
             //     .placement(MaterialMatch::physics(PhysicsType::Solid)),
             PlacedFeature::new(Blob::new(
-                placer::SMOOTH_DIRT,
+                placer::SMOOTH_DIRT.clone(),
                 Arc::new(|rng| rng.gen_range(16..64)),
                 Arc::new(|m| m.physics == PhysicsType::Solid),
                 false,
@@ -154,7 +152,7 @@ impl BiomeTestGenerator {
             .placement(RandomOffset::chunk())
             .placement(MaterialMatch::material(material::SMOOTH_STONE.clone())),
             PlacedFeature::new(Blob::new(
-                placer::TEST_PLACER_2,
+                placer::TEST_PLACER_2.clone(),
                 Arc::new(|rng| rng.gen_range(10..32)),
                 Arc::new(|m| m.physics == PhysicsType::Solid),
                 true,

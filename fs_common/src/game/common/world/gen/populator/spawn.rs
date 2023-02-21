@@ -1,6 +1,9 @@
 use crate::game::common::{
     world::{
-        material::{placer, MaterialInstance},
+        material::{
+            placer::{self, MaterialPlacerSampler},
+            MaterialInstance,
+        },
         CHUNK_SIZE,
     },
     Registries,
@@ -29,9 +32,8 @@ impl Populator<0> for SpawnPopulator {
                             y,
                             registries
                                 .material_placers
-                                .get(&placer::COBBLE_STONE)
+                                .get(&*placer::COBBLE_STONE)
                                 .unwrap()
-                                .1
                                 .pixel(wx, wy),
                         )
                         .unwrap();

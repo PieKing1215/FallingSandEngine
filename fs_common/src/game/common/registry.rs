@@ -1,7 +1,7 @@
 use std::{
     borrow::Borrow,
     collections::{hash_map, HashMap},
-    fmt::Debug,
+    fmt::{Debug, Display},
     marker::PhantomData,
     sync::Arc,
 };
@@ -17,6 +17,12 @@ pub struct RegistryID<T> {
 impl<T> Debug for RegistryID<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("RegistryID").field(&self.value).finish()
+    }
+}
+
+impl<T> Display for RegistryID<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.value)
     }
 }
 
@@ -37,6 +43,18 @@ impl<T> PartialEq for RegistryID<T> {
 }
 
 impl<T> std::cmp::Eq for RegistryID<T> {}
+
+impl<T> PartialOrd for RegistryID<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.value.partial_cmp(&other.value)
+    }
+}
+
+impl<T> Ord for RegistryID<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.value.cmp(&other.value)
+    }
+}
 
 impl<T> std::hash::Hash for RegistryID<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
