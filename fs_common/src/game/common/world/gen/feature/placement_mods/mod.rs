@@ -1,3 +1,4 @@
+pub mod biome;
 pub mod chance;
 pub mod count;
 pub mod material_match;

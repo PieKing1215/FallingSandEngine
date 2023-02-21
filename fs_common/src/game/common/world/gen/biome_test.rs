@@ -17,7 +17,7 @@ use super::{
     feature::{
         features::{blob::Blob, test_structure::TestStructure},
         placement_mods::{
-            chance::Chance, count::Count, material_match::MaterialMatch,
+            biome::BiomeMatch, chance::Chance, count::Count, material_match::MaterialMatch,
             random_offset::RandomOffset,
         },
         PlacedFeature,
@@ -133,12 +133,11 @@ impl BiomeTestGenerator {
         });
 
         let features = vec![
-            // PlacedFeature::new(SinglePixel::new(*placer::TEST_PLACER_1))
-            //     .placement(Count::range(0..=3))
+            // PlacedFeature::new(SinglePixel::new(placer::TEST_PLACER_2.clone()))
+            //     .placement(Count::range(30..=40))
             //     .placement(RandomOffset::chunk())
-            //     .placement(Count::range(5..=10))
-            //     .placement(RandomOffset::new(-5..6, -5..6))
-            //     .placement(MaterialMatch::physics(PhysicsType::Solid)),
+            //     .placement(MaterialMatch::physics(PhysicsType::Solid))
+            //     .placement(BiomeMatch::only("main")),
             PlacedFeature::new(Blob::new(
                 placer::SMOOTH_DIRT.clone(),
                 Arc::new(|rng| rng.gen_range(16..64)),
@@ -158,7 +157,8 @@ impl BiomeTestGenerator {
             .placement(Chance(0.5))
             .placement(Count::range(0..=2))
             .placement(RandomOffset::chunk())
-            .placement(MaterialMatch::physics(PhysicsType::Solid)),
+            .placement(MaterialMatch::physics(PhysicsType::Solid))
+            .placement(BiomeMatch::only("main")),
             PlacedFeature::new(TestStructure),
         ];
 

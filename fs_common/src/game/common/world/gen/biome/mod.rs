@@ -67,7 +67,7 @@ impl BiomeRegistry {
     }
 
     pub fn biome_at(&self, x: i64, y: i64, seed: i32) -> (&RegistryID<Biome>, &Biome) {
-        self.nearest(biome_params_at(x, y, seed))
+        self.biome_block::<1, 1>(x, y, seed)[0]
     }
 
     /// The returned `Vec` will always have size `W * H`.
@@ -80,10 +80,6 @@ impl BiomeRegistry {
         seed: i32,
     ) -> Vec<(&RegistryID<Biome>, &Biome)> {
         let (chunk_x, chunk_y) = pixel_to_chunk_pos(x, y);
-        let chunk_pixel_x = i64::from(chunk_x) * i64::from(CHUNK_SIZE);
-        let chunk_pixel_y = i64::from(chunk_y) * i64::from(CHUNK_SIZE);
-        let cofs_x = chunk_pixel_x as f32;
-        let cofs_y = chunk_pixel_y as f32;
 
         let (center_biome_point_x, center_biome_point_y) = nearest_biome_point_to(
             (i64::from(chunk_x) * i64::from(CHUNK_SIZE)) + i64::from(CHUNK_SIZE / 2),
@@ -119,25 +115,25 @@ impl BiomeRegistry {
             })
             .collect::<Vec<_>>();
 
-        let ofs_x_1 = NoiseBuilder::gradient_2d_offset(cofs_x, W.into(), cofs_y, H.into())
+        let ofs_x_1 = NoiseBuilder::gradient_2d_offset(x as f32, W.into(), y as f32, H.into())
             .with_freq(0.005)
             .with_seed(seed + 3)
             .generate()
             .0;
 
-        let ofs_y_1 = NoiseBuilder::gradient_2d_offset(cofs_x, W.into(), cofs_y, H.into())
+        let ofs_y_1 = NoiseBuilder::gradient_2d_offset(x as f32, W.into(), y as f32, H.into())
             .with_freq(0.005)
             .with_seed(seed + 4)
             .generate()
             .0;
 
-        let ofs_x_2 = NoiseBuilder::gradient_2d_offset(cofs_x, W.into(), cofs_y, H.into())
+        let ofs_x_2 = NoiseBuilder::gradient_2d_offset(x as f32, W.into(), y as f32, H.into())
             .with_freq(0.015)
             .with_seed(seed + 3)
             .generate()
             .0;
 
-        let ofs_y_2 = NoiseBuilder::gradient_2d_offset(cofs_x, W.into(), cofs_y, H.into())
+        let ofs_y_2 = NoiseBuilder::gradient_2d_offset(x as f32, W.into(), y as f32, H.into())
             .with_freq(0.015)
             .with_seed(seed + 4)
             .generate()
@@ -145,8 +141,8 @@ impl BiomeRegistry {
 
         (0..(W * H) as usize)
             .map(|i| {
-                let x = i % (W as usize);
-                let y = i / (W as usize);
+                let rel_x = i % (W as usize);
+                let rel_y = i / (W as usize);
 
                 let biome = vals
                     .iter()
@@ -156,8 +152,8 @@ impl BiomeRegistry {
                         let oy1 = ofs_y_1.get_unchecked(i) * 1000.0;
                         let oy2 = ofs_y_2.get_unchecked(i) * 500.0;
 
-                        let ox = x as i64 + cofs_x as i64 + (ox1 + ox2) as i64;
-                        let oy = y as i64 + cofs_y as i64 + (oy1 + oy2) as i64;
+                        let ox = rel_x as i64 + x + (ox1 + ox2) as i64;
+                        let oy = rel_y as i64 + y + (oy1 + oy2) as i64;
 
                         let dx1 = x1 - ox;
                         let dy1 = y1 - oy;
