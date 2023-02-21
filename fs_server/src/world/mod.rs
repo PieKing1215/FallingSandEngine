@@ -4,6 +4,7 @@ pub use chunk::*;
 
 #[cfg(test)]
 mod tests {
+    use fs_common::game::common::world::gen::structure::StructureNode;
     use fs_common::game::common::world::physics::Physics;
     use fs_common::game::common::world::{
         chunk_index, ChunkHandler, ChunkHandlerGeneric, Loader, Position,
@@ -59,6 +60,7 @@ mod tests {
         ecs.register::<Position>();
         ecs.register::<Velocity>();
         ecs.register::<Loader>();
+        ecs.register::<StructureNode>();
 
         let loader = ecs
             .create_entity()
@@ -109,7 +111,8 @@ mod tests {
         assert!(ch.get_chunk(-3, 2).is_some());
 
         assert!(ch.get_chunk(0, 0).is_some());
-        assert!(ch.get_chunk(-11, -12).is_none());
+        assert!(ch.get_chunk(-11, -12).is_some());
+        assert!(ch.get_chunk(-11, -20).is_none());
         assert!(ch.get_chunk(30, -2).is_none());
         assert!(ch.get_chunk(-3, 30).is_none());
         assert!(ch.get_chunk(-120, 11).is_none());
