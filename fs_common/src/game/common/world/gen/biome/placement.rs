@@ -34,11 +34,11 @@ pub fn single_random_at(x: f32, y: f32, freq: f32, seed: i32) -> f32 {
 
 pub fn biome_params_at(x: i64, y: i64, seed: i32) -> BiomePlacementParameter {
     let factor_a =
-        (single_random_at(x as f32, y as f32, 0.001, seed + 4) * 20.0 + 0.5).clamp(0.0, 1.0);
+        (single_random_at(x as f32, y as f32, 0.000_8, seed + 4) * 20.0 + 0.5).clamp(0.0, 1.0);
     let factor_b =
-        (single_random_at(x as f32, y as f32, 0.0005, seed + 5) * 20.0 + 0.5).clamp(0.0, 1.0);
+        (single_random_at(x as f32, y as f32, 0.000_4, seed + 5) * 20.0 + 0.5).clamp(0.0, 1.0);
     let factor_c =
-        (single_random_at(x as f32, y as f32, 0.00025, seed + 6) * 20.0 + 0.5).clamp(0.0, 1.0);
+        (single_random_at(x as f32, y as f32, 0.000_2, seed + 6) * 20.0 + 0.5).clamp(0.0, 1.0);
     BiomePlacementParameter { a: factor_a, b: factor_b, c: factor_c }
 }
 
