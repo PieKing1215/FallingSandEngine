@@ -8,7 +8,7 @@ use crate::game::common::{
     world::{
         copy_paste::MaterialBuf,
         gen::structure::AngleMod,
-        material::{self, color::Color, MaterialInstance, PhysicsType},
+        material::{self, color::Color, Material, MaterialInstance, PhysicsType},
         ChunkHandlerGeneric,
     },
     FileHelper, Rect,
@@ -249,12 +249,14 @@ pub fn init_structure_templates(file_helper: &FileHelper) -> StructureTemplateRe
         ),
     );
 
-    let data = &fs::read(file_helper.asset_path("data/structure/template/corner.png")).unwrap();
-    let img = image::load_from_memory(data).unwrap();
+    let ase = AsepriteFile::read_file(
+        &file_helper.asset_path("data/structure/template/corner/corner.ase"),
+    )
+    .unwrap();
     registry.register(
         "b2",
-        make_test_structure_from_img(
-            &img,
+        load_from_ase(
+            &ase,
             vec![
                 (
                     StructureNodeLocalPlacement { x: 0, y: 60, direction_out: Direction::Left },
@@ -272,12 +274,14 @@ pub fn init_structure_templates(file_helper: &FileHelper) -> StructureTemplateRe
         ),
     );
 
-    let data = &fs::read(file_helper.asset_path("data/structure/template/stairs.png")).unwrap();
-    let img = image::load_from_memory(data).unwrap();
+    let ase = AsepriteFile::read_file(
+        &file_helper.asset_path("data/structure/template/stairs/stairs.ase"),
+    )
+    .unwrap();
     registry.register(
         "stairs",
-        make_test_structure_from_img(
-            &img,
+        load_from_ase(
+            &ase,
             vec![
                 (
                     StructureNodeLocalPlacement { x: 0, y: 60, direction_out: Direction::Left },
@@ -396,29 +400,45 @@ fn load_from_ase(
 
     for layer in ase.layers() {
         let img = layer.frame(0).image();
-        // TODO: determine from layer name
-        let material_id = material::TEST.clone();
+
+        let material_id: RegistryID<Material> = layer.name().into();
+        let mut override_color = None;
+        let mut phys_type = PhysicsType::Solid;
+        if let Some(user) = layer.user_data() {
+            let flags = user
+                .text
+                .as_ref()
+                .map(|t| t.split_whitespace().collect::<Vec<_>>())
+                .unwrap_or_default();
+            if flags.contains(&"override_color") {
+                override_color = user.color;
+            }
+
+            if flags.contains(&"air") {
+                phys_type = PhysicsType::Air;
+            } else if flags.contains(&"solid") {
+                phys_type = PhysicsType::Solid;
+            } else if flags.contains(&"sand") {
+                phys_type = PhysicsType::Sand;
+            } else if flags.contains(&"liquid") {
+                phys_type = PhysicsType::Liquid;
+            } else if flags.contains(&"gas") {
+                phys_type = PhysicsType::Gas;
+            }
+        }
+
         for x in 0..w {
             for y in 0..h {
-                let c = img.get_pixel(u32::from(x), u32::from(y));
-                if c.0 == [0, 0, 0, 255] {
+                let img_color = img.get_pixel(u32::from(x), u32::from(y));
+                if img_color.0[3] > 0 {
+                    let c = override_color.as_ref().unwrap_or(img_color);
                     buf.set(
                         x,
                         y,
                         MaterialInstance {
                             material_id: material_id.clone(),
-                            physics: PhysicsType::Air,
-                            color: Color::rgb(0, 0, 0),
-                        },
-                    );
-                } else if c.0[3] > 0 {
-                    buf.set(
-                        x,
-                        y,
-                        MaterialInstance {
-                            material_id: material::TEST.clone(),
-                            physics: PhysicsType::Solid,
-                            color: Color::rgb(c.0[0], c.0[1], c.0[2]),
+                            physics: phys_type,
+                            color: Color::rgba(c.0[0], c.0[1], c.0[2], c.0[3]),
                         },
                     );
                 }
