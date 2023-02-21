@@ -13,7 +13,7 @@ use crate::game::common::{
     },
 };
 
-use super::{ConfiguredStructure, ConfiguredStructurePlaceCtx, StructureType};
+use super::{ConfiguredStructurePlaceCtx, ConfiguredStructurePlacer, StructureType};
 
 pub struct JigsawFeatureType {}
 
@@ -27,7 +27,7 @@ pub struct ConfiguredJigsawFeature {
     pub max_distance: u16,
 }
 
-impl ConfiguredStructure for ConfiguredJigsawFeature {
+impl ConfiguredStructurePlacer for ConfiguredJigsawFeature {
     fn place(&self, x: i64, y: i64, ctx: ConfiguredStructurePlaceCtx) {
         let mut hasher = DefaultHasher::new();
         x.hash(&mut hasher);

@@ -1,6 +1,9 @@
 use std::fmt::Debug;
 
-use crate::game::common::{registry::Registry, FileHelper};
+use crate::game::common::{
+    registry::{Registry, RegistryID},
+    FileHelper,
+};
 
 use self::jigsaw_structure::ConfiguredJigsawFeature;
 
@@ -13,14 +16,29 @@ pub struct ConfiguredStructurePlaceCtx<'a> {
     pub world_seed: u64,
 }
 
-pub trait ConfiguredStructure: Debug {
+pub trait ConfiguredStructurePlacer: Debug {
     fn place(&self, x: i64, y: i64, ctx: ConfiguredStructurePlaceCtx);
 }
 
-pub type ConfiguredStructureID = &'static str;
+#[derive(Debug)]
+pub struct ConfiguredStructure {
+    pub placer: Box<dyn ConfiguredStructurePlacer + Send + Sync>,
+}
+
+impl ConfiguredStructurePlacer for ConfiguredStructure {
+    fn place(&self, x: i64, y: i64, ctx: ConfiguredStructurePlaceCtx) {
+        self.placer.place(x, y, ctx);
+    }
+}
+
+impl ConfiguredStructure {
+    pub fn new(placer: impl ConfiguredStructurePlacer + Send + Sync + 'static) -> Self {
+        Self { placer: Box::new(placer) }
+    }
+}
 
 pub type ConfiguredStructureRegistry =
-    Registry<ConfiguredStructureID, Box<dyn ConfiguredStructure + Send + Sync>>;
+    Registry<RegistryID<ConfiguredStructure>, ConfiguredStructure>;
 
 #[allow(clippy::too_many_lines)]
 pub fn init_configured_structures(_file_helper: &FileHelper) -> ConfiguredStructureRegistry {
@@ -28,11 +46,11 @@ pub fn init_configured_structures(_file_helper: &FileHelper) -> ConfiguredStruct
 
     registry.register(
         "test_configured_structure",
-        Box::new(ConfiguredJigsawFeature {
+        ConfiguredStructure::new(ConfiguredJigsawFeature {
             start_pool: "rooms".into(),
             depth: 8,
             max_distance: 400,
-        }) as _,
+        }),
     );
 
     registry

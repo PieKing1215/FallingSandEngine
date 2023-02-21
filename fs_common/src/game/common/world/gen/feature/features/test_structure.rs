@@ -1,8 +1,11 @@
 use crate::game::common::{
     world::{
         gen::{
-            feature::ConfiguredFeature, populator::ChunkContext,
-            structure::configured_structure::ConfiguredStructurePlaceCtx,
+            feature::ConfiguredFeature,
+            populator::ChunkContext,
+            structure::configured_structure::{
+                ConfiguredStructurePlaceCtx, ConfiguredStructurePlacer,
+            },
         },
         CHUNK_SIZE,
     },
@@ -30,7 +33,7 @@ impl ConfiguredFeature for TestStructure {
             if v.should_generate_at((cx, cy), world_seed as _, registries, true) {
                 let configured_structure = registries
                     .configured_structures
-                    .get(&v.sample_structure())
+                    .get(v.sample_structure())
                     .unwrap();
 
                 configured_structure.place(

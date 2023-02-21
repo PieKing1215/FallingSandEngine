@@ -5,12 +5,15 @@ use std::{
 
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
-use crate::game::common::{registry::Registry, FileHelper, Registries};
+use crate::game::common::{
+    registry::{Registry, RegistryID},
+    FileHelper, Registries,
+};
 
-use super::configured_structure::ConfiguredStructureID;
+use super::configured_structure::ConfiguredStructure;
 
 pub struct StructureSet {
-    pub structures: Vec<ConfiguredStructureID>,
+    pub structures: Vec<RegistryID<ConfiguredStructure>>,
     pub frequency: f32, // 0.0..=1.0
     pub exclusion: Option<ExclusionZone>,
     /// Average distance between gen attepts
@@ -37,7 +40,7 @@ pub fn init_structure_sets(_file_helper: &FileHelper) -> StructureSetRegistry {
     registry.register(
         "test_structure_set",
         StructureSet {
-            structures: vec!["test_configured_structure"],
+            structures: vec!["test_configured_structure".into()],
             frequency: 0.5,
             exclusion: None,
             spacing: 16,
@@ -137,7 +140,7 @@ impl StructureSet {
         (spacing_x * spacing + ofs_x, spacing_y * spacing + ofs_y)
     }
 
-    pub fn sample_structure(&self) -> ConfiguredStructureID {
-        self.structures[0]
+    pub fn sample_structure(&self) -> &RegistryID<ConfiguredStructure> {
+        &self.structures[0]
     }
 }
