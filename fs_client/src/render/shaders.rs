@@ -15,7 +15,7 @@ pub struct Shaders {
 impl Shaders {
     pub fn new(display: &Display, file_helper: &FileHelper) -> Self {
         profiling::scope!("Shaders::new");
-        let helper = Helper { file_helper, display };
+        let helper = ShaderFileHelper { file_helper, display };
 
         Self {
             common: helper
@@ -56,13 +56,13 @@ impl Shaders {
     }
 }
 
-struct Helper<'a> {
-    file_helper: &'a FileHelper,
-    display: &'a Display,
+pub struct ShaderFileHelper<'a> {
+    pub file_helper: &'a FileHelper,
+    pub display: &'a Display,
 }
 
-impl Helper<'_> {
-    fn load_from_files(
+impl ShaderFileHelper<'_> {
+    pub fn load_from_files(
         &self,
         version: u32,
         vert: &str,

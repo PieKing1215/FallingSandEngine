@@ -5,6 +5,7 @@ use fs_common::game::common::world::Chunk;
 use fs_common::game::common::world::ChunkState;
 use fs_common::game::common::world::RigidBodyState;
 use fs_common::game::common::world::CHUNK_SIZE;
+use fs_common::game::common::world::LIGHT_SCALE;
 use fs_common::game::common::Rect;
 
 pub struct ServerChunk {
@@ -14,6 +15,10 @@ pub struct ServerChunk {
     pub pixels: Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
     pub dirty_rect: Option<Rect<i32>>,
     pub pixel_data: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
+    pub light_data: Box<
+        [f32; (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize
+            * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize],
+    >,
     pub dirty: bool,
     pub rigidbody: Option<RigidBodyState>,
     pub mesh_simplified: Option<Vec<Vec<Vec<Vec<f64>>>>>,
@@ -28,6 +33,10 @@ impl Chunk for ServerChunk {
             pixels: None,
             dirty_rect: None,
             pixel_data: Box::new([0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]),
+            light_data: Box::new(
+                [0.0; ((CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize
+                    * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize)],
+            ),
             dirty: true,
             rigidbody: None,
             mesh_simplified: None,
@@ -240,5 +249,36 @@ impl Chunk for ServerChunk {
 
     fn set_rigidbody(&mut self, body: Option<RigidBodyState>) {
         self.rigidbody = body;
+    }
+
+    fn set_light(&mut self, _x: u16, _y: u16, _light: f32) -> Result<(), String> {
+        // unimplemented
+        Ok(())
+    }
+
+    unsafe fn set_light_unchecked(&mut self, _x: u16, _y: u16, _light: f32) {
+        // unimplemented
+    }
+
+    fn get_light(&self, _x: u16, _y: u16) -> Result<&f32, String> {
+        Ok(&1.0)
+    }
+
+    unsafe fn get_light_unchecked(&self, _x: u16, _y: u16) -> &f32 {
+        &1.0
+    }
+
+    fn get_lights_mut(
+        &mut self,
+    ) -> &mut [f32; (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize
+                * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize] {
+        self.light_data.as_mut()
+    }
+
+    fn get_lights(
+        &self,
+    ) -> &[f32; (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize
+            * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize] {
+        self.light_data.as_ref()
     }
 }

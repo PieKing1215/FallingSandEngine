@@ -457,6 +457,7 @@ impl<'a> Renderer<'a> {
                 client,
                 partial_ticks,
                 game.registries.clone(),
+                &game.file_helper,
             );
         }
 

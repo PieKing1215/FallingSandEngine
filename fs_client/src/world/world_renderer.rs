@@ -15,7 +15,7 @@ use fs_common::game::common::{
         physics::PHYSICS_SCALE,
         AutoTarget, Camera, ChunkHandlerGeneric, ChunkState, Position, Velocity, World, CHUNK_SIZE,
     },
-    Rect, Registries, Settings,
+    FileHelper, Rect, Registries, Settings,
 };
 
 use crate::{
@@ -61,6 +61,7 @@ impl WorldRenderer {
         client: &mut Client,
         partial_ticks: f64,
         registries: Arc<Registries>,
+        file_helper: &FileHelper,
     ) {
         // TODO
         // if world.lqf_world.get_debug_draw().is_none() {
@@ -140,7 +141,7 @@ impl WorldRenderer {
                     );
 
                     if (settings.debug && !settings.cull_chunks) || rc.intersects(&screen_zone) {
-                        ch.prep_render(target, settings);
+                        ch.prep_render(target, settings, file_helper);
 
                         target.transform.pop();
 
@@ -148,7 +149,7 @@ impl WorldRenderer {
                         // ch.graphics.texture
                         // let image = glium::texture::RawImage2d::from_raw_rgba((&ch.graphics.pixel_data).to_vec(), (CHUNK_SIZE.into(), CHUNK_SIZE.into()));
                         // Some(((ch.chunk_x as f32 * f32::from(CHUNK_SIZE), ch.chunk_y as f32 * f32::from(CHUNK_SIZE)), image))
-                        ch.graphics.texture.as_ref().map(|t| {
+                        ch.graphics.data.as_ref().map(|t| {
                             (
                                 (
                                     ch.chunk_x as f32 * f32::from(CHUNK_SIZE),

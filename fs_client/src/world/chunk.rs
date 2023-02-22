@@ -1,22 +1,30 @@
-use std::convert::TryInto;
+use std::{borrow::Cow, convert::TryInto};
 
 use fs_common::game::common::{
     world::{
         chunk_index,
         material::{color::Color, MaterialInstance},
-        mesh, Chunk, ChunkHandler, ChunkState, RigidBodyState, CHUNK_SIZE,
+        mesh, Chunk, ChunkHandler, ChunkState, RigidBodyState, CHUNK_SIZE, LIGHT_SCALE,
     },
-    Rect, Settings,
+    FileHelper, Rect, Settings,
 };
-use glium::{texture::Texture2d, Blend, DrawParameters, PolygonMode};
+use glium::{
+    texture::Texture2d, uniform, Blend, Display, DrawParameters, IndexBuffer, PolygonMode, Program,
+    Surface,
+};
 
-use crate::render::drawing::RenderTarget;
+use crate::render::{
+    drawing::{RenderTarget, Vertices},
+    shaders::ShaderFileHelper,
+    vertex::Vertex2T,
+};
 
 pub struct ClientChunk {
     pub chunk_x: i32,
     pub chunk_y: i32,
     pub state: ChunkState,
     pub pixels: Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
+    pub light: Option<Box<[f32; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
     pub graphics: Box<ChunkGraphics>,
     pub dirty_rect: Option<Rect<i32>>,
     pub rigidbody: Option<RigidBodyState>,
@@ -32,9 +40,14 @@ impl Chunk for ClientChunk {
             chunk_y,
             state: ChunkState::NotGenerated,
             pixels: None,
+            light: None,
             graphics: Box::new(ChunkGraphics {
-                texture: None,
+                data: None,
                 pixel_data: Box::new([0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]),
+                lighting_data: Box::new(
+                    [0.0; ((CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize
+                        * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize)],
+                ),
                 dirty: true,
                 was_dirty: true,
             }),
@@ -80,8 +93,16 @@ impl Chunk for ClientChunk {
                         self.pixels.as_ref().unwrap()[(x + y * CHUNK_SIZE) as usize].color,
                     )
                     .unwrap();
+                self.graphics
+                    .set_light(
+                        x,
+                        y,
+                        self.light.as_ref().unwrap()[(x + y * CHUNK_SIZE) as usize],
+                    )
+                    .unwrap();
             }
         }
+        self.update_graphics().unwrap();
     }
 
     // #[profiling::function]
@@ -171,6 +192,56 @@ impl Chunk for ClientChunk {
         Err("Invalid pixel coordinate.".to_string())
     }
 
+    // #[profiling::function] // huge performance impact
+    fn set_light(&mut self, x: u16, y: u16, light: f32) -> Result<(), String> {
+        if x < CHUNK_SIZE && y < CHUNK_SIZE {
+            if let Some(li) = &mut self.light {
+                let i = (x + y * CHUNK_SIZE) as usize;
+                // Safety: we do our own bounds check
+                self.graphics.set_light(x, y, light)?;
+                *unsafe { li.get_unchecked_mut(i) } = light;
+
+                // self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
+
+                return Ok(());
+            }
+
+            return Err("Chunk is not ready yet.".to_string());
+        }
+
+        Err("Invalid pixel coordinate.".to_string())
+    }
+
+    unsafe fn set_light_unchecked(&mut self, x: u16, y: u16, light: f32) {
+        let i = (x + y * CHUNK_SIZE) as usize;
+        // Safety: input index assumed to be valid
+        self.graphics.set_light(x, y, light).unwrap();
+        *unsafe { self.light.as_mut().unwrap().get_unchecked_mut(i) } = light;
+
+        // self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
+    }
+
+    // #[profiling::function] // huge performance impact
+    fn get_light(&self, x: u16, y: u16) -> Result<&f32, String> {
+        if x < CHUNK_SIZE && y < CHUNK_SIZE {
+            if let Some(li) = &self.light {
+                let i = (x + y * CHUNK_SIZE) as usize;
+                // Safety: we do our own bounds check
+                return Ok(unsafe { li.get_unchecked(i) });
+            }
+
+            return Err("Chunk is not ready yet.".to_string());
+        }
+
+        Err("Invalid pixel coordinate.".to_string())
+    }
+
+    unsafe fn get_light_unchecked(&self, x: u16, y: u16) -> &f32 {
+        let i = (x + y * CHUNK_SIZE) as usize;
+        // Safety: input index assumed to be valid
+        unsafe { self.light.as_ref().unwrap().get_unchecked(i) }
+    }
+
     fn set_color(&mut self, x: u16, y: u16, color: Color) -> Result<(), String> {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             return self.graphics.set(x, y, color);
@@ -196,6 +267,8 @@ impl Chunk for ClientChunk {
 
     fn set_pixels(&mut self, pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>) {
         self.pixels = Some(pixels);
+        self.light = Some(Box::new([0.5; (CHUNK_SIZE * CHUNK_SIZE) as usize]));
+        self.refresh();
     }
 
     fn get_pixels_mut(
@@ -269,11 +342,36 @@ impl Chunk for ClientChunk {
     fn set_rigidbody(&mut self, body: Option<RigidBodyState>) {
         self.rigidbody = body;
     }
+
+    fn get_lights_mut(
+        &mut self,
+    ) -> &mut [f32; (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize
+                * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize] {
+        &mut self.graphics.lighting_data
+    }
+
+    fn get_lights(
+        &self,
+    ) -> &[f32; (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize
+            * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize] {
+        &self.graphics.lighting_data
+    }
+}
+
+pub struct ChunkGraphicsData {
+    pub display: Display,
+    pub texture: Texture2d,
+    pub lighting: Texture2d,
+    pub lighting_shader: Program,
 }
 
 pub struct ChunkGraphics {
-    pub texture: Option<Texture2d>,
+    pub data: Option<ChunkGraphicsData>,
     pub pixel_data: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
+    pub lighting_data: Box<
+        [f32; (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize
+            * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize],
+    >,
     pub dirty: bool,
     pub was_dirty: bool,
 }
@@ -291,6 +389,22 @@ impl ChunkGraphics {
             self.pixel_data[i * 4 + 1] = color.g;
             self.pixel_data[i * 4 + 2] = color.b;
             self.pixel_data[i * 4 + 3] = color.a;
+            self.dirty = true;
+
+            return Ok(());
+        }
+
+        Err("Invalid pixel coordinate.".to_string())
+    }
+
+    // #[profiling::function] // huge performance impact
+    pub fn set_light(&mut self, x: u16, y: u16, color: f32) -> Result<(), String> {
+        if x < CHUNK_SIZE && y < CHUNK_SIZE {
+            // self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
+            let i = ((x / LIGHT_SCALE as u16)
+                + (y / LIGHT_SCALE as u16) * (CHUNK_SIZE / (LIGHT_SCALE as u16)))
+                as usize;
+            self.lighting_data[i] = color;
             self.dirty = true;
 
             return Ok(());
@@ -319,13 +433,13 @@ impl ChunkGraphics {
     // #[profiling::function]
     pub fn update_texture(&mut self) {
         if self.dirty {
-            if self.texture.is_some() {
+            if let Some(data) = &mut self.data {
                 let image = glium::texture::RawImage2d::from_raw_rgba(
                     self.pixel_data.to_vec(),
                     (CHUNK_SIZE.into(), CHUNK_SIZE.into()),
                 );
 
-                self.texture.as_mut().unwrap().write(
+                data.texture.write(
                     glium::Rect {
                         left: 0,
                         bottom: 0,
@@ -334,6 +448,47 @@ impl ChunkGraphics {
                     },
                     image,
                 );
+
+                let image = glium::texture::RawImage2d {
+                    data: Cow::Owned(self.lighting_data.to_vec()),
+                    width: (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
+                    height: (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
+                    format: glium::texture::ClientFormat::F32,
+                };
+
+                data.lighting.write(
+                    glium::Rect {
+                        left: 0,
+                        bottom: 0,
+                        width: (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
+                        height: (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
+                    },
+                    image,
+                );
+
+                // let mut surf = data.lighting.as_surface();
+                // surf.clear_color(0.0, 1.0, 0.0, 1.0);
+
+                // let shape = Rect::<f32>::new(-1.0, -1.0, 1.0, 1.0)
+                //     .vertices()
+                //     .into_iter()
+                //     .zip([[0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]])
+                //     .map(Vertex2T::from)
+                //     .collect::<Vec<_>>();
+                // let vertex_buffer = glium::VertexBuffer::immutable(&data.display, &shape).unwrap();
+                // let indices = IndexBuffer::new(
+                //     &data.display,
+                //     glium::index::PrimitiveType::TriangleStrip,
+                //     &[1_u16, 2, 0, 3],
+                // )
+                // .unwrap();
+
+                // let params = DrawParameters {
+                //     blend: Blend::alpha_blending(),
+                //     ..DrawParameters::default()
+                // };
+
+                // surf.draw(&vertex_buffer, &indices, &data.lighting_shader, &uniform!{ main_tiles: data.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest) }, &params).unwrap();
             }
             self.dirty = false;
         }
@@ -353,8 +508,13 @@ impl ChunkGraphics {
 }
 
 impl ClientChunk {
-    pub fn prep_render(&mut self, target: &mut RenderTarget, settings: &Settings) {
-        self.graphics.prep_render(target, settings);
+    pub fn prep_render(
+        &mut self,
+        target: &mut RenderTarget,
+        settings: &Settings,
+        file_helper: &FileHelper,
+    ) {
+        self.graphics.prep_render(target, settings, file_helper);
     }
 
     pub fn render(&mut self, target: &mut RenderTarget, settings: &Settings) {
@@ -477,13 +637,50 @@ impl ClientChunk {
 
 impl ChunkGraphics {
     #[profiling::function]
-    pub fn prep_render(&mut self, target: &mut RenderTarget, _settings: &Settings) {
-        if self.texture.is_none() {
+    pub fn prep_render(
+        &mut self,
+        target: &mut RenderTarget,
+        _settings: &Settings,
+        file_helper: &FileHelper,
+    ) {
+        if self.data.is_none() {
             let image = glium::texture::RawImage2d::from_raw_rgba(
                 self.pixel_data.to_vec(),
                 (CHUNK_SIZE.into(), CHUNK_SIZE.into()),
             );
-            self.texture = Some(Texture2d::new(&target.display, image).unwrap());
+            let texture = Texture2d::new(&target.display, image).unwrap();
+
+            // let image = glium::texture::RawImage2d {
+            //     data: Cow::Owned(self.lighting_data.to_vec()),
+            //     width: (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
+            //     height: (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
+            //     format: glium::texture::ClientFormat::F32,
+            // };
+            let lighting = Texture2d::empty(
+                &target.display,
+                (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
+                (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
+            )
+            .unwrap();
+            // let lighting = Texture2d::empty(&target.display, CHUNK_SIZE.into(), CHUNK_SIZE.into()).unwrap();
+
+            let helper = ShaderFileHelper { file_helper, display: &target.display };
+
+            let lighting_shader = helper
+                .load_from_files(
+                    140,
+                    "data/shaders/chunk_lighting.vert",
+                    "data/shaders/chunk_lighting.frag",
+                )
+                .unwrap();
+
+            self.data = Some(ChunkGraphicsData {
+                display: target.display.clone(),
+                texture,
+                lighting,
+                lighting_shader,
+            });
+            self.dirty = true;
         }
     }
 }

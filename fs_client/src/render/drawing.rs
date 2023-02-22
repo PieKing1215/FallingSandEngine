@@ -11,6 +11,8 @@ use glium_glyph::{
     GlyphBrush,
 };
 
+use crate::world::ChunkGraphicsData;
+
 use super::{
     shaders::Shaders,
     vertex::{Vertex2, Vertex2C, Vertex2T, Vertex2TA},
@@ -585,7 +587,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
     }
 
     #[profiling::function]
-    pub fn draw_chunks_2(&mut self, chunks: Vec<((f32, f32), &Texture2d)>) {
+    pub fn draw_chunks_2(&mut self, chunks: Vec<((f32, f32), &ChunkGraphicsData)>) {
         let model_view =
             *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
         let view: [[f32; 4]; 4] = model_view.into();
@@ -609,9 +611,14 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
             ..DrawParameters::default()
         };
 
-        for (p, texture) in chunks {
+        for (p, data) in chunks {
             profiling::scope!("draw chunk");
-            self.frame.draw(&vertex_buffer, &indices, &self.shaders.chunk, &uniform! { matrix: view, c_pos: p, tex: texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest) }, &params).unwrap();
+            self.frame.draw(&vertex_buffer, &indices, &self.shaders.chunk, &uniform! {
+                matrix: view,
+                c_pos: p,
+                tex: data.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+                light_tex: data.lighting.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+            }, &params).unwrap();
         }
     }
 }

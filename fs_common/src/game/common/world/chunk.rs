@@ -27,6 +27,7 @@ use super::physics::Physics;
 use crate::game::common::world::material::MaterialInstance;
 
 pub const CHUNK_SIZE: u16 = 100;
+pub const LIGHT_SCALE: u8 = 4;
 
 #[warn(clippy::large_enum_variant)]
 pub enum RigidBodyState {
@@ -59,6 +60,14 @@ pub trait Chunk {
     );
     fn get_colors_mut(&mut self) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
     fn get_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
+    fn get_lights_mut(
+        &mut self,
+    ) -> &mut [f32; (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize
+                * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize];
+    fn get_lights(
+        &self,
+    ) -> &[f32; (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize
+            * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize];
 
     fn generate_mesh(&mut self) -> Result<(), String>;
     // fn get_tris(&self) -> &Option<Vec<Vec<((f64, f64), (f64, f64), (f64, f64))>>>;
@@ -86,6 +95,16 @@ pub trait Chunk {
     where
         Self: Sized,
         F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>;
+
+    fn set_light(&mut self, x: u16, y: u16, light: f32) -> Result<(), String>;
+    /// # Safety
+    /// x and y must be in `0..CHUNK_SIZE`
+    unsafe fn set_light_unchecked(&mut self, x: u16, y: u16, light: f32);
+
+    fn get_light(&self, x: u16, y: u16) -> Result<&f32, String>;
+    /// # Safety
+    /// x and y must be in `0..CHUNK_SIZE`
+    unsafe fn get_light_unchecked(&self, x: u16, y: u16) -> &f32;
 
     fn set_color(&mut self, x: u16, y: u16, color: Color) -> Result<(), String>;
     fn get_color(&self, x: u16, y: u16) -> Result<Color, String>;
@@ -905,6 +924,32 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                 continue;
                             };
 
+                            let Some(light_arr) = [
+                                (-1, -1),
+                                (0, -1),
+                                (1, -1),
+                                (-1, 0),
+                                (0, 0),
+                                (1, 0),
+                                (-1, 1),
+                                (0, 1),
+                                (1, 1),
+                            ]
+                                .into_iter()
+                                .map(|(x, y)| {
+                                    let chunk = self.loaded_chunks.get_mut(&chunk_index(ch_pos.0 + x, ch_pos.1 + y));
+                                    chunk.map(|c| {
+                                        let raw: *mut [f32; ((CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize)] = c.get_lights_mut();
+                                        // blatantly bypassing the borrow checker, see safety comment above
+                                        unsafe { &mut *raw }
+                                    })
+                                })
+                                .collect::<Option<Vec<_>>>()
+                                .map(|v| v.try_into().unwrap())
+                            else {
+                                continue;
+                            };
+
                             let dirty_arr = [
                                 (-1, -1),
                                 (0, -1),
@@ -922,7 +967,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                     .unwrap()
                             });
 
-                            to_exec.push((ch_pos, arr, gr_arr, dirty_arr));
+                            to_exec.push((ch_pos, arr, gr_arr, light_arr, dirty_arr));
                         }
                     }
                 }
@@ -940,7 +985,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                         profiling::scope!("par_iter");
                         to_exec
                             .into_par_iter()
-                            .map(|(ch_pos, pixels, colors, mut dirty_rects)| {
+                            .map(|(ch_pos, pixels, colors, lights, mut dirty_rects)| {
                                 profiling::register_thread!("Simulation thread");
                                 profiling::scope!("chunk");
 
@@ -951,6 +996,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                     ch_pos.1,
                                     pixels,
                                     colors,
+                                    lights,
                                     &mut dirty,
                                     &mut dirty_rects,
                                     &mut particles,
