@@ -27,6 +27,8 @@ use super::physics::Physics;
 use crate::game::common::world::material::MaterialInstance;
 
 pub const CHUNK_SIZE: u16 = 100;
+// must be a factor of CHUNK_SIZE
+// also (CHUNK_SIZE / LIGHT_SCALE)^2 must be <= 1024 for compute shader (and local_size needs to be set to CHUNK_SIZE / LIGHT_SCALE in the shader)
 pub const LIGHT_SCALE: u8 = 4;
 
 #[warn(clippy::large_enum_variant)]
@@ -79,7 +81,12 @@ pub trait Chunk {
     fn mark_dirty(&mut self);
 
     fn refresh(&mut self);
-    fn update_graphics(&mut self) -> Result<(), String>;
+    fn update_graphics(
+        &mut self,
+        other_loaded_chunks: Option<&HashMap<u32, Self, BuildHasherDefault<PassThroughHasherU32>>>,
+    ) -> Result<(), String>
+    where
+        Self: Sized;
 
     fn set(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String>;
     /// # Safety
@@ -186,11 +193,9 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
     fn update_chunk_graphics(&mut self) {
         let keys = self.loaded_chunks.keys().copied().collect::<Vec<u32>>();
         for key in keys {
-            self.loaded_chunks
-                .get_mut(&key)
-                .unwrap()
-                .update_graphics()
-                .unwrap();
+            let mut ch = self.loaded_chunks.remove(&key).unwrap();
+            ch.update_graphics(Some(&self.loaded_chunks)).unwrap();
+            self.loaded_chunks.insert(key, ch);
         }
     }
 

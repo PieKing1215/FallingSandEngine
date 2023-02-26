@@ -1,16 +1,17 @@
-use std::{borrow::Cow, convert::TryInto};
+use std::{borrow::Cow, collections::HashMap, convert::TryInto, hash::BuildHasherDefault};
 
 use fs_common::game::common::{
     world::{
         chunk_index,
-        material::{color::Color, MaterialInstance},
-        mesh, Chunk, ChunkHandler, ChunkState, RigidBodyState, CHUNK_SIZE, LIGHT_SCALE,
+        material::{color::Color, MaterialInstance, PhysicsType},
+        mesh, Chunk, ChunkHandler, ChunkState, PassThroughHasherU32, RigidBodyState, CHUNK_SIZE,
+        LIGHT_SCALE,
     },
     FileHelper, Rect, Settings,
 };
 use glium::{
-    texture::Texture2d, uniform, Blend, Display, DrawParameters, IndexBuffer, PolygonMode, Program,
-    Surface,
+    program::ComputeShader, texture::Texture2d, uniform, Blend, BlitTarget, Display,
+    DrawParameters, IndexBuffer, PolygonMode, Program, Surface,
 };
 
 use crate::render::{
@@ -50,6 +51,7 @@ impl Chunk for ClientChunk {
                 ),
                 dirty: true,
                 was_dirty: true,
+                lighting_dirty: true,
             }),
             dirty_rect: None,
             rigidbody: None,
@@ -102,14 +104,29 @@ impl Chunk for ClientChunk {
                     .unwrap();
             }
         }
-        self.update_graphics().unwrap();
+        self.update_graphics(None).unwrap();
     }
 
     // #[profiling::function]
-    fn update_graphics(&mut self) -> Result<(), String> {
+    fn update_graphics(
+        &mut self,
+        other_loaded_chunks: Option<&HashMap<u32, Self, BuildHasherDefault<PassThroughHasherU32>>>,
+    ) -> Result<(), String> {
         self.graphics.was_dirty = self.graphics.dirty;
 
         self.graphics.update_texture();
+        self.graphics.update_lighting(other_loaded_chunks.map(|ch| {
+            [
+                ch.get(&chunk_index(self.chunk_x - 1, self.chunk_y - 1)),
+                ch.get(&chunk_index(self.chunk_x, self.chunk_y - 1)),
+                ch.get(&chunk_index(self.chunk_x + 1, self.chunk_y - 1)),
+                ch.get(&chunk_index(self.chunk_x - 1, self.chunk_y)),
+                ch.get(&chunk_index(self.chunk_x + 1, self.chunk_y)),
+                ch.get(&chunk_index(self.chunk_x - 1, self.chunk_y + 1)),
+                ch.get(&chunk_index(self.chunk_x, self.chunk_y + 1)),
+                ch.get(&chunk_index(self.chunk_x + 1, self.chunk_y + 1)),
+            ]
+        }));
 
         Ok(())
     }
@@ -121,6 +138,15 @@ impl Chunk for ClientChunk {
                 let i = (x + y * CHUNK_SIZE) as usize;
                 // Safety: we do our own bounds check
                 self.graphics.set(x, y, mat.color)?;
+                self.graphics.set_light(
+                    x,
+                    y,
+                    if mat.physics == PhysicsType::Sand {
+                        1.0
+                    } else {
+                        0.0
+                    },
+                )?;
                 *unsafe { px.get_unchecked_mut(i) } = mat;
 
                 self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
@@ -138,6 +164,17 @@ impl Chunk for ClientChunk {
         let i = (x + y * CHUNK_SIZE) as usize;
         // Safety: input index assumed to be valid
         self.graphics.set(x, y, mat.color).unwrap();
+        self.graphics
+            .set_light(
+                x,
+                y,
+                if mat.physics == PhysicsType::Sand {
+                    1.0
+                } else {
+                    0.0
+                },
+            )
+            .unwrap();
         *unsafe { self.pixels.as_mut().unwrap().get_unchecked_mut(i) } = mat;
 
         self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
@@ -267,7 +304,7 @@ impl Chunk for ClientChunk {
 
     fn set_pixels(&mut self, pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>) {
         self.pixels = Some(pixels);
-        self.light = Some(Box::new([0.5; (CHUNK_SIZE * CHUNK_SIZE) as usize]));
+        self.light = Some(Box::new([0.0; (CHUNK_SIZE * CHUNK_SIZE) as usize]));
         self.refresh();
     }
 
@@ -298,6 +335,7 @@ impl Chunk for ClientChunk {
 
     fn mark_dirty(&mut self) {
         self.graphics.dirty = true;
+        self.graphics.lighting_dirty = true;
     }
 
     fn generate_mesh(&mut self) -> Result<(), String> {
@@ -361,8 +399,11 @@ impl Chunk for ClientChunk {
 pub struct ChunkGraphicsData {
     pub display: Display,
     pub texture: Texture2d,
-    pub lighting: Texture2d,
+    pub lighting_src: Texture2d,
+    pub lighting_dst: Texture2d,
+    pub lighting_neighbors: Texture2d,
     pub lighting_shader: Program,
+    pub lighting_compute: ComputeShader,
 }
 
 pub struct ChunkGraphics {
@@ -374,6 +415,7 @@ pub struct ChunkGraphics {
     >,
     pub dirty: bool,
     pub was_dirty: bool,
+    pub lighting_dirty: bool,
 }
 
 unsafe impl Send for ChunkGraphics {}
@@ -390,6 +432,7 @@ impl ChunkGraphics {
             self.pixel_data[i * 4 + 2] = color.b;
             self.pixel_data[i * 4 + 3] = color.a;
             self.dirty = true;
+            self.lighting_dirty = true;
 
             return Ok(());
         }
@@ -448,6 +491,33 @@ impl ChunkGraphics {
                     },
                     image,
                 );
+            }
+            self.dirty = false;
+        }
+    }
+
+    #[profiling::function]
+    pub fn update_lighting(&mut self, neighbors: Option<[Option<&ClientChunk>; 8]>) {
+        if self.lighting_dirty
+            || (neighbors.map_or(false, |n| {
+                n.iter()
+                    .any(|c| c.map_or(false, |c| c.graphics.dirty || c.graphics.was_dirty))
+            }))
+        {
+            if let Some(data) = &mut self.data {
+                profiling::scope!("lighting update");
+                // self.lighting_data = Box::new([0.0; (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize
+                // * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize]);
+
+                // self.lighting_data[(30 / LIGHT_SCALE as usize) + (30 / LIGHT_SCALE as usize) * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize] = 1.0;
+                // self.lighting_data[(60 / LIGHT_SCALE as usize) + (50 / LIGHT_SCALE as usize) * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize] = 1.0;
+                // let start = std::time::SystemTime::now();
+                // let time = start.duration_since(std::time::UNIX_EPOCH).unwrap();
+                // let x = 10 + ((((time.as_millis() % 2000) as f32 / 2000.0 * std::f32::consts::PI).sin() + 1.0) * 40.0) as usize;
+                // // log::debug!("{x} {} {}", time.as_millis(), ((time.as_millis() % 1000) as f32 / 1000.0).sin());
+                // if neighbors.map_or(false, |n| n[1].map_or(false, |c| c.chunk_x % 3 == 0)) {
+                //     self.lighting_data[(x / LIGHT_SCALE as usize) + (70 / LIGHT_SCALE as usize) * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize] = 1.0;
+                // }
 
                 let image = glium::texture::RawImage2d {
                     data: Cow::Owned(self.lighting_data.to_vec()),
@@ -456,15 +526,142 @@ impl ChunkGraphics {
                     format: glium::texture::ClientFormat::F32,
                 };
 
-                data.lighting.write(
-                    glium::Rect {
-                        left: 0,
-                        bottom: 0,
-                        width: (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
-                        height: (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
-                    },
-                    image,
-                );
+                let w = (CHUNK_SIZE / (LIGHT_SCALE as u16)).into();
+                let h = (CHUNK_SIZE / (LIGHT_SCALE as u16)).into();
+
+                {
+                    profiling::scope!("src write");
+                    data.lighting_src.write(
+                        glium::Rect { left: 0, bottom: 0, width: w, height: h },
+                        image,
+                    );
+                }
+
+                let mut neighbor_surf = data.lighting_neighbors.as_surface();
+                {
+                    profiling::scope!("src clear_color");
+                    neighbor_surf.clear_color(0.0, 0.0, 0.0, 1.0);
+                }
+                {
+                    profiling::scope!("src blit_color");
+                    data.lighting_src.as_surface().blit_color(
+                        &glium::Rect { left: 0, bottom: 0, width: w, height: h },
+                        &neighbor_surf,
+                        &BlitTarget {
+                            left: 1,
+                            bottom: 1,
+                            width: w as i32,
+                            height: h as i32,
+                        },
+                        glium::uniforms::MagnifySamplerFilter::Nearest,
+                    );
+                }
+                if let Some(n) = neighbors {
+                    profiling::scope!("copy neighbors");
+                    if let Some(t) = n[1] {
+                        if let Some(d) = &t.graphics.data {
+                            d.lighting_dst.as_surface().blit_color(
+                                &glium::Rect { left: 0, bottom: h - 1, width: w, height: 1 },
+                                &neighbor_surf,
+                                &BlitTarget { left: 1, bottom: 0, width: w as i32, height: 1 },
+                                glium::uniforms::MagnifySamplerFilter::Nearest,
+                            );
+                        }
+                    }
+                    if let Some(t) = n[6] {
+                        if let Some(d) = &t.graphics.data {
+                            d.lighting_dst.as_surface().blit_color(
+                                &glium::Rect { left: 0, bottom: 0, width: w, height: 1 },
+                                &neighbor_surf,
+                                &BlitTarget { left: 1, bottom: h, width: w as i32, height: 1 },
+                                glium::uniforms::MagnifySamplerFilter::Nearest,
+                            );
+                        }
+                    }
+                    if let Some(r) = n[3] {
+                        if let Some(d) = &r.graphics.data {
+                            d.lighting_dst.as_surface().blit_color(
+                                &glium::Rect { left: w - 1, bottom: 0, width: 1, height: h },
+                                &neighbor_surf,
+                                &BlitTarget { left: 0, bottom: 1, width: 1, height: h as i32 },
+                                glium::uniforms::MagnifySamplerFilter::Nearest,
+                            );
+                        }
+                    }
+                    if let Some(r) = n[4] {
+                        if let Some(d) = &r.graphics.data {
+                            d.lighting_dst.as_surface().blit_color(
+                                &glium::Rect { left: 0, bottom: 0, width: 1, height: h },
+                                &neighbor_surf,
+                                &BlitTarget { left: w, bottom: 1, width: 1, height: h as i32 },
+                                glium::uniforms::MagnifySamplerFilter::Nearest,
+                            );
+                        }
+                    }
+                    // if let Some(b) = n[6] {
+                    //     if let Some(d) = &b.graphics.data {
+                    //         d.lighting_dst.as_surface().blit_color(
+                    //             &glium::Rect { left: 0, bottom: 0, width: w, height: 1 },
+                    //             &neighbor_surf,
+                    //             &BlitTarget { left: 1, bottom: 0, width: w as i32, height: 1 },
+                    //             glium::uniforms::MagnifySamplerFilter::Nearest
+                    //         );
+                    //     }
+                    // }
+                }
+                // neighbor_surf.blit_color(source_rect, target, target_rect, filter)
+
+                // let src = &mut data.lighting_src;
+                // let dst = &mut data.lighting_dst;
+
+                {
+                    profiling::scope!("iteration");
+                    // calculate number by doing min(light_falloff_max^i=0.1, CHUNK_SIZE / LIGHT_SCALE)
+                    // for _ in 0..25 {
+                    let src_unit = data
+                        .lighting_neighbors
+                        .image_unit(glium::uniforms::ImageUnitFormat::R32F)
+                        .unwrap()
+                        .set_access(glium::uniforms::ImageUnitAccess::Read);
+                    let pixels_unit = data
+                        .texture
+                        .image_unit(glium::uniforms::ImageUnitFormat::RGBA8)
+                        .unwrap()
+                        .set_access(glium::uniforms::ImageUnitAccess::Read);
+                    let dst_unit = data
+                        .lighting_dst
+                        .image_unit(glium::uniforms::ImageUnitFormat::R32F)
+                        .unwrap()
+                        .set_access(glium::uniforms::ImageUnitAccess::Write);
+
+                    let uni = uniform! {
+                        light_scale: LIGHT_SCALE as i32,
+                        pxTex: pixels_unit,
+                        srcTex: src_unit,
+                        dstTex: dst_unit,
+                    };
+
+                    {
+                        profiling::scope!("compute");
+                        data.lighting_compute.execute(
+                            uni,
+                            // data.lighting_src.width(),
+                            // data.lighting_src.height(),
+                            1, 1, 1,
+                        );
+                    }
+
+                    // {
+                    //     profiling::scope!("blit");
+                    //     data.lighting_dst.as_surface().blit_color(
+                    //         &glium::Rect { left: 0, bottom: 0, width: w, height: h },
+                    //         &data.lighting_neighbors.as_surface(),
+                    //         &BlitTarget { left: 1, bottom: 1, width: w as i32, height: h as i32 },
+                    //         glium::uniforms::MagnifySamplerFilter::Nearest
+                    //     );
+                    // }
+                    // }
+                }
 
                 // let mut surf = data.lighting.as_surface();
                 // surf.clear_color(0.0, 1.0, 0.0, 1.0);
@@ -490,7 +687,7 @@ impl ChunkGraphics {
 
                 // surf.draw(&vertex_buffer, &indices, &data.lighting_shader, &uniform!{ main_tiles: data.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest) }, &params).unwrap();
             }
-            self.dirty = false;
+            self.lighting_dirty = false;
         }
     }
 
@@ -650,18 +847,41 @@ impl ChunkGraphics {
             );
             let texture = Texture2d::new(&target.display, image).unwrap();
 
-            // let image = glium::texture::RawImage2d {
+            // let lighting_src_img = glium::texture::RawImage2d {
             //     data: Cow::Owned(self.lighting_data.to_vec()),
             //     width: (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
             //     height: (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
             //     format: glium::texture::ClientFormat::F32,
             // };
-            let lighting = Texture2d::empty(
+
+            let lighting_src = Texture2d::empty_with_format(
                 &target.display,
+                glium::texture::UncompressedFloatFormat::F32,
+                glium::texture::MipmapsOption::NoMipmap,
                 (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
                 (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
             )
             .unwrap();
+
+            let lighting_dst = Texture2d::empty_with_format(
+                &target.display,
+                glium::texture::UncompressedFloatFormat::F32,
+                glium::texture::MipmapsOption::NoMipmap,
+                (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
+                (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
+            )
+            .unwrap();
+
+            let lighting_neighbors = Texture2d::empty_with_format(
+                &target.display,
+                glium::texture::UncompressedFloatFormat::F32,
+                glium::texture::MipmapsOption::NoMipmap,
+                (CHUNK_SIZE / (LIGHT_SCALE as u16) + 2).into(),
+                (CHUNK_SIZE / (LIGHT_SCALE as u16) + 2).into(),
+            )
+            .unwrap();
+
+            // lighting.write(rect, data)
             // let lighting = Texture2d::empty(&target.display, CHUNK_SIZE.into(), CHUNK_SIZE.into()).unwrap();
 
             let helper = ShaderFileHelper { file_helper, display: &target.display };
@@ -674,11 +894,18 @@ impl ChunkGraphics {
                 )
                 .unwrap();
 
+            let lighting_compute = helper
+                .load_compute_from_files(140, "data/shaders/lighting_propagate.comp")
+                .unwrap();
+
             self.data = Some(ChunkGraphicsData {
                 display: target.display.clone(),
                 texture,
-                lighting,
+                lighting_src,
+                lighting_dst,
+                lighting_neighbors,
                 lighting_shader,
+                lighting_compute,
             });
             self.dirty = true;
         }

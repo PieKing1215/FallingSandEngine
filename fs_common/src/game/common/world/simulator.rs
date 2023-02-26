@@ -171,8 +171,22 @@ impl SimulationHelperChunk<'_> {
     }
 
     #[inline]
+    unsafe fn get_light_from_index_unchecked(&self, (ch, px, ..): (usize, usize, u16, u16)) -> f32 {
+        *self.lights.get_unchecked(ch).get_unchecked(px)
+    }
+
+    #[inline]
     fn set_light_from_index(&mut self, (ch, px, ..): (usize, usize, u16, u16), light: f32) {
         self.lights[ch][px] = light;
+    }
+
+    #[inline]
+    unsafe fn set_light_from_index_unchecked(
+        &mut self,
+        (ch, px, ..): (usize, usize, u16, u16),
+        light: f32,
+    ) {
+        *self.lights.get_unchecked_mut(ch).get_unchecked_mut(px) = light;
     }
 
     // (chunk index, pixel index, pixel x in chunk, pixel y in chunk)
@@ -519,55 +533,58 @@ impl Simulator {
         // visited.dedup();
         // log::debug!("done {} {}", first, visited.len());
 
-        for _ in 0..16 {
-            let mut new_light = [0.0; ((CHUNK_SIZE / (LIGHT_SCALE as u16))
-                * (CHUNK_SIZE / (LIGHT_SCALE as u16)))
-                as usize];
-            if helper
-                .get_pixel_local(8 * LIGHT_SCALE as i32, 8 * LIGHT_SCALE as i32)
-                .physics
-                != PhysicsType::Solid
-            {
-                helper.set_light_local(8, 8, 1.0);
-            }
-            if helper
-                .get_pixel_local(16 * LIGHT_SCALE as i32, 20 * LIGHT_SCALE as i32)
-                .physics
-                != PhysicsType::Solid
-            {
-                helper.set_light_local(16, 20, 1.0);
-            }
-            for x in 0..i32::from(CHUNK_SIZE / u16::from(LIGHT_SCALE)) {
-                for y in 0..i32::from(CHUNK_SIZE / u16::from(LIGHT_SCALE)) {
-                    let (max, f) = [
-                        (0, -1, 1.0),
-                        (-1, -1, 0.985),
-                        (-1, 0, 1.0),
-                        (1, -1, 0.985),
-                        (0, 1, 1.0),
-                        (-1, 1, 0.985),
-                        (1, 0, 1.0),
-                        (1, 1, 0.985),
-                    ]
-                    .iter()
-                    .map(|(dx, dy, f)| (helper.get_light_local(x + dx, y + dy), *f))
-                    .reduce(|a, b| if a.0 > b.0 { a } else { b })
-                    .unwrap_or((0.0, 0.8));
-                    let mat =
-                        helper.get_pixel_local(x * LIGHT_SCALE as i32, y * LIGHT_SCALE as i32);
-                    let factor = f * if mat.physics != PhysicsType::Solid {
-                        0.975
-                    } else {
-                        0.8
-                    };
-                    // helper.set_light_local(x * LIGHT_SCALE as i32, y * LIGHT_SCALE as i32, max * factor);
-                    new_light[(x + y * ((CHUNK_SIZE as i32) / (LIGHT_SCALE as i32))) as usize] =
-                        max * factor;
-                    // helper.set_light_local(x * 4, y * 4, 0.5);
-                }
-            }
-            *helper.lights[4] = new_light;
-        }
+        // unsafe {
+        //     profiling::scope!("lighting");
+        //     for _ in 0..16 {
+        //         let mut new_light = [0.0; ((CHUNK_SIZE / (LIGHT_SCALE as u16))
+        //             * (CHUNK_SIZE / (LIGHT_SCALE as u16)))
+        //             as usize];
+        //         if helper
+        //             .get_pixel_local_unchecked(4 * LIGHT_SCALE as i32, 4 * LIGHT_SCALE as i32)
+        //             .physics
+        //             != PhysicsType::Solid
+        //         {
+        //             helper.set_light_from_index_unchecked(SimulationHelperChunk::local_to_indices_light(4, 4), 1.0);
+        //         }
+        //         if helper
+        //             .get_pixel_local_unchecked(8 * LIGHT_SCALE as i32, 10 * LIGHT_SCALE as i32)
+        //             .physics
+        //             != PhysicsType::Solid
+        //         {
+        //             helper.set_light_from_index_unchecked(SimulationHelperChunk::local_to_indices_light(8, 10), 1.0);
+        //         }
+        //         for x in 0..i32::from(CHUNK_SIZE / u16::from(LIGHT_SCALE)) {
+        //             for y in 0..i32::from(CHUNK_SIZE / u16::from(LIGHT_SCALE)) {
+        //                 let (max, f) = [
+        //                     (0, -1, 1.0),
+        //                     (-1, -1, 0.95),
+        //                     (-1, 0, 1.0),
+        //                     (1, -1, 0.95),
+        //                     (0, 1, 1.0),
+        //                     (-1, 1, 0.95),
+        //                     (1, 0, 1.0),
+        //                     (1, 1, 0.95),
+        //                 ]
+        //                 .iter()
+        //                 .map(|(dx, dy, f)| (helper.get_light_from_index_unchecked(SimulationHelperChunk::local_to_indices_light(x + dx, y + dy)), *f))
+        //                 .reduce(|a, b| if a.0 > b.0 { a } else { b })
+        //                 .unwrap_or((0.0, 0.8));
+        //                 let mat =
+        //                     helper.get_pixel_local_unchecked(x * LIGHT_SCALE as i32, y * LIGHT_SCALE as i32);
+        //                 let factor = f * if mat.physics != PhysicsType::Solid {
+        //                     0.95
+        //                 } else {
+        //                     0.75
+        //                 };
+        //                 // helper.set_light_local(x * LIGHT_SCALE as i32, y * LIGHT_SCALE as i32, max * factor);
+        //                 *new_light.get_unchecked_mut((x + y * ((CHUNK_SIZE as i32) / (LIGHT_SCALE as i32))) as usize) =
+        //                     max * factor;
+        //                 // helper.set_light_local(x * 4, y * 4, 0.5);
+        //             }
+        //         }
+        //         *helper.lights[4] = new_light;
+        //     }
+        // }
     }
 
     #[allow(clippy::unnecessary_unwrap)]

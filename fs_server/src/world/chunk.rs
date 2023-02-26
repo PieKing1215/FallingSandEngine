@@ -1,8 +1,12 @@
+use std::collections::HashMap;
+use std::hash::BuildHasherDefault;
+
 use fs_common::game::common::world::material::color::Color;
 use fs_common::game::common::world::material::MaterialInstance;
 use fs_common::game::common::world::mesh;
 use fs_common::game::common::world::Chunk;
 use fs_common::game::common::world::ChunkState;
+use fs_common::game::common::world::PassThroughHasherU32;
 use fs_common::game::common::world::RigidBodyState;
 use fs_common::game::common::world::CHUNK_SIZE;
 use fs_common::game::common::world::LIGHT_SCALE;
@@ -70,7 +74,10 @@ impl Chunk for ServerChunk {
     fn refresh(&mut self) {}
 
     // #[profiling::function]
-    fn update_graphics(&mut self) -> Result<(), String> {
+    fn update_graphics(
+        &mut self,
+        _other_loaded_chunks: Option<&HashMap<u32, Self, BuildHasherDefault<PassThroughHasherU32>>>,
+    ) -> Result<(), String> {
         Ok(())
     }
 

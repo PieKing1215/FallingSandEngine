@@ -1,7 +1,10 @@
 use std::fs;
 
 use fs_common::game::common::FileHelper;
-use glium::{program::ProgramChooserCreationError, Display};
+use glium::{
+    program::{ComputeShader, ProgramChooserCreationError},
+    Display, ProgramCreationError,
+};
 
 pub struct Shaders {
     pub common: glium::Program,
@@ -80,5 +83,15 @@ impl ShaderFileHelper<'_> {
                 fragment: frag.as_str(),
             }
         )
+    }
+
+    pub fn load_compute_from_files(
+        &self,
+        version: u32,
+        src: &str,
+    ) -> Result<glium::program::ComputeShader, ProgramCreationError> {
+        let src = fs::read_to_string(self.file_helper.asset_path(src)).unwrap();
+
+        ComputeShader::from_source(self.display, &src)
     }
 }

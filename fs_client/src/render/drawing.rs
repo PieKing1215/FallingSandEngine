@@ -617,7 +617,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
                 matrix: view,
                 c_pos: p,
                 tex: data.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
-                light_tex: data.lighting.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+                light_tex: data.lighting_dst.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Linear),
             }, &params).unwrap();
         }
     }
