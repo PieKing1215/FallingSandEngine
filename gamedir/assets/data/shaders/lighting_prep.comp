@@ -1,0 +1,47 @@
+#version 430
+
+layout(local_size_x = 25, local_size_y = 25, local_size_z = 1) in;
+
+// CHUNK_SIZE / LIGHT_SIZE
+uniform int light_scale;
+
+// CHUNK_SIZE x CHUNK_SIZE
+uniform layout(binding=1, r32f) readonly image2D t_src;
+
+// LIGHT_SIZE x LIGHT_SIZE
+uniform layout(binding=2, r32f) readonly image2D t_light_n;
+uniform layout(binding=3, r32f) readonly image2D t_light_e;
+uniform layout(binding=4, r32f) readonly image2D t_light_s;
+uniform layout(binding=5, r32f) readonly image2D t_light_w;
+
+// (LIGHT_SIZE + 2) x (LIGHT_SIZE + 2)
+uniform layout(binding=7, r32f) writeonly image2D t_work;
+
+void prep();
+
+void main() {
+    ivec2 pos_light = ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y);
+    ivec2 pos_work = pos_light + ivec2(1);
+    ivec2 pos_chunk = pos_light * light_scale;
+
+    float val = 0.0;
+    for (int dx = 0; dx < light_scale; dx++) {
+        for (int dy = 0; dy < light_scale; dy++) {
+            val = max(val, imageLoad(t_src, pos_chunk + ivec2(dx, dy)).r);
+        }
+    }
+
+    imageStore(t_work, pos_work, vec4(val, vec3(1.0)));
+
+    if (pos_light.x == 0) {
+        imageStore(t_work, ivec2(0, pos_work.y), imageLoad(t_light_w, ivec2(24, pos_light.y)));
+    } else if (pos_light.x == 24) {
+        imageStore(t_work, ivec2(26, pos_work.y), imageLoad(t_light_e, ivec2(0, pos_light.y)));
+    }
+
+    if (pos_light.y == 0) {
+        imageStore(t_work, ivec2(pos_work.x, 0), imageLoad(t_light_n, ivec2(pos_light.x, 24)));
+    } else if (pos_light.y == 24) {
+        imageStore(t_work, ivec2(pos_work.x, 26), imageLoad(t_light_s, ivec2(pos_light.x, 0)));
+    }
+}

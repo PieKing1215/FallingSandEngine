@@ -3,6 +3,7 @@ use std::{borrow::Cow, collections::HashMap, convert::TryInto, hash::BuildHasher
 use fs_common::game::common::{
     world::{
         chunk_index,
+        gen::feature::features::test_structure,
         material::{color::Color, MaterialInstance, PhysicsType},
         mesh, Chunk, ChunkHandler, ChunkState, PassThroughHasherU32, RigidBodyState, CHUNK_SIZE,
         LIGHT_SCALE,
@@ -10,8 +11,11 @@ use fs_common::game::common::{
     FileHelper, Rect, Settings,
 };
 use glium::{
-    program::ComputeShader, texture::Texture2d, uniform, Blend, BlitTarget, Display,
-    DrawParameters, IndexBuffer, PolygonMode, Program, Surface,
+    program::ComputeShader,
+    texture::{CompressedSrgbTexture2dArray, Texture2d, Texture2dArray, Texture2dDataSource},
+    uniform,
+    uniforms::ImageUnit,
+    Blend, BlitTarget, Display, DrawParameters, IndexBuffer, PolygonMode, Program, Surface,
 };
 
 use crate::render::{
@@ -45,10 +49,7 @@ impl Chunk for ClientChunk {
             graphics: Box::new(ChunkGraphics {
                 data: None,
                 pixel_data: Box::new([0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]),
-                lighting_data: Box::new(
-                    [0.0; ((CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize
-                        * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize)],
-                ),
+                lighting_data: Box::new([0.0; CHUNK_SIZE as usize * CHUNK_SIZE as usize]),
                 dirty: true,
                 was_dirty: true,
                 lighting_dirty: true,
@@ -381,17 +382,11 @@ impl Chunk for ClientChunk {
         self.rigidbody = body;
     }
 
-    fn get_lights_mut(
-        &mut self,
-    ) -> &mut [f32; (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize
-                * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize] {
+    fn get_lights_mut(&mut self) -> &mut [f32; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         &mut self.graphics.lighting_data
     }
 
-    fn get_lights(
-        &self,
-    ) -> &[f32; (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize
-            * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize] {
+    fn get_lights(&self) -> &[f32; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         &self.graphics.lighting_data
     }
 }
@@ -402,17 +397,16 @@ pub struct ChunkGraphicsData {
     pub lighting_src: Texture2d,
     pub lighting_dst: Texture2d,
     pub lighting_neighbors: Texture2d,
+    pub lighting_constant_black: Texture2d,
     pub lighting_shader: Program,
-    pub lighting_compute: ComputeShader,
+    pub lighting_compute_propagate: ComputeShader,
+    pub lighting_compute_prep: ComputeShader,
 }
 
 pub struct ChunkGraphics {
     pub data: Option<ChunkGraphicsData>,
     pub pixel_data: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
-    pub lighting_data: Box<
-        [f32; (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize
-            * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize],
-    >,
+    pub lighting_data: Box<[f32; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
     pub dirty: bool,
     pub was_dirty: bool,
     pub lighting_dirty: bool,
@@ -444,9 +438,7 @@ impl ChunkGraphics {
     pub fn set_light(&mut self, x: u16, y: u16, color: f32) -> Result<(), String> {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             // self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
-            let i = ((x / LIGHT_SCALE as u16)
-                + (y / LIGHT_SCALE as u16) * (CHUNK_SIZE / (LIGHT_SCALE as u16)))
-                as usize;
+            let i = (x + y * CHUNK_SIZE) as usize;
             self.lighting_data[i] = color;
             self.dirty = true;
 
@@ -473,7 +465,7 @@ impl ChunkGraphics {
         Err("Invalid pixel coordinate.".to_string())
     }
 
-    // #[profiling::function]
+    #[profiling::function]
     pub fn update_texture(&mut self) {
         if self.dirty {
             if let Some(data) = &mut self.data {
@@ -506,186 +498,123 @@ impl ChunkGraphics {
         {
             if let Some(data) = &mut self.data {
                 profiling::scope!("lighting update");
-                // self.lighting_data = Box::new([0.0; (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize
-                // * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize]);
+                // self.lighting_data = Box::new([0.0; CHUNK_SIZE as usize * CHUNK_SIZE as usize]);
 
-                // self.lighting_data[(30 / LIGHT_SCALE as usize) + (30 / LIGHT_SCALE as usize) * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize] = 1.0;
-                // self.lighting_data[(60 / LIGHT_SCALE as usize) + (50 / LIGHT_SCALE as usize) * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize] = 1.0;
+                // // self.lighting_data[(30 / LIGHT_SCALE as usize) + (30 / LIGHT_SCALE as usize) * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize] = 1.0;
+                // // self.lighting_data[(60 / LIGHT_SCALE as usize) + (50 / LIGHT_SCALE as usize) * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize] = 1.0;
                 // let start = std::time::SystemTime::now();
                 // let time = start.duration_since(std::time::UNIX_EPOCH).unwrap();
-                // let x = 10 + ((((time.as_millis() % 2000) as f32 / 2000.0 * std::f32::consts::PI).sin() + 1.0) * 40.0) as usize;
+                // let x = 10 + ((((time.as_millis() % 2000) as f32 / 2000.0 * 2.0 * std::f32::consts::PI).sin() + 1.0) * 40.0) as usize;
+                // let y = 10 + ((((time.as_millis() % 1300) as f32 / 1300.0 * 2.0 * std::f32::consts::PI).cos() + 1.0) * 40.0) as usize;
                 // // log::debug!("{x} {} {}", time.as_millis(), ((time.as_millis() % 1000) as f32 / 1000.0).sin());
-                // if neighbors.map_or(false, |n| n[1].map_or(false, |c| c.chunk_x % 3 == 0)) {
-                //     self.lighting_data[(x / LIGHT_SCALE as usize) + (70 / LIGHT_SCALE as usize) * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize] = 1.0;
+                // if neighbors.map_or(false, |n| n[1].map_or(false, |c| c.chunk_x % 3 == 0 && c.chunk_y % 2 == 0)) {
+                //     self.lighting_data[x + y * CHUNK_SIZE as usize] = 1.0;
                 // }
 
                 let image = glium::texture::RawImage2d {
                     data: Cow::Owned(self.lighting_data.to_vec()),
-                    width: (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
-                    height: (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
+                    width: CHUNK_SIZE.into(),
+                    height: CHUNK_SIZE.into(),
                     format: glium::texture::ClientFormat::F32,
                 };
-
-                let w = (CHUNK_SIZE / (LIGHT_SCALE as u16)).into();
-                let h = (CHUNK_SIZE / (LIGHT_SCALE as u16)).into();
 
                 {
                     profiling::scope!("src write");
                     data.lighting_src.write(
-                        glium::Rect { left: 0, bottom: 0, width: w, height: h },
+                        glium::Rect {
+                            left: 0,
+                            bottom: 0,
+                            width: CHUNK_SIZE.into(),
+                            height: CHUNK_SIZE.into(),
+                        },
                         image,
                     );
                 }
 
-                let mut neighbor_surf = data.lighting_neighbors.as_surface();
-                {
-                    profiling::scope!("src clear_color");
-                    neighbor_surf.clear_color(0.0, 0.0, 0.0, 1.0);
+                fn r32f_read(tex: &Texture2d) -> ImageUnit<Texture2d> {
+                    tex.image_unit(glium::uniforms::ImageUnitFormat::R32F)
+                        .unwrap()
+                        .set_access(glium::uniforms::ImageUnitAccess::Read)
                 }
-                {
-                    profiling::scope!("src blit_color");
-                    data.lighting_src.as_surface().blit_color(
-                        &glium::Rect { left: 0, bottom: 0, width: w, height: h },
-                        &neighbor_surf,
-                        &BlitTarget {
-                            left: 1,
-                            bottom: 1,
-                            width: w as i32,
-                            height: h as i32,
-                        },
-                        glium::uniforms::MagnifySamplerFilter::Nearest,
-                    );
-                }
-                if let Some(n) = neighbors {
-                    profiling::scope!("copy neighbors");
-                    if let Some(t) = n[1] {
-                        if let Some(d) = &t.graphics.data {
-                            d.lighting_dst.as_surface().blit_color(
-                                &glium::Rect { left: 0, bottom: h - 1, width: w, height: 1 },
-                                &neighbor_surf,
-                                &BlitTarget { left: 1, bottom: 0, width: w as i32, height: 1 },
-                                glium::uniforms::MagnifySamplerFilter::Nearest,
-                            );
-                        }
-                    }
-                    if let Some(t) = n[6] {
-                        if let Some(d) = &t.graphics.data {
-                            d.lighting_dst.as_surface().blit_color(
-                                &glium::Rect { left: 0, bottom: 0, width: w, height: 1 },
-                                &neighbor_surf,
-                                &BlitTarget { left: 1, bottom: h, width: w as i32, height: 1 },
-                                glium::uniforms::MagnifySamplerFilter::Nearest,
-                            );
-                        }
-                    }
-                    if let Some(r) = n[3] {
-                        if let Some(d) = &r.graphics.data {
-                            d.lighting_dst.as_surface().blit_color(
-                                &glium::Rect { left: w - 1, bottom: 0, width: 1, height: h },
-                                &neighbor_surf,
-                                &BlitTarget { left: 0, bottom: 1, width: 1, height: h as i32 },
-                                glium::uniforms::MagnifySamplerFilter::Nearest,
-                            );
-                        }
-                    }
-                    if let Some(r) = n[4] {
-                        if let Some(d) = &r.graphics.data {
-                            d.lighting_dst.as_surface().blit_color(
-                                &glium::Rect { left: 0, bottom: 0, width: 1, height: h },
-                                &neighbor_surf,
-                                &BlitTarget { left: w, bottom: 1, width: 1, height: h as i32 },
-                                glium::uniforms::MagnifySamplerFilter::Nearest,
-                            );
-                        }
-                    }
-                    // if let Some(b) = n[6] {
-                    //     if let Some(d) = &b.graphics.data {
-                    //         d.lighting_dst.as_surface().blit_color(
-                    //             &glium::Rect { left: 0, bottom: 0, width: w, height: 1 },
-                    //             &neighbor_surf,
-                    //             &BlitTarget { left: 1, bottom: 0, width: w as i32, height: 1 },
-                    //             glium::uniforms::MagnifySamplerFilter::Nearest
-                    //         );
-                    //     }
-                    // }
-                }
-                // neighbor_surf.blit_color(source_rect, target, target_rect, filter)
 
-                // let src = &mut data.lighting_src;
-                // let dst = &mut data.lighting_dst;
+                let t_src = r32f_read(&data.lighting_src);
+                let t_px = data
+                    .texture
+                    .image_unit(glium::uniforms::ImageUnitFormat::RGBA8)
+                    .unwrap()
+                    .set_access(glium::uniforms::ImageUnitAccess::Read);
+                let t_dst = data
+                    .lighting_dst
+                    .image_unit(glium::uniforms::ImageUnitFormat::R32F)
+                    .unwrap()
+                    .set_access(glium::uniforms::ImageUnitAccess::Write);
+                let t_work = data
+                    .lighting_neighbors
+                    .image_unit(glium::uniforms::ImageUnitFormat::R32F)
+                    .unwrap()
+                    .set_access(glium::uniforms::ImageUnitAccess::ReadWrite);
+
+                let t_light_n = r32f_read(
+                    neighbors
+                        .and_then(|ch| {
+                            ch[1].and_then(|c| c.graphics.data.as_ref().map(|d| &d.lighting_dst))
+                        })
+                        .unwrap_or(&data.lighting_constant_black),
+                );
+                let t_light_w = r32f_read(
+                    neighbors
+                        .and_then(|ch| {
+                            ch[3].and_then(|c| c.graphics.data.as_ref().map(|d| &d.lighting_dst))
+                        })
+                        .unwrap_or(&data.lighting_constant_black),
+                );
+                let t_light_e = r32f_read(
+                    neighbors
+                        .and_then(|ch| {
+                            ch[4].and_then(|c| c.graphics.data.as_ref().map(|d| &d.lighting_dst))
+                        })
+                        .unwrap_or(&data.lighting_constant_black),
+                );
+                let t_light_s = r32f_read(
+                    neighbors
+                        .and_then(|ch| {
+                            ch[6].and_then(|c| c.graphics.data.as_ref().map(|d| &d.lighting_dst))
+                        })
+                        .unwrap_or(&data.lighting_constant_black),
+                );
+
+                let uni = uniform! {
+                    light_scale: LIGHT_SCALE as i32,
+                    t_src: t_src,
+                    t_light_n: t_light_n,
+                    t_light_e: t_light_e,
+                    t_light_s: t_light_s,
+                    t_light_w: t_light_w,
+                    t_work: t_work,
+                };
 
                 {
-                    profiling::scope!("iteration");
-                    // calculate number by doing min(light_falloff_max^i=0.1, CHUNK_SIZE / LIGHT_SCALE)
-                    // for _ in 0..25 {
-                    let src_unit = data
-                        .lighting_neighbors
-                        .image_unit(glium::uniforms::ImageUnitFormat::R32F)
-                        .unwrap()
-                        .set_access(glium::uniforms::ImageUnitAccess::Read);
-                    let pixels_unit = data
-                        .texture
-                        .image_unit(glium::uniforms::ImageUnitFormat::RGBA8)
-                        .unwrap()
-                        .set_access(glium::uniforms::ImageUnitAccess::Read);
-                    let dst_unit = data
-                        .lighting_dst
-                        .image_unit(glium::uniforms::ImageUnitFormat::R32F)
-                        .unwrap()
-                        .set_access(glium::uniforms::ImageUnitAccess::Write);
-
-                    let uni = uniform! {
-                        light_scale: LIGHT_SCALE as i32,
-                        pxTex: pixels_unit,
-                        srcTex: src_unit,
-                        dstTex: dst_unit,
-                    };
-
-                    {
-                        profiling::scope!("compute");
-                        data.lighting_compute.execute(
-                            uni,
-                            // data.lighting_src.width(),
-                            // data.lighting_src.height(),
-                            1, 1, 1,
-                        );
-                    }
-
-                    // {
-                    //     profiling::scope!("blit");
-                    //     data.lighting_dst.as_surface().blit_color(
-                    //         &glium::Rect { left: 0, bottom: 0, width: w, height: h },
-                    //         &data.lighting_neighbors.as_surface(),
-                    //         &BlitTarget { left: 1, bottom: 1, width: w as i32, height: h as i32 },
-                    //         glium::uniforms::MagnifySamplerFilter::Nearest
-                    //     );
-                    // }
-                    // }
+                    profiling::scope!("prep");
+                    data.lighting_compute_prep.execute(uni, 1, 1, 1);
                 }
 
-                // let mut surf = data.lighting.as_surface();
-                // surf.clear_color(0.0, 1.0, 0.0, 1.0);
+                let t_work = data
+                    .lighting_neighbors
+                    .image_unit(glium::uniforms::ImageUnitFormat::R32F)
+                    .unwrap()
+                    .set_access(glium::uniforms::ImageUnitAccess::ReadWrite);
 
-                // let shape = Rect::<f32>::new(-1.0, -1.0, 1.0, 1.0)
-                //     .vertices()
-                //     .into_iter()
-                //     .zip([[0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]])
-                //     .map(Vertex2T::from)
-                //     .collect::<Vec<_>>();
-                // let vertex_buffer = glium::VertexBuffer::immutable(&data.display, &shape).unwrap();
-                // let indices = IndexBuffer::new(
-                //     &data.display,
-                //     glium::index::PrimitiveType::TriangleStrip,
-                //     &[1_u16, 2, 0, 3],
-                // )
-                // .unwrap();
+                let uni = uniform! {
+                    light_scale: LIGHT_SCALE as i32,
+                    t_px: t_px,
+                    t_dst: t_dst,
+                    t_work: t_work,
+                };
 
-                // let params = DrawParameters {
-                //     blend: Blend::alpha_blending(),
-                //     ..DrawParameters::default()
-                // };
-
-                // surf.draw(&vertex_buffer, &indices, &data.lighting_shader, &uniform!{ main_tiles: data.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest) }, &params).unwrap();
+                {
+                    profiling::scope!("propagate");
+                    data.lighting_compute_propagate.execute(uni, 1, 1, 1);
+                }
             }
             self.lighting_dirty = false;
         }
@@ -858,8 +787,8 @@ impl ChunkGraphics {
                 &target.display,
                 glium::texture::UncompressedFloatFormat::F32,
                 glium::texture::MipmapsOption::NoMipmap,
-                (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
-                (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
+                CHUNK_SIZE.into(),
+                CHUNK_SIZE.into(),
             )
             .unwrap();
 
@@ -881,6 +810,15 @@ impl ChunkGraphics {
             )
             .unwrap();
 
+            let lighting_constant_black = Texture2d::empty_with_format(
+                &target.display,
+                glium::texture::UncompressedFloatFormat::F32,
+                glium::texture::MipmapsOption::NoMipmap,
+                1,
+                1,
+            )
+            .unwrap();
+
             // lighting.write(rect, data)
             // let lighting = Texture2d::empty(&target.display, CHUNK_SIZE.into(), CHUNK_SIZE.into()).unwrap();
 
@@ -894,8 +832,12 @@ impl ChunkGraphics {
                 )
                 .unwrap();
 
-            let lighting_compute = helper
+            let lighting_compute_propagate = helper
                 .load_compute_from_files(140, "data/shaders/lighting_propagate.comp")
+                .unwrap();
+
+            let lighting_compute_prep = helper
+                .load_compute_from_files(140, "data/shaders/lighting_prep.comp")
                 .unwrap();
 
             self.data = Some(ChunkGraphicsData {
@@ -904,8 +846,10 @@ impl ChunkGraphics {
                 lighting_src,
                 lighting_dst,
                 lighting_neighbors,
+                lighting_constant_black,
                 lighting_shader,
-                lighting_compute,
+                lighting_compute_propagate,
+                lighting_compute_prep,
             });
             self.dirty = true;
         }
