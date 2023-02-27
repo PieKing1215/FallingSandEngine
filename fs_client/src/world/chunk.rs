@@ -3,26 +3,18 @@ use std::{borrow::Cow, collections::HashMap, convert::TryInto, hash::BuildHasher
 use fs_common::game::common::{
     world::{
         chunk_index,
-        gen::feature::features::test_structure,
-        material::{color::Color, MaterialInstance, PhysicsType},
+        material::{color::Color, MaterialInstance},
         mesh, Chunk, ChunkHandler, ChunkState, PassThroughHasherU32, RigidBodyState, CHUNK_SIZE,
         LIGHT_SCALE,
     },
     FileHelper, Rect, Settings,
 };
 use glium::{
-    program::ComputeShader,
-    texture::{CompressedSrgbTexture2dArray, Texture2d, Texture2dArray, Texture2dDataSource},
-    uniform,
-    uniforms::ImageUnit,
-    Blend, BlitTarget, Display, DrawParameters, IndexBuffer, PolygonMode, Program, Surface,
+    program::ComputeShader, texture::Texture2d, uniform, uniforms::ImageUnit, Blend, Display,
+    DrawParameters, PolygonMode, Program,
 };
 
-use crate::render::{
-    drawing::{RenderTarget, Vertices},
-    shaders::ShaderFileHelper,
-    vertex::Vertex2T,
-};
+use crate::render::{drawing::RenderTarget, shaders::ShaderFileHelper};
 
 pub struct ClientChunk {
     pub chunk_x: i32,
@@ -815,11 +807,11 @@ impl ChunkGraphics {
                 .unwrap();
 
             let lighting_compute_propagate = helper
-                .load_compute_from_files(140, "data/shaders/lighting_propagate.comp")
+                .load_compute_from_files("data/shaders/lighting_propagate.comp")
                 .unwrap();
 
             let lighting_compute_prep = helper
-                .load_compute_from_files(140, "data/shaders/lighting_prep.comp")
+                .load_compute_from_files("data/shaders/lighting_prep.comp")
                 .unwrap();
 
             self.data = Some(ChunkGraphicsData {

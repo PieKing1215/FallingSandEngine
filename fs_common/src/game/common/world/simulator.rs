@@ -43,6 +43,7 @@ struct SimulationHelperChunk<'a> {
     chunk_y: i32,
 }
 
+#[allow(unused)]
 impl SimulationHelperChunk<'_> {
     #[inline]
     fn get_pixel_from_index(&self, (ch, px, ..): (usize, usize, u16, u16)) -> MaterialInstance {
@@ -372,12 +373,12 @@ impl<C: Chunk + Send> SimulationHelper for SimulationHelperRigidBody<'_, C> {
         self.particles.push(Particle::new(material, pos, vel));
     }
 
-    fn get_light_local(&self, x: i32, y: i32) -> f32 {
+    fn get_light_local(&self, _x: i32, _y: i32) -> f32 {
         // TODO
-        1.0
+        0.0
     }
 
-    fn set_light_local(&mut self, x: i32, y: i32, light: f32) {
+    fn set_light_local(&mut self, _x: i32, _y: i32, _light: f32) {
         // TODO
     }
 }
