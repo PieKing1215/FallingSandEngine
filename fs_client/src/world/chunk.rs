@@ -139,15 +139,7 @@ impl Chunk for ClientChunk {
                 let i = (x + y * CHUNK_SIZE) as usize;
                 // Safety: we do our own bounds check
                 self.graphics.set(x, y, mat.color)?;
-                self.graphics.set_light(
-                    x,
-                    y,
-                    if mat.physics == PhysicsType::Sand {
-                        1.0
-                    } else {
-                        0.0
-                    },
-                )?;
+                self.graphics.set_light(x, y, mat.light)?;
                 *unsafe { px.get_unchecked_mut(i) } = mat;
 
                 self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
@@ -165,17 +157,7 @@ impl Chunk for ClientChunk {
         let i = (x + y * CHUNK_SIZE) as usize;
         // Safety: input index assumed to be valid
         self.graphics.set(x, y, mat.color).unwrap();
-        self.graphics
-            .set_light(
-                x,
-                y,
-                if mat.physics == PhysicsType::Sand {
-                    1.0
-                } else {
-                    0.0
-                },
-            )
-            .unwrap();
+        self.graphics.set_light(x, y, mat.light).unwrap();
         *unsafe { self.pixels.as_mut().unwrap().get_unchecked_mut(i) } = mat;
 
         self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));

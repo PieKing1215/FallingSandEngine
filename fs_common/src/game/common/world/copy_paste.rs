@@ -6,7 +6,7 @@ use super::{
     Chunk, ChunkHandler, ChunkHandlerGeneric,
 };
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq)]
 pub struct MaterialBuf {
     pub width: u16,
     pub height: u16,

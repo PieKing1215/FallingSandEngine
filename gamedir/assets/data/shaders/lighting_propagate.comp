@@ -31,6 +31,8 @@ void main() {
             }
         }
     }
+        
+    float damp_factor = full_solid ? 0.9 : 1.0;
 
     float f = 0.0;
     for (int iter = 0; iter < 25; iter++) {
@@ -39,16 +41,14 @@ void main() {
 
         f = imageLoad(t_work, pos_work).r;
         if (f < 0.1) f = 0.0;
-        f = max(f, 0.95 * imageLoad(t_work, pos_work + ivec2(1, 0)).r);
-        f = max(f, 0.925 * imageLoad(t_work, pos_work + ivec2(1, 1)).r);
-        f = max(f, 0.95 * imageLoad(t_work, pos_work + ivec2(-1, 0)).r);
-        f = max(f, 0.925 * imageLoad(t_work, pos_work + ivec2(-1, 1)).r);
-        f = max(f, 0.95 * imageLoad(t_work, pos_work + ivec2(0, 1)).r);
-        f = max(f, 0.925 * imageLoad(t_work, pos_work + ivec2(1, -1)).r);
-        f = max(f, 0.95 * imageLoad(t_work, pos_work + ivec2(0, -1)).r);
-        f = max(f, 0.925 * imageLoad(t_work, pos_work + ivec2(-1, -1)).r);
-        
-        f *= full_solid ? 0.9 : 1.0;
+        f = max(f, 0.95 * damp_factor * imageLoad(t_work, pos_work + ivec2(1, 0)).r);
+        f = max(f, 0.925 * damp_factor * imageLoad(t_work, pos_work + ivec2(1, 1)).r);
+        f = max(f, 0.95 * damp_factor * imageLoad(t_work, pos_work + ivec2(-1, 0)).r);
+        f = max(f, 0.925 * damp_factor * imageLoad(t_work, pos_work + ivec2(-1, 1)).r);
+        f = max(f, 0.95 * damp_factor * imageLoad(t_work, pos_work + ivec2(0, 1)).r);
+        f = max(f, 0.925 * damp_factor * imageLoad(t_work, pos_work + ivec2(1, -1)).r);
+        f = max(f, 0.95 * damp_factor * imageLoad(t_work, pos_work + ivec2(0, -1)).r);
+        f = max(f, 0.925 * damp_factor * imageLoad(t_work, pos_work + ivec2(-1, -1)).r);
 
         // memoryBarrier();
         barrier();

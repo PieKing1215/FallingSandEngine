@@ -23,11 +23,12 @@ pub struct Material {
     pub display_name: String,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct MaterialInstance {
     pub material_id: RegistryID<Material>,
     pub physics: PhysicsType,
     pub color: Color,
+    pub light: f32,
 }
 
 impl MaterialInstance {
@@ -46,7 +47,12 @@ impl Default for MaterialInstance {
 impl RegistryID<Material> {
     #[inline]
     pub fn instance(&self, physics: PhysicsType, color: Color) -> MaterialInstance {
-        MaterialInstance { material_id: self.clone(), physics, color }
+        MaterialInstance {
+            material_id: self.clone(),
+            physics,
+            color,
+            light: 0.0,
+        }
     }
 }
 

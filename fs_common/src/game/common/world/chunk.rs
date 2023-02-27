@@ -824,8 +824,10 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                 }
 
                 // tick structures
-                let mut update_structures =
-                    UpdateStructureNodes { chunk_handler: self, registries };
+                let mut update_structures = UpdateStructureNodes {
+                    chunk_handler: self,
+                    registries: registries.clone(),
+                };
                 update_structures.run_now(world);
                 world.maintain();
 
@@ -982,9 +984,10 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                         Vec<Particle>,
                     )> = {
                         profiling::scope!("par_iter");
+                        let reg = registries.clone();
                         to_exec
                             .into_par_iter()
-                            .map(|(ch_pos, pixels, colors, lights, mut dirty_rects)| {
+                            .map(move |(ch_pos, pixels, colors, lights, mut dirty_rects)| {
                                 profiling::register_thread!("Simulation thread");
                                 profiling::scope!("chunk");
 
@@ -999,6 +1002,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                     &mut dirty,
                                     &mut dirty_rects,
                                     &mut particles,
+                                    reg.clone(),
                                 );
 
                                 (ch_pos, dirty, dirty_rects, particles)

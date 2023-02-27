@@ -1,3 +1,4 @@
+pub mod lit;
 pub mod textured;
 
 use std::fs;
@@ -9,7 +10,7 @@ use crate::game::common::{
     FileHelper,
 };
 
-use self::textured::TexturedPlacer;
+use self::{lit::LitExt, textured::TexturedPlacer};
 
 use super::{color::Color, MaterialInstance, PhysicsType};
 
@@ -85,11 +86,14 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
         TEST_PLACER_2.clone(),
         MaterialPlacer {
             meta: MaterialPlacerMeta { display_name: "Test 2".to_string() },
-            sampler: Box::new(TexturedPlacer::new(
-                super::TEST.clone(),
-                PhysicsType::Sand,
-                &fs::read(file_helper.asset_path("texture/material/test.png")).unwrap(),
-            )),
+            sampler: Box::new(
+                TexturedPlacer::new(
+                    super::TEST.clone(),
+                    PhysicsType::Sand,
+                    &fs::read(file_helper.asset_path("texture/material/test.png")).unwrap(),
+                )
+                .lit(0.4),
+            ),
         },
     );
 
@@ -105,12 +109,15 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
         COBBLE_STONE.clone(),
         MaterialPlacer {
             meta: MaterialPlacerMeta { display_name: "Cobblestone".to_string() },
-            sampler: Box::new(TexturedPlacer::new(
-                super::COBBLE_STONE.clone(),
-                PhysicsType::Solid,
-                &fs::read(file_helper.asset_path("texture/material/cobble_stone_128x.png"))
-                    .unwrap(),
-            )),
+            sampler: Box::new(
+                TexturedPlacer::new(
+                    super::COBBLE_STONE.clone(),
+                    PhysicsType::Solid,
+                    &fs::read(file_helper.asset_path("texture/material/cobble_stone_128x.png"))
+                        .unwrap(),
+                )
+                .lit(0.15),
+            ),
         },
     );
 
