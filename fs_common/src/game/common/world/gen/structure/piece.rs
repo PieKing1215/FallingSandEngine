@@ -408,6 +408,7 @@ fn load_from_ase(
         let material_id: RegistryID<Material> = layer.name().into();
         let mut override_color = None;
         let mut phys_type = PhysicsType::Solid;
+        let mut light = 0.0;
         if let Some(user) = layer.user_data() {
             let flags = user
                 .text
@@ -416,6 +417,10 @@ fn load_from_ase(
                 .unwrap_or_default();
             if flags.contains(&"override_color") {
                 override_color = user.color;
+            }
+
+            if flags.contains(&"lit") {
+                light = 1.0;
             }
 
             if flags.contains(&"air") {
@@ -440,7 +445,8 @@ fn load_from_ase(
                         x,
                         y,
                         material_id
-                            .instance(phys_type, Color::rgba(c.0[0], c.0[1], c.0[2], c.0[3])),
+                            .instance(phys_type, Color::rgba(c.0[0], c.0[1], c.0[2], c.0[3]))
+                            .with_light(light),
                     );
                 }
             }

@@ -36,6 +36,11 @@ impl MaterialInstance {
     pub fn air() -> Self {
         AIR.instance(PhysicsType::Air, Color::TRANSPARENT)
     }
+
+    #[must_use]
+    pub fn with_light(self, light: f32) -> Self {
+        Self { light, ..self }
+    }
 }
 
 impl Default for MaterialInstance {
