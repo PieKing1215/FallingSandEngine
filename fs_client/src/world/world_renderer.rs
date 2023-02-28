@@ -120,7 +120,7 @@ impl WorldRenderer {
         //     canvas.set_clip_rect(target.transform.transform_rect(screen_zone));
         // }
 
-        {
+        let chunk_tex_data = {
             profiling::scope!("chunks2");
             let texs = world
                 .chunk_handler
@@ -155,7 +155,7 @@ impl WorldRenderer {
                                     ch.chunk_x as f32 * f32::from(CHUNK_SIZE),
                                     ch.chunk_y as f32 * f32::from(CHUNK_SIZE),
                                 ),
-                                t,
+                                t.clone(),
                             )
                         })
                     } else {
@@ -165,7 +165,7 @@ impl WorldRenderer {
                 })
                 .collect::<Vec<_>>();
 
-            target.draw_chunks_2(texs);
+            target.draw_chunks_2(&texs);
 
             // if !texs.0.is_empty() {
             //     profiling::scope!("draw");
@@ -175,7 +175,8 @@ impl WorldRenderer {
             //     };
             //     target.draw_chunks(&texs.0, &ta);
             // }
-        }
+            texs
+        };
 
         {
             profiling::scope!("chunks overlay");
@@ -646,6 +647,12 @@ impl WorldRenderer {
             let particle_system = world.ecs.read_resource::<ParticleSystem>();
             target.draw_particles(&particle_system.active, partial_ticks as f32);
         }
+
+        target.draw_chunks_light(
+            &chunk_tex_data,
+            (camera_pos.x as f32, camera_pos.y as f32),
+            settings.smooth_lighting,
+        );
 
         {
             profiling::scope!("ecs debug");

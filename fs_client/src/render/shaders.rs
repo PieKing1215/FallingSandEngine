@@ -13,6 +13,7 @@ pub struct Shaders {
     pub texture_array: glium::Program,
     pub particle: glium::Program,
     pub chunk: glium::Program,
+    pub chunk_light: glium::Program,
 }
 
 impl Shaders {
@@ -54,6 +55,13 @@ impl Shaders {
                 .unwrap(),
             chunk: helper
                 .load_from_files(140, "data/shaders/chunk.vert", "data/shaders/chunk.frag")
+                .unwrap(),
+            chunk_light: helper
+                .load_from_files(
+                    140,
+                    "data/shaders/chunk.vert",
+                    "data/shaders/chunk_light.frag",
+                )
                 .unwrap(),
         }
     }

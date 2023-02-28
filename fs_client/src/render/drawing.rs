@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use fs_common::game::common::{
     world::{material::color::Color, particle::Particle, CHUNK_SIZE},
     Rect,
@@ -586,8 +588,9 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
         }
     }
 
-    #[profiling::function]
-    pub fn draw_chunks_2(&mut self, chunks: Vec<((f32, f32), &ChunkGraphicsData)>) {
+    pub fn draw_chunks_2(&mut self, chunks: &[((f32, f32), Arc<ChunkGraphicsData>)]) {
+        profiling::scope!("RenderTarget::draw_chunks_2");
+
         let model_view =
             *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
         let view: [[f32; 4]; 4] = model_view.into();
@@ -615,9 +618,65 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
             profiling::scope!("draw chunk");
             self.frame.draw(&vertex_buffer, &indices, &self.shaders.chunk, &uniform! {
                 matrix: view,
-                c_pos: p,
+                c_pos: *p,
                 tex: data.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
-                light_tex: data.lighting_dst.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Linear),
+                // light_tex: data.lighting_dst.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Linear),
+            }, &params).unwrap();
+        }
+    }
+
+    pub fn draw_chunks_light(
+        &mut self,
+        chunks: &[((f32, f32), Arc<ChunkGraphicsData>)],
+        player_light_world_pos: (f32, f32),
+        smooth_lighting: bool,
+    ) {
+        profiling::scope!("RenderTarget::draw_chunks_light");
+
+        let model_view =
+            *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
+        let view: [[f32; 4]; 4] = model_view.into();
+
+        let shape = Rect::<f32>::new(0.0, 0.0, CHUNK_SIZE as f32, CHUNK_SIZE as f32)
+            .vertices()
+            .into_iter()
+            .zip([[0.0, 1.0], [1.0, 1.0], [1.0, 0.0], [0.0, 0.0]])
+            .map(Vertex2T::from)
+            .collect::<Vec<_>>();
+        let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
+        let indices = IndexBuffer::new(
+            &self.display,
+            glium::index::PrimitiveType::TriangleStrip,
+            &[1_u16, 2, 0, 3],
+        )
+        .unwrap();
+
+        let params = DrawParameters {
+            // blend: Blend::alpha_blending(),
+            // multiply
+            blend: Blend {
+                color: glium::BlendingFunction::Addition {
+                    source: glium::LinearBlendingFactor::DestinationColor,
+                    destination: glium::LinearBlendingFactor::Zero,
+                },
+                alpha: glium::BlendingFunction::Addition {
+                    source: glium::LinearBlendingFactor::SourceAlpha,
+                    destination: glium::LinearBlendingFactor::OneMinusSourceAlpha,
+                },
+                constant_value: (1.0, 1.0, 1.0, 1.0),
+            },
+            ..DrawParameters::default()
+        };
+
+        for (p, data) in chunks {
+            profiling::scope!("draw chunk lighting");
+            self.frame.draw(&vertex_buffer, &indices, &self.shaders.chunk_light, &uniform! {
+                matrix: view,
+                c_pos: *p,
+                smooth_lighting: smooth_lighting,
+                chunk_size: CHUNK_SIZE as i32,
+                player_light_world_pos: player_light_world_pos,
+                tex: data.lighting_dst.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Linear),
             }, &params).unwrap();
         }
     }

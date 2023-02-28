@@ -92,7 +92,7 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
                     PhysicsType::Sand,
                     &fs::read(file_helper.asset_path("texture/material/test.png")).unwrap(),
                 )
-                .lit(0.4),
+                .lit(0.5),
             ),
         },
     );
@@ -116,7 +116,7 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
                     &fs::read(file_helper.asset_path("texture/material/cobble_stone_128x.png"))
                         .unwrap(),
                 )
-                .lit(0.15),
+                .lit(0.2),
             ),
         },
     );

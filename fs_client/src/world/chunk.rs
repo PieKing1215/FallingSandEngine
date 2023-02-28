@@ -1,4 +1,6 @@
-use std::{borrow::Cow, collections::HashMap, convert::TryInto, hash::BuildHasherDefault};
+use std::{
+    borrow::Cow, collections::HashMap, convert::TryInto, hash::BuildHasherDefault, sync::Arc,
+};
 
 use fs_common::game::common::{
     world::{
@@ -11,7 +13,7 @@ use fs_common::game::common::{
 };
 use glium::{
     program::ComputeShader, texture::Texture2d, uniform, uniforms::ImageUnit, Blend, Display,
-    DrawParameters, PolygonMode, Program,
+    DrawParameters, PolygonMode,
 };
 
 use crate::render::{drawing::RenderTarget, shaders::ShaderFileHelper};
@@ -372,13 +374,12 @@ pub struct ChunkGraphicsData {
     pub lighting_dst: Texture2d,
     pub lighting_neighbors: Texture2d,
     pub lighting_constant_black: Texture2d,
-    pub lighting_shader: Program,
     pub lighting_compute_propagate: ComputeShader,
     pub lighting_compute_prep: ComputeShader,
 }
 
 pub struct ChunkGraphics {
-    pub data: Option<ChunkGraphicsData>,
+    pub data: Option<Arc<ChunkGraphicsData>>,
     pub pixel_data: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
     pub lighting_data: Box<[f32; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
     pub dirty: bool,
@@ -798,14 +799,6 @@ impl ChunkGraphics {
 
             let helper = ShaderFileHelper { file_helper, display: &target.display };
 
-            let lighting_shader = helper
-                .load_from_files(
-                    140,
-                    "data/shaders/chunk_lighting.vert",
-                    "data/shaders/chunk_lighting.frag",
-                )
-                .unwrap();
-
             let lighting_compute_propagate = helper
                 .load_compute_from_files("data/shaders/lighting_propagate.comp")
                 .unwrap();
@@ -814,17 +807,16 @@ impl ChunkGraphics {
                 .load_compute_from_files("data/shaders/lighting_prep.comp")
                 .unwrap();
 
-            self.data = Some(ChunkGraphicsData {
+            self.data = Some(Arc::new(ChunkGraphicsData {
                 display: target.display.clone(),
                 texture,
                 lighting_src,
                 lighting_dst,
                 lighting_neighbors,
                 lighting_constant_black,
-                lighting_shader,
                 lighting_compute_propagate,
                 lighting_compute_prep,
-            });
+            }));
             self.dirty = true;
         }
     }

@@ -51,6 +51,8 @@ impl DebugUI for Settings {
                     }
                 });
 
+            ui.checkbox(&mut self.smooth_lighting, "smooth_lighting");
+
             ui.checkbox(&mut self.cull_chunks, "cull_chunks");
 
             let opt = [
