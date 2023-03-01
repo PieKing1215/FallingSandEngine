@@ -23,7 +23,7 @@ pub struct ClientChunk {
     pub chunk_y: i32,
     pub state: ChunkState,
     pub pixels: Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
-    pub light: Option<Box<[f32; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
+    pub light: Option<Box<[[f32; 3]; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
     pub graphics: Box<ChunkGraphics>,
     pub dirty_rect: Option<Rect<i32>>,
     pub rigidbody: Option<RigidBodyState>,
@@ -43,7 +43,7 @@ impl Chunk for ClientChunk {
             graphics: Box::new(ChunkGraphics {
                 data: None,
                 pixel_data: Box::new([0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]),
-                lighting_data: Box::new([0.0; CHUNK_SIZE as usize * CHUNK_SIZE as usize]),
+                lighting_data: Box::new([[0.0; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]),
                 dirty: true,
                 was_dirty: true,
                 lighting_dirty: true,
@@ -207,7 +207,7 @@ impl Chunk for ClientChunk {
     }
 
     // #[profiling::function] // huge performance impact
-    fn set_light(&mut self, x: u16, y: u16, light: f32) -> Result<(), String> {
+    fn set_light(&mut self, x: u16, y: u16, light: [f32; 3]) -> Result<(), String> {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             if let Some(li) = &mut self.light {
                 let i = (x + y * CHUNK_SIZE) as usize;
@@ -226,7 +226,7 @@ impl Chunk for ClientChunk {
         Err("Invalid pixel coordinate.".to_string())
     }
 
-    unsafe fn set_light_unchecked(&mut self, x: u16, y: u16, light: f32) {
+    unsafe fn set_light_unchecked(&mut self, x: u16, y: u16, light: [f32; 3]) {
         let i = (x + y * CHUNK_SIZE) as usize;
         // Safety: input index assumed to be valid
         self.graphics.set_light(x, y, light).unwrap();
@@ -236,7 +236,7 @@ impl Chunk for ClientChunk {
     }
 
     // #[profiling::function] // huge performance impact
-    fn get_light(&self, x: u16, y: u16) -> Result<&f32, String> {
+    fn get_light(&self, x: u16, y: u16) -> Result<&[f32; 3], String> {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             if let Some(li) = &self.light {
                 let i = (x + y * CHUNK_SIZE) as usize;
@@ -250,7 +250,7 @@ impl Chunk for ClientChunk {
         Err("Invalid pixel coordinate.".to_string())
     }
 
-    unsafe fn get_light_unchecked(&self, x: u16, y: u16) -> &f32 {
+    unsafe fn get_light_unchecked(&self, x: u16, y: u16) -> &[f32; 3] {
         let i = (x + y * CHUNK_SIZE) as usize;
         // Safety: input index assumed to be valid
         unsafe { self.light.as_ref().unwrap().get_unchecked(i) }
@@ -281,7 +281,7 @@ impl Chunk for ClientChunk {
 
     fn set_pixels(&mut self, pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>) {
         self.pixels = Some(pixels);
-        self.light = Some(Box::new([0.0; (CHUNK_SIZE * CHUNK_SIZE) as usize]));
+        self.light = Some(Box::new([[0.0; 3]; (CHUNK_SIZE * CHUNK_SIZE) as usize]));
         self.refresh();
     }
 
@@ -358,11 +358,11 @@ impl Chunk for ClientChunk {
         self.rigidbody = body;
     }
 
-    fn get_lights_mut(&mut self) -> &mut [f32; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn get_lights_mut(&mut self) -> &mut [[f32; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         &mut self.graphics.lighting_data
     }
 
-    fn get_lights(&self) -> &[f32; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn get_lights(&self) -> &[[f32; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         &self.graphics.lighting_data
     }
 }
@@ -381,7 +381,7 @@ pub struct ChunkGraphicsData {
 pub struct ChunkGraphics {
     pub data: Option<Arc<ChunkGraphicsData>>,
     pub pixel_data: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
-    pub lighting_data: Box<[f32; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
+    pub lighting_data: Box<[[f32; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
     pub dirty: bool,
     pub was_dirty: bool,
     pub lighting_dirty: bool,
@@ -410,7 +410,7 @@ impl ChunkGraphics {
     }
 
     // #[profiling::function] // huge performance impact
-    pub fn set_light(&mut self, x: u16, y: u16, color: f32) -> Result<(), String> {
+    pub fn set_light(&mut self, x: u16, y: u16, color: [f32; 3]) -> Result<(), String> {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             // self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
             let i = (x + y * CHUNK_SIZE) as usize;
@@ -487,10 +487,16 @@ impl ChunkGraphics {
                 // }
 
                 let image = glium::texture::RawImage2d {
-                    data: Cow::Owned(self.lighting_data.to_vec()),
+                    data: Cow::Owned(
+                        self.lighting_data
+                            .iter()
+                            .copied()
+                            .flat_map(|l| [l[0], l[1], l[2], 1.0])
+                            .collect(),
+                    ),
                     width: CHUNK_SIZE.into(),
                     height: CHUNK_SIZE.into(),
-                    format: glium::texture::ClientFormat::F32,
+                    format: glium::texture::ClientFormat::F32F32F32F32,
                 };
 
                 {
@@ -507,7 +513,7 @@ impl ChunkGraphics {
                 }
 
                 fn r32f_read(tex: &Texture2d) -> ImageUnit<Texture2d> {
-                    tex.image_unit(glium::uniforms::ImageUnitFormat::R32F)
+                    tex.image_unit(glium::uniforms::ImageUnitFormat::RGBA32F)
                         .unwrap()
                         .set_access(glium::uniforms::ImageUnitAccess::Read)
                 }
@@ -520,12 +526,12 @@ impl ChunkGraphics {
                     .set_access(glium::uniforms::ImageUnitAccess::Read);
                 let t_dst = data
                     .lighting_dst
-                    .image_unit(glium::uniforms::ImageUnitFormat::R32F)
+                    .image_unit(glium::uniforms::ImageUnitFormat::RGBA32F)
                     .unwrap()
                     .set_access(glium::uniforms::ImageUnitAccess::Write);
                 let t_work = data
                     .lighting_neighbors
-                    .image_unit(glium::uniforms::ImageUnitFormat::R32F)
+                    .image_unit(glium::uniforms::ImageUnitFormat::RGBA32F)
                     .unwrap()
                     .set_access(glium::uniforms::ImageUnitAccess::ReadWrite);
 
@@ -575,7 +581,7 @@ impl ChunkGraphics {
 
                 let t_work = data
                     .lighting_neighbors
-                    .image_unit(glium::uniforms::ImageUnitFormat::R32F)
+                    .image_unit(glium::uniforms::ImageUnitFormat::RGBA32F)
                     .unwrap()
                     .set_access(glium::uniforms::ImageUnitAccess::ReadWrite);
 
@@ -760,7 +766,7 @@ impl ChunkGraphics {
 
             let lighting_src = Texture2d::empty_with_format(
                 &target.display,
-                glium::texture::UncompressedFloatFormat::F32,
+                glium::texture::UncompressedFloatFormat::F32F32F32F32,
                 glium::texture::MipmapsOption::NoMipmap,
                 CHUNK_SIZE.into(),
                 CHUNK_SIZE.into(),
@@ -769,7 +775,7 @@ impl ChunkGraphics {
 
             let lighting_dst = Texture2d::empty_with_format(
                 &target.display,
-                glium::texture::UncompressedFloatFormat::F32,
+                glium::texture::UncompressedFloatFormat::F32F32F32F32,
                 glium::texture::MipmapsOption::NoMipmap,
                 (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
                 (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
@@ -778,7 +784,7 @@ impl ChunkGraphics {
 
             let lighting_neighbors = Texture2d::empty_with_format(
                 &target.display,
-                glium::texture::UncompressedFloatFormat::F32,
+                glium::texture::UncompressedFloatFormat::F32F32F32F32,
                 glium::texture::MipmapsOption::NoMipmap,
                 (CHUNK_SIZE / (LIGHT_SCALE as u16) + 2).into(),
                 (CHUNK_SIZE / (LIGHT_SCALE as u16) + 2).into(),
@@ -787,7 +793,7 @@ impl ChunkGraphics {
 
             let lighting_constant_black = Texture2d::empty_with_format(
                 &target.display,
-                glium::texture::UncompressedFloatFormat::F32,
+                glium::texture::UncompressedFloatFormat::F32F32F32F32,
                 glium::texture::MipmapsOption::NoMipmap,
                 1,
                 1,

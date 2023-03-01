@@ -408,7 +408,7 @@ fn load_from_ase(
         let material_id: RegistryID<Material> = layer.name().into();
         let mut override_color = None;
         let mut phys_type = PhysicsType::Solid;
-        let mut light = 0.0;
+        let mut light = [0.0, 0.0, 0.0];
         if let Some(user) = layer.user_data() {
             let flags = user
                 .text
@@ -420,7 +420,12 @@ fn load_from_ase(
             }
 
             if flags.contains(&"lit") {
-                light = 1.0;
+                let c = user.color.unwrap();
+                light = [
+                    f32::from(c.0[0]) / f32::from(u8::MAX),
+                    f32::from(c.0[1]) / f32::from(u8::MAX),
+                    f32::from(c.0[2]) / f32::from(u8::MAX),
+                ];
             }
 
             if flags.contains(&"air") {

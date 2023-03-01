@@ -13,12 +13,12 @@ uniform sampler2D light_tex;
 void main() {
     vec2 coord = tex_c;
     if (!smooth_lighting) coord = floor(tex_c * chunk_size) / chunk_size;
-    float v = texture(tex, coord + vec2(0.5 / chunk_size)).r;
+    vec3 v = texture(tex, coord + vec2(0.5 / chunk_size)).rgb;
 
     float dst_to_player = distance(world_pos, player_light_world_pos);
     float d = 1.0/(dst_to_player / 5.0 + 1.0) + dst_to_player / 5.0;
     float player_light = 1.0 / (d + 1.0);
-    v += player_light;
+    v += vec3(player_light);
 
     color = vec4(vec3(v), 1.0);
 }

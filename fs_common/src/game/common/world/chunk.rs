@@ -62,8 +62,8 @@ pub trait Chunk {
     );
     fn get_colors_mut(&mut self) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
     fn get_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
-    fn get_lights_mut(&mut self) -> &mut [f32; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
-    fn get_lights(&self) -> &[f32; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
+    fn get_lights_mut(&mut self) -> &mut [[f32; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
+    fn get_lights(&self) -> &[[f32; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
 
     fn generate_mesh(&mut self) -> Result<(), String>;
     // fn get_tris(&self) -> &Option<Vec<Vec<((f64, f64), (f64, f64), (f64, f64))>>>;
@@ -97,15 +97,15 @@ pub trait Chunk {
         Self: Sized,
         F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>;
 
-    fn set_light(&mut self, x: u16, y: u16, light: f32) -> Result<(), String>;
+    fn set_light(&mut self, x: u16, y: u16, light: [f32; 3]) -> Result<(), String>;
     /// # Safety
     /// x and y must be in `0..CHUNK_SIZE`
-    unsafe fn set_light_unchecked(&mut self, x: u16, y: u16, light: f32);
+    unsafe fn set_light_unchecked(&mut self, x: u16, y: u16, light: [f32; 3]);
 
-    fn get_light(&self, x: u16, y: u16) -> Result<&f32, String>;
+    fn get_light(&self, x: u16, y: u16) -> Result<&[f32; 3], String>;
     /// # Safety
     /// x and y must be in `0..CHUNK_SIZE`
-    unsafe fn get_light_unchecked(&self, x: u16, y: u16) -> &f32;
+    unsafe fn get_light_unchecked(&self, x: u16, y: u16) -> &[f32; 3];
 
     fn set_color(&mut self, x: u16, y: u16, color: Color) -> Result<(), String>;
     fn get_color(&self, x: u16, y: u16) -> Result<Color, String>;
@@ -748,6 +748,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                     if let Some(chunks) = chunks {
                                         // check chunks for valid state
                                         for c in &chunks {
+                                            // TODO: this can fail
                                             assert!(
                                                 !c.get_pixels().is_none(),
                                                 "Chunk get_pixels was None but had state {:?}",
@@ -940,7 +941,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                 .map(|(x, y)| {
                                     let chunk = self.loaded_chunks.get_mut(&chunk_index(ch_pos.0 + x, ch_pos.1 + y));
                                     chunk.map(|c| {
-                                        let raw: *mut [f32; CHUNK_SIZE as usize * CHUNK_SIZE as usize] = c.get_lights_mut();
+                                        let raw: *mut [[f32; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] = c.get_lights_mut();
                                         // blatantly bypassing the borrow checker, see safety comment above
                                         unsafe { &mut *raw }
                                     })

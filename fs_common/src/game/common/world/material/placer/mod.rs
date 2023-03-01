@@ -1,4 +1,5 @@
 pub mod lit;
+pub mod lit_colored;
 pub mod textured;
 
 use std::fs;
@@ -10,7 +11,7 @@ use crate::game::common::{
     FileHelper,
 };
 
-use self::{lit::LitExt, textured::TexturedPlacer};
+use self::{lit::LitExt, lit_colored::LitColoredExt, textured::TexturedPlacer};
 
 use super::{color::Color, MaterialInstance, PhysicsType};
 
@@ -92,7 +93,7 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
                     PhysicsType::Sand,
                     &fs::read(file_helper.asset_path("texture/material/test.png")).unwrap(),
                 )
-                .lit(0.5),
+                .lit_colored(0.5),
             ),
         },
     );
@@ -116,7 +117,7 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
                     &fs::read(file_helper.asset_path("texture/material/cobble_stone_128x.png"))
                         .unwrap(),
                 )
-                .lit(0.2),
+                .lit([0.1; 3]),
             ),
         },
     );

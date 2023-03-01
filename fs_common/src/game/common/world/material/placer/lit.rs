@@ -4,11 +4,11 @@ use super::MaterialPlacerSampler;
 
 pub struct LitPlacer<T> {
     base: T,
-    light: f32,
+    light: [f32; 3],
 }
 
 impl<T> LitPlacer<T> {
-    pub fn new(base: T, light: f32) -> Self {
+    pub fn new(base: T, light: [f32; 3]) -> Self {
         Self { base, light }
     }
 }
@@ -22,13 +22,13 @@ impl<T: MaterialPlacerSampler> MaterialPlacerSampler for LitPlacer<T> {
 }
 
 pub trait LitExt {
-    fn lit(self, light: f32) -> LitPlacer<Self>
+    fn lit(self, light: [f32; 3]) -> LitPlacer<Self>
     where
         Self: Sized;
 }
 
 impl<T: MaterialPlacerSampler> LitExt for T {
-    fn lit(self, light: f32) -> LitPlacer<Self>
+    fn lit(self, light: [f32; 3]) -> LitPlacer<Self>
     where
         Self: Sized,
     {

@@ -28,7 +28,7 @@ pub struct MaterialInstance {
     pub material_id: RegistryID<Material>,
     pub physics: PhysicsType,
     pub color: Color,
-    pub light: f32,
+    pub light: [f32; 3],
 }
 
 impl MaterialInstance {
@@ -38,7 +38,7 @@ impl MaterialInstance {
     }
 
     #[must_use]
-    pub fn with_light(self, light: f32) -> Self {
+    pub fn with_light(self, light: [f32; 3]) -> Self {
         Self { light, ..self }
     }
 }
@@ -56,7 +56,7 @@ impl RegistryID<Material> {
             material_id: self.clone(),
             physics,
             color,
-            light: 0.0,
+            light: [0.0; 3],
         }
     }
 }

@@ -23,15 +23,15 @@ trait SimulationHelper {
     fn set_pixel_local(&mut self, x: i32, y: i32, mat: MaterialInstance);
     fn get_color_local(&self, x: i32, y: i32) -> Color;
     fn set_color_local(&mut self, x: i32, y: i32, col: Color);
-    fn get_light_local(&self, x: i32, y: i32) -> f32;
-    fn set_light_local(&mut self, x: i32, y: i32, light: f32);
+    fn get_light_local(&self, x: i32, y: i32) -> [f32; 3];
+    fn set_light_local(&mut self, x: i32, y: i32, light: [f32; 3]);
     fn add_particle(&mut self, material: MaterialInstance, pos: Position, vel: Velocity);
 }
 
 struct SimulationHelperChunk<'a> {
     pixels: [&'a mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]; 9],
     colors: [&'a mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]; 9],
-    lights: [&'a mut [f32; CHUNK_SIZE as usize * CHUNK_SIZE as usize]; 9],
+    lights: [&'a mut [[f32; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]; 9],
     dirty: &'a mut [bool; 9],
     dirty_rects: &'a mut [Option<Rect<i32>>; 9],
     min_x: [u16; 9],
@@ -165,22 +165,25 @@ impl SimulationHelperChunk<'_> {
     }
 
     #[inline]
-    fn get_light_from_index(&self, (ch, px, ..): (usize, usize, u16, u16)) -> f32 {
+    fn get_light_from_index(&self, (ch, px, ..): (usize, usize, u16, u16)) -> [f32; 3] {
         self.lights[ch][px]
     }
 
     #[inline]
-    unsafe fn set_light_local_unchecked(&mut self, x: i32, y: i32, light: f32) {
+    unsafe fn set_light_local_unchecked(&mut self, x: i32, y: i32, light: [f32; 3]) {
         self.set_light_from_index_unchecked(Self::local_to_indices(x, y), light);
     }
 
     #[inline]
-    unsafe fn get_light_from_index_unchecked(&self, (ch, px, ..): (usize, usize, u16, u16)) -> f32 {
+    unsafe fn get_light_from_index_unchecked(
+        &self,
+        (ch, px, ..): (usize, usize, u16, u16),
+    ) -> [f32; 3] {
         *self.lights.get_unchecked(ch).get_unchecked(px)
     }
 
     #[inline]
-    fn set_light_from_index(&mut self, (ch, px, ..): (usize, usize, u16, u16), light: f32) {
+    fn set_light_from_index(&mut self, (ch, px, ..): (usize, usize, u16, u16), light: [f32; 3]) {
         self.lights[ch][px] = light;
     }
 
@@ -188,7 +191,7 @@ impl SimulationHelperChunk<'_> {
     unsafe fn set_light_from_index_unchecked(
         &mut self,
         (ch, px, ..): (usize, usize, u16, u16),
-        light: f32,
+        light: [f32; 3],
     ) {
         *self.lights.get_unchecked_mut(ch).get_unchecked_mut(px) = light;
     }
@@ -260,11 +263,11 @@ impl SimulationHelper for SimulationHelperChunk<'_> {
         ));
     }
 
-    fn get_light_local(&self, x: i32, y: i32) -> f32 {
+    fn get_light_local(&self, x: i32, y: i32) -> [f32; 3] {
         self.get_light_from_index(Self::local_to_indices(x, y))
     }
 
-    fn set_light_local(&mut self, x: i32, y: i32, light: f32) {
+    fn set_light_local(&mut self, x: i32, y: i32, light: [f32; 3]) {
         self.set_light_from_index(Self::local_to_indices(x, y), light);
     }
 }
@@ -373,12 +376,12 @@ impl<C: Chunk + Send> SimulationHelper for SimulationHelperRigidBody<'_, C> {
         self.particles.push(Particle::new(material, pos, vel));
     }
 
-    fn get_light_local(&self, _x: i32, _y: i32) -> f32 {
+    fn get_light_local(&self, _x: i32, _y: i32) -> [f32; 3] {
         // TODO
-        0.0
+        [0.0; 3]
     }
 
-    fn set_light_local(&mut self, _x: i32, _y: i32, _light: f32) {
+    fn set_light_local(&mut self, _x: i32, _y: i32, _light: [f32; 3]) {
         // TODO
     }
 }
@@ -391,7 +394,7 @@ impl Simulator {
         chunk_y: i32,
         pixels: [&mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]; 9],
         colors: [&mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]; 9],
-        lights: [&mut [f32; CHUNK_SIZE as usize * CHUNK_SIZE as usize]; 9],
+        lights: [&mut [[f32; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]; 9],
         dirty: &mut [bool; 9],
         dirty_rects: &mut [Option<Rect<i32>>; 9],
         particles: &mut Vec<Particle>,

@@ -9,12 +9,16 @@ uniform int light_scale;
 uniform layout(binding=0, rgba8) readonly image2D t_px;
 
 // LIGHT_SIZE x LIGHT_SIZE
-uniform layout(binding=6, r32f) writeonly image2D t_dst;
+uniform layout(binding=6, rgba32f) writeonly image2D t_dst;
 
 // (LIGHT_SIZE + 2) x (LIGHT_SIZE + 2)
-uniform layout(binding=7, r32f) image2D t_work;
+uniform layout(binding=7, rgba32f) image2D t_work;
 
 void prep();
+
+vec3 max3(vec3 a, vec3 b) {
+    return vec3(max(a.r, b.r), max(a.g, b.g), max(a.b, b.b));
+}
 
 void main() {
     ivec2 pos_light = ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y);
@@ -34,30 +38,32 @@ void main() {
         
     float damp_factor = full_solid ? 0.75 : 1.0;
 
-    float f = 0.0;
+    vec3 f = vec3(0.0);
     for (int iter = 0; iter < 25; iter++) {
         // memoryBarrier();
         barrier();
 
-        f = imageLoad(t_work, pos_work).r;
-        if (f < 0.1) f = 0.0;
-        f = max(f, 0.95 * damp_factor * imageLoad(t_work, pos_work + ivec2(1, 0)).r);
-        f = max(f, 0.925 * damp_factor * imageLoad(t_work, pos_work + ivec2(1, 1)).r);
-        f = max(f, 0.95 * damp_factor * imageLoad(t_work, pos_work + ivec2(-1, 0)).r);
-        f = max(f, 0.925 * damp_factor * imageLoad(t_work, pos_work + ivec2(-1, 1)).r);
-        f = max(f, 0.95 * damp_factor * imageLoad(t_work, pos_work + ivec2(0, 1)).r);
-        f = max(f, 0.925 * damp_factor * imageLoad(t_work, pos_work + ivec2(1, -1)).r);
-        f = max(f, 0.95 * damp_factor * imageLoad(t_work, pos_work + ivec2(0, -1)).r);
-        f = max(f, 0.925 * damp_factor * imageLoad(t_work, pos_work + ivec2(-1, -1)).r);
+        f = imageLoad(t_work, pos_work).rgb;
+        if (f.r < 0.1) f.r = 0.0;
+        if (f.g < 0.1) f.g = 0.0;
+        if (f.b < 0.1) f.b = 0.0;
+        f = max3(f, 0.95 * damp_factor * imageLoad(t_work, pos_work + ivec2(1, 0)).rgb);
+        f = max3(f, 0.925 * damp_factor * imageLoad(t_work, pos_work + ivec2(1, 1)).rgb);
+        f = max3(f, 0.95 * damp_factor * imageLoad(t_work, pos_work + ivec2(-1, 0)).rgb);
+        f = max3(f, 0.925 * damp_factor * imageLoad(t_work, pos_work + ivec2(-1, 1)).rgb);
+        f = max3(f, 0.95 * damp_factor * imageLoad(t_work, pos_work + ivec2(0, 1)).rgb);
+        f = max3(f, 0.925 * damp_factor * imageLoad(t_work, pos_work + ivec2(1, -1)).rgb);
+        f = max3(f, 0.95 * damp_factor * imageLoad(t_work, pos_work + ivec2(0, -1)).rgb);
+        f = max3(f, 0.925 * damp_factor * imageLoad(t_work, pos_work + ivec2(-1, -1)).rgb);
 
         // memoryBarrier();
         barrier();
-        imageStore(t_work, pos_work, vec4(f, vec3(1.0)));
+        imageStore(t_work, pos_work, vec4(f, 1.0));
     }
 
     // memoryBarrier();
     barrier();
-    imageStore(t_dst, pos_light, vec4(f, vec3(1.0)));
+    imageStore(t_dst, pos_light, vec4(f, 1.0));
 
     // imageStore(t_dst, pos_light, vec4(full_solid ? 1.0 : 0.0, vec3(1.0)));
 }
