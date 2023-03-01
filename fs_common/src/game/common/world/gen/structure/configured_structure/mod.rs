@@ -4,6 +4,8 @@ use crate::game::common::{registry::Registry, FileHelper};
 
 use self::jigsaw_structure::ConfiguredJigsawFeature;
 
+use super::Direction;
+
 pub mod jigsaw_structure;
 
 pub trait StructureType {}
@@ -46,6 +48,7 @@ pub fn init_configured_structures(_file_helper: &FileHelper) -> ConfiguredStruct
             start_pool: "rooms".into(),
             depth: 8,
             max_distance: 400,
+            override_dir: None,
         }),
     );
 
@@ -55,6 +58,17 @@ pub fn init_configured_structures(_file_helper: &FileHelper) -> ConfiguredStruct
             start_pool: "yellow_thing".into(),
             depth: 0,
             max_distance: 100,
+            override_dir: None,
+        }),
+    );
+
+    registry.register(
+        "torch",
+        ConfiguredStructure::new(ConfiguredJigsawFeature {
+            start_pool: "torch".into(),
+            depth: 0,
+            max_distance: 100,
+            override_dir: Some(Direction::Up),
         }),
     );
 

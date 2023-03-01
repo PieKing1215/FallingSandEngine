@@ -8,7 +8,9 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 use crate::game::common::{
     registry::RegistryID,
     world::{
-        gen::structure::{piece::StructureNodeConfig, pool::StructurePool, StructureNode},
+        gen::structure::{
+            piece::StructureNodeConfig, pool::StructurePool, Direction, StructureNode,
+        },
         Position,
     },
 };
@@ -25,6 +27,7 @@ pub struct ConfiguredJigsawFeature {
     pub depth: u8,
     // TODO: implement
     pub max_distance: u16,
+    pub override_dir: Option<Direction>,
 }
 
 impl ConfiguredStructurePlacer for ConfiguredJigsawFeature {
@@ -42,6 +45,7 @@ impl ConfiguredStructurePlacer for ConfiguredJigsawFeature {
             self.max_distance,
             rng.gen(),
             StructureNodeConfig::new(self.start_pool.clone()),
+            self.override_dir,
         );
     }
 }

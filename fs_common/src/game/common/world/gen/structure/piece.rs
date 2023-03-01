@@ -327,6 +327,34 @@ pub fn init_structure_pieces(file_helper: &FileHelper) -> StructurePieceRegistry
         ),
     );
 
+    let ase =
+        AsepriteFile::read_file(&file_helper.asset_path("data/structure/piece/torch/torch.ase"))
+            .unwrap();
+    registry.register(
+        "torch",
+        load_from_ase(
+            &ase,
+            vec![(
+                StructureNodeLocalPlacement { x: 1, y: 10, direction_out: Direction::Down },
+                StructureNodeConfig::new("empty"),
+            )],
+        ),
+    );
+
+    let ase =
+        AsepriteFile::read_file(&file_helper.asset_path("data/structure/piece/torch/torch2.ase"))
+            .unwrap();
+    registry.register(
+        "torch2",
+        load_from_ase(
+            &ase,
+            vec![(
+                StructureNodeLocalPlacement { x: 1, y: 10, direction_out: Direction::Down },
+                StructureNodeConfig::new("empty"),
+            )],
+        ),
+    );
+
     registry
 }
 
@@ -419,7 +447,15 @@ fn load_from_ase(
                 override_color = user.color;
             }
 
-            if flags.contains(&"lit") {
+            if let Some(l) = flags.iter().find(|f| f.starts_with("lit=")) {
+                let strength: f32 = l.trim_start_matches("lit=").parse().unwrap();
+                let c = user.color.unwrap();
+                light = [
+                    f32::from(c.0[0]) / f32::from(u8::MAX) * strength,
+                    f32::from(c.0[1]) / f32::from(u8::MAX) * strength,
+                    f32::from(c.0[2]) / f32::from(u8::MAX) * strength,
+                ];
+            } else if flags.contains(&"lit") {
                 let c = user.color.unwrap();
                 light = [
                     f32::from(c.0[0]) / f32::from(u8::MAX),

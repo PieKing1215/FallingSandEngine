@@ -1,0 +1,8 @@
+StructurePool (
+    pool: [
+        "torch",
+        "torch",
+        "torch",
+        "torch2",
+    ]
+)

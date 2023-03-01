@@ -20,6 +20,10 @@ void main() {
     float d = 1.0/(dst_to_player / 5.0 + 1.0) + dst_to_player / 5.0;
     float player_light = 1.0 / (d + 1.0);
     v += player_light * vec3(1.0, 0.9, 0.8);
+    
+    if (v.r > 1.0) v = v / v.r;
+    if (v.g > 1.0) v = v / v.g;
+    if (v.b > 1.0) v = v / v.b;
 
     color = vec4(vec3(v), 1.0);
 }

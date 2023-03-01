@@ -192,6 +192,7 @@ impl StructureNode {
         max_distance: u16,
         seed: i32,
         config: StructureNodeConfig,
+        override_dir: Option<Direction>,
     ) -> Entity {
         let mut rng = StdRng::seed_from_u64(seed as u64);
         let player = ecs
@@ -202,7 +203,7 @@ impl StructureNode {
                 generated: None,
                 depth,
                 max_distance,
-                direction: rng.gen(),
+                direction: override_dir.unwrap_or_else(|| rng.gen()),
                 rng: Box::new(rng),
                 config,
             })

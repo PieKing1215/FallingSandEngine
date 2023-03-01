@@ -27,6 +27,14 @@ impl RandomOffset {
             y: 0..i32::from(CHUNK_SIZE),
         }
     }
+
+    pub fn chunk_x() -> Self {
+        Self { x: 0..i32::from(CHUNK_SIZE), y: 0..1 }
+    }
+
+    pub fn chunk_y() -> Self {
+        Self { x: 0..1, y: 0..i32::from(CHUNK_SIZE) }
+    }
 }
 
 impl PlacementModifier for RandomOffset {

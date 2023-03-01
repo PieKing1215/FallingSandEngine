@@ -110,15 +110,12 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
         COBBLE_STONE.clone(),
         MaterialPlacer {
             meta: MaterialPlacerMeta { display_name: "Cobblestone".to_string() },
-            sampler: Box::new(
-                TexturedPlacer::new(
-                    super::COBBLE_STONE.clone(),
-                    PhysicsType::Solid,
-                    &fs::read(file_helper.asset_path("texture/material/cobble_stone_128x.png"))
-                        .unwrap(),
-                )
-                .lit([0.1; 3]),
-            ),
+            sampler: Box::new(TexturedPlacer::new(
+                super::COBBLE_STONE.clone(),
+                PhysicsType::Solid,
+                &fs::read(file_helper.asset_path("texture/material/cobble_stone_128x.png"))
+                    .unwrap(),
+            )),
         },
     );
 

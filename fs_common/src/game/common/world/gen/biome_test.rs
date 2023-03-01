@@ -21,7 +21,8 @@ use super::{
         },
         placement_mods::{
             biome::BiomeMatch, chance::Chance, count::Count, material_match::MaterialMatch,
-            random_offset::RandomOffset,
+            material_match_range::MaterialMatchRange, on_ground::OnGround,
+            random_offset::RandomOffset, spread::Spread,
         },
         PlacedFeature,
     },
@@ -167,6 +168,21 @@ impl BiomeTestGenerator {
                 .placement(RandomOffset::chunk())
                 .placement(MaterialMatch::physics(PhysicsType::Solid))
                 .placement(BiomeMatch::only("yellow")),
+            PlacedFeature::new(ConfiguredStructureFeature::new("torch".into()))
+                .placement(Chance(0.5))
+                .placement(Spread {
+                    count: 3,
+                    min_dist: 10.0,
+                    x: 2..i32::from(CHUNK_SIZE) - 2,
+                    y: 0..1,
+                })
+                .placement(RandomOffset::chunk_y())
+                .placement(OnGround { max_distance: Some(u32::from(CHUNK_SIZE / 2)) })
+                .placement(MaterialMatchRange {
+                    matcher: MaterialMatch::physics(PhysicsType::Air),
+                    x: 0..1,
+                    y: -10..0,
+                }),
             PlacedFeature::new(TestStructure),
         ];
 
