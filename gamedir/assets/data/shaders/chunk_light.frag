@@ -13,12 +13,13 @@ uniform sampler2D light_tex;
 void main() {
     vec2 coord = tex_c;
     if (!smooth_lighting) coord = floor(tex_c * chunk_size) / chunk_size;
+    // could use bicubic (ie. https://stackoverflow.com/a/42179924) but not very noticeable
     vec3 v = texture(tex, coord + vec2(0.5 / chunk_size)).rgb;
 
     float dst_to_player = distance(world_pos, player_light_world_pos);
     float d = 1.0/(dst_to_player / 5.0 + 1.0) + dst_to_player / 5.0;
     float player_light = 1.0 / (d + 1.0);
-    v += vec3(player_light);
+    v += player_light * vec3(1.0, 0.9, 0.8);
 
     color = vec4(vec3(v), 1.0);
 }

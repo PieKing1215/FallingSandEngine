@@ -648,11 +648,15 @@ impl WorldRenderer {
             target.draw_particles(&particle_system.active, partial_ticks as f32);
         }
 
-        target.draw_chunks_light(
-            &chunk_tex_data,
-            (camera_pos.x as f32, camera_pos.y as f32),
-            settings.smooth_lighting,
-        );
+        if settings.draw_lighting {
+            target.draw_chunks_light(
+                &chunk_tex_data,
+                (camera_pos.x as f32, camera_pos.y as f32),
+                settings.lighting_smooth,
+                settings.lighting_overlay,
+                settings.lighting_linear_blend,
+            );
+        }
 
         {
             profiling::scope!("ecs debug");

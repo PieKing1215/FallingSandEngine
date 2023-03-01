@@ -51,7 +51,10 @@ impl DebugUI for Settings {
                     }
                 });
 
-            ui.checkbox(&mut self.smooth_lighting, "smooth_lighting");
+            ui.checkbox(&mut self.draw_lighting, "draw_lighting");
+            ui.checkbox(&mut self.lighting_smooth, "lighting_smooth");
+            ui.checkbox(&mut self.lighting_overlay, "lighting_overlay");
+            ui.checkbox(&mut self.lighting_linear_blend, "lighting_linear_blend");
 
             ui.checkbox(&mut self.cull_chunks, "cull_chunks");
 

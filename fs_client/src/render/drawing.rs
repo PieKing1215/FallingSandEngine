@@ -630,6 +630,8 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
         chunks: &[((f32, f32), Arc<ChunkGraphicsData>)],
         player_light_world_pos: (f32, f32),
         smooth_lighting: bool,
+        lighting_overlay: bool,
+        lighting_linear_blend: bool,
     ) {
         profiling::scope!("RenderTarget::draw_chunks_light");
 
@@ -652,18 +654,21 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
         .unwrap();
 
         let params = DrawParameters {
-            // blend: Blend::alpha_blending(),
-            // multiply
-            blend: Blend {
-                color: glium::BlendingFunction::Addition {
-                    source: glium::LinearBlendingFactor::DestinationColor,
-                    destination: glium::LinearBlendingFactor::Zero,
-                },
-                alpha: glium::BlendingFunction::Addition {
-                    source: glium::LinearBlendingFactor::SourceAlpha,
-                    destination: glium::LinearBlendingFactor::OneMinusSourceAlpha,
-                },
-                constant_value: (1.0, 1.0, 1.0, 1.0),
+            blend: if lighting_overlay {
+                Blend::alpha_blending()
+            } else {
+                // multiply
+                Blend {
+                    color: glium::BlendingFunction::Addition {
+                        source: glium::LinearBlendingFactor::DestinationColor,
+                        destination: glium::LinearBlendingFactor::Zero,
+                    },
+                    alpha: glium::BlendingFunction::Addition {
+                        source: glium::LinearBlendingFactor::SourceAlpha,
+                        destination: glium::LinearBlendingFactor::OneMinusSourceAlpha,
+                    },
+                    constant_value: (1.0, 1.0, 1.0, 1.0),
+                }
             },
             ..DrawParameters::default()
         };
@@ -676,7 +681,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
                 smooth_lighting: smooth_lighting,
                 chunk_size: CHUNK_SIZE as i32,
                 player_light_world_pos: player_light_world_pos,
-                tex: data.lighting_dst.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Linear),
+                tex: data.lighting_dst.sampled().magnify_filter(if lighting_linear_blend { glium::uniforms::MagnifySamplerFilter::Linear } else { glium::uniforms::MagnifySamplerFilter::Nearest }),
             }, &params).unwrap();
         }
     }
