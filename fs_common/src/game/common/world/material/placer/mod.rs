@@ -11,7 +11,7 @@ use crate::game::common::{
     FileHelper,
 };
 
-use self::{lit::LitExt, lit_colored::LitColoredExt, textured::TexturedPlacer};
+use self::{lit_colored::LitColoredExt, textured::TexturedPlacer};
 
 use super::{color::Color, MaterialInstance, PhysicsType};
 

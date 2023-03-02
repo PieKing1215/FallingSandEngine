@@ -757,46 +757,74 @@ impl ChunkGraphics {
             );
             let texture = Texture2d::new(&target.display, image).unwrap();
 
-            // let lighting_src_img = glium::texture::RawImage2d {
-            //     data: Cow::Owned(self.lighting_data.to_vec()),
-            //     width: (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
-            //     height: (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
-            //     format: glium::texture::ClientFormat::F32,
-            // };
+            let default_src = glium::texture::RawImage2d {
+                data: Cow::Owned(vec![0.0; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]),
+                width: CHUNK_SIZE.into(),
+                height: CHUNK_SIZE.into(),
+                format: glium::texture::ClientFormat::F32F32F32F32,
+            };
 
-            let lighting_src = Texture2d::empty_with_format(
+            let lighting_src = Texture2d::with_format(
                 &target.display,
+                default_src,
                 glium::texture::UncompressedFloatFormat::F32F32F32F32,
                 glium::texture::MipmapsOption::NoMipmap,
-                CHUNK_SIZE.into(),
-                CHUNK_SIZE.into(),
             )
             .unwrap();
 
-            let lighting_dst = Texture2d::empty_with_format(
+            let default_dst = glium::texture::RawImage2d {
+                data: Cow::Owned(vec![
+                    0.0;
+                    ((CHUNK_SIZE / (LIGHT_SCALE as u16)) * (CHUNK_SIZE / (LIGHT_SCALE as u16)))
+                        as usize
+                        * 4
+                ]),
+                width: (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
+                height: (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
+                format: glium::texture::ClientFormat::F32F32F32F32,
+            };
+
+            let lighting_dst = Texture2d::with_format(
                 &target.display,
+                default_dst,
                 glium::texture::UncompressedFloatFormat::F32F32F32F32,
                 glium::texture::MipmapsOption::NoMipmap,
-                (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
-                (CHUNK_SIZE / (LIGHT_SCALE as u16)).into(),
             )
             .unwrap();
 
-            let lighting_neighbors = Texture2d::empty_with_format(
+            let default_neighbors = glium::texture::RawImage2d {
+                data: Cow::Owned(vec![
+                    0.0;
+                    ((CHUNK_SIZE / (LIGHT_SCALE as u16) + 2)
+                        * (CHUNK_SIZE / (LIGHT_SCALE as u16) + 2))
+                        as usize
+                        * 4
+                ]),
+                width: (CHUNK_SIZE / (LIGHT_SCALE as u16) + 2).into(),
+                height: (CHUNK_SIZE / (LIGHT_SCALE as u16) + 2).into(),
+                format: glium::texture::ClientFormat::F32F32F32F32,
+            };
+
+            let lighting_neighbors = Texture2d::with_format(
                 &target.display,
+                default_neighbors,
                 glium::texture::UncompressedFloatFormat::F32F32F32F32,
                 glium::texture::MipmapsOption::NoMipmap,
-                (CHUNK_SIZE / (LIGHT_SCALE as u16) + 2).into(),
-                (CHUNK_SIZE / (LIGHT_SCALE as u16) + 2).into(),
             )
             .unwrap();
 
-            let lighting_constant_black = Texture2d::empty_with_format(
+            let constant_black = glium::texture::RawImage2d {
+                data: Cow::Owned(vec![0.0, 0.0, 0.0, 1.0]),
+                width: 1,
+                height: 1,
+                format: glium::texture::ClientFormat::F32F32F32F32,
+            };
+
+            let lighting_constant_black = Texture2d::with_format(
                 &target.display,
+                constant_black,
                 glium::texture::UncompressedFloatFormat::F32F32F32F32,
                 glium::texture::MipmapsOption::NoMipmap,
-                1,
-                1,
             )
             .unwrap();
 
