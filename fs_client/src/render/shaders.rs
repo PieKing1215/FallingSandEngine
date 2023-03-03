@@ -14,6 +14,8 @@ pub struct Shaders {
     pub particle: glium::Program,
     pub chunk: glium::Program,
     pub chunk_light: glium::Program,
+    pub lighting_compute_propagate: ComputeShader,
+    pub lighting_compute_prep: ComputeShader,
 }
 
 impl Shaders {
@@ -62,6 +64,12 @@ impl Shaders {
                     "data/shaders/chunk.vert",
                     "data/shaders/chunk_light.frag",
                 )
+                .unwrap(),
+            lighting_compute_propagate: helper
+                .load_compute_from_files("data/shaders/lighting_propagate.comp")
+                .unwrap(),
+            lighting_compute_prep: helper
+                .load_compute_from_files("data/shaders/lighting_prep.comp")
                 .unwrap(),
         }
     }

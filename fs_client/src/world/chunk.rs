@@ -12,11 +12,10 @@ use fs_common::game::common::{
     FileHelper, Rect, Settings,
 };
 use glium::{
-    program::ComputeShader, texture::Texture2d, uniform, uniforms::ImageUnit, Blend, Display,
-    DrawParameters, PolygonMode,
+    texture::Texture2d, uniform, uniforms::ImageUnit, Blend, Display, DrawParameters, PolygonMode,
 };
 
-use crate::render::{drawing::RenderTarget, shaders::ShaderFileHelper};
+use crate::render::{drawing::RenderTarget, shaders::Shaders};
 
 pub struct ClientChunk {
     pub chunk_x: i32,
@@ -99,31 +98,7 @@ impl Chunk for ClientChunk {
                     .unwrap();
             }
         }
-        self.update_graphics(None).unwrap();
-    }
-
-    // #[profiling::function]
-    fn update_graphics(
-        &mut self,
-        other_loaded_chunks: Option<&HashMap<u32, Self, BuildHasherDefault<PassThroughHasherU32>>>,
-    ) -> Result<(), String> {
-        self.graphics.was_dirty = self.graphics.dirty;
-
-        self.graphics.update_texture();
-        self.graphics.update_lighting(other_loaded_chunks.map(|ch| {
-            [
-                ch.get(&chunk_index(self.chunk_x - 1, self.chunk_y - 1)),
-                ch.get(&chunk_index(self.chunk_x, self.chunk_y - 1)),
-                ch.get(&chunk_index(self.chunk_x + 1, self.chunk_y - 1)),
-                ch.get(&chunk_index(self.chunk_x - 1, self.chunk_y)),
-                ch.get(&chunk_index(self.chunk_x + 1, self.chunk_y)),
-                ch.get(&chunk_index(self.chunk_x - 1, self.chunk_y + 1)),
-                ch.get(&chunk_index(self.chunk_x, self.chunk_y + 1)),
-                ch.get(&chunk_index(self.chunk_x + 1, self.chunk_y + 1)),
-            ]
-        }));
-
-        Ok(())
+        // self.update_graphics(None).unwrap();
     }
 
     // #[profiling::function] // huge performance impact
@@ -374,8 +349,6 @@ pub struct ChunkGraphicsData {
     pub lighting_dst: Texture2d,
     pub lighting_neighbors: Texture2d,
     pub lighting_constant_black: Texture2d,
-    pub lighting_compute_propagate: ComputeShader,
-    pub lighting_compute_prep: ComputeShader,
 }
 
 pub struct ChunkGraphics {
@@ -464,7 +437,11 @@ impl ChunkGraphics {
     }
 
     #[profiling::function]
-    pub fn update_lighting(&mut self, neighbors: Option<[Option<&ClientChunk>; 8]>) {
+    pub fn update_lighting(
+        &mut self,
+        neighbors: Option<[Option<&ClientChunk>; 8]>,
+        shaders: &Shaders,
+    ) {
         if self.lighting_dirty
             || (neighbors.map_or(false, |n| {
                 n.iter()
@@ -576,7 +553,7 @@ impl ChunkGraphics {
 
                 {
                     profiling::scope!("prep");
-                    data.lighting_compute_prep.execute(uni, 1, 1, 1);
+                    shaders.lighting_compute_prep.execute(uni, 1, 1, 1);
                 }
 
                 let t_work = data
@@ -594,7 +571,7 @@ impl ChunkGraphics {
 
                 {
                     profiling::scope!("propagate");
-                    data.lighting_compute_propagate.execute(uni, 1, 1, 1);
+                    shaders.lighting_compute_propagate.execute(uni, 1, 1, 1);
                 }
             }
             self.lighting_dirty = false;
@@ -615,6 +592,34 @@ impl ChunkGraphics {
 }
 
 impl ClientChunk {
+    // #[profiling::function]
+    fn update_graphics(
+        &mut self,
+        other_loaded_chunks: Option<&HashMap<u32, Self, BuildHasherDefault<PassThroughHasherU32>>>,
+        shaders: &Shaders,
+    ) -> Result<(), String> {
+        self.graphics.was_dirty = self.graphics.dirty;
+
+        self.graphics.update_texture();
+        self.graphics.update_lighting(
+            other_loaded_chunks.map(|ch| {
+                [
+                    ch.get(&chunk_index(self.chunk_x - 1, self.chunk_y - 1)),
+                    ch.get(&chunk_index(self.chunk_x, self.chunk_y - 1)),
+                    ch.get(&chunk_index(self.chunk_x + 1, self.chunk_y - 1)),
+                    ch.get(&chunk_index(self.chunk_x - 1, self.chunk_y)),
+                    ch.get(&chunk_index(self.chunk_x + 1, self.chunk_y)),
+                    ch.get(&chunk_index(self.chunk_x - 1, self.chunk_y + 1)),
+                    ch.get(&chunk_index(self.chunk_x, self.chunk_y + 1)),
+                    ch.get(&chunk_index(self.chunk_x + 1, self.chunk_y + 1)),
+                ]
+            }),
+            shaders,
+        );
+
+        Ok(())
+    }
+
     pub fn prep_render(
         &mut self,
         target: &mut RenderTarget,
@@ -748,7 +753,7 @@ impl ChunkGraphics {
         &mut self,
         target: &mut RenderTarget,
         _settings: &Settings,
-        file_helper: &FileHelper,
+        _file_helper: &FileHelper,
     ) {
         if self.data.is_none() {
             let image = glium::texture::RawImage2d::from_raw_rgba(
@@ -831,16 +836,6 @@ impl ChunkGraphics {
             // lighting.write(rect, data)
             // let lighting = Texture2d::empty(&target.display, CHUNK_SIZE.into(), CHUNK_SIZE.into()).unwrap();
 
-            let helper = ShaderFileHelper { file_helper, display: &target.display };
-
-            let lighting_compute_propagate = helper
-                .load_compute_from_files("data/shaders/lighting_propagate.comp")
-                .unwrap();
-
-            let lighting_compute_prep = helper
-                .load_compute_from_files("data/shaders/lighting_prep.comp")
-                .unwrap();
-
             self.data = Some(Arc::new(ChunkGraphicsData {
                 display: target.display.clone(),
                 texture,
@@ -848,8 +843,6 @@ impl ChunkGraphics {
                 lighting_dst,
                 lighting_neighbors,
                 lighting_constant_black,
-                lighting_compute_propagate,
-                lighting_compute_prep,
             }));
             self.dirty = true;
         }
@@ -864,6 +857,8 @@ pub trait ClientChunkHandlerExt {
         pixels: Vec<MaterialInstance>,
         colors: Vec<u8>,
     ) -> Result<(), String>;
+
+    fn update_chunk_graphics(&mut self, shaders: &Shaders);
 }
 
 impl ClientChunkHandlerExt for ChunkHandler<ClientChunk> {
@@ -906,5 +901,16 @@ impl ClientChunkHandlerExt for ChunkHandler<ClientChunk> {
         }
 
         Ok(())
+    }
+
+    #[profiling::function]
+    fn update_chunk_graphics(&mut self, shaders: &Shaders) {
+        let keys = self.loaded_chunks.keys().copied().collect::<Vec<u32>>();
+        for key in keys {
+            let mut ch = self.loaded_chunks.remove(&key).unwrap();
+            ch.update_graphics(Some(&self.loaded_chunks), shaders)
+                .unwrap();
+            self.loaded_chunks.insert(key, ch);
+        }
     }
 }

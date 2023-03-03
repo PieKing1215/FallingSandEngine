@@ -75,12 +75,6 @@ pub trait Chunk {
     fn mark_dirty(&mut self);
 
     fn refresh(&mut self);
-    fn update_graphics(
-        &mut self,
-        other_loaded_chunks: Option<&HashMap<u32, Self, BuildHasherDefault<PassThroughHasherU32>>>,
-    ) -> Result<(), String>
-    where
-        Self: Sized;
 
     fn set(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String>;
     /// # Safety
@@ -140,7 +134,6 @@ pub type ChunkGenOutput = (
 );
 
 pub trait ChunkHandlerGeneric {
-    fn update_chunk_graphics(&mut self);
     fn tick(
         &mut self,
         tick_time: u32,
@@ -183,16 +176,6 @@ struct ChunkSaveFormat {
 }
 
 impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
-    #[profiling::function]
-    fn update_chunk_graphics(&mut self) {
-        let keys = self.loaded_chunks.keys().copied().collect::<Vec<u32>>();
-        for key in keys {
-            let mut ch = self.loaded_chunks.remove(&key).unwrap();
-            ch.update_graphics(Some(&self.loaded_chunks)).unwrap();
-            self.loaded_chunks.insert(key, ch);
-        }
-    }
-
     // #[profiling::function] // breaks clippy
     #[allow(clippy::too_many_lines)]
     fn tick(

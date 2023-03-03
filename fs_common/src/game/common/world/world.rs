@@ -936,7 +936,5 @@ impl<C: Chunk + Send + Sync> World<C> {
         //     },
         //     WorldNetworkMode::Remote => {},
         // }
-
-        self.chunk_handler.update_chunk_graphics();
     }
 }

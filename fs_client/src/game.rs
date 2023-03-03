@@ -36,7 +36,7 @@ use fs_common::game::{
 
 use crate::{
     ui::MainMenuAction,
-    world::{ClientWorld, ClientWorldExt},
+    world::{ClientChunkHandlerExt, ClientWorld, ClientWorldExt},
 };
 
 use super::{render::Renderer, world::ClientChunk, Client};
@@ -782,6 +782,7 @@ impl ClientGame {
                 &self.data.settings,
                 self.data.registries.clone(),
             );
+            w.chunk_handler.update_chunk_graphics(&renderer.shaders);
         }
     }
 }
