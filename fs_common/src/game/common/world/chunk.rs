@@ -745,17 +745,9 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                     let chunks = self.loaded_chunks.get_many_var_mut(&keys);
 
                                     // if we failed to get all nearby chunks, don't populate and don't go to the next stage
-                                    if let Some(chunks) = chunks {
-                                        // check chunks for valid state
-                                        for c in &chunks {
-                                            // TODO: this can fail
-                                            assert!(
-                                                !c.get_pixels().is_none(),
-                                                "Chunk get_pixels was None but had state {:?}",
-                                                c.get_state()
-                                            );
-                                        }
-
+                                    if let Some((true, chunks)) = chunks.map(|chs| {
+                                        (chs.iter().all(|c| c.get_pixels().is_some()), chs)
+                                    }) {
                                         let mut chunks_dyn: Vec<_> = chunks
                                             .into_iter()
                                             .map(|c| c as &mut dyn Chunk)
