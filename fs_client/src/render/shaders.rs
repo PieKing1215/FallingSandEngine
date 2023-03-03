@@ -93,6 +93,7 @@ impl ShaderFileHelper<'_> {
         )
     }
 
+    #[profiling::function]
     pub fn load_compute_from_files(
         &self,
         src: &str,
