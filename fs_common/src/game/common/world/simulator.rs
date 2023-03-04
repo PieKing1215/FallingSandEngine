@@ -31,7 +31,7 @@ trait SimulationHelper {
 struct SimulationHelperChunk<'a> {
     pixels: [&'a mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]; 9],
     colors: [&'a mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]; 9],
-    lights: [&'a mut [[f32; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]; 9],
+    lights: [&'a mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]; 9],
     dirty: &'a mut [bool; 9],
     dirty_rects: &'a mut [Option<Rect<i32>>; 9],
     min_x: [u16; 9],
@@ -166,7 +166,11 @@ impl SimulationHelperChunk<'_> {
 
     #[inline]
     fn get_light_from_index(&self, (ch, px, ..): (usize, usize, u16, u16)) -> [f32; 3] {
-        self.lights[ch][px]
+        [
+            self.lights[ch][px][0],
+            self.lights[ch][px][1],
+            self.lights[ch][px][2],
+        ]
     }
 
     #[inline]
@@ -179,12 +183,28 @@ impl SimulationHelperChunk<'_> {
         &self,
         (ch, px, ..): (usize, usize, u16, u16),
     ) -> [f32; 3] {
-        *self.lights.get_unchecked(ch).get_unchecked(px)
+        [
+            *self
+                .lights
+                .get_unchecked(ch)
+                .get_unchecked(px)
+                .get_unchecked(0),
+            *self
+                .lights
+                .get_unchecked(ch)
+                .get_unchecked(px)
+                .get_unchecked(1),
+            *self
+                .lights
+                .get_unchecked(ch)
+                .get_unchecked(px)
+                .get_unchecked(2),
+        ]
     }
 
     #[inline]
     fn set_light_from_index(&mut self, (ch, px, ..): (usize, usize, u16, u16), light: [f32; 3]) {
-        self.lights[ch][px] = light;
+        self.lights[ch][px] = [light[0], light[1], light[2], 1.0];
     }
 
     #[inline]
@@ -193,7 +213,8 @@ impl SimulationHelperChunk<'_> {
         (ch, px, ..): (usize, usize, u16, u16),
         light: [f32; 3],
     ) {
-        *self.lights.get_unchecked_mut(ch).get_unchecked_mut(px) = light;
+        *self.lights.get_unchecked_mut(ch).get_unchecked_mut(px) =
+            [light[0], light[1], light[2], 1.0];
     }
 
     // (chunk index, pixel index, pixel x in chunk, pixel y in chunk)
@@ -394,7 +415,7 @@ impl Simulator {
         chunk_y: i32,
         pixels: [&mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]; 9],
         colors: [&mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]; 9],
-        lights: [&mut [[f32; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]; 9],
+        lights: [&mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]; 9],
         dirty: &mut [bool; 9],
         dirty_rects: &mut [Option<Rect<i32>>; 9],
         particles: &mut Vec<Particle>,

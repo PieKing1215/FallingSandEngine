@@ -16,10 +16,14 @@ impl FSRigidBodyExt for FSRigidBody {
                 .flat_map(|m| vec![m.color.r, m.color.g, m.color.b, m.color.a])
                 .collect();
 
-            let image = glium::texture::RawImage2d::from_raw_rgba(
-                pixel_data,
-                (self.width.into(), self.height.into()),
-            );
+            let image = {
+                glium::texture::RawImage2d {
+                    data: std::borrow::Cow::Borrowed(pixel_data.as_slice()),
+                    width: self.width.into(),
+                    height: self.height.into(),
+                    format: glium::texture::ClientFormat::U8U8U8U8,
+                }
+            };
 
             if self.image.is_none() {
                 self.image = Some(Texture2d::new(&target.display, image).unwrap());

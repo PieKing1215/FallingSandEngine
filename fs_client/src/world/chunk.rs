@@ -1,3 +1,4 @@
+use core::slice;
 use std::{
     borrow::Cow, collections::HashMap, convert::TryInto, hash::BuildHasherDefault, sync::Arc,
 };
@@ -42,7 +43,7 @@ impl Chunk for ClientChunk {
             graphics: Box::new(ChunkGraphics {
                 data: None,
                 pixel_data: Box::new([0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]),
-                lighting_data: Box::new([[0.0; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]),
+                lighting_data: Box::new([[0.0; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]),
                 dirty: true,
                 was_dirty: true,
                 lighting_dirty: true,
@@ -333,11 +334,11 @@ impl Chunk for ClientChunk {
         self.rigidbody = body;
     }
 
-    fn get_lights_mut(&mut self) -> &mut [[f32; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn get_lights_mut(&mut self) -> &mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         &mut self.graphics.lighting_data
     }
 
-    fn get_lights(&self) -> &[[f32; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn get_lights(&self) -> &[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         &self.graphics.lighting_data
     }
 }
@@ -354,7 +355,7 @@ pub struct ChunkGraphicsData {
 pub struct ChunkGraphics {
     pub data: Option<Arc<ChunkGraphicsData>>,
     pub pixel_data: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
-    pub lighting_data: Box<[[f32; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
+    pub lighting_data: Box<[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
     pub dirty: bool,
     pub was_dirty: bool,
     pub lighting_dirty: bool,
@@ -387,7 +388,7 @@ impl ChunkGraphics {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             // self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
             let i = (x + y * CHUNK_SIZE) as usize;
-            self.lighting_data[i] = color;
+            self.lighting_data[i] = [color[0], color[1], color[2], 1.0];
             self.dirty = true;
 
             return Ok(());
@@ -416,21 +417,31 @@ impl ChunkGraphics {
     #[profiling::function]
     pub fn update_texture(&mut self) {
         if self.dirty {
+            profiling::scope!("dirty");
             if let Some(data) = &mut self.data {
-                let image = glium::texture::RawImage2d::from_raw_rgba(
-                    self.pixel_data.to_vec(),
-                    (CHUNK_SIZE.into(), CHUNK_SIZE.into()),
-                );
+                let image = {
+                    profiling::scope!("RawImage2d");
 
-                data.texture.write(
-                    glium::Rect {
-                        left: 0,
-                        bottom: 0,
+                    glium::texture::RawImage2d {
+                        data: Cow::Borrowed(self.pixel_data.as_slice()),
                         width: CHUNK_SIZE.into(),
                         height: CHUNK_SIZE.into(),
-                    },
-                    image,
-                );
+                        format: glium::texture::ClientFormat::U8U8U8U8,
+                    }
+                };
+
+                {
+                    profiling::scope!("write");
+                    data.texture.write(
+                        glium::Rect {
+                            left: 0,
+                            bottom: 0,
+                            width: CHUNK_SIZE.into(),
+                            height: CHUNK_SIZE.into(),
+                        },
+                        image,
+                    );
+                }
             }
             self.dirty = false;
         }
@@ -450,30 +461,26 @@ impl ChunkGraphics {
         {
             if let Some(data) = &mut self.data {
                 profiling::scope!("lighting update");
-                // self.lighting_data = Box::new([0.0; CHUNK_SIZE as usize * CHUNK_SIZE as usize]);
 
-                // // self.lighting_data[(30 / LIGHT_SCALE as usize) + (30 / LIGHT_SCALE as usize) * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize] = 1.0;
-                // // self.lighting_data[(60 / LIGHT_SCALE as usize) + (50 / LIGHT_SCALE as usize) * (CHUNK_SIZE / (LIGHT_SCALE as u16)) as usize] = 1.0;
-                // let start = std::time::SystemTime::now();
-                // let time = start.duration_since(std::time::UNIX_EPOCH).unwrap();
-                // let x = 10 + ((((time.as_millis() % 2000) as f32 / 2000.0 * 2.0 * std::f32::consts::PI).sin() + 1.0) * 40.0) as usize;
-                // let y = 10 + ((((time.as_millis() % 1300) as f32 / 1300.0 * 2.0 * std::f32::consts::PI).cos() + 1.0) * 40.0) as usize;
-                // // log::debug!("{x} {} {}", time.as_millis(), ((time.as_millis() % 1000) as f32 / 1000.0).sin());
-                // if neighbors.map_or(false, |n| n[1].map_or(false, |c| c.chunk_x % 3 == 0 && c.chunk_y % 2 == 0)) {
-                //     self.lighting_data[x + y * CHUNK_SIZE as usize] = 1.0;
-                // }
-
-                let image = glium::texture::RawImage2d {
-                    data: Cow::Owned(
-                        self.lighting_data
-                            .iter()
-                            .copied()
-                            .flat_map(|l| [l[0], l[1], l[2], 1.0])
-                            .collect(),
-                    ),
-                    width: CHUNK_SIZE.into(),
-                    height: CHUNK_SIZE.into(),
-                    format: glium::texture::ClientFormat::F32F32F32F32,
+                let src_image = {
+                    profiling::scope!("src RawImage2d");
+                    glium::texture::RawImage2d {
+                        data: Cow::Borrowed({
+                            profiling::scope!("format data");
+                            // Safety: transmuting &[[f32; 4]] to &[f32] should be fine since arrays are contiguous
+                            // TODO: use `self.lighting_data.flatten()` once stabilized (https://github.com/rust-lang/rust/issues/95629)
+                            let sl: &[f32] = unsafe {
+                                slice::from_raw_parts(
+                                    self.lighting_data.as_ptr().cast(),
+                                    self.lighting_data.len() * 4,
+                                )
+                            };
+                            sl
+                        }),
+                        width: CHUNK_SIZE.into(),
+                        height: CHUNK_SIZE.into(),
+                        format: glium::texture::ClientFormat::F32F32F32F32,
+                    }
                 };
 
                 {
@@ -485,7 +492,7 @@ impl ChunkGraphics {
                             width: CHUNK_SIZE.into(),
                             height: CHUNK_SIZE.into(),
                         },
-                        image,
+                        src_image,
                     );
                 }
 
@@ -756,10 +763,14 @@ impl ChunkGraphics {
         _file_helper: &FileHelper,
     ) {
         if self.data.is_none() {
-            let image = glium::texture::RawImage2d::from_raw_rgba(
-                self.pixel_data.to_vec(),
-                (CHUNK_SIZE.into(), CHUNK_SIZE.into()),
-            );
+            let image = {
+                glium::texture::RawImage2d {
+                    data: Cow::Borrowed(self.pixel_data.as_slice()),
+                    width: CHUNK_SIZE.into(),
+                    height: CHUNK_SIZE.into(),
+                    format: glium::texture::ClientFormat::U8U8U8U8,
+                }
+            };
             let texture = Texture2d::new(&target.display, image).unwrap();
 
             let default_src = glium::texture::RawImage2d {

@@ -62,8 +62,8 @@ pub trait Chunk {
     );
     fn get_colors_mut(&mut self) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
     fn get_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
-    fn get_lights_mut(&mut self) -> &mut [[f32; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
-    fn get_lights(&self) -> &[[f32; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
+    fn get_lights_mut(&mut self) -> &mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
+    fn get_lights(&self) -> &[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
 
     fn generate_mesh(&mut self) -> Result<(), String>;
     // fn get_tris(&self) -> &Option<Vec<Vec<((f64, f64), (f64, f64), (f64, f64))>>>;
@@ -916,7 +916,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                 .map(|(x, y)| {
                                     let chunk = self.loaded_chunks.get_mut(&chunk_index(ch_pos.0 + x, ch_pos.1 + y));
                                     chunk.map(|c| {
-                                        let raw: *mut [[f32; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] = c.get_lights_mut();
+                                        let raw: *mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] = c.get_lights_mut();
                                         // blatantly bypassing the borrow checker, see safety comment above
                                         unsafe { &mut *raw }
                                     })

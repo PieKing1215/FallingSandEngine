@@ -14,7 +14,7 @@ pub struct ServerChunk {
     pub pixels: Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
     pub dirty_rect: Option<Rect<i32>>,
     pub pixel_data: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
-    pub light_data: Box<[[f32; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
+    pub light_data: Box<[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
     pub dirty: bool,
     pub rigidbody: Option<RigidBodyState>,
     pub mesh_simplified: Option<Vec<Vec<Vec<Vec<f64>>>>>,
@@ -29,7 +29,7 @@ impl Chunk for ServerChunk {
             pixels: None,
             dirty_rect: None,
             pixel_data: Box::new([0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]),
-            light_data: Box::new([[0.0; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]),
+            light_data: Box::new([[0.0; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]),
             dirty: true,
             rigidbody: None,
             mesh_simplified: None,
@@ -256,11 +256,11 @@ impl Chunk for ServerChunk {
         &[0.0, 0.0, 0.0]
     }
 
-    fn get_lights_mut(&mut self) -> &mut [[f32; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn get_lights_mut(&mut self) -> &mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         self.light_data.as_mut()
     }
 
-    fn get_lights(&self) -> &[[f32; 3]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn get_lights(&self) -> &[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         self.light_data.as_ref()
     }
 }
