@@ -20,6 +20,7 @@ pub struct Simulator {}
 
 trait SimulationHelper {
     fn get_pixel_local(&self, x: i32, y: i32) -> MaterialInstance;
+    fn borrow_pixel_local(&self, x: i32, y: i32) -> &MaterialInstance;
     fn set_pixel_local(&mut self, x: i32, y: i32, mat: MaterialInstance);
     fn get_color_local(&self, x: i32, y: i32) -> Color;
     fn set_color_local(&mut self, x: i32, y: i32, col: Color);
@@ -51,6 +52,11 @@ impl SimulationHelperChunk<'_> {
     }
 
     #[inline]
+    fn borrow_pixel_from_index(&self, (ch, px, ..): (usize, usize, u16, u16)) -> &MaterialInstance {
+        &self.pixels[ch][px]
+    }
+
+    #[inline]
     unsafe fn get_pixel_from_index_unchecked(
         &self,
         (ch, px, ..): (usize, usize, u16, u16),
@@ -59,8 +65,21 @@ impl SimulationHelperChunk<'_> {
     }
 
     #[inline]
+    unsafe fn borrow_pixel_from_index_unchecked(
+        &self,
+        (ch, px, ..): (usize, usize, u16, u16),
+    ) -> &MaterialInstance {
+        self.pixels.get_unchecked(ch).get_unchecked(px)
+    }
+
+    #[inline(always)]
     unsafe fn get_pixel_local_unchecked(&self, x: i32, y: i32) -> MaterialInstance {
         self.get_pixel_from_index_unchecked(Self::local_to_indices(x, y))
+    }
+
+    #[inline]
+    unsafe fn borrow_pixel_local_unchecked(&self, x: i32, y: i32) -> &MaterialInstance {
+        self.borrow_pixel_from_index_unchecked(Self::local_to_indices(x, y))
     }
 
     #[inline]
@@ -218,11 +237,12 @@ impl SimulationHelperChunk<'_> {
     }
 
     // (chunk index, pixel index, pixel x in chunk, pixel y in chunk)
-    #[inline]
+    #[inline(always)]
     fn local_to_indices(x: i32, y: i32) -> (usize, usize, u16, u16) {
         let size = i32::from(CHUNK_SIZE);
-        let rel_chunk_x = (x as f32 / f32::from(CHUNK_SIZE)).floor() as i8;
-        let rel_chunk_y = (y as f32 / f32::from(CHUNK_SIZE)).floor() as i8;
+        // div_euclid is the same as div_floor in this case (div_floor is currenlty unstable)
+        let rel_chunk_x = x.div_euclid(i32::from(CHUNK_SIZE)) as i8;
+        let rel_chunk_y = y.div_euclid(i32::from(CHUNK_SIZE)) as i8;
 
         let chunk_px_x = x.rem_euclid(size) as u16;
         let chunk_px_y = y.rem_euclid(size) as u16;
@@ -255,6 +275,11 @@ impl SimulationHelper for SimulationHelperChunk<'_> {
     #[inline]
     fn get_pixel_local(&self, x: i32, y: i32) -> MaterialInstance {
         self.get_pixel_from_index(Self::local_to_indices(x, y))
+    }
+
+    #[inline]
+    fn borrow_pixel_local(&self, x: i32, y: i32) -> &MaterialInstance {
+        self.borrow_pixel_from_index(Self::local_to_indices(x, y))
     }
 
     #[inline]
@@ -294,6 +319,7 @@ impl SimulationHelper for SimulationHelperChunk<'_> {
 }
 
 struct SimulationHelperRigidBody<'a, C: Chunk> {
+    air: MaterialInstance,
     chunk_handler: &'a mut ChunkHandler<C>,
     rigidbodies: &'a mut Vec<FSRigidBody>,
     particles: &'a mut Vec<Particle>,
@@ -332,6 +358,39 @@ impl<C: Chunk + Send> SimulationHelper for SimulationHelperRigidBody<'_, C> {
         }
 
         MaterialInstance::air()
+    }
+
+    fn borrow_pixel_local(&self, x: i32, y: i32) -> &MaterialInstance {
+        let world_mat = self.chunk_handler.get(i64::from(x), i64::from(y)); // TODO: consider changing the args to i64
+        if let Ok(m) = world_mat {
+            if m.material_id != *material::AIR {
+                return m;
+            }
+        }
+
+        for i in 0..self.rigidbodies.len() {
+            let cur = &self.rigidbodies[i];
+            if let Some(body) = cur.get_body(self.physics) {
+                let s = (-body.rotation().angle()).sin();
+                let c = (-body.rotation().angle()).cos();
+
+                let tx = x as f32 - body.translation().x * PHYSICS_SCALE;
+                let ty = y as f32 - body.translation().y * PHYSICS_SCALE;
+
+                let nt_x = (tx * c - ty * s) as i32;
+                let nt_y = (tx * s + ty * c) as i32;
+
+                if nt_x >= 0 && nt_y >= 0 && nt_x < cur.width.into() && nt_y < cur.width.into() {
+                    let px = &cur.pixels[(nt_x + nt_y * i32::from(cur.width)) as usize];
+
+                    if px.material_id != *material::AIR {
+                        return px;
+                    }
+                }
+            }
+        }
+
+        &self.air
     }
 
     fn set_pixel_local(&mut self, x: i32, y: i32, mat: MaterialInstance) {
@@ -449,6 +508,7 @@ impl Simulator {
 
         let rng = fastrand::Rng::new();
         {
+            // this being inlined is important for performance
             #[inline(always)]
             fn process(
                 x: i32,
@@ -460,7 +520,7 @@ impl Simulator {
                 // Safety: dirty rects are always within the chunk
                 let cur = unsafe { helper.get_pixel_local_unchecked(x, y) };
 
-                if let Some(mat) = Simulator::simulate_pixel(x, y, cur, helper, rng) {
+                if let Some(mat) = Simulator::simulate_pixel(x, y, &cur, helper, rng) {
                     unsafe {
                         helper.set_color_local_unchecked(x, y, mat.color);
                         helper.set_light_local_unchecked(x, y, mat.light);
@@ -510,8 +570,13 @@ impl Simulator {
                 let pos_x = body_opt.unwrap().translation().x * PHYSICS_SCALE;
                 let pos_y = body_opt.unwrap().translation().y * PHYSICS_SCALE;
 
-                let mut helper =
-                    SimulationHelperRigidBody { chunk_handler, rigidbodies, particles, physics };
+                let mut helper = SimulationHelperRigidBody {
+                    air: MaterialInstance::air(),
+                    chunk_handler,
+                    rigidbodies,
+                    particles,
+                    physics,
+                };
 
                 let rng = fastrand::Rng::new();
                 for rb_y in 0..rb_w {
@@ -523,13 +588,8 @@ impl Simulator {
                         let cur =
                             helper.rigidbodies[i].pixels[(rb_x + rb_y * rb_w) as usize].clone();
 
-                        let res = Self::simulate_pixel(
-                            tx as i32,
-                            ty as i32,
-                            cur.clone(),
-                            &mut helper,
-                            &rng,
-                        );
+                        let res =
+                            Self::simulate_pixel(tx as i32, ty as i32, &cur, &mut helper, &rng);
 
                         // if cur.material_id != material::AIR {
                         //     // helper.set_pixel_local(tx as i32, ty as i32, MaterialInstance {
@@ -622,7 +682,7 @@ impl Simulator {
     fn simulate_pixel(
         x: i32,
         y: i32,
-        cur: MaterialInstance,
+        cur: &MaterialInstance,
         helper: &mut impl SimulationHelper,
         rng: &fastrand::Rng,
     ) -> Option<MaterialInstance> {
@@ -631,13 +691,13 @@ impl Simulator {
         #[allow(clippy::single_match)]
         match cur.physics {
             PhysicsType::Sand => {
-                let below = helper.get_pixel_local(x, y + 1);
+                let below = helper.borrow_pixel_local(x, y + 1);
                 let below_can = below.physics == PhysicsType::Air;
 
-                let bl = helper.get_pixel_local(x - 1, y + 1);
+                let bl = helper.borrow_pixel_local(x - 1, y + 1);
                 let bl_can = bl.physics == PhysicsType::Air;
 
-                let br = helper.get_pixel_local(x + 1, y + 1);
+                let br = helper.borrow_pixel_local(x + 1, y + 1);
                 let br_can = br.physics == PhysicsType::Air;
 
                 if below_can && (!(br_can || bl_can) || rng.f32() > 0.1) {
@@ -650,74 +710,78 @@ impl Simulator {
                     // }else {
 
                     let empty_below = (0..4).all(|i| {
-                        let pix = helper.get_pixel_local(x, y + i + 2); // don't include myself or one below
+                        let pix = helper.borrow_pixel_local(x, y + i + 2); // don't include myself or one below
                         pix.physics == PhysicsType::Air
                     });
 
                     if empty_below {
                         helper.add_particle(
-                            cur,
+                            cur.clone(),
                             Position { x: f64::from(x), y: f64::from(y) },
                             Velocity { x: (rng.f64() - 0.5) * 0.5, y: 1.0 + rng.f64() },
                         );
                     } else if rng.bool()
-                        && helper.get_pixel_local(x, y + 2).physics == PhysicsType::Air
+                        && helper.borrow_pixel_local(x, y + 2).physics == PhysicsType::Air
                     {
                         helper.set_color_local(x, y + 2, cur.color);
                         helper.set_light_local(x, y + 2, cur.light);
-                        helper.set_pixel_local(x, y + 2, cur);
+                        helper.set_pixel_local(x, y + 2, cur.clone());
                     } else {
                         helper.set_color_local(x, y + 1, cur.color);
                         helper.set_light_local(x, y + 1, cur.light);
-                        helper.set_pixel_local(x, y + 1, cur);
+                        helper.set_pixel_local(x, y + 1, cur.clone());
                     }
 
                     new_mat = Some(MaterialInstance::air());
 
                     // }
                 } else {
-                    let above = helper.get_pixel_local(x, y - 1);
+                    let above = helper.borrow_pixel_local(x, y - 1);
                     let above_air = above.physics == PhysicsType::Air;
                     if above_air || rng.f32() > 0.5 {
                         if bl_can && br_can {
                             if rng.bool() {
                                 helper.set_color_local(x + 1, y + 1, cur.color);
                                 helper.set_light_local(x + 1, y + 1, cur.light);
-                                helper.set_pixel_local(x + 1, y + 1, cur);
+                                helper.set_pixel_local(x + 1, y + 1, cur.clone());
                             } else {
                                 helper.set_color_local(x - 1, y + 1, cur.color);
                                 helper.set_light_local(x - 1, y + 1, cur.light);
-                                helper.set_pixel_local(x - 1, y + 1, cur);
+                                helper.set_pixel_local(x - 1, y + 1, cur.clone());
                             }
                             new_mat = Some(MaterialInstance::air());
                         } else if bl_can {
                             if rng.bool()
-                                && helper.get_pixel_local(x - 2, y + 1).physics == PhysicsType::Air
-                                && helper.get_pixel_local(x - 2, y + 2).physics != PhysicsType::Air
+                                && helper.borrow_pixel_local(x - 2, y + 1).physics
+                                    == PhysicsType::Air
+                                && helper.borrow_pixel_local(x - 2, y + 2).physics
+                                    != PhysicsType::Air
                             {
                                 helper.set_color_local(x - 2, y + 1, cur.color);
                                 helper.set_light_local(x - 2, y + 1, cur.light);
-                                helper.set_pixel_local(x - 2, y + 1, cur);
+                                helper.set_pixel_local(x - 2, y + 1, cur.clone());
                                 new_mat = Some(MaterialInstance::air());
                             } else {
                                 helper.set_color_local(x - 1, y + 1, cur.color);
                                 helper.set_light_local(x - 1, y + 1, cur.light);
-                                helper.set_pixel_local(x - 1, y + 1, cur);
+                                helper.set_pixel_local(x - 1, y + 1, cur.clone());
                                 new_mat = Some(MaterialInstance::air());
                             }
                         } else if br_can {
                             if rng.bool()
-                                && helper.get_pixel_local(x + 2, y + 1).physics == PhysicsType::Air
-                                && helper.get_pixel_local(x + 2, y + 2).physics != PhysicsType::Air
+                                && helper.borrow_pixel_local(x + 2, y + 1).physics
+                                    == PhysicsType::Air
+                                && helper.borrow_pixel_local(x + 2, y + 2).physics
+                                    != PhysicsType::Air
                             {
                                 helper.set_color_local(x + 2, y + 1, cur.color);
                                 helper.set_light_local(x + 2, y + 1, cur.light);
-                                helper.set_pixel_local(x + 2, y + 1, cur);
+                                helper.set_pixel_local(x + 2, y + 1, cur.clone());
                                 new_mat = Some(MaterialInstance::air());
                             } else {
                                 helper.set_color_local(x + 1, y + 1, cur.color);
                                 helper.set_light_local(x + 1, y + 1, cur.light);
-                                helper.set_pixel_local(x + 1, y + 1, cur);
+                                helper.set_pixel_local(x + 1, y + 1, cur.clone());
                                 new_mat = Some(MaterialInstance::air());
                             }
                         }
