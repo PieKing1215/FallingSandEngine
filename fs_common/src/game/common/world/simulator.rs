@@ -29,12 +29,8 @@ trait SimulationHelper {
     fn add_particle(&mut self, material: MaterialInstance, pos: Position, vel: Velocity);
 }
 
-struct SimulationHelperChunk<'a> {
-    pixels: [&'a mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]; 9],
-    colors: [&'a mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]; 9],
-    lights: [&'a mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]; 9],
-    dirty: &'a mut [bool; 9],
-    dirty_rects: &'a mut [Option<Rect<i32>>; 9],
+struct SimulationHelperChunk<'a, 'b> {
+    chunk_data: &'a mut [SimulatorChunkCtx<'b>; 9],
     min_x: [u16; 9],
     min_y: [u16; 9],
     max_x: [u16; 9],
@@ -45,15 +41,15 @@ struct SimulationHelperChunk<'a> {
 }
 
 #[allow(unused)]
-impl SimulationHelperChunk<'_> {
+impl SimulationHelperChunk<'_, '_> {
     #[inline]
     fn get_pixel_from_index(&self, (ch, px, ..): (usize, usize, u16, u16)) -> MaterialInstance {
-        self.pixels[ch][px].clone()
+        self.chunk_data[ch].pixels[px].clone()
     }
 
     #[inline]
     fn borrow_pixel_from_index(&self, (ch, px, ..): (usize, usize, u16, u16)) -> &MaterialInstance {
-        &self.pixels[ch][px]
+        &self.chunk_data[ch].pixels[px]
     }
 
     #[inline]
@@ -61,7 +57,11 @@ impl SimulationHelperChunk<'_> {
         &self,
         (ch, px, ..): (usize, usize, u16, u16),
     ) -> MaterialInstance {
-        self.pixels.get_unchecked(ch).get_unchecked(px).clone()
+        self.chunk_data
+            .get_unchecked(ch)
+            .pixels
+            .get_unchecked(px)
+            .clone()
     }
 
     #[inline]
@@ -69,7 +69,7 @@ impl SimulationHelperChunk<'_> {
         &self,
         (ch, px, ..): (usize, usize, u16, u16),
     ) -> &MaterialInstance {
-        self.pixels.get_unchecked(ch).get_unchecked(px)
+        self.chunk_data.get_unchecked(ch).pixels.get_unchecked(px)
     }
 
     #[inline(always)]
@@ -88,7 +88,7 @@ impl SimulationHelperChunk<'_> {
         (ch, px, ch_x, ch_y): (usize, usize, u16, u16),
         mat: MaterialInstance,
     ) {
-        self.pixels[ch][px] = mat;
+        self.chunk_data[ch].pixels[px] = mat;
 
         self.min_x[ch] = self.min_x[ch].min(ch_x);
         self.min_y[ch] = self.min_y[ch].min(ch_y);
@@ -102,7 +102,11 @@ impl SimulationHelperChunk<'_> {
         (ch, px, ch_x, ch_y): (usize, usize, u16, u16),
         mat: MaterialInstance,
     ) {
-        *self.pixels.get_unchecked_mut(ch).get_unchecked_mut(px) = mat;
+        *self
+            .chunk_data
+            .get_unchecked_mut(ch)
+            .pixels
+            .get_unchecked_mut(px) = mat;
 
         *self.min_x.get_unchecked_mut(ch) = (*self.min_x.get_unchecked_mut(ch)).min(ch_x);
         *self.min_y.get_unchecked_mut(ch) = (*self.min_y.get_unchecked_mut(ch)).min(ch_y);
@@ -118,10 +122,10 @@ impl SimulationHelperChunk<'_> {
     #[inline]
     fn get_color_from_index(&self, (ch, px, ..): (usize, usize, u16, u16)) -> Color {
         Color::rgba(
-            self.colors[ch][px * 4],
-            self.colors[ch][px * 4 + 1],
-            self.colors[ch][px * 4 + 2],
-            self.colors[ch][px * 4 + 3],
+            self.chunk_data[ch].colors[px * 4],
+            self.chunk_data[ch].colors[px * 4 + 1],
+            self.chunk_data[ch].colors[px * 4 + 2],
+            self.chunk_data[ch].colors[px * 4 + 3],
         )
     }
 
@@ -132,10 +136,26 @@ impl SimulationHelperChunk<'_> {
         (ch, px, ..): (usize, usize, u16, u16),
     ) -> Color {
         Color::rgba(
-            *self.colors.get_unchecked(ch).get_unchecked(px * 4),
-            *self.colors.get_unchecked(ch).get_unchecked(px * 4 + 1),
-            *self.colors.get_unchecked(ch).get_unchecked(px * 4 + 2),
-            *self.colors.get_unchecked(ch).get_unchecked(px * 4 + 3),
+            *self
+                .chunk_data
+                .get_unchecked(ch)
+                .colors
+                .get_unchecked(px * 4),
+            *self
+                .chunk_data
+                .get_unchecked(ch)
+                .colors
+                .get_unchecked(px * 4 + 1),
+            *self
+                .chunk_data
+                .get_unchecked(ch)
+                .colors
+                .get_unchecked(px * 4 + 2),
+            *self
+                .chunk_data
+                .get_unchecked(ch)
+                .colors
+                .get_unchecked(px * 4 + 3),
         )
     }
 
@@ -147,12 +167,12 @@ impl SimulationHelperChunk<'_> {
 
     #[inline]
     fn set_color_from_index(&mut self, (ch, px, ..): (usize, usize, u16, u16), color: Color) {
-        self.colors[ch][px * 4] = color.r;
-        self.colors[ch][px * 4 + 1] = color.g;
-        self.colors[ch][px * 4 + 2] = color.b;
-        self.colors[ch][px * 4 + 3] = color.a;
+        self.chunk_data[ch].colors[px * 4] = color.r;
+        self.chunk_data[ch].colors[px * 4 + 1] = color.g;
+        self.chunk_data[ch].colors[px * 4 + 2] = color.b;
+        self.chunk_data[ch].colors[px * 4 + 3] = color.a;
 
-        self.dirty[ch] = true;
+        self.chunk_data[ch].dirty = true;
     }
 
     #[inline]
@@ -161,21 +181,28 @@ impl SimulationHelperChunk<'_> {
         (ch, px, ..): (usize, usize, u16, u16),
         color: Color,
     ) {
-        *self.colors.get_unchecked_mut(ch).get_unchecked_mut(px * 4) = color.r;
         *self
-            .colors
+            .chunk_data
             .get_unchecked_mut(ch)
+            .colors
+            .get_unchecked_mut(px * 4) = color.r;
+        *self
+            .chunk_data
+            .get_unchecked_mut(ch)
+            .colors
             .get_unchecked_mut(px * 4 + 1) = color.g;
         *self
-            .colors
+            .chunk_data
             .get_unchecked_mut(ch)
+            .colors
             .get_unchecked_mut(px * 4 + 2) = color.b;
         *self
-            .colors
+            .chunk_data
             .get_unchecked_mut(ch)
+            .colors
             .get_unchecked_mut(px * 4 + 3) = color.a;
 
-        self.dirty[ch] = true;
+        self.chunk_data[ch].dirty = true;
     }
 
     #[inline]
@@ -186,9 +213,9 @@ impl SimulationHelperChunk<'_> {
     #[inline]
     fn get_light_from_index(&self, (ch, px, ..): (usize, usize, u16, u16)) -> [f32; 3] {
         [
-            self.lights[ch][px][0],
-            self.lights[ch][px][1],
-            self.lights[ch][px][2],
+            self.chunk_data[ch].lights[px][0],
+            self.chunk_data[ch].lights[px][1],
+            self.chunk_data[ch].lights[px][2],
         ]
     }
 
@@ -204,18 +231,21 @@ impl SimulationHelperChunk<'_> {
     ) -> [f32; 3] {
         [
             *self
-                .lights
+                .chunk_data
                 .get_unchecked(ch)
+                .lights
                 .get_unchecked(px)
                 .get_unchecked(0),
             *self
-                .lights
+                .chunk_data
                 .get_unchecked(ch)
+                .lights
                 .get_unchecked(px)
                 .get_unchecked(1),
             *self
-                .lights
+                .chunk_data
                 .get_unchecked(ch)
+                .lights
                 .get_unchecked(px)
                 .get_unchecked(2),
         ]
@@ -223,7 +253,7 @@ impl SimulationHelperChunk<'_> {
 
     #[inline]
     fn set_light_from_index(&mut self, (ch, px, ..): (usize, usize, u16, u16), light: [f32; 3]) {
-        self.lights[ch][px] = [light[0], light[1], light[2], 1.0];
+        self.chunk_data[ch].lights[px] = [light[0], light[1], light[2], 1.0];
     }
 
     #[inline]
@@ -232,8 +262,11 @@ impl SimulationHelperChunk<'_> {
         (ch, px, ..): (usize, usize, u16, u16),
         light: [f32; 3],
     ) {
-        *self.lights.get_unchecked_mut(ch).get_unchecked_mut(px) =
-            [light[0], light[1], light[2], 1.0];
+        *self
+            .chunk_data
+            .get_unchecked_mut(ch)
+            .lights
+            .get_unchecked_mut(px) = [light[0], light[1], light[2], 1.0];
     }
 
     // (chunk index, pixel index, pixel x in chunk, pixel y in chunk)
@@ -258,9 +291,9 @@ impl SimulationHelperChunk<'_> {
     fn finish_dirty_rects(&mut self) {
         for i in 0..9 {
             if self.min_x[i] == CHUNK_SIZE + 1 {
-                self.dirty_rects[i] = None;
+                self.chunk_data[i].dirty_rect = None;
             } else {
-                self.dirty_rects[i] = Some(Rect::new_wh(
+                self.chunk_data[i].dirty_rect = Some(Rect::new_wh(
                     i32::from(self.min_x[i]),
                     i32::from(self.min_y[i]),
                     self.max_x[i] - self.min_x[i] + 1,
@@ -271,7 +304,7 @@ impl SimulationHelperChunk<'_> {
     }
 }
 
-impl SimulationHelper for SimulationHelperChunk<'_> {
+impl SimulationHelper for SimulationHelperChunk<'_, '_> {
     #[inline]
     fn get_pixel_local(&self, x: i32, y: i32) -> MaterialInstance {
         self.get_pixel_from_index(Self::local_to_indices(x, y))
@@ -466,37 +499,38 @@ impl<C: Chunk + Send> SimulationHelper for SimulationHelperRigidBody<'_, C> {
     }
 }
 
+#[derive(Debug)]
+pub struct SimulatorChunkCtx<'a> {
+    pub pixels: &'a mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
+    pub colors: &'a mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4],
+    pub lights: &'a mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize],
+    pub dirty: bool,
+    pub dirty_rect: Option<Rect<i32>>,
+}
+
 impl Simulator {
     #[warn(clippy::too_many_arguments)]
     #[profiling::function]
     pub fn simulate_chunk(
         chunk_x: i32,
         chunk_y: i32,
-        pixels: [&mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]; 9],
-        colors: [&mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]; 9],
-        lights: [&mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]; 9],
-        dirty: &mut [bool; 9],
-        dirty_rects: &mut [Option<Rect<i32>>; 9],
+        chunk_data: &mut [SimulatorChunkCtx; 9],
         particles: &mut Vec<Particle>,
         registries: Arc<Registries>,
     ) {
         const CENTER_CHUNK: usize = 4;
 
-        // lights[4].fill(0.5);
-
-        let my_dirty_rect_o = dirty_rects[CENTER_CHUNK];
+        let my_dirty_rect_o = chunk_data[CENTER_CHUNK].dirty_rect;
         if my_dirty_rect_o.is_none() {
-            dirty_rects.fill(None);
+            for d in chunk_data {
+                d.dirty_rect = None;
+            }
             return;
         }
         let my_dirty_rect = my_dirty_rect_o.unwrap();
 
         let mut helper = SimulationHelperChunk {
-            pixels,
-            colors,
-            lights,
-            dirty,
-            dirty_rects,
+            chunk_data,
             min_x: [CHUNK_SIZE + 1; 9],
             min_y: [CHUNK_SIZE + 1; 9],
             max_x: [0; 9],

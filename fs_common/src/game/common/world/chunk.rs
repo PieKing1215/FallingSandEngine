@@ -2,7 +2,7 @@ use crate::game::common::hashmap_ext::HashMapExt;
 use crate::game::common::world::gen::populator::ChunkContext;
 use crate::game::common::world::gen::structure::UpdateStructureNodes;
 use crate::game::common::world::particle::ParticleSystem;
-use crate::game::common::world::simulator::Simulator;
+use crate::game::common::world::simulator::{Simulator, SimulatorChunkCtx};
 use crate::game::common::world::{Loader, Position};
 use crate::game::common::Registries;
 use crate::game::common::{Rect, Settings};
@@ -866,6 +866,26 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                         c.get_pixels_mut().as_mut().map(|raw| {
                                             // blatantly bypassing the borrow checker, see safety comment above
                                             unsafe { &mut *(raw.as_mut() as *mut _) }
+                                        }).map(|pixels| {
+                                            let raw: *mut [u8; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)] = c.get_colors_mut();
+                                            // blatantly bypassing the borrow checker, see safety comment above
+                                            let colors = unsafe { &mut *raw };
+
+                                            let raw: *mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] = c.get_lights_mut();
+                                            // blatantly bypassing the borrow checker, see safety comment above
+                                            let lights = unsafe { &mut *raw };
+
+                                            let dirty_rect = *old_dirty_rects
+                                                .get(&chunk_index(ch_pos.0 + x, ch_pos.1 + y))
+                                                .unwrap();
+
+                                            SimulatorChunkCtx {
+                                                pixels,
+                                                colors,
+                                                lights,
+                                                dirty: false,
+                                                dirty_rect,
+                                            }
                                         })
                                     })
                                 })
@@ -875,76 +895,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                 continue;
                             };
 
-                            let Some(gr_arr) = [
-                                (-1, -1),
-                                (0, -1),
-                                (1, -1),
-                                (-1, 0),
-                                (0, 0),
-                                (1, 0),
-                                (-1, 1),
-                                (0, 1),
-                                (1, 1),
-                            ]
-                                .into_iter()
-                                .map(|(x, y)| {
-                                    let chunk = self.loaded_chunks.get_mut(&chunk_index(ch_pos.0 + x, ch_pos.1 + y));
-                                    chunk.map(|c| {
-                                        let raw: *mut [u8; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)] = c.get_colors_mut();
-                                        // blatantly bypassing the borrow checker, see safety comment above
-                                        unsafe { &mut *raw }
-                                    })
-                                })
-                                .collect::<Option<Vec<_>>>()
-                                .map(|v| v.try_into().unwrap())
-                            else {
-                                continue;
-                            };
-
-                            let Some(light_arr) = [
-                                (-1, -1),
-                                (0, -1),
-                                (1, -1),
-                                (-1, 0),
-                                (0, 0),
-                                (1, 0),
-                                (-1, 1),
-                                (0, 1),
-                                (1, 1),
-                            ]
-                                .into_iter()
-                                .map(|(x, y)| {
-                                    let chunk = self.loaded_chunks.get_mut(&chunk_index(ch_pos.0 + x, ch_pos.1 + y));
-                                    chunk.map(|c| {
-                                        let raw: *mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] = c.get_lights_mut();
-                                        // blatantly bypassing the borrow checker, see safety comment above
-                                        unsafe { &mut *raw }
-                                    })
-                                })
-                                .collect::<Option<Vec<_>>>()
-                                .map(|v| v.try_into().unwrap())
-                            else {
-                                continue;
-                            };
-
-                            let dirty_arr = [
-                                (-1, -1),
-                                (0, -1),
-                                (1, -1),
-                                (-1, 0),
-                                (0, 0),
-                                (1, 0),
-                                (-1, 1),
-                                (0, 1),
-                                (1, 1),
-                            ]
-                            .map(|(x, y)| {
-                                *old_dirty_rects
-                                    .get(&chunk_index(ch_pos.0 + x, ch_pos.1 + y))
-                                    .unwrap()
-                            });
-
-                            to_exec.push((ch_pos, arr, gr_arr, light_arr, dirty_arr));
+                            to_exec.push((ch_pos, arr));
                         }
                     }
                 }
@@ -955,40 +906,35 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                     #[allow(clippy::type_complexity)]
                     let b: Vec<(
                         (i32, i32),
-                        [bool; 9],
-                        [Option<Rect<i32>>; 9],
+                        [(bool, Option<Rect<i32>>); 9],
                         Vec<Particle>,
                     )> = {
                         profiling::scope!("par_iter");
                         let reg = registries.clone();
                         to_exec
                             .into_par_iter()
-                            .map(move |(ch_pos, pixels, colors, lights, mut dirty_rects)| {
+                            .map(move |(ch_pos, mut chunk_data)| {
                                 profiling::register_thread!("Simulation thread");
                                 profiling::scope!("chunk");
 
-                                let mut dirty = [false; 9];
                                 let mut particles = Vec::new();
                                 Simulator::simulate_chunk(
                                     ch_pos.0,
                                     ch_pos.1,
-                                    pixels,
-                                    colors,
-                                    lights,
-                                    &mut dirty,
-                                    &mut dirty_rects,
+                                    &mut chunk_data,
                                     &mut particles,
                                     reg.clone(),
                                 );
 
-                                (ch_pos, dirty, dirty_rects, particles)
+                                let dirty_info = chunk_data.map(|d| (d.dirty, d.dirty_rect));
+                                (ch_pos, dirty_info, particles)
                             })
                             .collect()
                     };
 
                     for r in b {
                         profiling::scope!("apply");
-                        let (ch_pos, dirty, dirty_rects, mut parts) = r;
+                        let (ch_pos, dirty_info, mut parts) = r;
 
                         {
                             profiling::scope!("particles");
@@ -1002,14 +948,14 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                             let rel_ch_x = (i % 3) - 1;
                             let rel_ch_y = (i / 3) - 1;
 
-                            if dirty[i as usize] {
+                            if dirty_info[i as usize].0 {
                                 self.loaded_chunks
                                     .get_mut(&chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y))
                                     .unwrap()
                                     .mark_dirty();
                             }
 
-                            if i != 4 && dirty_rects[4].is_some() {
+                            if i != 4 && dirty_info[4].1.is_some() {
                                 let neighbor_rect = Rect::new_wh(
                                     if rel_ch_x == -1 { CHUNK_SIZE / 2 } else { 0 },
                                     if rel_ch_y == -1 { CHUNK_SIZE / 2 } else { 0 },
@@ -1044,7 +990,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                     .set_dirty_rect(r);
                             }
 
-                            if let Some(new) = dirty_rects[i as usize] {
+                            if let Some(new) = dirty_info[i as usize].1 {
                                 let mut r = self
                                     .loaded_chunks
                                     .get_mut(&chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y))
