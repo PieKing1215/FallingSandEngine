@@ -282,21 +282,34 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
     }
 
     pub fn rectangles(&mut self, rects: &[Rect<f32>], color: Color, param: DrawParameters) {
-        let shape = rects
-            .iter()
-            .flat_map(|rect| rect.vertices())
-            .collect::<Vec<_>>();
-
         let model_view =
             *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
         let view: [[f32; 4]; 4] = model_view.into();
 
         if param.polygon_mode == PolygonMode::Line {
+            let shape = rects
+                .iter()
+                .copied()
+                .flat_map(|rect| {
+                    let verts: Vec<_> = rect.vertices().into_iter().map(Vertex2::from).collect();
+
+                    vec![
+                        verts[0], verts[1], // bottom
+                        verts[1], verts[2], // right
+                        verts[2], verts[3], // top
+                        verts[3], verts[0], // left
+                    ]
+                })
+                .collect::<Vec<_>>();
             let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
-            let indices = NoIndices(glium::index::PrimitiveType::LineLoop);
+            let indices = NoIndices(glium::index::PrimitiveType::LinesList);
 
             self.frame.draw(&vertex_buffer, indices, &self.shaders.common, &uniform! { matrix: view, col: [color.r_f32(), color.g_f32(), color.b_f32(), color.a_f32()] }, &param).unwrap();
         } else {
+            let shape = rects
+                .iter()
+                .flat_map(|rect| rect.vertices())
+                .collect::<Vec<_>>();
             let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
             let data = shape
                 .iter()
@@ -318,23 +331,32 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
     }
 
     pub fn rectangles_colored(&mut self, rects: &[(Rect<f32>, Color)], param: DrawParameters) {
-        let shape = rects
-            .iter()
-            .copied()
-            .flat_map(|(rect, color)| {
-                rect.vertices()
-                    .into_iter()
-                    .map(move |v| Vertex2C::from((v, color)))
-            })
-            .collect::<Vec<_>>();
-
         let model_view =
             *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
         let view: [[f32; 4]; 4] = model_view.into();
 
+        // vertices need to be different for lines vs triangles
         if param.polygon_mode == PolygonMode::Line {
+            let shape = rects
+                .iter()
+                .copied()
+                .flat_map(|(rect, color)| {
+                    let verts: Vec<_> = rect
+                        .vertices()
+                        .into_iter()
+                        .map(move |v| Vertex2C::from((v, color)))
+                        .collect();
+
+                    vec![
+                        verts[0], verts[1], // bottom
+                        verts[1], verts[2], // right
+                        verts[2], verts[3], // top
+                        verts[3], verts[0], // left
+                    ]
+                })
+                .collect::<Vec<_>>();
             let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
-            let indices = NoIndices(glium::index::PrimitiveType::LineLoop);
+            let indices = NoIndices(glium::index::PrimitiveType::LinesList);
 
             self.frame
                 .draw(
@@ -346,6 +368,15 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
                 )
                 .unwrap();
         } else {
+            let shape = rects
+                .iter()
+                .copied()
+                .flat_map(|(rect, color)| {
+                    rect.vertices()
+                        .into_iter()
+                        .map(move |v| Vertex2C::from((v, color)))
+                })
+                .collect::<Vec<_>>();
             let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
             let data = shape
                 .iter()
@@ -536,60 +567,8 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
             .unwrap();
     }
 
-    pub fn draw_chunks(&mut self, chunks: &[(f32, f32)], texture_array: &Texture2dArray) {
-        let model_view =
-            *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();
-        let view: [[f32; 4]; 4] = model_view.into();
-
-        let per_instance = {
-            profiling::scope!("a");
-            #[derive(Copy, Clone)]
-            struct Attr {
-                c_pos: (f32, f32),
-                tex_layer: f32,
-            }
-
-            implement_vertex!(Attr, c_pos, tex_layer);
-
-            let data = chunks
-                .iter()
-                .enumerate()
-                .map(|(i, p)| Attr { c_pos: *p, tex_layer: i as f32 })
-                .collect::<Vec<_>>();
-
-            glium::vertex::VertexBuffer::immutable(&self.display, &data).unwrap()
-        };
-
-        let shape = Rect::<f32>::new(0.0, 0.0, CHUNK_SIZE as f32, CHUNK_SIZE as f32)
-            .vertices()
-            .into_iter()
-            .zip([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]])
-            .map(Vertex2T::from)
-            .collect::<Vec<_>>();
-        let vertex_buffer = glium::VertexBuffer::immutable(&self.display, &shape).unwrap();
-        let indices = IndexBuffer::new(
-            &self.display,
-            glium::index::PrimitiveType::TriangleStrip,
-            &[1_u16, 2, 0, 3],
-        )
-        .unwrap();
-
-        {
-            profiling::scope!("draw");
-            self.frame
-                .draw(
-                    (&vertex_buffer, per_instance.per_instance().unwrap()),
-                    &indices,
-                    &self.shaders.texture_array,
-                    &uniform! { matrix: view, tex: texture_array },
-                    &DrawParameters::default(),
-                )
-                .unwrap();
-        }
-    }
-
-    pub fn draw_chunks_2(&mut self, chunks: &[((f32, f32), Arc<ChunkGraphicsData>)]) {
-        profiling::scope!("RenderTarget::draw_chunks_2");
+    pub fn draw_chunks(&mut self, chunks: &[((f32, f32), Arc<ChunkGraphicsData>)]) {
+        profiling::scope!("RenderTarget::draw_chunks");
 
         let model_view =
             *self.base_transform.stack.last().unwrap() * *self.transform.stack.last().unwrap();

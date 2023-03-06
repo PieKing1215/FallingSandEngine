@@ -27,6 +27,12 @@ impl Component for Position {
     type Storage = VecStorage<Self>;
 }
 
+impl From<Position> for (f64, f64) {
+    fn from(val: Position) -> Self {
+        (val.x, val.y)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Velocity {
     pub x: f64,

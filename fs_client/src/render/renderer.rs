@@ -19,7 +19,7 @@ use specs::{ReadStorage, WriteStorage};
 use crate::{
     render::egui::DebugUI,
     ui::DebugUIsContext,
-    world::{ClientChunk, WorldRenderer},
+    world::{ClientChunk, RenderCtx, WorldRenderer},
     Client,
 };
 
@@ -368,7 +368,7 @@ impl<'a> Renderer<'a> {
         target.finish().unwrap();
     }
 
-    #[profiling::function]
+    // #[profiling::function]
     fn render_internal(
         world_renderer: &mut WorldRenderer,
         target: &mut RenderTarget,
@@ -452,12 +452,14 @@ impl<'a> Renderer<'a> {
             world_renderer.render(
                 w,
                 target,
-                delta_time,
-                &game.settings,
-                client,
-                partial_ticks,
-                game.registries.clone(),
-                &game.file_helper,
+                RenderCtx {
+                    delta_time,
+                    settings: &game.settings,
+                    client,
+                    partial_ticks,
+                    registries: game.registries.clone(),
+                    file_helper: &game.file_helper,
+                },
             );
         }
 
