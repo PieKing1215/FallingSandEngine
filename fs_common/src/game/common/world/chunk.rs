@@ -2,7 +2,7 @@ use crate::game::common::hashmap_ext::HashMapExt;
 use crate::game::common::world::gen::populator::ChunkContext;
 use crate::game::common::world::gen::structure::UpdateStructureNodes;
 use crate::game::common::world::particle::ParticleSystem;
-use crate::game::common::world::simulator::{Simulator, SimulatorChunkCtx};
+use crate::game::common::world::simulator::{Simulator, SimulatorChunkContext};
 use crate::game::common::world::{Loader, Position};
 use crate::game::common::Registries;
 use crate::game::common::{Rect, Settings};
@@ -879,7 +879,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                                 .get(&chunk_index(ch_pos.0 + x, ch_pos.1 + y))
                                                 .unwrap();
 
-                                            SimulatorChunkCtx {
+                                            SimulatorChunkContext {
                                                 pixels,
                                                 colors,
                                                 lights,

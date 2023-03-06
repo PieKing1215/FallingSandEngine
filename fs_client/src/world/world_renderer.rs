@@ -42,7 +42,7 @@ impl WorldRenderer {
         &mut self,
         world: &mut World<ClientChunk>,
         target: &mut RenderTarget,
-        ctx: RenderCtx,
+        ctx: RenderContext,
     ) {
         // draw world
 
@@ -193,7 +193,7 @@ impl WorldRenderer {
         &mut self,
         world: &mut World<ClientChunk>,
         target: &mut RenderTarget,
-        ctx: &RenderCtx,
+        ctx: &RenderContext,
     ) {
         profiling::scope!("draw_ecs_debug");
 
@@ -542,7 +542,7 @@ impl WorldRenderer {
         screen_zone: &Rect<i32>,
         world: &mut World<ClientChunk>,
         target: &mut RenderTarget,
-        ctx: &RenderCtx,
+        ctx: &RenderContext,
     ) {
         profiling::scope!("draw_chunk_overlays");
         let mut structure_lines = vec![];
@@ -741,7 +741,7 @@ impl WorldRenderer {
         &mut self,
         world: &mut World<ClientChunk>,
         target: &mut RenderTarget,
-        ctx: &RenderCtx,
+        ctx: &RenderContext,
     ) {
         profiling::scope!("draw_physics_debug");
         target.transform.push();
@@ -1025,7 +1025,7 @@ impl Default for WorldRenderer {
     }
 }
 
-pub struct RenderCtx<'a> {
+pub struct RenderContext<'a> {
     pub delta_time: f64,
     pub settings: &'a Settings,
     pub client: &'a mut Client,

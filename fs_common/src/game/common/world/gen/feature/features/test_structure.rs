@@ -4,7 +4,7 @@ use crate::game::common::{
             feature::ConfiguredFeature,
             populator::ChunkContext,
             structure::configured_structure::{
-                ConfiguredStructurePlaceCtx, ConfiguredStructurePlacer,
+                ConfiguredStructurePlaceContext, ConfiguredStructurePlacer,
             },
         },
         CHUNK_SIZE,
@@ -39,7 +39,7 @@ impl ConfiguredFeature for TestStructure {
                 configured_structure.place(
                     x,
                     y,
-                    ConfiguredStructurePlaceCtx { ecs, world_seed: world_seed as _ },
+                    ConfiguredStructurePlaceContext { ecs, world_seed: world_seed as _ },
                 );
             }
         }

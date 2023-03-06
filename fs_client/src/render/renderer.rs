@@ -19,7 +19,7 @@ use specs::{ReadStorage, WriteStorage};
 use crate::{
     render::egui::DebugUI,
     ui::DebugUIsContext,
-    world::{ClientChunk, RenderCtx, WorldRenderer},
+    world::{ClientChunk, RenderContext, WorldRenderer},
     Client,
 };
 
@@ -452,7 +452,7 @@ impl<'a> Renderer<'a> {
             world_renderer.render(
                 w,
                 target,
-                RenderCtx {
+                RenderContext {
                     delta_time,
                     settings: &game.settings,
                     client,

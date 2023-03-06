@@ -390,7 +390,7 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
 }
 
 impl<H: ChunkHandlerGeneric + Send> UpdateStructureNodes<'_, H> {
-    #[warn(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     fn place(
         &mut self,
         pool: &[RegistryID<StructurePiece>],

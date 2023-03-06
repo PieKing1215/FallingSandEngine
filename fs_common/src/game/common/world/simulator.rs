@@ -30,7 +30,7 @@ trait SimulationHelper {
 }
 
 struct SimulationHelperChunk<'a, 'b> {
-    chunk_data: &'a mut [SimulatorChunkCtx<'b>; 9],
+    chunk_data: &'a mut [SimulatorChunkContext<'b>; 9],
     min_x: [u16; 9],
     min_y: [u16; 9],
     max_x: [u16; 9],
@@ -500,7 +500,7 @@ impl<C: Chunk + Send> SimulationHelper for SimulationHelperRigidBody<'_, C> {
 }
 
 #[derive(Debug)]
-pub struct SimulatorChunkCtx<'a> {
+pub struct SimulatorChunkContext<'a> {
     pub pixels: &'a mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
     pub colors: &'a mut [u8; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4],
     pub lights: &'a mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize],
@@ -514,7 +514,7 @@ impl Simulator {
     pub fn simulate_chunk(
         chunk_x: i32,
         chunk_y: i32,
-        chunk_data: &mut [SimulatorChunkCtx; 9],
+        chunk_data: &mut [SimulatorChunkContext; 9],
         particles: &mut Vec<Particle>,
         registries: Arc<Registries>,
     ) {

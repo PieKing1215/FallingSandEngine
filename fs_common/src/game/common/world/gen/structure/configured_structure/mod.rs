@@ -10,13 +10,13 @@ pub mod jigsaw_structure;
 
 pub trait StructureType {}
 
-pub struct ConfiguredStructurePlaceCtx<'a> {
+pub struct ConfiguredStructurePlaceContext<'a> {
     pub ecs: &'a mut specs::World,
     pub world_seed: u64,
 }
 
 pub trait ConfiguredStructurePlacer: Debug {
-    fn place(&self, x: i64, y: i64, ctx: ConfiguredStructurePlaceCtx);
+    fn place(&self, x: i64, y: i64, ctx: ConfiguredStructurePlaceContext);
 }
 
 #[derive(Debug)]
@@ -25,7 +25,7 @@ pub struct ConfiguredStructure {
 }
 
 impl ConfiguredStructurePlacer for ConfiguredStructure {
-    fn place(&self, x: i64, y: i64, ctx: ConfiguredStructurePlaceCtx) {
+    fn place(&self, x: i64, y: i64, ctx: ConfiguredStructurePlaceContext) {
         self.placer.place(x, y, ctx);
     }
 }
