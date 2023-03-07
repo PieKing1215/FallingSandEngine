@@ -8,6 +8,10 @@ pub struct Color {
     pub a: u8,
 }
 
+// it's assumed elsewhere that an array of `u8` can be cast into an array of `Color`
+static_assertions::assert_eq_align!([u8; 4], Color);
+static_assertions::assert_eq_size!([u8; 4], Color);
+
 pub trait IntoColorNum {
     fn col_num(self) -> u8;
 }

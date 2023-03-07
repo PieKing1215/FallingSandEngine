@@ -879,6 +879,13 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                                 .get(&chunk_index(ch_pos.0 + x, ch_pos.1 + y))
                                                 .unwrap();
 
+                                            let colors = unsafe {
+                                                // Safety: `Color` has is exactly identical to 4 `u8`s (statically asserted)
+                                                //         so it's fine to cast a slice of `u8` to a slice of `Color` with 1/4 the size
+                                                let cs: &mut [Color] = core::slice::from_raw_parts_mut(colors.as_mut_ptr().cast(), colors.len()/4);
+                                                cs.try_into().unwrap_unchecked()
+                                            };
+
                                             SimulatorChunkContext {
                                                 pixels,
                                                 colors,
