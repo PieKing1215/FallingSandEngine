@@ -1,3 +1,4 @@
+use std::cell::UnsafeCell;
 use std::sync::Arc;
 
 use fastrand::Rng;
@@ -45,7 +46,7 @@ struct SimulationHelperChunk<'a, 'b> {
 impl SimulationHelperChunk<'_, '_> {
     #[inline]
     fn pixel_from_index(&self, (ch, px, ..): (usize, usize, u16, u16)) -> &MaterialInstance {
-        &self.chunk_data[ch].pixels[px]
+        unsafe { &*self.chunk_data[ch].pixels[px].get() }
     }
 
     #[inline]
@@ -53,7 +54,12 @@ impl SimulationHelperChunk<'_, '_> {
         &self,
         (ch, px, ..): (usize, usize, u16, u16),
     ) -> &MaterialInstance {
-        self.chunk_data.get_unchecked(ch).pixels.get_unchecked(px)
+        &*self
+            .chunk_data
+            .get_unchecked(ch)
+            .pixels
+            .get_unchecked(px)
+            .get()
     }
 
     #[inline(always)]
@@ -67,7 +73,9 @@ impl SimulationHelperChunk<'_, '_> {
         (ch, px, ch_x, ch_y): (usize, usize, u16, u16),
         mat: MaterialInstance,
     ) {
-        self.chunk_data[ch].pixels[px] = mat;
+        unsafe {
+            *self.chunk_data[ch].pixels[px].get() = mat;
+        }
 
         self.min_x[ch] = self.min_x[ch].min(ch_x);
         self.min_y[ch] = self.min_y[ch].min(ch_y);
@@ -85,7 +93,8 @@ impl SimulationHelperChunk<'_, '_> {
             .chunk_data
             .get_unchecked_mut(ch)
             .pixels
-            .get_unchecked_mut(px) = mat;
+            .get_unchecked(px)
+            .get() = mat;
 
         *self.min_x.get_unchecked_mut(ch) = (*self.min_x.get_unchecked_mut(ch)).min(ch_x);
         *self.min_y.get_unchecked_mut(ch) = (*self.min_y.get_unchecked_mut(ch)).min(ch_y);
@@ -100,13 +109,18 @@ impl SimulationHelperChunk<'_, '_> {
 
     #[inline]
     fn color_from_index(&self, (ch, px, ..): (usize, usize, u16, u16)) -> Color {
-        self.chunk_data[ch].colors[px]
+        unsafe { *self.chunk_data[ch].colors[px].get() }
     }
 
     #[inline]
     #[allow(dead_code)]
     unsafe fn color_from_index_unchecked(&self, (ch, px, ..): (usize, usize, u16, u16)) -> Color {
-        *self.chunk_data.get_unchecked(ch).colors.get_unchecked(px)
+        *self
+            .chunk_data
+            .get_unchecked(ch)
+            .colors
+            .get_unchecked(px)
+            .get()
     }
 
     #[inline]
@@ -117,7 +131,9 @@ impl SimulationHelperChunk<'_, '_> {
 
     #[inline]
     fn set_color_from_index(&mut self, (ch, px, ..): (usize, usize, u16, u16), color: Color) {
-        self.chunk_data[ch].colors[px] = color;
+        unsafe {
+            *self.chunk_data[ch].colors[px].get() = color;
+        }
 
         self.chunk_data[ch].dirty = true;
     }
@@ -132,7 +148,8 @@ impl SimulationHelperChunk<'_, '_> {
             .chunk_data
             .get_unchecked_mut(ch)
             .colors
-            .get_unchecked_mut(px) = color;
+            .get_unchecked(px)
+            .get() = color;
 
         self.chunk_data[ch].dirty = true;
     }
@@ -146,7 +163,7 @@ impl SimulationHelperChunk<'_, '_> {
     fn light_from_index(&self, (ch, px, ..): (usize, usize, u16, u16)) -> &[f32; 3] {
         // Safety: slicing [f32; 4] as &[f32; 3] will never fail
         unsafe {
-            self.chunk_data[ch].lights[px][0..3]
+            (*self.chunk_data[ch].lights[px].get())[0..3]
                 .try_into()
                 .unwrap_unchecked()
         }
@@ -162,31 +179,21 @@ impl SimulationHelperChunk<'_, '_> {
         &self,
         (ch, px, ..): (usize, usize, u16, u16),
     ) -> [f32; 3] {
-        [
-            *self
-                .chunk_data
-                .get_unchecked(ch)
-                .lights
-                .get_unchecked(px)
-                .get_unchecked(0),
-            *self
-                .chunk_data
-                .get_unchecked(ch)
-                .lights
-                .get_unchecked(px)
-                .get_unchecked(1),
-            *self
-                .chunk_data
-                .get_unchecked(ch)
-                .lights
-                .get_unchecked(px)
-                .get_unchecked(2),
-        ]
+        (*self
+            .chunk_data
+            .get_unchecked(ch)
+            .lights
+            .get_unchecked(px)
+            .get())[0..3]
+            .try_into()
+            .unwrap_unchecked()
     }
 
     #[inline]
     fn set_light_from_index(&mut self, (ch, px, ..): (usize, usize, u16, u16), light: [f32; 3]) {
-        self.chunk_data[ch].lights[px] = [light[0], light[1], light[2], 1.0];
+        unsafe {
+            *self.chunk_data[ch].lights[px].get() = [light[0], light[1], light[2], 1.0];
+        }
     }
 
     #[inline]
@@ -199,7 +206,8 @@ impl SimulationHelperChunk<'_, '_> {
             .chunk_data
             .get_unchecked_mut(ch)
             .lights
-            .get_unchecked_mut(px) = [light[0], light[1], light[2], 1.0];
+            .get_unchecked(px)
+            .get() = [light[0], light[1], light[2], 1.0];
     }
 
     // (chunk index, pixel index, pixel x in chunk, pixel y in chunk)
@@ -412,12 +420,15 @@ impl<C: Chunk + Send> SimulationHelper for SimulationHelperRigidBody<'_, C> {
 
 #[derive(Debug)]
 pub struct SimulatorChunkContext<'a> {
-    pub pixels: &'a mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-    pub colors: &'a mut [Color; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-    pub lights: &'a mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize],
+    // using UnsafeCell to allow mutations to disjoint indices from different threads
+    pub pixels: &'a [UnsafeCell<MaterialInstance>; (CHUNK_SIZE * CHUNK_SIZE) as usize],
+    pub colors: &'a [UnsafeCell<Color>; (CHUNK_SIZE * CHUNK_SIZE) as usize],
+    pub lights: &'a [UnsafeCell<[f32; 4]>; CHUNK_SIZE as usize * CHUNK_SIZE as usize],
     pub dirty: bool,
     pub dirty_rect: Option<Rect<i32>>,
 }
+unsafe impl<'a> Send for SimulatorChunkContext<'a> {}
+unsafe impl<'a> Sync for SimulatorChunkContext<'a> {}
 
 impl Simulator {
     #[warn(clippy::too_many_arguments)]

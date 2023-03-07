@@ -6,6 +6,7 @@ use crate::game::common::world::simulator::{Simulator, SimulatorChunkContext};
 use crate::game::common::world::{Loader, Position};
 use crate::game::common::Registries;
 use crate::game::common::{Rect, Settings};
+use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::hash::BuildHasherDefault;
@@ -845,8 +846,11 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                         if old_dirty_rects.get(key).is_some() {
                             // SAFETY: the same chunks' arrays may be modified mutably on multiple threads at once, which is necessary for multithreading
                             // However, ticking a chunk can only affect pixels within CHUNK_SIZE/2 of the center chunk (this is unchecked)
+                            //   and we the 4-phase thing ensures no chunks directly next to each other are ticked at the same time
                             //   so multiple threads will not modify the same index in the array at the same time
-                            // Assuming the hack here to mutably borrow multiple things out of a hashmap is sound (idk), the rest should be sound I think (TM)
+                            // The chunk arrays are cast to `&[UnsafeCell<T>; _]`, so there should be no actual `&mut`s involved
+                            // There is still a very good chance there's UB here, I'm not an expert on aliasing
+                            // TODO: see if miri can run this
 
                             let Some(arr) = [
                                 (-1, -1),
@@ -865,15 +869,16 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                     chunk.and_then(|c| {
                                         c.get_pixels_mut().as_mut().map(|raw| {
                                             // blatantly bypassing the borrow checker, see safety comment above
-                                            unsafe { &mut *(raw.as_mut() as *mut _) }
+                                            unsafe { &*(raw.as_mut() as *mut _ as *const _) }
                                         }).map(|pixels| {
-                                            let raw: *mut [u8; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)] = c.get_colors_mut();
                                             // blatantly bypassing the borrow checker, see safety comment above
-                                            let colors = unsafe { &mut *raw };
+                                            // I'm not sure if doing this while the data is already in a `&[UnsafeCell<_>; _]` is UB
+
+                                            let raw: *mut [u8; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)] = c.get_colors_mut();
+                                            let colors = unsafe { &*(raw as *const [UnsafeCell<u8>; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]) };
 
                                             let raw: *mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] = c.get_lights_mut();
-                                            // blatantly bypassing the borrow checker, see safety comment above
-                                            let lights = unsafe { &mut *raw };
+                                            let lights = unsafe { &*(raw as *const [UnsafeCell<[f32; 4]>; CHUNK_SIZE as usize * CHUNK_SIZE as usize]) };
 
                                             let dirty_rect = *old_dirty_rects
                                                 .get(&chunk_index(ch_pos.0 + x, ch_pos.1 + y))
@@ -882,7 +887,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                             let colors = unsafe {
                                                 // Safety: `Color` has is exactly identical to 4 `u8`s (statically asserted)
                                                 //         so it's fine to cast a slice of `u8` to a slice of `Color` with 1/4 the size
-                                                let cs: &mut [Color] = core::slice::from_raw_parts_mut(colors.as_mut_ptr().cast(), colors.len()/4);
+                                                let cs: &[UnsafeCell<Color>] = core::slice::from_raw_parts(colors.as_ptr().cast(), colors.len()/4);
                                                 cs.try_into().unwrap_unchecked()
                                             };
 
