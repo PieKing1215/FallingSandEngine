@@ -10,9 +10,14 @@ uniform int chunk_size;
 uniform sampler2D tex;
 uniform sampler2D light_tex;
 
+float noise(vec2 c) {
+   return fract(sin(dot(c, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
 void main() {
     vec2 coord = tex_c;
     if (!smooth_lighting) coord = floor(tex_c * chunk_size) / chunk_size;
+
     // could use bicubic (ie. https://stackoverflow.com/a/42179924) but not very noticeable
     vec3 v = texture(tex, coord + vec2(0.5 / chunk_size)).rgb;
 
@@ -26,4 +31,5 @@ void main() {
     if (v.b > 1.0) v = v / v.b;
 
     color = vec4(vec3(v), 1.0);
+    color += mix(-4.0/255.0, 4.0/255.0, noise(smooth_lighting ? floor(tex_c * (chunk_size * 4.0)) / (chunk_size * 4.0) : coord )) * (smooth_lighting ? 1.0 : 0.5);
 }

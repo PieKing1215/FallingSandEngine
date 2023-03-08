@@ -24,6 +24,7 @@ pub struct ClientChunk {
     pub state: ChunkState,
     pub pixels: Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
     pub light: Option<Box<[[f32; 3]; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
+    pub background: Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
     pub graphics: Box<ChunkGraphics>,
     pub dirty_rect: Option<Rect<i32>>,
     pub rigidbody: Option<RigidBodyState>,
@@ -40,13 +41,16 @@ impl Chunk for ClientChunk {
             state: ChunkState::NotGenerated,
             pixels: None,
             light: None,
+            background: None,
             graphics: Box::new(ChunkGraphics {
                 data: None,
                 pixel_data: Box::new([0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]),
                 lighting_data: Box::new([[0.0; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]),
+                background_data: Box::new([0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]),
                 dirty: true,
                 was_dirty: true,
                 lighting_dirty: true,
+                background_dirty: true,
             }),
             dirty_rect: None,
             rigidbody: None,
@@ -286,8 +290,46 @@ impl Chunk for ClientChunk {
         &self.graphics.pixel_data
     }
 
+    fn set_background_pixels(
+        &mut self,
+        pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
+    ) {
+        self.background = Some(pixels);
+        self.refresh();
+    }
+
+    fn get_background_pixels_mut(
+        &mut self,
+    ) -> &mut Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
+        &mut self.background
+    }
+
+    fn get_background_pixels(
+        &self,
+    ) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
+        &self.background
+    }
+
+    fn set_background_pixel_colors(
+        &mut self,
+        colors: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
+    ) {
+        self.graphics.replace_background(colors);
+    }
+
+    fn get_background_colors_mut(
+        &mut self,
+    ) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
+        &mut self.graphics.background_data
+    }
+
+    fn get_background_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
+        &self.graphics.background_data
+    }
+
     fn mark_dirty(&mut self) {
         self.graphics.dirty = true;
+        self.graphics.background_dirty = true;
         self.graphics.lighting_dirty = true;
     }
 
@@ -341,11 +383,56 @@ impl Chunk for ClientChunk {
     fn get_lights(&self) -> &[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         &self.graphics.lighting_data
     }
+
+    fn set_background(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String> {
+        if x < CHUNK_SIZE && y < CHUNK_SIZE {
+            if let Some(px) = &mut self.background {
+                let i = (x + y * CHUNK_SIZE) as usize;
+                // Safety: we do our own bounds check
+                self.graphics.set_background(x, y, mat.color)?;
+                *unsafe { px.get_unchecked_mut(i) } = mat;
+
+                return Ok(());
+            }
+
+            return Err("Chunk is not ready yet.".to_string());
+        }
+
+        Err("Invalid pixel coordinate.".to_string())
+    }
+
+    unsafe fn set_background_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance) {
+        let i = (x + y * CHUNK_SIZE) as usize;
+        // Safety: input index assumed to be valid
+        self.graphics.set_background(x, y, mat.color).unwrap();
+        *unsafe { self.background.as_mut().unwrap().get_unchecked_mut(i) } = mat;
+    }
+
+    fn get_background(&self, x: u16, y: u16) -> Result<&MaterialInstance, String> {
+        if x < CHUNK_SIZE && y < CHUNK_SIZE {
+            if let Some(px) = &self.background {
+                let i = (x + y * CHUNK_SIZE) as usize;
+                // Safety: we do our own bounds check
+                return Ok(unsafe { px.get_unchecked(i) });
+            }
+
+            return Err("Chunk is not ready yet.".to_string());
+        }
+
+        Err("Invalid pixel coordinate.".to_string())
+    }
+
+    unsafe fn get_background_unchecked(&self, x: u16, y: u16) -> &MaterialInstance {
+        let i = (x + y * CHUNK_SIZE) as usize;
+        // Safety: input index assumed to be valid
+        unsafe { self.background.as_ref().unwrap().get_unchecked(i) }
+    }
 }
 
 pub struct ChunkGraphicsData {
     pub display: Display,
     pub texture: Texture2d,
+    pub background_texture: Texture2d,
     pub lighting_src: Texture2d,
     pub lighting_dst: Texture2d,
     pub lighting_neighbors: Texture2d,
@@ -356,9 +443,11 @@ pub struct ChunkGraphics {
     pub data: Option<Arc<ChunkGraphicsData>>,
     pub pixel_data: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
     pub lighting_data: Box<[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
+    pub background_data: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
     pub dirty: bool,
     pub was_dirty: bool,
     pub lighting_dirty: bool,
+    pub background_dirty: bool,
 }
 
 unsafe impl Send for ChunkGraphics {}
@@ -414,6 +503,23 @@ impl ChunkGraphics {
         Err("Invalid pixel coordinate.".to_string())
     }
 
+    pub fn set_background(&mut self, x: u16, y: u16, color: Color) -> Result<(), String> {
+        if x < CHUNK_SIZE && y < CHUNK_SIZE {
+            // self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
+            let i = (x + y * CHUNK_SIZE) as usize;
+            self.background_data[i * 4] = color.r;
+            self.background_data[i * 4 + 1] = color.g;
+            self.background_data[i * 4 + 2] = color.b;
+            self.background_data[i * 4 + 3] = color.a;
+            self.dirty = true;
+            self.lighting_dirty = true;
+
+            return Ok(());
+        }
+
+        Err("Invalid pixel coordinate.".to_string())
+    }
+
     #[profiling::function]
     pub fn update_texture(&mut self) {
         if self.dirty {
@@ -444,6 +550,36 @@ impl ChunkGraphics {
                 }
             }
             self.dirty = false;
+        }
+
+        if self.background_dirty {
+            profiling::scope!("background_dirty");
+            if let Some(data) = &mut self.data {
+                let image = {
+                    profiling::scope!("RawImage2d");
+
+                    glium::texture::RawImage2d {
+                        data: Cow::Borrowed(self.background_data.as_slice()),
+                        width: CHUNK_SIZE.into(),
+                        height: CHUNK_SIZE.into(),
+                        format: glium::texture::ClientFormat::U8U8U8U8,
+                    }
+                };
+
+                {
+                    profiling::scope!("write");
+                    data.background_texture.write(
+                        glium::Rect {
+                            left: 0,
+                            bottom: 0,
+                            width: CHUNK_SIZE.into(),
+                            height: CHUNK_SIZE.into(),
+                        },
+                        image,
+                    );
+                }
+            }
+            self.background_dirty = false;
         }
     }
 
@@ -591,10 +727,18 @@ impl ChunkGraphics {
         &mut self,
         colors: Box<[u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]>,
     ) {
-        // let sf = Surface::from_data(&mut colors, CHUNK_SIZE as u32, CHUNK_SIZE as u32, self.surface.pitch(), self.surface.pixel_format_enum()).unwrap();
-        // sf.blit(None, &mut self.surface, None).unwrap();
         self.pixel_data = colors;
         self.dirty = true;
+    }
+
+    #[profiling::function]
+    #[allow(clippy::cast_lossless)]
+    pub fn replace_background(
+        &mut self,
+        colors: Box<[u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]>,
+    ) {
+        self.background_data = colors;
+        self.background_dirty = true;
     }
 }
 
@@ -773,6 +917,16 @@ impl ChunkGraphics {
             };
             let texture = Texture2d::new(&target.display, image).unwrap();
 
+            let background_image = {
+                glium::texture::RawImage2d {
+                    data: Cow::Borrowed(self.background_data.as_slice()),
+                    width: CHUNK_SIZE.into(),
+                    height: CHUNK_SIZE.into(),
+                    format: glium::texture::ClientFormat::U8U8U8U8,
+                }
+            };
+            let background_texture = Texture2d::new(&target.display, background_image).unwrap();
+
             let default_src = glium::texture::RawImage2d {
                 data: Cow::Owned(vec![0.0; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]),
                 width: CHUNK_SIZE.into(),
@@ -850,6 +1004,7 @@ impl ChunkGraphics {
             self.data = Some(Arc::new(ChunkGraphicsData {
                 display: target.display.clone(),
                 texture,
+                background_texture,
                 lighting_src,
                 lighting_dst,
                 lighting_neighbors,

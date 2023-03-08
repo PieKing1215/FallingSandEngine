@@ -12,9 +12,11 @@ pub struct ServerChunk {
     pub chunk_y: i32,
     pub state: ChunkState,
     pub pixels: Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
+    pub background: Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
     pub dirty_rect: Option<Rect<i32>>,
     pub pixel_data: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
     pub light_data: Box<[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
+    pub background_data: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
     pub dirty: bool,
     pub rigidbody: Option<RigidBodyState>,
     pub mesh_simplified: Option<Vec<Vec<Vec<Vec<f64>>>>>,
@@ -27,9 +29,11 @@ impl Chunk for ServerChunk {
             chunk_y,
             state: ChunkState::NotGenerated,
             pixels: None,
+            background: None,
             dirty_rect: None,
             pixel_data: Box::new([0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]),
             light_data: Box::new([[0.0; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]),
+            background_data: Box::new([0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]),
             dirty: true,
             rigidbody: None,
             mesh_simplified: None,
@@ -204,6 +208,42 @@ impl Chunk for ServerChunk {
         &self.pixel_data
     }
 
+    fn set_background_pixels(
+        &mut self,
+        pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
+    ) {
+        self.background = Some(pixels);
+    }
+
+    fn get_background_pixels_mut(
+        &mut self,
+    ) -> &mut Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
+        &mut self.background
+    }
+
+    fn get_background_pixels(
+        &self,
+    ) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
+        &self.background
+    }
+
+    fn set_background_pixel_colors(
+        &mut self,
+        colors: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
+    ) {
+        self.background_data = colors;
+    }
+
+    fn get_background_colors_mut(
+        &mut self,
+    ) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
+        &mut self.background_data
+    }
+
+    fn get_background_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
+        &self.background_data
+    }
+
     fn mark_dirty(&mut self) {
         self.dirty = true;
     }
@@ -262,5 +302,49 @@ impl Chunk for ServerChunk {
 
     fn get_lights(&self) -> &[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         self.light_data.as_ref()
+    }
+
+    // #[profiling::function] // huge performance impact
+    fn set_background(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String> {
+        if x < CHUNK_SIZE && y < CHUNK_SIZE {
+            if let Some(px) = &mut self.background {
+                let i = (x + y * CHUNK_SIZE) as usize;
+                // Safety: we do our own bounds check
+                *unsafe { px.get_unchecked_mut(i) } = mat;
+
+                return Ok(());
+            }
+
+            return Err("Chunk is not ready yet.".to_string());
+        }
+
+        Err("Invalid pixel coordinate.".to_string())
+    }
+
+    unsafe fn set_background_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance) {
+        let i = (x + y * CHUNK_SIZE) as usize;
+        // Safety: input index assumed to be valid
+        *unsafe { self.background.as_mut().unwrap().get_unchecked_mut(i) } = mat;
+    }
+
+    // #[profiling::function] // huge performance impact
+    fn get_background(&self, x: u16, y: u16) -> Result<&MaterialInstance, String> {
+        if x < CHUNK_SIZE && y < CHUNK_SIZE {
+            if let Some(px) = &self.background {
+                let i = (x + y * CHUNK_SIZE) as usize;
+                // Safety: we do our own bounds check
+                return Ok(unsafe { px.get_unchecked(i) });
+            }
+
+            return Err("Chunk is not ready yet.".to_string());
+        }
+
+        Err("Invalid pixel coordinate.".to_string())
+    }
+
+    unsafe fn get_background_unchecked(&self, x: u16, y: u16) -> &MaterialInstance {
+        let i = (x + y * CHUNK_SIZE) as usize;
+        // Safety: input index assumed to be valid
+        unsafe { self.background.as_ref().unwrap().get_unchecked(i) }
     }
 }

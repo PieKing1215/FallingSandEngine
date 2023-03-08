@@ -96,6 +96,7 @@ impl PopulatorList {
 
 pub trait WorldGenerator: Send + Sync + std::fmt::Debug {
     #[allow(clippy::cast_lossless)]
+    #[warn(clippy::too_many_arguments)] // TODO
     fn generate(
         &self,
         chunk_x: i32,
@@ -103,6 +104,8 @@ pub trait WorldGenerator: Send + Sync + std::fmt::Debug {
         seed: i32,
         pixels: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
         colors: &mut [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize],
+        background: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
+        background_colors: &mut [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize],
         registries: &Registries,
     );
 

@@ -112,4 +112,38 @@ impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
             }
         }
     }
+
+    pub fn set_background(&mut self, x: i32, y: i32, mat: MaterialInstance) -> Result<(), String> {
+        let (cx, cy) = Self::pixel_to_chunk(x, y);
+        let i = Self::chunk_index(cx, cy);
+        // Safety: rem_euclid covers bounds check and we check in `Self::new` if the chunks have a pixel buffer
+        unsafe {
+            let ch = self.0.get_unchecked_mut(i);
+            ch.set_background_unchecked(
+                x.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
+                y.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
+                mat,
+            );
+            Ok(())
+        }
+    }
+
+    pub fn get_background(
+        &self,
+        x: impl Into<i32>,
+        y: impl Into<i32>,
+    ) -> Result<&MaterialInstance, String> {
+        let x = x.into();
+        let y = y.into();
+        let (cx, cy) = Self::pixel_to_chunk(x, y);
+        let i = Self::chunk_index(cx, cy);
+        // Safety: rem_euclid covers bounds check and we check in `Self::new` if the chunks have a pixel buffer
+        unsafe {
+            let ch = self.0.get_unchecked(i);
+            Ok(ch.get_background_unchecked(
+                x.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
+                y.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
+            ))
+        }
+    }
 }

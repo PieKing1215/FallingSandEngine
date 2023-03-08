@@ -200,6 +200,8 @@ impl WorldGenerator for BiomeTestGenerator {
         seed: i32,
         pixels: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
         colors: &mut [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize],
+        background: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
+        background_colors: &mut [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize],
         registries: &Registries,
     ) {
         let chunk_pixel_x = chunk_x as i64 * CHUNK_SIZE as i64;
@@ -227,6 +229,15 @@ impl WorldGenerator for BiomeTestGenerator {
                     colors[i * 4 + 1] = pixels[i].color.g;
                     colors[i * 4 + 2] = pixels[i].color.b;
                     colors[i * 4 + 3] = pixels[i].color.a;
+
+                    background[i] = biome
+                        .base_placer
+                        .as_placer(registries)
+                        .pixel(chunk_pixel_x + x as i64, chunk_pixel_y + y as i64);
+                    background_colors[i * 4] = background[i].color.r;
+                    background_colors[i * 4 + 1] = background[i].color.g;
+                    background_colors[i * 4 + 2] = background[i].color.b;
+                    background_colors[i * 4 + 3] = background[i].color.a;
                 }
             }
         }

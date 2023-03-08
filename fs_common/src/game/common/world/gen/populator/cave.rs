@@ -64,6 +64,12 @@ impl Populator<0> for CavePopulator {
                             chunks.set(x, y, MaterialInstance::air()).unwrap();
                         }
 
+                        if f > 0.925 {
+                            chunks
+                                .set_background(x, y, MaterialInstance::air())
+                                .unwrap();
+                        }
+
                         // let f = if f > 0.7 { 0.0 } else { 1.0 };
                         // let mut m = *chunks.get(x, y).unwrap();
                         // m.color = crate::game::common::world::material::color::Color::rgba(f, f, f, 1.0);

@@ -65,6 +65,24 @@ pub trait Chunk {
     fn get_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
     fn get_lights_mut(&mut self) -> &mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
     fn get_lights(&self) -> &[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
+    fn set_background_pixels(
+        &mut self,
+        pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
+    );
+    fn get_background_pixels_mut(
+        &mut self,
+    ) -> &mut Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>;
+    fn get_background_pixels(
+        &self,
+    ) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>;
+    fn set_background_pixel_colors(
+        &mut self,
+        colors: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
+    );
+    fn get_background_colors_mut(
+        &mut self,
+    ) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
+    fn get_background_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
 
     fn generate_mesh(&mut self) -> Result<(), String>;
     // fn get_tris(&self) -> &Option<Vec<Vec<((f64, f64), (f64, f64), (f64, f64))>>>;
@@ -104,6 +122,17 @@ pub trait Chunk {
 
     fn set_color(&mut self, x: u16, y: u16, color: Color) -> Result<(), String>;
     fn get_color(&self, x: u16, y: u16) -> Result<Color, String>;
+
+    fn set_background(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String>;
+    /// # Safety
+    /// x and y must be in `0..CHUNK_SIZE`
+    unsafe fn set_background_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance);
+
+    fn get_background(&self, x: u16, y: u16) -> Result<&MaterialInstance, String>;
+    /// # Safety
+    /// x and y must be in `0..CHUNK_SIZE`
+    unsafe fn get_background_unchecked(&self, x: u16, y: u16) -> &MaterialInstance;
+
     fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]);
 }
 
@@ -130,6 +159,8 @@ pub struct ChunkHandler<C: Chunk> {
 #[allow(clippy::cast_lossless)]
 pub type ChunkGenOutput = (
     u32,
+    Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
+    Box<[u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]>,
     Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
     Box<[u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]>,
 );
@@ -554,16 +585,28 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                             let mut colors =
                                 Box::new([0; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]);
 
+                            let mut background = Box::new(
+                                [(); (CHUNK_SIZE * CHUNK_SIZE) as usize]
+                                    .map(|_| MaterialInstance::air()),
+                            );
+
+                            #[allow(clippy::cast_lossless)]
+                            let mut background_colors =
+                                Box::new([0; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]);
+
                             generator.generate(
                                 chunk_x,
                                 chunk_y,
                                 seed,
                                 &mut pixels,
                                 &mut colors,
+                                &mut background,
+                                &mut background_colors,
                                 reg.as_ref(),
                             );
 
-                            tx.send((key, pixels, colors)).unwrap();
+                            tx.send((key, pixels, colors, background, background_colors))
+                                .unwrap();
                         });
 
                         self.gen_threads.push((key, rx));
@@ -588,13 +631,15 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                 // put generated data into chunk
                 let keys: Vec<_> = generated
                     .into_iter()
-                    .filter_map(|(key, pixels, colors)| {
+                    .filter_map(|(key, pixels, colors, background, background_colors)| {
                         profiling::scope!("finish chunk");
 
                         self.loaded_chunks.get_mut(&key).map(|chunk| {
                             chunk.set_state(ChunkState::Generating(0));
                             chunk.set_pixels(pixels);
                             chunk.set_pixel_colors(colors);
+                            chunk.set_background_pixels(background);
+                            chunk.set_background_pixel_colors(background_colors);
                             key
                         })
                     })
