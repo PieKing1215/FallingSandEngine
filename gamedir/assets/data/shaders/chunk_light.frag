@@ -6,6 +6,7 @@ out vec4 color;
 
 uniform vec2 player_light_world_pos;
 uniform bool smooth_lighting;
+uniform bool dithering;
 uniform int chunk_size;
 uniform sampler2D tex;
 uniform sampler2D light_tex;
@@ -31,5 +32,7 @@ void main() {
     if (v.b > 1.0) v = v / v.b;
 
     color = vec4(vec3(v), 1.0);
-    color += mix(-4.0/255.0, 4.0/255.0, noise(smooth_lighting ? floor(tex_c * (chunk_size * 4.0)) / (chunk_size * 4.0) : coord )) * (smooth_lighting ? 1.0 : 0.5);
+    if (dithering){
+        color += mix(-4.0/255.0, 4.0/255.0, noise(smooth_lighting ? floor(tex_c * (chunk_size * 4.0)) / (chunk_size * 4.0) : coord )) * (smooth_lighting ? 1.0 : 0.5);
+    }
 }

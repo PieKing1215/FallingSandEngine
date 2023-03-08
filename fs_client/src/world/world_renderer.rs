@@ -163,6 +163,7 @@ impl WorldRenderer {
                 &chunk_tex_data,
                 (camera_pos.x as f32, camera_pos.y as f32),
                 ctx.settings.lighting_smooth,
+                ctx.settings.lighting_dithering,
                 ctx.settings.lighting_overlay,
                 ctx.settings.lighting_linear_blend,
             );

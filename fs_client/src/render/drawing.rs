@@ -609,6 +609,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
         chunks: &[((f32, f32), Arc<ChunkGraphicsData>)],
         player_light_world_pos: (f32, f32),
         smooth_lighting: bool,
+        dithering: bool,
         lighting_overlay: bool,
         lighting_linear_blend: bool,
     ) {
@@ -658,6 +659,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
                 matrix: view,
                 c_pos: *p,
                 smooth_lighting: smooth_lighting,
+                dithering: dithering,
                 chunk_size: CHUNK_SIZE as i32,
                 player_light_world_pos: player_light_world_pos,
                 tex: data.lighting_dst.sampled().magnify_filter(if lighting_linear_blend { glium::uniforms::MagnifySamplerFilter::Linear } else { glium::uniforms::MagnifySamplerFilter::Nearest }),

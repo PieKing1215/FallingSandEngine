@@ -15,6 +15,7 @@ pub struct Settings {
     pub draw_structure_set: Option<RegistryID<StructureSet>>,
     pub draw_lighting: bool,
     pub lighting_smooth: bool,
+    pub lighting_dithering: bool,
     pub lighting_overlay: bool,
     pub lighting_linear_blend: bool,
     pub cull_chunks: bool,
@@ -60,6 +61,7 @@ impl Default for Settings {
 
             draw_lighting: true,
             lighting_smooth: true,
+            lighting_dithering: true,
             lighting_overlay: false,
             lighting_linear_blend: true,
 
