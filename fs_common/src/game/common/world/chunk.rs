@@ -861,27 +861,24 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
         if settings.simulate_chunks {
             profiling::scope!("chunk simulate");
 
-            let keys = self.loaded_chunks.keys().copied().collect::<Vec<u32>>();
-            let mut old_dirty_rects: HashMap<u32, Option<Rect<i32>>> =
-                HashMap::with_capacity(keys.len());
+            let old_dirty_rects = self
+                .loaded_chunks
+                .iter_mut()
+                .map(|(key, ch)| {
+                    let rect = ch.get_dirty_rect();
+                    ch.set_dirty_rect(None);
+                    (*key, rect)
+                })
+                .collect::<HashMap<_, _>>();
 
-            for key in &keys {
-                old_dirty_rects.insert(*key, self.loaded_chunks.get(key).unwrap().get_dirty_rect());
-                self.loaded_chunks
-                    .get_mut(key)
-                    .unwrap()
-                    .set_dirty_rect(None);
-            }
-
+            let keys = self.loaded_chunks.keys().copied().collect::<Vec<_>>();
             for tick_phase in 0..4 {
                 profiling::scope!("phase", format!("phase {}", tick_phase).as_str());
                 let mut to_exec = vec![];
                 for key in &keys {
-                    let state = self.loaded_chunks.get(key).unwrap().get_state(); // copy
-                    let ch_pos = (
-                        self.loaded_chunks.get(key).unwrap().get_chunk_x(),
-                        self.loaded_chunks.get(key).unwrap().get_chunk_y(),
-                    );
+                    let ch = self.loaded_chunks.get(key).unwrap();
+                    let state = ch.get_state(); // copy
+                    let ch_pos = (ch.get_chunk_x(), ch.get_chunk_y());
 
                     if chunk_update_order(ch_pos.0, ch_pos.1) == tick_phase
                         && state == ChunkState::Active
@@ -1506,27 +1503,27 @@ mod tests {
 
 // #[profiling::function]
 #[inline]
-pub fn pixel_to_chunk_pos(x: i64, y: i64) -> (i32, i32) {
+pub const fn pixel_to_chunk_pos(x: i64, y: i64) -> (i32, i32) {
     // div_euclid is the same as div_floor in this case (div_floor is currenlty unstable)
     (
-        x.div_euclid(CHUNK_SIZE.into()) as _,
-        y.div_euclid(CHUNK_SIZE.into()) as _,
+        x.div_euclid(CHUNK_SIZE as _) as _,
+        y.div_euclid(CHUNK_SIZE as _) as _,
     )
 }
 
 #[inline]
-pub fn pixel_to_chunk_pos_with_chunk_size(x: i64, y: i64, chunk_size: u16) -> (i32, i32) {
+pub const fn pixel_to_chunk_pos_with_chunk_size(x: i64, y: i64, chunk_size: u16) -> (i32, i32) {
     // div_euclid is the same as div_floor in this case (div_floor is currenlty unstable)
     (
-        x.div_euclid(chunk_size.into()) as _,
-        y.div_euclid(chunk_size.into()) as _,
+        x.div_euclid(chunk_size as _) as _,
+        y.div_euclid(chunk_size as _) as _,
     )
 }
 
 #[inline]
 pub fn chunk_index(chunk_x: i32, chunk_y: i32) -> u32 {
     #[inline]
-    fn int_to_nat(i: i32) -> u32 {
+    const fn int_to_nat(i: i32) -> u32 {
         if i >= 0 {
             (2 * i) as u32
         } else {
@@ -1547,7 +1544,7 @@ pub fn chunk_index_inv(index: u32) -> (i32, i32) {
     let t = (w * w + w) / 2;
     let yy = u64::from(index) - t;
     let xx = w - yy;
-    fn nat_to_int(i: u64) -> i32 {
+    const fn nat_to_int(i: u64) -> i32 {
         if i % 2 == 0 {
             (i / 2) as i32
         } else {
@@ -1560,7 +1557,7 @@ pub fn chunk_index_inv(index: u32) -> (i32, i32) {
     (x, y)
 }
 
-pub fn chunk_update_order(chunk_x: i32, chunk_y: i32) -> u8 {
+pub const fn chunk_update_order(chunk_x: i32, chunk_y: i32) -> u8 {
     let yy = (-chunk_y).rem_euclid(2) as u8;
     let xx = chunk_x.rem_euclid(2) as u8;
 
