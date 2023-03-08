@@ -13,7 +13,8 @@ use fs_common::game::common::{
     FileHelper, Rect, Settings,
 };
 use glium::{
-    texture::Texture2d, uniform, uniforms::ImageUnit, Blend, Display, DrawParameters, PolygonMode,
+    pixel_buffer::PixelBuffer, texture::Texture2d, uniform, uniforms::ImageUnit, Blend, Display,
+    DrawParameters, PolygonMode,
 };
 
 use crate::render::{drawing::RenderTarget, shaders::Shaders};
@@ -433,6 +434,7 @@ pub struct ChunkGraphicsData {
     pub display: Display,
     pub texture: Texture2d,
     pub background_texture: Texture2d,
+    pub lighting_src_buf: PixelBuffer<(f32, f32, f32, f32)>,
     pub lighting_src: Texture2d,
     pub lighting_dst: Texture2d,
     pub lighting_neighbors: Texture2d,
@@ -915,7 +917,13 @@ impl ChunkGraphics {
                     format: glium::texture::ClientFormat::U8U8U8U8,
                 }
             };
-            let texture = Texture2d::new(&target.display, image).unwrap();
+            let texture = Texture2d::with_format(
+                &target.display,
+                image,
+                glium::texture::UncompressedFloatFormat::U8U8U8U8,
+                glium::texture::MipmapsOption::NoMipmap,
+            )
+            .unwrap();
 
             let background_image = {
                 glium::texture::RawImage2d {
@@ -925,7 +933,13 @@ impl ChunkGraphics {
                     format: glium::texture::ClientFormat::U8U8U8U8,
                 }
             };
-            let background_texture = Texture2d::new(&target.display, background_image).unwrap();
+            let background_texture = Texture2d::with_format(
+                &target.display,
+                background_image,
+                glium::texture::UncompressedFloatFormat::U8U8U8U8,
+                glium::texture::MipmapsOption::NoMipmap,
+            )
+            .unwrap();
 
             let default_src = glium::texture::RawImage2d {
                 data: Cow::Owned(vec![0.0; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]),
@@ -1005,6 +1019,10 @@ impl ChunkGraphics {
                 display: target.display.clone(),
                 texture,
                 background_texture,
+                lighting_src_buf: PixelBuffer::new_empty(
+                    &target.display,
+                    (CHUNK_SIZE * CHUNK_SIZE) as _,
+                ),
                 lighting_src,
                 lighting_dst,
                 lighting_neighbors,
