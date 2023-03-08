@@ -404,7 +404,7 @@ impl<C: Chunk + Send + Sync> World<C> {
                             let tx = f32::from(rb_x) * c - f32::from(rb_y) * s + pos_x;
                             let ty = f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y;
 
-                            let cur = rb.pixels[(rb_x + rb_y * rb_w) as usize].clone();
+                            let cur = &rb.pixels[(rb_x + rb_y * rb_w) as usize];
                             if cur.material_id != *material::AIR {
                                 let world = self.chunk_handler.get(tx as i64, ty as i64);
                                 if let Ok(mat) = world {
@@ -415,7 +415,7 @@ impl<C: Chunk + Send + Sync> World<C> {
                                             ty as i64,
                                             MaterialInstance {
                                                 physics: PhysicsType::Object,
-                                                ..cur
+                                                ..cur.clone()
                                             },
                                         );
                                     } else if mat.physics == PhysicsType::Sand {
@@ -453,7 +453,7 @@ impl<C: Chunk + Send + Sync> World<C> {
                                                 ty as i64,
                                                 MaterialInstance {
                                                     physics: PhysicsType::Object,
-                                                    ..cur
+                                                    ..cur.clone()
                                                 },
                                             );
 
@@ -720,8 +720,6 @@ impl<C: Chunk + Send + Sync> World<C> {
         {
             profiling::scope!("unfill rigidbodies");
             for rb in &self.rigidbodies {
-                let rb_w = rb.width;
-                let rb_h = rb.height;
                 let body_opt = rb.get_body(&self.physics);
 
                 if let Some(body) = body_opt {
@@ -729,15 +727,20 @@ impl<C: Chunk + Send + Sync> World<C> {
                     let pos_x = body.translation().x * PHYSICS_SCALE;
                     let pos_y = body.translation().y * PHYSICS_SCALE;
 
-                    for rb_y in 0..rb_w {
-                        for rb_x in 0..rb_h {
+                    for rb_y in 0..rb.width {
+                        for rb_x in 0..rb.height {
                             let tx = f32::from(rb_x) * c - f32::from(rb_y) * s + pos_x;
                             let ty = f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y;
 
-                            // ok to fail since the chunk might just not be ready
-                            let _ignore = self.chunk_handler.replace(tx as i64, ty as i64, |mat| {
-                                (mat.physics == PhysicsType::Object).then(MaterialInstance::air)
-                            });
+                            let cur = &rb.pixels[(rb_x + rb_y * rb.width) as usize];
+                            if cur.material_id != *material::AIR {
+                                // ok to fail since the chunk might just not be ready
+                                let _ignore =
+                                    self.chunk_handler.replace(tx as i64, ty as i64, |mat| {
+                                        (mat.physics == PhysicsType::Object)
+                                            .then(MaterialInstance::air)
+                                    });
+                            }
                         }
                     }
                 }
