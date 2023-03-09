@@ -5,6 +5,7 @@ use std::{
 
 use fs_common::game::common::{
     world::{
+        chunk_data::CommonChunkData,
         chunk_index,
         material::{color::Color, MaterialInstance},
         mesh, Chunk, ChunkHandler, ChunkState, PassThroughHasherU32, RigidBodyState, CHUNK_SIZE,
@@ -20,29 +21,16 @@ use glium::{
 use crate::render::{drawing::RenderTarget, shaders::Shaders};
 
 pub struct ClientChunk {
-    pub chunk_x: i32,
-    pub chunk_y: i32,
-    pub state: ChunkState,
-    pub pixels: Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
-    pub light: Option<Box<[[f32; 3]; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
-    pub background: Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
+    pub data: CommonChunkData,
     pub graphics: Box<ChunkGraphics>,
-    pub dirty_rect: Option<Rect<i32>>,
-    pub rigidbody: Option<RigidBodyState>,
     pub mesh: Option<Vec<Vec<Vec<Vec<f64>>>>>,
-    pub mesh_simplified: Option<Vec<Vec<Vec<Vec<f64>>>>>,
     pub tris: Option<Vec<Vec<mesh::Tri>>>,
 }
 
 impl Chunk for ClientChunk {
     fn new_empty(chunk_x: i32, chunk_y: i32) -> Self {
         Self {
-            chunk_x,
-            chunk_y,
-            state: ChunkState::NotGenerated,
-            pixels: None,
-            light: None,
-            background: None,
+            data: CommonChunkData::new(chunk_x, chunk_y),
             graphics: Box::new(ChunkGraphics {
                 data: None,
                 pixel_data: Box::new([0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]),
@@ -53,36 +41,33 @@ impl Chunk for ClientChunk {
                 lighting_dirty: true,
                 background_dirty: true,
             }),
-            dirty_rect: None,
-            rigidbody: None,
             mesh: None,
-            mesh_simplified: None,
             tris: None,
         }
     }
 
-    fn get_chunk_x(&self) -> i32 {
-        self.chunk_x
+    fn chunk_x(&self) -> i32 {
+        self.data.chunk_x
     }
 
-    fn get_chunk_y(&self) -> i32 {
-        self.chunk_y
+    fn chunk_y(&self) -> i32 {
+        self.data.chunk_y
     }
 
-    fn get_state(&self) -> ChunkState {
-        self.state
+    fn state(&self) -> ChunkState {
+        self.data.state
     }
 
     fn set_state(&mut self, state: ChunkState) {
-        self.state = state;
+        self.data.state = state;
     }
 
-    fn get_dirty_rect(&self) -> Option<Rect<i32>> {
-        self.dirty_rect
+    fn dirty_rect(&self) -> Option<Rect<i32>> {
+        self.data.dirty_rect
     }
 
     fn set_dirty_rect(&mut self, rect: Option<Rect<i32>>) {
-        self.dirty_rect = rect;
+        self.data.dirty_rect = rect;
     }
 
     fn refresh(&mut self) {
@@ -92,149 +77,69 @@ impl Chunk for ClientChunk {
                     .set(
                         x,
                         y,
-                        self.pixels.as_ref().unwrap()[(x + y * CHUNK_SIZE) as usize].color,
+                        self.data.pixels.as_ref().unwrap()[(x + y * CHUNK_SIZE) as usize].color,
                     )
                     .unwrap();
                 self.graphics
                     .set_light(
                         x,
                         y,
-                        self.light.as_ref().unwrap()[(x + y * CHUNK_SIZE) as usize],
+                        self.data.light.as_ref().unwrap()[(x + y * CHUNK_SIZE) as usize],
                     )
                     .unwrap();
             }
         }
-        // self.update_graphics(None).unwrap();
     }
 
     // #[profiling::function] // huge performance impact
     fn set(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            if let Some(px) = &mut self.pixels {
-                let i = (x + y * CHUNK_SIZE) as usize;
-                // Safety: we do our own bounds check
-                self.graphics.set(x, y, mat.color)?;
-                self.graphics.set_light(x, y, mat.light)?;
-                *unsafe { px.get_unchecked_mut(i) } = mat;
-
-                self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
-
-                return Ok(());
-            }
-
-            return Err("Chunk is not ready yet.".to_string());
-        }
-
-        Err("Invalid pixel coordinate.".to_string())
+        self.data.set(x, y, mat, |mat| {
+            self.graphics.set(x, y, mat.color)?;
+            self.graphics.set_light(x, y, mat.light)
+        })
     }
 
     unsafe fn set_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance) {
-        let i = (x + y * CHUNK_SIZE) as usize;
-        // Safety: input index assumed to be valid
         self.graphics.set(x, y, mat.color).unwrap();
         self.graphics.set_light(x, y, mat.light).unwrap();
-        *unsafe { self.pixels.as_mut().unwrap().get_unchecked_mut(i) } = mat;
 
-        self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
+        self.data.set_unchecked(x, y, mat);
     }
 
-    // #[profiling::function] // huge performance impact
-    fn get(&self, x: u16, y: u16) -> Result<&MaterialInstance, String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            if let Some(px) = &self.pixels {
-                let i = (x + y * CHUNK_SIZE) as usize;
-                // Safety: we do our own bounds check
-                return Ok(unsafe { px.get_unchecked(i) });
-            }
-
-            return Err("Chunk is not ready yet.".to_string());
-        }
-
-        Err("Invalid pixel coordinate.".to_string())
+    fn pixel(&self, x: u16, y: u16) -> Result<&MaterialInstance, String> {
+        self.data.pixel(x, y)
     }
 
-    unsafe fn get_unchecked(&self, x: u16, y: u16) -> &MaterialInstance {
-        let i = (x + y * CHUNK_SIZE) as usize;
-        // Safety: input index assumed to be valid
-        unsafe { self.pixels.as_ref().unwrap().get_unchecked(i) }
+    unsafe fn pixel_unchecked(&self, x: u16, y: u16) -> &MaterialInstance {
+        self.data.pixel_unchecked(x, y)
     }
 
-    fn replace<F>(&mut self, x: u16, y: u16, cb: F) -> Result<bool, String>
+    fn replace_pixel<F>(&mut self, x: u16, y: u16, cb: F) -> Result<bool, String>
     where
         Self: Sized,
         F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>,
     {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            if let Some(px) = &mut self.pixels {
-                let i = (x + y * CHUNK_SIZE) as usize;
-                // Safety: we do our own bounds check
-                let px = unsafe { px.get_unchecked_mut(i) };
-                if let Some(mat) = (cb)(px) {
-                    self.graphics.set(x, y, mat.color)?;
-                    *px = mat;
-
-                    self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
-
-                    return Ok(true);
-                }
-
-                return Ok(false);
-            }
-
-            return Err("Chunk is not ready yet.".to_string());
-        }
-
-        Err("Invalid pixel coordinate.".to_string())
+        self.data
+            .replace_pixel(x, y, cb, |m| self.graphics.set(x, y, m.color))
     }
 
-    // #[profiling::function] // huge performance impact
     fn set_light(&mut self, x: u16, y: u16, light: [f32; 3]) -> Result<(), String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            if let Some(li) = &mut self.light {
-                let i = (x + y * CHUNK_SIZE) as usize;
-                // Safety: we do our own bounds check
-                self.graphics.set_light(x, y, light)?;
-                *unsafe { li.get_unchecked_mut(i) } = light;
-
-                // self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
-
-                return Ok(());
-            }
-
-            return Err("Chunk is not ready yet.".to_string());
-        }
-
-        Err("Invalid pixel coordinate.".to_string())
+        self.data
+            .set_light(x, y, light, |l| self.graphics.set_light(x, y, *l))
     }
 
     unsafe fn set_light_unchecked(&mut self, x: u16, y: u16, light: [f32; 3]) {
-        let i = (x + y * CHUNK_SIZE) as usize;
-        // Safety: input index assumed to be valid
         self.graphics.set_light(x, y, light).unwrap();
-        *unsafe { self.light.as_mut().unwrap().get_unchecked_mut(i) } = light;
 
-        // self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
+        self.data.set_light_unchecked(x, y, light)
     }
 
-    // #[profiling::function] // huge performance impact
-    fn get_light(&self, x: u16, y: u16) -> Result<&[f32; 3], String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            if let Some(li) = &self.light {
-                let i = (x + y * CHUNK_SIZE) as usize;
-                // Safety: we do our own bounds check
-                return Ok(unsafe { li.get_unchecked(i) });
-            }
-
-            return Err("Chunk is not ready yet.".to_string());
-        }
-
-        Err("Invalid pixel coordinate.".to_string())
+    fn light(&self, x: u16, y: u16) -> Result<&[f32; 3], String> {
+        self.data.light(x, y)
     }
 
-    unsafe fn get_light_unchecked(&self, x: u16, y: u16) -> &[f32; 3] {
-        let i = (x + y * CHUNK_SIZE) as usize;
-        // Safety: input index assumed to be valid
-        unsafe { self.light.as_ref().unwrap().get_unchecked(i) }
+    unsafe fn light_unchecked(&self, x: u16, y: u16) -> &[f32; 3] {
+        self.data.light_unchecked(x, y)
     }
 
     fn set_color(&mut self, x: u16, y: u16, color: Color) -> Result<(), String> {
@@ -245,7 +150,7 @@ impl Chunk for ClientChunk {
         Err("Invalid pixel coordinate.".to_string())
     }
 
-    fn get_color(&self, x: u16, y: u16) -> Result<Color, String> {
+    fn color(&self, x: u16, y: u16) -> Result<Color, String> {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             return self.graphics.get(x, y);
         }
@@ -253,27 +158,19 @@ impl Chunk for ClientChunk {
         Err("Invalid pixel coordinate.".to_string())
     }
 
-    #[profiling::function]
-    fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]) {
-        for (x, y, mat) in diff {
-            self.set(*x, *y, mat.clone()).unwrap(); // TODO: handle this Err
-        }
-    }
-
     fn set_pixels(&mut self, pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>) {
-        self.pixels = Some(pixels);
-        self.light = Some(Box::new([[0.0; 3]; (CHUNK_SIZE * CHUNK_SIZE) as usize]));
+        self.data.set_pixels(pixels);
         self.refresh();
     }
 
-    fn get_pixels_mut(
+    fn pixels_mut(
         &mut self,
     ) -> &mut Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
-        &mut self.pixels
+        &mut self.data.pixels
     }
 
-    fn get_pixels(&self) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
-        &self.pixels
+    fn pixels(&self) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
+        &self.data.pixels
     }
 
     fn set_pixel_colors(
@@ -283,11 +180,11 @@ impl Chunk for ClientChunk {
         self.graphics.replace(colors);
     }
 
-    fn get_colors_mut(&mut self) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
+    fn colors_mut(&mut self) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
         &mut self.graphics.pixel_data
     }
 
-    fn get_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
+    fn colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
         &self.graphics.pixel_data
     }
 
@@ -295,20 +192,20 @@ impl Chunk for ClientChunk {
         &mut self,
         pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
     ) {
-        self.background = Some(pixels);
+        self.data.background = Some(pixels);
         self.refresh();
     }
 
-    fn get_background_pixels_mut(
+    fn background_pixels_mut(
         &mut self,
     ) -> &mut Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
-        &mut self.background
+        &mut self.data.background
     }
 
-    fn get_background_pixels(
+    fn background_pixels(
         &self,
     ) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
-        &self.background
+        &self.data.background
     }
 
     fn set_background_pixel_colors(
@@ -318,13 +215,13 @@ impl Chunk for ClientChunk {
         self.graphics.replace_background(colors);
     }
 
-    fn get_background_colors_mut(
+    fn background_colors_mut(
         &mut self,
     ) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
         &mut self.graphics.background_data
     }
 
-    fn get_background_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
+    fn background_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
         &self.graphics.background_data
     }
 
@@ -335,98 +232,68 @@ impl Chunk for ClientChunk {
     }
 
     fn generate_mesh(&mut self) -> Result<(), String> {
-        if self.pixels.is_none() {
-            return Err("generate_mesh failed: self.pixels is None".to_owned());
+        if self.data.pixels.is_none() {
+            return Err("generate_mesh failed: self.data.pixels is None".to_owned());
         }
 
-        let vs: Vec<f64> = mesh::pixels_to_valuemap(self.pixels.as_ref().unwrap().as_ref());
+        let vs: Vec<f64> = mesh::pixels_to_valuemap(self.data.pixels.as_ref().unwrap().as_ref());
 
         let generated =
             mesh::generate_mesh_with_simplified(&vs, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
 
         if let Ok(r) = generated {
             self.mesh = Some(r.0);
-            self.mesh_simplified = Some(r.1);
+            self.data.mesh_simplified = Some(r.1);
         } else {
             self.mesh = None;
-            self.mesh_simplified = None;
+            self.data.mesh_simplified = None;
         }
 
-        self.tris = self.mesh_simplified.as_ref().map(mesh::triangulate);
+        self.tris = self.data.mesh_simplified.as_ref().map(mesh::triangulate);
 
         Ok(())
     }
 
-    // fn get_tris(&self) -> &Option<Vec<Vec<((f64, f64), (f64, f64), (f64, f64))>>> {
-    //     &self.tris
-    // }
-
-    fn get_mesh_loops(&self) -> &Option<Vec<Vec<Vec<Vec<f64>>>>> {
-        &self.mesh_simplified
+    fn mesh_loops(&self) -> &Option<Vec<Vec<Vec<Vec<f64>>>>> {
+        &self.data.mesh_simplified
     }
 
-    fn get_rigidbody(&self) -> &Option<RigidBodyState> {
-        &self.rigidbody
+    fn rigidbody(&self) -> &Option<RigidBodyState> {
+        &self.data.rigidbody
     }
 
-    fn get_rigidbody_mut(&mut self) -> &mut Option<RigidBodyState> {
-        &mut self.rigidbody
+    fn rigidbody_mut(&mut self) -> &mut Option<RigidBodyState> {
+        &mut self.data.rigidbody
     }
 
     fn set_rigidbody(&mut self, body: Option<RigidBodyState>) {
-        self.rigidbody = body;
+        self.data.rigidbody = body;
     }
 
-    fn get_lights_mut(&mut self) -> &mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn lights_mut(&mut self) -> &mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         &mut self.graphics.lighting_data
     }
 
-    fn get_lights(&self) -> &[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn lights(&self) -> &[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         &self.graphics.lighting_data
     }
 
     fn set_background(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            if let Some(px) = &mut self.background {
-                let i = (x + y * CHUNK_SIZE) as usize;
-                // Safety: we do our own bounds check
-                self.graphics.set_background(x, y, mat.color)?;
-                *unsafe { px.get_unchecked_mut(i) } = mat;
-
-                return Ok(());
-            }
-
-            return Err("Chunk is not ready yet.".to_string());
-        }
-
-        Err("Invalid pixel coordinate.".to_string())
+        self.data
+            .set_background(x, y, mat, |m| self.graphics.set_background(x, y, m.color))
     }
 
     unsafe fn set_background_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance) {
-        let i = (x + y * CHUNK_SIZE) as usize;
-        // Safety: input index assumed to be valid
         self.graphics.set_background(x, y, mat.color).unwrap();
-        *unsafe { self.background.as_mut().unwrap().get_unchecked_mut(i) } = mat;
+        self.data.set_background_unchecked(x, y, mat);
     }
 
-    fn get_background(&self, x: u16, y: u16) -> Result<&MaterialInstance, String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            if let Some(px) = &self.background {
-                let i = (x + y * CHUNK_SIZE) as usize;
-                // Safety: we do our own bounds check
-                return Ok(unsafe { px.get_unchecked(i) });
-            }
-
-            return Err("Chunk is not ready yet.".to_string());
-        }
-
-        Err("Invalid pixel coordinate.".to_string())
+    fn background(&self, x: u16, y: u16) -> Result<&MaterialInstance, String> {
+        self.data.background(x, y)
     }
 
-    unsafe fn get_background_unchecked(&self, x: u16, y: u16) -> &MaterialInstance {
-        let i = (x + y * CHUNK_SIZE) as usize;
-        // Safety: input index assumed to be valid
-        unsafe { self.background.as_ref().unwrap().get_unchecked(i) }
+    unsafe fn background_unchecked(&self, x: u16, y: u16) -> &MaterialInstance {
+        self.data.background_unchecked(x, y)
     }
 }
 
@@ -757,14 +624,14 @@ impl ClientChunk {
         self.graphics.update_lighting(
             other_loaded_chunks.map(|ch| {
                 [
-                    ch.get(&chunk_index(self.chunk_x - 1, self.chunk_y - 1)),
-                    ch.get(&chunk_index(self.chunk_x, self.chunk_y - 1)),
-                    ch.get(&chunk_index(self.chunk_x + 1, self.chunk_y - 1)),
-                    ch.get(&chunk_index(self.chunk_x - 1, self.chunk_y)),
-                    ch.get(&chunk_index(self.chunk_x + 1, self.chunk_y)),
-                    ch.get(&chunk_index(self.chunk_x - 1, self.chunk_y + 1)),
-                    ch.get(&chunk_index(self.chunk_x, self.chunk_y + 1)),
-                    ch.get(&chunk_index(self.chunk_x + 1, self.chunk_y + 1)),
+                    ch.get(&chunk_index(self.data.chunk_x - 1, self.data.chunk_y - 1)),
+                    ch.get(&chunk_index(self.data.chunk_x, self.data.chunk_y - 1)),
+                    ch.get(&chunk_index(self.data.chunk_x + 1, self.data.chunk_y - 1)),
+                    ch.get(&chunk_index(self.data.chunk_x - 1, self.data.chunk_y)),
+                    ch.get(&chunk_index(self.data.chunk_x + 1, self.data.chunk_y)),
+                    ch.get(&chunk_index(self.data.chunk_x - 1, self.data.chunk_y + 1)),
+                    ch.get(&chunk_index(self.data.chunk_x, self.data.chunk_y + 1)),
+                    ch.get(&chunk_index(self.data.chunk_x + 1, self.data.chunk_y + 1)),
                 ]
             }),
             shaders,
@@ -828,7 +695,7 @@ impl ClientChunk {
                 );
             }
         } else if settings.debug && settings.draw_chunk_collision == 2 {
-            if let Some(f) = &self.mesh_simplified {
+            if let Some(f) = &self.data.mesh_simplified {
                 let colors = vec![
                     Color::rgb(32, 255, 32),
                     Color::rgb(255, 32, 32),
@@ -1070,13 +937,13 @@ impl ClientChunkHandlerExt for ChunkHandler<ClientChunk> {
         }
 
         if let Some(chunk) = self.loaded_chunks.get_mut(&chunk_index(chunk_x, chunk_y)) {
-            chunk.pixels = Some(pixels.try_into().unwrap());
+            chunk.data.pixels = Some(pixels.try_into().unwrap());
             chunk.graphics.pixel_data = colors.try_into().unwrap();
             chunk.mark_dirty();
             chunk.set_state(ChunkState::Cached);
         } else {
             let mut chunk: ClientChunk = Chunk::new_empty(chunk_x, chunk_y);
-            chunk.pixels = Some(pixels.try_into().unwrap());
+            chunk.data.pixels = Some(pixels.try_into().unwrap());
             chunk.graphics.pixel_data = colors.try_into().unwrap();
             chunk.mark_dirty();
             chunk.set_state(ChunkState::Cached);

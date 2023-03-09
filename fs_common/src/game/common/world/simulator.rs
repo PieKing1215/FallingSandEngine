@@ -346,7 +346,7 @@ impl<C: Chunk + Send> SimulationHelper for SimulationHelperRigidBody<'_, C> {
         let chunk = self.chunk_handler.get_chunk(chunk_x, chunk_y);
 
         if let Some(ch) = chunk {
-            let col_r = ch.get_color(
+            let col_r = ch.color(
                 (i64::from(x) - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16,
                 (i64::from(y) - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16,
             );

@@ -43,52 +43,51 @@ pub trait Chunk {
     where
         Self: Sized;
 
-    fn get_chunk_x(&self) -> i32;
-    fn get_chunk_y(&self) -> i32;
+    fn chunk_x(&self) -> i32;
+    fn chunk_y(&self) -> i32;
 
-    fn get_state(&self) -> ChunkState;
+    fn state(&self) -> ChunkState;
     fn set_state(&mut self, state: ChunkState);
 
-    fn get_dirty_rect(&self) -> Option<Rect<i32>>;
+    fn dirty_rect(&self) -> Option<Rect<i32>>;
     fn set_dirty_rect(&mut self, rect: Option<Rect<i32>>);
 
     fn set_pixels(&mut self, pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>);
-    fn get_pixels_mut(
+    fn pixels_mut(
         &mut self,
     ) -> &mut Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>;
-    fn get_pixels(&self) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>;
+    fn pixels(&self) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>;
     fn set_pixel_colors(
         &mut self,
         colors: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
     );
-    fn get_colors_mut(&mut self) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
-    fn get_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
-    fn get_lights_mut(&mut self) -> &mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
-    fn get_lights(&self) -> &[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
+    fn colors_mut(&mut self) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
+    fn colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
+    fn lights_mut(&mut self) -> &mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
+    fn lights(&self) -> &[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
     fn set_background_pixels(
         &mut self,
         pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
     );
-    fn get_background_pixels_mut(
+    fn background_pixels_mut(
         &mut self,
     ) -> &mut Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>;
-    fn get_background_pixels(
+    fn background_pixels(
         &self,
     ) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>;
     fn set_background_pixel_colors(
         &mut self,
         colors: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
     );
-    fn get_background_colors_mut(
-        &mut self,
-    ) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
-    fn get_background_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
+    fn background_colors_mut(&mut self)
+        -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
+    fn background_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
 
     fn generate_mesh(&mut self) -> Result<(), String>;
     // fn get_tris(&self) -> &Option<Vec<Vec<((f64, f64), (f64, f64), (f64, f64))>>>;
-    fn get_mesh_loops(&self) -> &Option<Vec<Vec<Vec<Vec<f64>>>>>;
-    fn get_rigidbody(&self) -> &Option<RigidBodyState>;
-    fn get_rigidbody_mut(&mut self) -> &mut Option<RigidBodyState>;
+    fn mesh_loops(&self) -> &Option<Vec<Vec<Vec<Vec<f64>>>>>;
+    fn rigidbody(&self) -> &Option<RigidBodyState>;
+    fn rigidbody_mut(&mut self) -> &mut Option<RigidBodyState>;
     fn set_rigidbody(&mut self, body: Option<RigidBodyState>);
 
     fn mark_dirty(&mut self);
@@ -100,12 +99,12 @@ pub trait Chunk {
     /// x and y must be in `0..CHUNK_SIZE`
     unsafe fn set_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance);
 
-    fn get(&self, x: u16, y: u16) -> Result<&MaterialInstance, String>;
+    fn pixel(&self, x: u16, y: u16) -> Result<&MaterialInstance, String>;
     /// # Safety
     /// x and y must be in `0..CHUNK_SIZE`
-    unsafe fn get_unchecked(&self, x: u16, y: u16) -> &MaterialInstance;
+    unsafe fn pixel_unchecked(&self, x: u16, y: u16) -> &MaterialInstance;
 
-    fn replace<F>(&mut self, x: u16, y: u16, cb: F) -> Result<bool, String>
+    fn replace_pixel<F>(&mut self, x: u16, y: u16, cb: F) -> Result<bool, String>
     where
         Self: Sized,
         F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>;
@@ -115,25 +114,30 @@ pub trait Chunk {
     /// x and y must be in `0..CHUNK_SIZE`
     unsafe fn set_light_unchecked(&mut self, x: u16, y: u16, light: [f32; 3]);
 
-    fn get_light(&self, x: u16, y: u16) -> Result<&[f32; 3], String>;
+    fn light(&self, x: u16, y: u16) -> Result<&[f32; 3], String>;
     /// # Safety
     /// x and y must be in `0..CHUNK_SIZE`
-    unsafe fn get_light_unchecked(&self, x: u16, y: u16) -> &[f32; 3];
+    unsafe fn light_unchecked(&self, x: u16, y: u16) -> &[f32; 3];
 
     fn set_color(&mut self, x: u16, y: u16, color: Color) -> Result<(), String>;
-    fn get_color(&self, x: u16, y: u16) -> Result<Color, String>;
+    fn color(&self, x: u16, y: u16) -> Result<Color, String>;
 
     fn set_background(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String>;
     /// # Safety
     /// x and y must be in `0..CHUNK_SIZE`
     unsafe fn set_background_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance);
 
-    fn get_background(&self, x: u16, y: u16) -> Result<&MaterialInstance, String>;
+    fn background(&self, x: u16, y: u16) -> Result<&MaterialInstance, String>;
     /// # Safety
     /// x and y must be in `0..CHUNK_SIZE`
-    unsafe fn get_background_unchecked(&self, x: u16, y: u16) -> &MaterialInstance;
+    unsafe fn background_unchecked(&self, x: u16, y: u16) -> &MaterialInstance;
 
-    fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]);
+    #[profiling::function]
+    fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]) {
+        for (x, y, mat) in diff {
+            self.set(*x, *y, mat.clone()).unwrap(); // TODO: handle this Err
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -304,10 +308,10 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
             for i in 0..keys.len() {
                 let key = keys[i];
 
-                let state = self.loaded_chunks.get(&key).unwrap().get_state(); // copy
+                let state = self.loaded_chunks.get(&key).unwrap().state(); // copy
                 let rect = Rect::new_wh(
-                    self.loaded_chunks.get(&key).unwrap().get_chunk_x() * i32::from(CHUNK_SIZE),
-                    self.loaded_chunks.get(&key).unwrap().get_chunk_y() * i32::from(CHUNK_SIZE),
+                    self.loaded_chunks.get(&key).unwrap().chunk_x() * i32::from(CHUNK_SIZE),
+                    self.loaded_chunks.get(&key).unwrap().chunk_y() * i32::from(CHUNK_SIZE),
                     CHUNK_SIZE,
                     CHUNK_SIZE,
                 );
@@ -333,8 +337,8 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                             }
                             keep_map[i] = false;
                         } else if active_zone.iter().any(|z| rect.intersects(z)) {
-                            let chunk_x = self.loaded_chunks.get(&key).unwrap().get_chunk_x();
-                            let chunk_y = self.loaded_chunks.get(&key).unwrap().get_chunk_y();
+                            let chunk_x = self.loaded_chunks.get(&key).unwrap().chunk_x();
+                            let chunk_y = self.loaded_chunks.get(&key).unwrap().chunk_y();
                             if [
                                 self.get_chunk(chunk_x - 1, chunk_y - 1),
                                 self.get_chunk(chunk_x, chunk_y - 1),
@@ -352,7 +356,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                     return false;
                                 }
 
-                                let state = ch.unwrap().get_state();
+                                let state = ch.unwrap().state();
 
                                 matches!(state, ChunkState::Cached | ChunkState::Active)
                             }) {
@@ -391,12 +395,12 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
             let num_active = self
                 .loaded_chunks
                 .values()
-                .filter(|c| c.get_state() == ChunkState::Active)
+                .filter(|c| c.state() == ChunkState::Active)
                 .count();
             let num_cached = self
                 .loaded_chunks
                 .values()
-                .filter(|c| c.get_state() == ChunkState::Cached)
+                .filter(|c| c.state() == ChunkState::Cached)
                 .count();
 
             // generate new chunks
@@ -408,7 +412,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                     .loaded_chunks
                     .iter()
                     .filter_map(|(k, c)| {
-                        if c.get_state() == ChunkState::NotGenerated {
+                        if c.state() == ChunkState::NotGenerated {
                             Some(k)
                         } else {
                             None
@@ -421,10 +425,10 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                     keys.sort_by(|a, b| {
                         let a = self.loaded_chunks.get(a).unwrap();
                         let b = self.loaded_chunks.get(b).unwrap();
-                        let c1_x = a.get_chunk_x() * i32::from(CHUNK_SIZE);
-                        let c1_y = a.get_chunk_y() * i32::from(CHUNK_SIZE);
-                        let c2_x = b.get_chunk_x() * i32::from(CHUNK_SIZE);
-                        let c2_y = b.get_chunk_y() * i32::from(CHUNK_SIZE);
+                        let c1_x = a.chunk_x() * i32::from(CHUNK_SIZE);
+                        let c1_y = a.chunk_y() * i32::from(CHUNK_SIZE);
+                        let c2_x = b.chunk_x() * i32::from(CHUNK_SIZE);
+                        let c2_y = b.chunk_y() * i32::from(CHUNK_SIZE);
 
                         let d1 = (&loaders, &positions)
                             .join()
@@ -456,19 +460,19 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                 // u32 is key, i32s are chunk x and y
                 let to_generate = keys.iter().filter_map(|key| {
                     let rect = Rect::new_wh(
-                        self.loaded_chunks.get(key).unwrap().get_chunk_x() * i32::from(CHUNK_SIZE),
-                        self.loaded_chunks.get(key).unwrap().get_chunk_y() * i32::from(CHUNK_SIZE),
+                        self.loaded_chunks.get(key).unwrap().chunk_x() * i32::from(CHUNK_SIZE),
+                        self.loaded_chunks.get(key).unwrap().chunk_y() * i32::from(CHUNK_SIZE),
                         CHUNK_SIZE,
                         CHUNK_SIZE,
                     );
 
                     // keys are filtered by state == NotGenerated already
-                    assert!(self.loaded_chunks.get(key).unwrap().get_state() == ChunkState::NotGenerated);
+                    assert!(self.loaded_chunks.get(key).unwrap().state() == ChunkState::NotGenerated);
 
                     // start generating chunks waiting to generate
                     if unload_zone.iter().any(|z| rect.intersects(z)) && num_loaded_this_tick < 32 {
-                        let chunk_x = self.loaded_chunks.get_mut(key).unwrap().get_chunk_x();
-                        let chunk_y = self.loaded_chunks.get_mut(key).unwrap().get_chunk_y();
+                        let chunk_x = self.loaded_chunks.get_mut(key).unwrap().chunk_x();
+                        let chunk_y = self.loaded_chunks.get_mut(key).unwrap().chunk_y();
 
                         let mut should_generate = true;
 
@@ -678,10 +682,10 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                 let mut populated_num = 0;
                 for i in 0..keys.len() {
                     let key = keys[i];
-                    let state = self.loaded_chunks.get(&key).unwrap().get_state(); // copy
+                    let state = self.loaded_chunks.get(&key).unwrap().state(); // copy
                     let rect = Rect::new_wh(
-                        self.loaded_chunks.get(&key).unwrap().get_chunk_x() * i32::from(CHUNK_SIZE),
-                        self.loaded_chunks.get(&key).unwrap().get_chunk_y() * i32::from(CHUNK_SIZE),
+                        self.loaded_chunks.get(&key).unwrap().chunk_x() * i32::from(CHUNK_SIZE),
+                        self.loaded_chunks.get(&key).unwrap().chunk_y() * i32::from(CHUNK_SIZE),
                         CHUNK_SIZE,
                         CHUNK_SIZE,
                     );
@@ -709,8 +713,8 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                             }
                         },
                         ChunkState::Generating(cur_stage) => {
-                            let chunk_x = self.loaded_chunks.get(&key).unwrap().get_chunk_x();
-                            let chunk_y = self.loaded_chunks.get(&key).unwrap().get_chunk_y();
+                            let chunk_x = self.loaded_chunks.get(&key).unwrap().chunk_x();
+                            let chunk_y = self.loaded_chunks.get(&key).unwrap().chunk_y();
 
                             let max_stage = self.generator.max_gen_stage();
 
@@ -747,11 +751,11 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                             return false;
                                         };
 
-                                        if chunk.get_pixels().is_none() {
+                                        if chunk.pixels().is_none() {
                                             return false;
                                         }
 
-                                        let state = ch.unwrap().get_state();
+                                        let state = ch.unwrap().state();
 
                                         match state {
                                             ChunkState::Cached | ChunkState::Active => true,
@@ -774,9 +778,9 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                     let chunks = self.loaded_chunks.get_many_var_mut(&keys);
 
                                     // if we failed to get all nearby chunks, don't populate and don't go to the next stage
-                                    if let Some((true, chunks)) = chunks.map(|chs| {
-                                        (chs.iter().all(|c| c.get_pixels().is_some()), chs)
-                                    }) {
+                                    if let Some((true, chunks)) = chunks
+                                        .map(|chs| (chs.iter().all(|c| c.pixels().is_some()), chs))
+                                    {
                                         let mut chunks_dyn: Vec<_> = chunks
                                             .into_iter()
                                             .map(|c| c as &mut dyn Chunk)
@@ -865,7 +869,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                 .loaded_chunks
                 .iter_mut()
                 .map(|(key, ch)| {
-                    let rect = ch.get_dirty_rect();
+                    let rect = ch.dirty_rect();
                     ch.set_dirty_rect(None);
                     (*key, rect)
                 })
@@ -877,8 +881,8 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                 let mut to_exec = vec![];
                 for key in &keys {
                     let ch = self.loaded_chunks.get(key).unwrap();
-                    let state = ch.get_state(); // copy
-                    let ch_pos = (ch.get_chunk_x(), ch.get_chunk_y());
+                    let state = ch.state(); // copy
+                    let ch_pos = (ch.chunk_x(), ch.chunk_y());
 
                     if chunk_update_order(ch_pos.0, ch_pos.1) == tick_phase
                         && state == ChunkState::Active
@@ -909,17 +913,17 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                 .map(|(x, y)| {
                                     let chunk = self.loaded_chunks.get_mut(&chunk_index(ch_pos.0 + x, ch_pos.1 + y));
                                     chunk.and_then(|c| {
-                                        c.get_pixels_mut().as_mut().map(|raw| {
+                                        c.pixels_mut().as_mut().map(|raw| {
                                             // blatantly bypassing the borrow checker, see safety comment above
                                             unsafe { &*(raw.as_mut() as *mut _ as *const _) }
                                         }).map(|pixels| {
                                             // blatantly bypassing the borrow checker, see safety comment above
                                             // I'm not sure if doing this while the data is already in a `&[UnsafeCell<_>; _]` is UB
 
-                                            let raw: *mut [u8; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)] = c.get_colors_mut();
+                                            let raw: *mut [u8; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)] = c.colors_mut();
                                             let colors = unsafe { &*(raw as *const [UnsafeCell<u8>; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]) };
 
-                                            let raw: *mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] = c.get_lights_mut();
+                                            let raw: *mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] = c.lights_mut();
                                             let lights = unsafe { &*(raw as *const [UnsafeCell<[f32; 4]>; CHUNK_SIZE as usize * CHUNK_SIZE as usize]) };
 
                                             let dirty_rect = *old_dirty_rects
@@ -1029,7 +1033,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                     .loaded_chunks
                                     .get_mut(&chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y))
                                     .unwrap()
-                                    .get_dirty_rect();
+                                    .dirty_rect();
                                 match r {
                                     Some(current) => {
                                         r = Some(current.union(neighbor_rect));
@@ -1049,7 +1053,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                                     .loaded_chunks
                                     .get_mut(&chunk_index(ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y))
                                     .unwrap()
-                                    .get_dirty_rect();
+                                    .dirty_rect();
                                 match r {
                                     Some(current) => {
                                         r = Some(current.union(new));
@@ -1077,23 +1081,20 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
             .get_mut(&index)
             .ok_or("Chunk not loaded")?;
         if let Some(path) = &self.path {
-            if let Some(pixels) = chunk.get_pixels() {
+            if let Some(pixels) = chunk.pixels() {
                 let chunk_path_root = path.join("chunks/");
                 if !chunk_path_root.exists() {
                     std::fs::create_dir_all(&chunk_path_root).expect(
                         format!("Failed to create chunk directory @ {chunk_path_root:?}").as_str(),
                     );
                 }
-                let chunk_path = chunk_path_root.join(format!(
-                    "{}_{}.chunk",
-                    chunk.get_chunk_x(),
-                    chunk.get_chunk_y()
-                ));
+                let chunk_path =
+                    chunk_path_root.join(format!("{}_{}.chunk", chunk.chunk_x(), chunk.chunk_y()));
                 let mut contents = Vec::new();
 
                 let save = ChunkSaveFormat {
                     pixels: pixels.to_vec(),
-                    colors: chunk.get_colors().to_vec(),
+                    colors: chunk.colors().to_vec(),
                 };
 
                 let pixel_data: Vec<u8> = bincode::serialize(&save)?;
@@ -1103,8 +1104,8 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                 if r.is_err() {
                     log::error!(
                         "Chunk save failed @ {},{} -> {:?}",
-                        chunk.get_chunk_x(),
-                        chunk.get_chunk_y(),
+                        chunk.chunk_x(),
+                        chunk.chunk_y(),
                         chunk_path
                     );
                 }
@@ -1193,7 +1194,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
             .map_or_else(
                 || Err("Position is not loaded".to_string()),
                 |ch| {
-                    ch.get(
+                    ch.pixel(
                         (x - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16,
                         (y - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16,
                     )
@@ -1211,7 +1212,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
             .map_or_else(
                 || Err("Position is not loaded".to_string()),
                 |ch| {
-                    ch.replace(
+                    ch.replace_pixel(
                         (x - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16,
                         (y - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16,
                         cb,
@@ -1361,7 +1362,7 @@ impl<C: Chunk> ChunkHandler<C> {
         physics: &mut Physics,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let chunk = self.loaded_chunks.get_mut(&index).unwrap();
-        if let Some(RigidBodyState::Active(handle)) = chunk.get_rigidbody() {
+        if let Some(RigidBodyState::Active(handle)) = chunk.rigidbody() {
             physics.remove_rigidbody(*handle);
             chunk.set_rigidbody(None);
         }

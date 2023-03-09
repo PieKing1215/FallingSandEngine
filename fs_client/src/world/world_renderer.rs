@@ -13,7 +13,8 @@ use fs_common::game::common::{
         material::color::Color,
         particle::ParticleSystem,
         physics::PHYSICS_SCALE,
-        AutoTarget, Camera, ChunkHandlerGeneric, ChunkState, Position, Velocity, World, CHUNK_SIZE,
+        AutoTarget, Camera, Chunk, ChunkHandlerGeneric, ChunkState, Position, Velocity, World,
+        CHUNK_SIZE,
     },
     FileHelper, Rect, Registries, Settings,
 };
@@ -96,8 +97,8 @@ impl WorldRenderer {
                 .iter_mut()
                 .filter_map(|(_i, ch)| {
                     let rc = Rect::new_wh(
-                        ch.chunk_x * i32::from(CHUNK_SIZE),
-                        ch.chunk_y * i32::from(CHUNK_SIZE),
+                        ch.chunk_x() * i32::from(CHUNK_SIZE),
+                        ch.chunk_y() * i32::from(CHUNK_SIZE),
                         CHUNK_SIZE,
                         CHUNK_SIZE,
                     );
@@ -107,8 +108,8 @@ impl WorldRenderer {
                     {
                         target.transform.push();
                         target.transform.translate(
-                            ch.chunk_x * i32::from(CHUNK_SIZE),
-                            ch.chunk_y * i32::from(CHUNK_SIZE),
+                            ch.chunk_x() * i32::from(CHUNK_SIZE),
+                            ch.chunk_y() * i32::from(CHUNK_SIZE),
                         );
 
                         ch.prep_render(target, ctx.settings, ctx.file_helper);
@@ -122,8 +123,8 @@ impl WorldRenderer {
                         ch.graphics.data.as_ref().map(|t| {
                             (
                                 (
-                                    ch.chunk_x as f32 * f32::from(CHUNK_SIZE),
-                                    ch.chunk_y as f32 * f32::from(CHUNK_SIZE),
+                                    ch.chunk_x() as f32 * f32::from(CHUNK_SIZE),
+                                    ch.chunk_y() as f32 * f32::from(CHUNK_SIZE),
                                 ),
                                 t.clone(),
                             )
@@ -554,8 +555,8 @@ impl WorldRenderer {
             .loaded_chunks
             .iter_mut()
             .for_each(|(_i, ch)| {
-                let world_x = ch.chunk_x * i32::from(CHUNK_SIZE);
-                let world_y = ch.chunk_y * i32::from(CHUNK_SIZE);
+                let world_x = ch.chunk_x() * i32::from(CHUNK_SIZE);
+                let world_y = ch.chunk_y() * i32::from(CHUNK_SIZE);
                 let rc = Rect::new_wh(world_x, world_y, CHUNK_SIZE, CHUNK_SIZE);
 
                 // queue structure set debug
@@ -564,7 +565,7 @@ impl WorldRenderer {
                 {
                     if let Some(v) = ctx.registries.structure_sets.get(&set) {
                         let (start_x, start_y) =
-                            v.nearest_start_chunk((ch.chunk_x, ch.chunk_y), world.seed as _);
+                            v.nearest_start_chunk((ch.chunk_x(), ch.chunk_y()), world.seed as _);
                         let should_gen_start = v.should_generate_at(
                             (start_x, start_y),
                             world.seed as _,
@@ -577,7 +578,7 @@ impl WorldRenderer {
                                 (start_x * i32::from(CHUNK_SIZE)) as f32,
                                 (start_y * i32::from(CHUNK_SIZE)) as f32,
                             ),
-                            if start_x == ch.chunk_x && start_y == ch.chunk_y {
+                            if start_x == ch.chunk_x() && start_y == ch.chunk_y() {
                                 Color::GREEN
                             } else if should_gen_start {
                                 Color::ORANGE.with_a(0.25)
@@ -596,7 +597,7 @@ impl WorldRenderer {
 
                     // draw dirty rects
                     if ctx.settings.debug && ctx.settings.draw_chunk_dirty_rects {
-                        if let Some(dr) = ch.dirty_rect {
+                        if let Some(dr) = ch.dirty_rect() {
                             let rect = dr.into_f32();
                             target.rectangle(
                                 rect,
@@ -646,7 +647,7 @@ impl WorldRenderer {
                     let rect = Rect::new_wh(world_x, world_y, CHUNK_SIZE, CHUNK_SIZE);
 
                     let alpha: u8 = (ctx.settings.draw_chunk_state_overlay_alpha * 255.0) as u8;
-                    let color = match ch.state {
+                    let color = match ch.state() {
                         ChunkState::NotGenerated => Color::rgba(127, 127, 127, alpha),
                         ChunkState::Generating(stage) => Color::rgba(
                             64,

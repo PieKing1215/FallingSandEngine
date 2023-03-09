@@ -24,7 +24,7 @@ pub struct ChunkContext<'a, 'b, const S: u8>(&'a mut [&'b mut dyn Chunk]);
 impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
     pub fn new(slice: &'a mut [&'b mut dyn Chunk]) -> Result<Self, String> {
         if slice.len() == ((S * 2 + 1) * (S * 2 + 1)) as usize {
-            if slice.iter().all(|c| c.get_pixels().is_some()) {
+            if slice.iter().all(|c| c.pixels().is_some()) {
                 Ok(Self(slice))
             } else {
                 Err("Chunk was missing pixels".into())
@@ -40,7 +40,7 @@ impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
 
     pub fn center_chunk(&self) -> (i32, i32) {
         let ch = &self.0[Self::chunk_index(0, 0)];
-        (ch.get_chunk_x(), ch.get_chunk_y())
+        (ch.chunk_x(), ch.chunk_y())
     }
 
     #[inline]
@@ -83,7 +83,7 @@ impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
         // Safety: rem_euclid covers bounds check and we check in `Self::new` if the chunks have a pixel buffer
         unsafe {
             let ch = self.0.get_unchecked(i);
-            Ok(ch.get_unchecked(
+            Ok(ch.pixel_unchecked(
                 x.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
                 y.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
             ))
@@ -104,7 +104,7 @@ impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
         let y = y.rem_euclid(i32::from(CHUNK_SIZE)) as u16;
         unsafe {
             let ch = self.0.get_unchecked_mut(i);
-            if let Some(mat) = (cb)(ch.get_unchecked(x, y)) {
+            if let Some(mat) = (cb)(ch.pixel_unchecked(x, y)) {
                 ch.set_unchecked(x, y, mat);
                 true
             } else {
@@ -140,7 +140,7 @@ impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
         // Safety: rem_euclid covers bounds check and we check in `Self::new` if the chunks have a pixel buffer
         unsafe {
             let ch = self.0.get_unchecked(i);
-            Ok(ch.get_background_unchecked(
+            Ok(ch.background_unchecked(
                 x.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
                 y.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
             ))

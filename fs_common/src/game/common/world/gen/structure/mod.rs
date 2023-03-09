@@ -307,8 +307,8 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
                 continue;
             };
 
-            if matches!(ch.get_state(), ChunkState::Cached | ChunkState::Active)
-                || matches!(ch.get_state(), ChunkState::Generating(n) if n >= 2)
+            if matches!(ch.state(), ChunkState::Cached | ChunkState::Active)
+                || matches!(ch.state(), ChunkState::Generating(n) if n >= 2)
             {
                 node_storage.insert(entity, node).unwrap();
                 pos_storage.insert(entity, pos).unwrap();

@@ -100,8 +100,8 @@ impl ServerGame {
                             packet_type: PacketType::SyncChunkPacket {
                                 chunk_x,
                                 chunk_y,
-                                pixels: ci.1.get_pixels().as_ref().unwrap().to_vec(),
-                                colors: ci.1.get_colors().to_vec(),
+                                pixels: ci.1.pixels().as_ref().unwrap().to_vec(),
+                                colors: ci.1.colors().to_vec(),
                             },
                         };
                         // let buf = serde_json::to_string(&packet).unwrap().into_bytes();
@@ -178,15 +178,15 @@ impl ServerGame {
                         let mut n = 0;
                         for ci in &w.chunk_handler.loaded_chunks {
                             n += 1;
-                            if ci.1.get_state() == ChunkState::Active
+                            if ci.1.state() == ChunkState::Active
                                 && ci.1.dirty
                                 && n % (self.0.tick_time / 4) % 4 == 0
                             {
                                 for c in &mut connections {
                                     // println!("Writing SyncChunkPacket");
                                     let (chunk_x, chunk_y) = chunk_index_inv(*ci.0);
-                                    let pixels_vec = ci.1.get_pixels().as_ref().unwrap().to_vec();
-                                    let colors_vec = ci.1.get_colors().to_vec();
+                                    let pixels_vec = ci.1.pixels().as_ref().unwrap().to_vec();
+                                    let colors_vec = ci.1.colors().to_vec();
 
                                     assert!(
                                         pixels_vec.len() == (CHUNK_SIZE * CHUNK_SIZE) as usize,
@@ -234,7 +234,7 @@ impl ServerGame {
                     // TODO: come up with a good way to merge this loop with the one right above
                     if let Some(w) = &mut self.0.world {
                         for ci in &mut w.chunk_handler.loaded_chunks {
-                            if ci.1.get_state() == ChunkState::Active && ci.1.dirty {
+                            if ci.1.state() == ChunkState::Active && ci.1.dirty {
                                 ci.1.dirty = false;
                             }
                         }

@@ -126,7 +126,7 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
             #[allow(unstable_name_collisions)]
             let mut removed = system.active.drain_filter(|p| {
                 let (chunk_x, chunk_y) = pixel_to_chunk_pos(p.pos.x as i64, p.pos.y as i64);
-                !matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active)
+                !matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.state() == ChunkState::Active)
             }).collect::<Vec<_>>();
             system.sleeping.append(&mut removed);
         } else if tick_time.0 % 29 == 10 {
@@ -136,7 +136,7 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
             #[allow(unstable_name_collisions)]
             let mut removed = system.sleeping.drain_filter(|p| {
                 let (chunk_x, chunk_y) = pixel_to_chunk_pos(p.pos.x as i64, p.pos.y as i64);
-                matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active)
+                matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.state() == ChunkState::Active)
             }).collect::<Vec<_>>();
             system.active.append(&mut removed);
         }

@@ -117,7 +117,7 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdatePhysicsEntities<'a, H> {
 
             // skip if chunk not active
             let (chunk_x, chunk_y) = pixel_to_chunk_pos(pos.x as i64, pos.y as i64);
-            if persistent.is_none() && !matches!(self.chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active) {
+            if persistent.is_none() && !matches!(self.chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.state() == ChunkState::Active) {
                 return;
             }
 

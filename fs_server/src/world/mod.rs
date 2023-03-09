@@ -6,7 +6,7 @@ pub use chunk::*;
 mod tests {
     use fs_common::game::common::world::physics::Physics;
     use fs_common::game::common::world::{
-        self, chunk_index, ChunkHandler, ChunkHandlerGeneric, Loader, Position,
+        self, chunk_index, Chunk, ChunkHandler, ChunkHandlerGeneric, Loader, Position,
     };
     use fs_common::game::common::Registries;
     use fs_common::game::common::Settings;
@@ -90,7 +90,7 @@ mod tests {
         let loaded_1 = ch
             .loaded_chunks
             .iter()
-            .any(|(&i, c)| i == index_1 && c.chunk_x == 11 && c.chunk_y == -12);
+            .any(|(&i, c)| i == index_1 && c.chunk_x() == 11 && c.chunk_y() == -12);
         assert!(loaded_1);
         assert!(ch.get_chunk(11, -12).is_some());
 
@@ -98,7 +98,7 @@ mod tests {
         let loaded_2 = ch
             .loaded_chunks
             .iter()
-            .any(|(&i, c)| i == index_2 && c.chunk_x == -3 && c.chunk_y == 2);
+            .any(|(&i, c)| i == index_2 && c.chunk_x() == -3 && c.chunk_y() == 2);
         assert!(loaded_2);
         assert!(ch.get_chunk(-3, 2).is_some());
 

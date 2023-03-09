@@ -765,7 +765,7 @@ impl<C: Chunk + Send + Sync> World<C> {
         {
             profiling::scope!("update chunk collision");
             for c in self.chunk_handler.loaded_chunks.borrow_mut().values_mut() {
-                if c.get_rigidbody().is_none() {
+                if c.rigidbody().is_none() {
                     // if let Some(tr) = c.get_tris() {
                     //     let mut body_def = BodyDef::default();
                     //     body_def.position.set((c.get_chunk_x() * CHUNK_SIZE as i32) as f32 / PHYSICS_SCALE, (c.get_chunk_y() * CHUNK_SIZE as i32) as f32 / PHYSICS_SCALE);
@@ -789,11 +789,11 @@ impl<C: Chunk + Send + Sync> World<C> {
                     //     c.set_b2_body(Some(body));
                     // }
 
-                    if let Some(loops) = c.get_mesh_loops() {
+                    if let Some(loops) = c.mesh_loops() {
                         let rigid_body = RigidBodyBuilder::fixed()
                             .translation(Vector2::new(
-                                (c.get_chunk_x() * i32::from(CHUNK_SIZE)) as f32 / PHYSICS_SCALE,
-                                (c.get_chunk_y() * i32::from(CHUNK_SIZE)) as f32 / PHYSICS_SCALE,
+                                (c.chunk_x() * i32::from(CHUNK_SIZE)) as f32 / PHYSICS_SCALE,
+                                (c.chunk_y() * i32::from(CHUNK_SIZE)) as f32 / PHYSICS_SCALE,
                             ))
                             .build();
                         let mut colliders = Vec::new();
@@ -829,9 +829,9 @@ impl<C: Chunk + Send + Sync> World<C> {
                     // TODO: profile this and if it's too slow, could stagger it based on tick_time
 
                     let chunk_center_x =
-                        c.get_chunk_x() * i32::from(CHUNK_SIZE) + i32::from(CHUNK_SIZE) / 2;
+                        c.chunk_x() * i32::from(CHUNK_SIZE) + i32::from(CHUNK_SIZE) / 2;
                     let chunk_center_y =
-                        c.get_chunk_y() * i32::from(CHUNK_SIZE) + i32::from(CHUNK_SIZE) / 2;
+                        c.chunk_y() * i32::from(CHUNK_SIZE) + i32::from(CHUNK_SIZE) / 2;
 
                     // let dist_particle = f32::from(CHUNK_SIZE) * 0.6;
                     let dist_body = f32::from(CHUNK_SIZE) * 1.0;
@@ -867,7 +867,7 @@ impl<C: Chunk + Send + Sync> World<C> {
                         }
                     }
 
-                    if let Some(state) = c.get_rigidbody_mut() {
+                    if let Some(state) = c.rigidbody_mut() {
                         match state {
                             RigidBodyState::Active(h) if !should_be_active => {
                                 let cls = self.physics.bodies.get(*h).unwrap().colliders().to_vec();
@@ -903,7 +903,7 @@ impl<C: Chunk + Send + Sync> World<C> {
                         }
 
                         if should_be_active && matches!(state, RigidBodyState::Inactive(_, _)) {
-                            match c.get_rigidbody_mut().take().unwrap() {
+                            match c.rigidbody_mut().take().unwrap() {
                                 RigidBodyState::Inactive(rb, colls) if should_be_active => {
                                     let rb_handle = self.physics.bodies.insert(*rb);
                                     for collider in colls {
