@@ -8,7 +8,8 @@ use fs_common::game::common::{
         chunk_data::CommonChunkData,
         chunk_index,
         material::{color::Color, MaterialInstance},
-        mesh, Chunk, ChunkHandler, ChunkState, PassThroughHasherU32, RigidBodyState, CHUNK_SIZE,
+        mesh::{self, Mesh},
+        Chunk, ChunkHandler, ChunkState, PassThroughHasherU32, RigidBodyState, CHUNK_SIZE,
         LIGHT_SCALE,
     },
     FileHelper, Rect, Settings,
@@ -23,7 +24,7 @@ use crate::render::{drawing::RenderTarget, shaders::Shaders};
 pub struct ClientChunk {
     pub data: CommonChunkData,
     pub graphics: Box<ChunkGraphics>,
-    pub mesh: Option<Vec<Vec<Vec<Vec<f64>>>>>,
+    pub mesh: Option<Mesh>,
     pub tris: Option<Vec<Vec<mesh::Tri>>>,
 }
 
@@ -254,7 +255,7 @@ impl Chunk for ClientChunk {
         Ok(())
     }
 
-    fn mesh_loops(&self) -> &Option<Vec<Vec<Vec<Vec<f64>>>>> {
+    fn mesh_loops(&self) -> &Option<Mesh> {
         &self.data.mesh_simplified
     }
 

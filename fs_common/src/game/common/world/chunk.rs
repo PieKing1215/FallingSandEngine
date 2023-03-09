@@ -23,6 +23,7 @@ use specs::{Join, ReadStorage, RunNow, WorldExt};
 
 use super::gen::WorldGenerator;
 use super::material::{color::Color, PhysicsType};
+use super::mesh::Mesh;
 use super::particle::Particle;
 use super::physics::Physics;
 use crate::game::common::world::material::MaterialInstance;
@@ -85,7 +86,7 @@ pub trait Chunk {
 
     fn generate_mesh(&mut self) -> Result<(), String>;
     // fn get_tris(&self) -> &Option<Vec<Vec<((f64, f64), (f64, f64), (f64, f64))>>>;
-    fn mesh_loops(&self) -> &Option<Vec<Vec<Vec<Vec<f64>>>>>;
+    fn mesh_loops(&self) -> &Option<Mesh>;
     fn rigidbody(&self) -> &Option<RigidBodyState>;
     fn rigidbody_mut(&mut self) -> &mut Option<RigidBodyState>;
     fn set_rigidbody(&mut self, body: Option<RigidBodyState>);

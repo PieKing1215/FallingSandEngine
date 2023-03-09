@@ -1,6 +1,6 @@
 use crate::game::common::Rect;
 
-use super::{material::MaterialInstance, ChunkState, RigidBodyState, CHUNK_SIZE};
+use super::{material::MaterialInstance, mesh::Mesh, ChunkState, RigidBodyState, CHUNK_SIZE};
 
 pub struct CommonChunkData {
     pub chunk_x: i32,
@@ -11,7 +11,7 @@ pub struct CommonChunkData {
     pub background: Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
     pub dirty_rect: Option<Rect<i32>>,
     pub rigidbody: Option<RigidBodyState>,
-    pub mesh_simplified: Option<Vec<Vec<Vec<Vec<f64>>>>>,
+    pub mesh_simplified: Option<Mesh>,
 }
 
 #[allow(clippy::missing_safety_doc)] // TODO
