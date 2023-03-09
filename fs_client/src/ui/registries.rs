@@ -1,7 +1,8 @@
 use egui::{
+    collapsing_header::CollapsingState,
     epaint::ahash::HashMap,
     plot::{Arrows, Plot, PlotImage, PlotPoint, PlotPoints, Points, Text},
-    Color32, RichText, ScrollArea, TextureOptions, Vec2,
+    Color32, Id, RichText, ScrollArea, TextureOptions, Vec2,
 };
 use fs_common::game::common::{
     registry::RegistryID,
@@ -35,7 +36,15 @@ impl RegistriesUI {
     }
 
     pub fn render(&mut self, egui_ctx: &egui::Context, ctx: &mut DebugUIsContext) {
+        // hack to default the window to collapsed
+        // a fn for this was added in egui 0.21 but we need to use 0.20 for egui_glium
+        // (could use the github for egui_glium but it uses winit 0.28 while glutin 0.29 uses wini 0.27 (glutin can bumped but might be a bit of work))
+        let id = Id::new("Registries");
+        CollapsingState::load_with_default_open(egui_ctx, id.with("collapsing"), false)
+            .store(egui_ctx);
+
         egui::Window::new("Registries")
+            .id(id)
             .resizable(false)
             .show(egui_ctx, |ui| {
                 ui.horizontal_wrapped(|ui| {
