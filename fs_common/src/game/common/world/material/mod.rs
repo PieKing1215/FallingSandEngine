@@ -1,3 +1,4 @@
+pub mod buf;
 pub mod color;
 pub mod placer;
 

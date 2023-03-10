@@ -6,7 +6,7 @@ use egui::{
 };
 use fs_common::game::common::{
     registry::RegistryID,
-    world::{copy_paste::MaterialBuf, gen::structure::piece::StructurePiece},
+    world::{gen::structure::piece::StructurePiece, material::buf::MaterialBuf},
 };
 
 use super::DebugUIsContext;

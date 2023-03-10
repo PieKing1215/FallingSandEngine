@@ -6,13 +6,12 @@ use rapier2d::{na::Vector2, prelude::RigidBodyHandle};
 use specs::{Entities, Join, ReadStorage, WorldExt, WriteStorage};
 
 use fs_common::game::common::world::{
-    copy_paste::MaterialBuf,
     entity::{
         CollisionDetector, CutCopy, GameEntity, Hitbox, PhysicsEntity, Player,
         PlayerClipboardState, PlayerGrappleState, PlayerJumpState, PlayerLaunchState,
         PlayerMovementMode,
     },
-    material::{MaterialInstance, PhysicsType},
+    material::{buf::MaterialBuf, MaterialInstance, PhysicsType},
     Camera, ChunkHandler, ChunkHandlerGeneric, Position, Velocity, World,
 };
 

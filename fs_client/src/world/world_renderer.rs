@@ -13,8 +13,8 @@ use fs_common::game::common::{
         material::color::Color,
         particle::ParticleSystem,
         physics::PHYSICS_SCALE,
-        AutoTarget, Camera, Chunk, ChunkHandlerGeneric, ChunkState, Position, Velocity, World,
-        CHUNK_SIZE,
+        AutoTarget, Camera, Chunk, ChunkHandlerGeneric, ChunkState, Position, SidedChunk, Velocity,
+        World, CHUNK_SIZE,
     },
     FileHelper, Rect, Registries, Settings,
 };
@@ -24,7 +24,7 @@ use crate::{
     Client,
 };
 
-use super::{ClientChunk, ClientWorld};
+use super::{chunk_data::tile_entity::ClientTileEntityExt, ClientChunk, ClientWorld};
 
 pub struct WorldRenderer {
     physics_dirty: bool,
@@ -142,6 +142,12 @@ impl WorldRenderer {
         // TODO: remove
         if self.physics_dirty {
             self.physics_dirty = false;
+        }
+
+        for ch in world.chunk_handler.loaded_chunks.values_mut() {
+            for te in ch.sided_tile_entities_mut() {
+                te.render(target);
+            }
         }
 
         self.draw_rigidbodies(world, target);

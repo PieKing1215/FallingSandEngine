@@ -6,9 +6,8 @@ use image::{DynamicImage, GenericImageView};
 use crate::game::common::{
     registry::{Registry, RegistryID},
     world::{
-        copy_paste::MaterialBuf,
         gen::structure::AngleMod,
-        material::{self, color::Color, Material, MaterialInstance, PhysicsType},
+        material::{self, buf::MaterialBuf, color::Color, MaterialInstance, PhysicsType},
         ChunkHandlerGeneric,
     },
     FileHelper, Rect,
@@ -426,73 +425,6 @@ fn load_from_ase(
     ase: &AsepriteFile,
     child_nodes: Vec<(StructureNodeLocalPlacement, StructureNodeConfig)>,
 ) -> StructurePiece {
-    let w = ase.width() as u16;
-    let h = ase.height() as u16;
-    let mut buf = MaterialBuf::new(w, h, vec![MaterialInstance::air(); (w * h) as usize]).unwrap();
-
-    for layer in ase.layers() {
-        let img = layer.frame(0).image();
-
-        let material_id: RegistryID<Material> = layer.name().into();
-        let mut override_color = None;
-        let mut phys_type = PhysicsType::Solid;
-        let mut light = [0.0, 0.0, 0.0];
-        if let Some(user) = layer.user_data() {
-            let flags = user
-                .text
-                .as_ref()
-                .map(|t| t.split_whitespace().collect::<Vec<_>>())
-                .unwrap_or_default();
-            if flags.contains(&"override_color") {
-                override_color = user.color;
-            }
-
-            if let Some(l) = flags.iter().find(|f| f.starts_with("lit=")) {
-                let strength: f32 = l.trim_start_matches("lit=").parse().unwrap();
-                let c = user.color.unwrap();
-                light = [
-                    f32::from(c.0[0]) / f32::from(u8::MAX) * strength,
-                    f32::from(c.0[1]) / f32::from(u8::MAX) * strength,
-                    f32::from(c.0[2]) / f32::from(u8::MAX) * strength,
-                ];
-            } else if flags.contains(&"lit") {
-                let c = user.color.unwrap();
-                light = [
-                    f32::from(c.0[0]) / f32::from(u8::MAX),
-                    f32::from(c.0[1]) / f32::from(u8::MAX),
-                    f32::from(c.0[2]) / f32::from(u8::MAX),
-                ];
-            }
-
-            if flags.contains(&"air") {
-                phys_type = PhysicsType::Air;
-            } else if flags.contains(&"solid") {
-                phys_type = PhysicsType::Solid;
-            } else if flags.contains(&"sand") {
-                phys_type = PhysicsType::Sand;
-            } else if flags.contains(&"liquid") {
-                phys_type = PhysicsType::Liquid;
-            } else if flags.contains(&"gas") {
-                phys_type = PhysicsType::Gas;
-            }
-        }
-
-        for x in 0..w {
-            for y in 0..h {
-                let img_color = img.get_pixel(u32::from(x), u32::from(y));
-                if img_color.0[3] > 0 {
-                    let c = override_color.as_ref().unwrap_or(img_color);
-                    buf.set(
-                        x,
-                        y,
-                        material_id
-                            .instance(phys_type, Color::rgba(c.0[0], c.0[1], c.0[2], c.0[3]))
-                            .with_light(light),
-                    );
-                }
-            }
-        }
-    }
-
+    let buf = MaterialBuf::load_from_ase(ase);
     StructurePiece { buf, child_nodes }
 }

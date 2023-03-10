@@ -1,20 +1,34 @@
 use fs_common::game::common::world::chunk_data::CommonChunkData;
+use fs_common::game::common::world::chunk_data::SidedChunkData;
 use fs_common::game::common::world::material::color::Color;
 use fs_common::game::common::world::material::MaterialInstance;
 use fs_common::game::common::world::mesh;
+use fs_common::game::common::world::tile_entity::TileEntity;
+use fs_common::game::common::world::tile_entity::TileEntityCommon;
+use fs_common::game::common::world::tile_entity::TileEntitySided;
 use fs_common::game::common::world::Chunk;
 use fs_common::game::common::world::ChunkState;
 use fs_common::game::common::world::RigidBodyState;
+use fs_common::game::common::world::SidedChunk;
 use fs_common::game::common::world::CHUNK_SIZE;
 use fs_common::game::common::Rect;
 
 pub struct ServerChunk {
-    pub data: CommonChunkData,
+    pub data: CommonChunkData<Self>,
     pub pixel_data: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
     pub light_data: Box<[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
     pub background_data: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
     pub dirty: bool,
 }
+
+impl SidedChunkData for ServerChunk {
+    type TileEntityData = TileEntityServer;
+}
+
+#[derive(Default)]
+pub struct TileEntityServer;
+
+impl TileEntitySided for TileEntityServer {}
 
 impl Chunk for ServerChunk {
     fn new_empty(chunk_x: i32, chunk_y: i32) -> Self {
@@ -248,5 +262,31 @@ impl Chunk for ServerChunk {
 
     unsafe fn background_unchecked(&self, x: u16, y: u16) -> &MaterialInstance {
         self.data.background_unchecked(x, y)
+    }
+
+    fn add_tile_entity(&mut self, te: TileEntityCommon) {
+        self.data.tile_entities.push(te.into());
+    }
+
+    fn common_tile_entities(&self) -> Box<dyn Iterator<Item = &TileEntityCommon> + '_> {
+        Box::new(self.data.tile_entities.iter().map(|te| &te.common))
+    }
+
+    fn common_tile_entities_mut(&mut self) -> Box<dyn Iterator<Item = &mut TileEntityCommon> + '_> {
+        Box::new(self.data.tile_entities.iter_mut().map(|te| &mut te.common))
+    }
+}
+
+impl SidedChunk for ServerChunk {
+    type S = Self;
+
+    fn sided_tile_entities(&self) -> &[TileEntity<<Self::S as SidedChunkData>::TileEntityData>] {
+        &self.data.tile_entities
+    }
+
+    fn sided_tile_entities_mut(
+        &mut self,
+    ) -> &mut [TileEntity<<Self::S as SidedChunkData>::TileEntityData>] {
+        &mut self.data.tile_entities
     }
 }

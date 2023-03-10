@@ -1,4 +1,5 @@
 mod chunk;
+pub mod chunk_data;
 mod client_world;
 mod world_renderer;
 

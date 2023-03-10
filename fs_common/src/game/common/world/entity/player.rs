@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use specs::{storage::BTreeStorage, Builder, Component, Entity, WorldExt};
 
 use crate::game::common::world::{
-    copy_paste::MaterialBuf, physics::PHYSICS_SCALE, Chunk, CollisionFlags, Loader, Position,
+    material::buf::MaterialBuf, physics::PHYSICS_SCALE, Chunk, CollisionFlags, Loader, Position,
     RigidBodyComponent, Velocity, World,
 };
 

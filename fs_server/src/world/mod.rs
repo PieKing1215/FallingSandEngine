@@ -8,8 +8,8 @@ mod tests {
     use fs_common::game::common::world::{
         self, chunk_index, Chunk, ChunkHandler, ChunkHandlerGeneric, Loader, Position,
     };
-    use fs_common::game::common::Registries;
     use fs_common::game::common::Settings;
+    use fs_common::game::common::{FileHelper, Registries};
 
     use fs_common::game::common::world::gen::TestGenerator;
     use specs::{Builder, WorldExt};
@@ -19,6 +19,7 @@ mod tests {
     #[test]
     fn chunk_loading() {
         let registries = std::sync::Arc::new(Registries::empty());
+        let file_helper = FileHelper::new("./gamedir/".into(), "./gamedir/assets/".into());
 
         let mut ch: ChunkHandler<ServerChunk> =
             ChunkHandler::<ServerChunk>::new(TestGenerator::new(), None);
@@ -69,6 +70,7 @@ mod tests {
             &mut phys,
             registries.clone(),
             2,
+            &file_helper,
         );
         while !ch.load_queue.is_empty() {
             ch.tick(
@@ -78,6 +80,7 @@ mod tests {
                 &mut phys,
                 registries.clone(),
                 2,
+                &file_helper,
             );
         }
 
@@ -111,7 +114,15 @@ mod tests {
 
         // should unload since no loaders are nearby
         assert_eq!(ecs.delete_entity(loader), Ok(()));
-        ch.tick(0, &Settings::default(), &mut ecs, &mut phys, registries, 2);
+        ch.tick(
+            0,
+            &Settings::default(),
+            &mut ecs,
+            &mut phys,
+            registries,
+            2,
+            &file_helper,
+        );
 
         assert!(!ch.is_chunk_loaded(11, -12));
         assert!(!ch.is_chunk_loaded(-3, 2));

@@ -457,6 +457,7 @@ impl ServerGame {
                 self.0.tick_time,
                 &self.0.settings,
                 self.0.registries.clone(),
+                &self.0.file_helper,
             );
         }
     }

@@ -1,8 +1,11 @@
 use crate::game::common::Rect;
 
-use super::{material::MaterialInstance, mesh::Mesh, ChunkState, RigidBodyState, CHUNK_SIZE};
+use super::{
+    material::MaterialInstance, mesh::Mesh, tile_entity::TileEntity, ChunkState, RigidBodyState,
+    CHUNK_SIZE,
+};
 
-pub struct CommonChunkData {
+pub struct CommonChunkData<S: SidedChunkData> {
     pub chunk_x: i32,
     pub chunk_y: i32,
     pub state: ChunkState,
@@ -12,10 +15,15 @@ pub struct CommonChunkData {
     pub dirty_rect: Option<Rect<i32>>,
     pub rigidbody: Option<RigidBodyState>,
     pub mesh_simplified: Option<Mesh>,
+    pub tile_entities: Vec<TileEntity<S::TileEntityData>>,
+}
+
+pub trait SidedChunkData {
+    type TileEntityData;
 }
 
 #[allow(clippy::missing_safety_doc)] // TODO
-impl CommonChunkData {
+impl<S: SidedChunkData> CommonChunkData<S> {
     pub fn new(chunk_x: i32, chunk_y: i32) -> Self {
         Self {
             chunk_x,
@@ -27,6 +35,7 @@ impl CommonChunkData {
             dirty_rect: None,
             rigidbody: None,
             mesh_simplified: None,
+            tile_entities: vec![],
         }
     }
 

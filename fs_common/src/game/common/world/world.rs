@@ -9,7 +9,7 @@ use std::{
 
 use crate::game::common::{
     world::{physics::PHYSICS_SCALE, RigidBodyState},
-    Registries, Settings,
+    FileHelper, Registries, Settings,
 };
 
 use rapier2d::{
@@ -23,6 +23,7 @@ use specs::{
 };
 
 use super::{
+    chunk_data::SidedChunkData,
     entity::{
         CollisionDetector, GameEntity, Hitbox, Persistent, PhysicsEntity, Player,
         UpdatePhysicsEntities,
@@ -32,8 +33,10 @@ use super::{
     particle::{Particle, ParticleSystem, UpdateParticles},
     physics::Physics,
     rigidbody::FSRigidBody,
-    simulator, ApplyRigidBodies, AutoTarget, Camera, Chunk, ChunkHandler, ChunkHandlerGeneric,
-    CollisionFlags, DeltaTime, FilePersistent, Loader, Position, RigidBodyComponent, TickTime,
+    simulator,
+    tile_entity::TileEntitySided,
+    ApplyRigidBodies, AutoTarget, Camera, Chunk, ChunkHandler, ChunkHandlerGeneric, CollisionFlags,
+    DeltaTime, FilePersistent, Loader, Position, RigidBodyComponent, SidedChunk, TickTime,
     UpdateAutoTargets, UpdateRigidBodies, Velocity, CHUNK_SIZE,
 };
 
@@ -379,9 +382,18 @@ impl<C: Chunk + Send> World<C> {
     }
 }
 
-impl<C: Chunk + Send + Sync> World<C> {
+impl<C: Chunk + SidedChunk + Send + Sync> World<C>
+where
+    <<C as SidedChunk>::S as SidedChunkData>::TileEntityData: TileEntitySided,
+{
     #[profiling::function]
-    pub fn tick(&mut self, tick_time: u32, settings: &Settings, registries: Arc<Registries>) {
+    pub fn tick(
+        &mut self,
+        tick_time: u32,
+        settings: &Settings,
+        registries: Arc<Registries>,
+        file_helper: &FileHelper,
+    ) {
         *self.ecs.write_resource::<TickTime>() = TickTime(tick_time);
 
         {
@@ -651,6 +663,7 @@ impl<C: Chunk + Send + Sync> World<C> {
             &mut self.physics,
             registries,
             self.seed,
+            file_helper,
         );
 
         if settings.simulate_particles {

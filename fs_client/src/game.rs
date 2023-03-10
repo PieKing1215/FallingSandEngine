@@ -781,6 +781,7 @@ impl ClientGame {
                 self.data.tick_time,
                 &self.data.settings,
                 self.data.registries.clone(),
+                &self.data.file_helper,
             );
             w.chunk_handler.update_chunk_graphics(&renderer.shaders);
         }

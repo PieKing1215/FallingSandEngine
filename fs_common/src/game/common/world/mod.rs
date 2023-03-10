@@ -10,9 +10,9 @@ mod world;
 mod world_loading;
 
 pub mod chunk_data;
-pub mod copy_paste;
 pub mod gen;
 pub mod physics;
+pub mod tile_entity;
 
 pub use chunk::*;
 pub use ecs::*;

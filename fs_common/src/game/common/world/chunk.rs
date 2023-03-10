@@ -3,8 +3,9 @@ use crate::game::common::world::gen::populator::ChunkContext;
 use crate::game::common::world::gen::structure::UpdateStructureNodes;
 use crate::game::common::world::particle::ParticleSystem;
 use crate::game::common::world::simulator::{Simulator, SimulatorChunkContext};
+use crate::game::common::world::tile_entity::TileEntityTickContext;
 use crate::game::common::world::{Loader, Position};
-use crate::game::common::Registries;
+use crate::game::common::{FileHelper, Registries};
 use crate::game::common::{Rect, Settings};
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
@@ -13,6 +14,7 @@ use std::hash::BuildHasherDefault;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use asefile::AsepriteFile;
 use futures::channel::oneshot::Receiver;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
@@ -21,11 +23,14 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use specs::{Join, ReadStorage, RunNow, WorldExt};
 
+use super::chunk_data::SidedChunkData;
 use super::gen::WorldGenerator;
+use super::material::buf::MaterialRect;
 use super::material::{color::Color, PhysicsType};
 use super::mesh::Mesh;
 use super::particle::Particle;
 use super::physics::Physics;
+use super::tile_entity::{TileEntity, TileEntityCommon, TileEntitySided};
 use crate::game::common::world::material::MaterialInstance;
 
 pub const CHUNK_SIZE: u16 = 100;
@@ -133,12 +138,26 @@ pub trait Chunk {
     /// x and y must be in `0..CHUNK_SIZE`
     unsafe fn background_unchecked(&self, x: u16, y: u16) -> &MaterialInstance;
 
+    fn add_tile_entity(&mut self, te: TileEntityCommon);
+
+    fn common_tile_entities(&self) -> Box<dyn Iterator<Item = &TileEntityCommon> + '_>;
+    fn common_tile_entities_mut(&mut self) -> Box<dyn Iterator<Item = &mut TileEntityCommon> + '_>;
+
     #[profiling::function]
     fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]) {
         for (x, y, mat) in diff {
             self.set(*x, *y, mat.clone()).unwrap(); // TODO: handle this Err
         }
     }
+}
+
+pub trait SidedChunk: Chunk {
+    type S: SidedChunkData;
+
+    fn sided_tile_entities(&self) -> &[TileEntity<<Self::S as SidedChunkData>::TileEntityData>];
+    fn sided_tile_entities_mut(
+        &mut self,
+    ) -> &mut [TileEntity<<Self::S as SidedChunkData>::TileEntityData>];
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -171,15 +190,17 @@ pub type ChunkGenOutput = (
 );
 
 pub trait ChunkHandlerGeneric {
-    fn tick(
-        &mut self,
-        tick_time: u32,
-        settings: &Settings,
-        world: &mut specs::World,
-        physics: &mut Physics,
-        registries: Arc<Registries>,
-        seed: i32,
-    );
+    // #[warn(clippy::too_many_arguments)] // TODO
+    // fn tick(
+    //     &mut self,
+    //     tick_time: u32,
+    //     settings: &Settings,
+    //     world: &mut specs::World,
+    //     physics: &mut Physics,
+    //     registries: Arc<Registries>,
+    //     seed: i32,
+    //     file_helper: &FileHelper,
+    // );
     fn save_chunk(&mut self, index: u32) -> Result<(), Box<dyn std::error::Error>>;
     fn unload_all_chunks(
         &mut self,
@@ -212,10 +233,14 @@ struct ChunkSaveFormat {
     colors: Vec<u8>,
 }
 
-impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
+impl<C: Chunk + SidedChunk + Send> ChunkHandler<C>
+where
+    <<C as SidedChunk>::S as SidedChunkData>::TileEntityData: TileEntitySided,
+{
     // #[profiling::function] // breaks clippy
+    #[warn(clippy::too_many_arguments)] // TODO
     #[allow(clippy::too_many_lines)]
-    fn tick(
+    pub fn tick(
         &mut self,
         tick_time: u32,
         settings: &Settings,
@@ -223,6 +248,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
         physics: &mut Physics,
         registries: Arc<Registries>,
         seed: i32,
+        file_helper: &FileHelper,
     ) {
         profiling::scope!("tick");
 
@@ -294,7 +320,16 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                 for _ in 0..64 {
                     // TODO: don't load queued chunks if they are no longer in range
                     if let Some(to_load) = self.load_queue.pop() {
-                        self.load_chunk(to_load.0, to_load.1);
+                        let c = self.load_chunk(to_load.0, to_load.1);
+                        if to_load == (0, 0) {
+                            let ase = AsepriteFile::read_file(
+                                &file_helper.asset_path("data/tile_entity/test/test.ase"),
+                            )
+                            .unwrap();
+                            c.add_tile_entity(TileEntityCommon {
+                                material_rect: MaterialRect::load_from_ase(&ase, (-40, -40)),
+                            });
+                        }
                     }
                 }
             }
@@ -1073,8 +1108,21 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
                 }
             }
         }
-    }
 
+        for ch in self.loaded_chunks.values_mut() {
+            for te in ch.sided_tile_entities_mut() {
+                te.tick(TileEntityTickContext {
+                    registries: registries.clone(),
+                    file_helper,
+                    tick_time,
+                    // chunk_handler: self,
+                });
+            }
+        }
+    }
+}
+
+impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
     #[profiling::function]
     fn save_chunk(&mut self, index: u32) -> Result<(), Box<dyn std::error::Error>> {
         let chunk = self
@@ -1372,10 +1420,11 @@ impl<C: Chunk> ChunkHandler<C> {
     }
 
     #[profiling::function]
-    fn load_chunk(&mut self, chunk_x: i32, chunk_y: i32) {
+    fn load_chunk(&mut self, chunk_x: i32, chunk_y: i32) -> &mut C {
         let chunk = Chunk::new_empty(chunk_x, chunk_y);
-        self.loaded_chunks
-            .insert(chunk_index(chunk_x, chunk_y), chunk);
+        let i = chunk_index(chunk_x, chunk_y);
+        self.loaded_chunks.insert(i, chunk);
+        self.loaded_chunks.get_mut(&i).unwrap()
     }
 }
 

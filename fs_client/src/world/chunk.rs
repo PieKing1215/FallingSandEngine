@@ -5,12 +5,13 @@ use std::{
 
 use fs_common::game::common::{
     world::{
-        chunk_data::CommonChunkData,
+        chunk_data::{CommonChunkData, SidedChunkData},
         chunk_index,
         material::{color::Color, MaterialInstance},
         mesh::{self, Mesh},
-        Chunk, ChunkHandler, ChunkState, PassThroughHasherU32, RigidBodyState, CHUNK_SIZE,
-        LIGHT_SCALE,
+        tile_entity::{TileEntity, TileEntityCommon},
+        Chunk, ChunkHandler, ChunkState, PassThroughHasherU32, RigidBodyState, SidedChunk,
+        CHUNK_SIZE, LIGHT_SCALE,
     },
     FileHelper, Rect, Settings,
 };
@@ -21,11 +22,17 @@ use glium::{
 
 use crate::render::{drawing::RenderTarget, shaders::Shaders};
 
+use super::chunk_data::tile_entity::TileEntityClient;
+
 pub struct ClientChunk {
-    pub data: CommonChunkData,
+    pub data: CommonChunkData<Self>,
     pub graphics: Box<ChunkGraphics>,
     pub mesh: Option<Mesh>,
     pub tris: Option<Vec<Vec<mesh::Tri>>>,
+}
+
+impl SidedChunkData for ClientChunk {
+    type TileEntityData = TileEntityClient;
 }
 
 impl Chunk for ClientChunk {
@@ -295,6 +302,32 @@ impl Chunk for ClientChunk {
 
     unsafe fn background_unchecked(&self, x: u16, y: u16) -> &MaterialInstance {
         self.data.background_unchecked(x, y)
+    }
+
+    fn add_tile_entity(&mut self, te: TileEntityCommon) {
+        self.data.tile_entities.push(te.into());
+    }
+
+    fn common_tile_entities(&self) -> Box<dyn Iterator<Item = &TileEntityCommon> + '_> {
+        Box::new(self.data.tile_entities.iter().map(|te| &te.common))
+    }
+
+    fn common_tile_entities_mut(&mut self) -> Box<dyn Iterator<Item = &mut TileEntityCommon> + '_> {
+        Box::new(self.data.tile_entities.iter_mut().map(|te| &mut te.common))
+    }
+}
+
+impl SidedChunk for ClientChunk {
+    type S = Self;
+
+    fn sided_tile_entities(&self) -> &[TileEntity<<Self::S as SidedChunkData>::TileEntityData>] {
+        &self.data.tile_entities
+    }
+
+    fn sided_tile_entities_mut(
+        &mut self,
+    ) -> &mut [TileEntity<<Self::S as SidedChunkData>::TileEntityData>] {
+        &mut self.data.tile_entities
     }
 }
 

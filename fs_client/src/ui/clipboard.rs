@@ -1,5 +1,5 @@
 use egui::TextureOptions;
-use fs_common::game::common::world::copy_paste::MaterialBuf;
+use fs_common::game::common::world::material::buf::MaterialBuf;
 
 use super::DebugUIsContext;
 
@@ -16,7 +16,6 @@ impl ClipboardUI {
     pub fn render(&mut self, egui_ctx: &egui::Context, ctx: &mut DebugUIsContext) {
         if let Some(c) = &ctx.local_player.clipboard.clipboard {
             if self.texture.as_ref().map_or(true, |(prev, _)| prev != c) {
-                log::debug!("gen tex");
                 self.texture = Some((
                     c.clone(),
                     egui_ctx.load_texture(
