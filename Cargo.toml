@@ -5,6 +5,7 @@ members = [
     "fs_common",
     "fs_client",
     "fs_server",
+    "chunksystem",
 ]
 
 [profile.dev]
