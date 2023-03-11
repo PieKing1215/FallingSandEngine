@@ -159,6 +159,9 @@ pub trait SidedChunk: Chunk {
     fn sided_tile_entities_mut(
         &mut self,
     ) -> &mut [TileEntity<<Self::S as SidedChunkData>::TileEntityData>];
+    fn sided_tile_entities_removable(
+        &mut self,
+    ) -> &mut Vec<TileEntity<<Self::S as SidedChunkData>::TileEntityData>>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -237,7 +240,7 @@ struct ChunkSaveFormat {
 
 impl<C: Chunk + SidedChunk + Send> ChunkHandler<C>
 where
-    <<C as SidedChunk>::S as SidedChunkData>::TileEntityData: TileEntitySided,
+    <<C as SidedChunk>::S as SidedChunkData>::TileEntityData: TileEntitySided<D = C>,
 {
     // #[profiling::function] // breaks clippy
     #[warn(clippy::too_many_arguments)] // TODO
@@ -1099,15 +1102,23 @@ where
             }
         }
 
-        for ch in self.manager.chunks_iter_mut() {
-            for te in ch.sided_tile_entities_mut() {
-                te.tick(TileEntityTickContext {
-                    registries: registries.clone(),
-                    file_helper,
-                    tick_time,
-                    // chunk_handler: self,
-                });
-            }
+        {
+            profiling::scope!("tile entities");
+            self.manager.query_each(|mut q| {
+                q.for_each_with(
+                    |ch| ch.sided_tile_entities_removable(),
+                    |te, chunks| {
+                        let mut chs = chunks.iter_mut().map(|ch| &mut **ch).collect::<Vec<_>>();
+
+                        te.tick(TileEntityTickContext::<C> {
+                            registries: registries.clone(),
+                            file_helper,
+                            tick_time,
+                            chunks: chs.as_mut_slice(),
+                        });
+                    },
+                );
+            });
         }
     }
 }

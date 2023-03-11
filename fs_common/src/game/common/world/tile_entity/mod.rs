@@ -20,19 +20,21 @@ impl<S: Default> From<TileEntityCommon> for TileEntity<S> {
 }
 
 pub trait TileEntitySided {
+    type D;
+
     #[allow(unused_variables)]
-    fn tick(&mut self, common: &mut TileEntityCommon, ctx: TileEntityTickContext) {}
+    fn tick(&mut self, common: &mut TileEntityCommon, ctx: TileEntityTickContext<Self::D>) {}
 }
 
-pub struct TileEntityTickContext<'a> {
+pub struct TileEntityTickContext<'a, D> {
     pub tick_time: u32,
     pub registries: Arc<Registries>,
     pub file_helper: &'a FileHelper,
-    // pub chunk_handler: &'a mut dyn ChunkHandlerGeneric, // TODO: need to refactor ChunkHandler completely for this to be possible
+    pub chunks: &'a mut [&'a mut chunksystem::Chunk<D>],
 }
 
 impl<S: TileEntitySided> TileEntity<S> {
-    pub fn tick(&mut self, ctx: TileEntityTickContext) {
+    pub fn tick(&mut self, ctx: TileEntityTickContext<S::D>) {
         self.sided.tick(&mut self.common, ctx);
     }
 }

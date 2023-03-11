@@ -384,7 +384,7 @@ impl<C: Chunk + Send> World<C> {
 
 impl<C: Chunk + SidedChunk + Send + Sync> World<C>
 where
-    <<C as SidedChunk>::S as SidedChunkData>::TileEntityData: TileEntitySided,
+    <<C as SidedChunk>::S as SidedChunkData>::TileEntityData: TileEntitySided<D = C>,
 {
     #[profiling::function]
     pub fn tick(

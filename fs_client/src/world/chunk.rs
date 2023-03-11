@@ -1,4 +1,4 @@
-use chunksystem::{BoxedIterator, ChunkQuery};
+use chunksystem::ChunkQuery;
 use core::slice;
 use fs_common::game::common::world::Chunk;
 use std::{borrow::Cow, convert::TryInto, sync::Arc};
@@ -325,6 +325,12 @@ impl SidedChunk for ClientChunk {
     fn sided_tile_entities_mut(
         &mut self,
     ) -> &mut [TileEntity<<Self::S as SidedChunkData>::TileEntityData>] {
+        &mut self.data.tile_entities
+    }
+
+    fn sided_tile_entities_removable(
+        &mut self,
+    ) -> &mut Vec<TileEntity<<Self::S as SidedChunkData>::TileEntityData>> {
         &mut self.data.tile_entities
     }
 }

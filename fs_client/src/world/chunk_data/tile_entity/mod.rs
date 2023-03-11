@@ -7,7 +7,7 @@ use fs_common::game::common::world::{
 };
 use glium::{Blend, DrawParameters, PolygonMode, Texture2d};
 
-use crate::render::drawing::RenderTarget;
+use crate::{render::drawing::RenderTarget, world::ClientChunk};
 
 #[derive(Debug, Default)]
 pub struct TileEntityClient {
@@ -18,7 +18,9 @@ unsafe impl Send for TileEntityClient {}
 unsafe impl Sync for TileEntityClient {}
 
 impl TileEntitySided for TileEntityClient {
-    fn tick(&mut self, common: &mut TileEntityCommon, ctx: TileEntityTickContext) {
+    type D = ClientChunk;
+
+    fn tick(&mut self, common: &mut TileEntityCommon, ctx: TileEntityTickContext<Self::D>) {
         common
             .material_rect
             .translate(((ctx.tick_time as f32 / 15.0).cos() * 4.0) as _, 0);

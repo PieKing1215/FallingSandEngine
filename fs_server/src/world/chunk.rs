@@ -28,7 +28,9 @@ impl SidedChunkData for ServerChunk {
 #[derive(Default)]
 pub struct TileEntityServer;
 
-impl TileEntitySided for TileEntityServer {}
+impl TileEntitySided for TileEntityServer {
+    type D = ServerChunk;
+}
 
 impl Chunk for ServerChunk {
     fn new_empty(chunk_x: i32, chunk_y: i32) -> Self {
@@ -287,6 +289,12 @@ impl SidedChunk for ServerChunk {
     fn sided_tile_entities_mut(
         &mut self,
     ) -> &mut [TileEntity<<Self::S as SidedChunkData>::TileEntityData>] {
+        &mut self.data.tile_entities
+    }
+
+    fn sided_tile_entities_removable(
+        &mut self,
+    ) -> &mut Vec<TileEntity<<Self::S as SidedChunkData>::TileEntityData>> {
         &mut self.data.tile_entities
     }
 }
