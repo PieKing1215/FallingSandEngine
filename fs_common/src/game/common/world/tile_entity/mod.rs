@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::game::common::{FileHelper, Registries};
 
-use super::{material::buf::MaterialRect, ChunkHandlerGeneric};
+use super::material::buf::MaterialRect;
 
 pub struct TileEntity<S> {
     pub common: TileEntityCommon,

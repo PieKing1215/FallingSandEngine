@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use chunksystem::ChunkQuery;
 use glium::{Blend, DrawParameters, PolygonMode};
 use rapier2d::prelude::Shape;
 use specs::{Join, ReadStorage, WorldExt};
@@ -91,10 +92,7 @@ impl WorldRenderer {
 
         let chunk_tex_data = {
             profiling::scope!("build chunk_tex_data");
-            world
-                .chunk_handler
-                .loaded_chunks
-                .iter_mut()
+            unsafe { world.chunk_handler.manager.raw_mut().iter_mut() }
                 .filter_map(|(_i, ch)| {
                     let rc = Rect::new_wh(
                         ch.chunk_x() * i32::from(CHUNK_SIZE),
@@ -144,7 +142,7 @@ impl WorldRenderer {
             self.physics_dirty = false;
         }
 
-        for ch in world.chunk_handler.loaded_chunks.values_mut() {
+        for ch in world.chunk_handler.manager.chunks_iter_mut() {
             for te in ch.sided_tile_entities_mut() {
                 te.render(target);
             }
@@ -556,121 +554,116 @@ impl WorldRenderer {
         let mut structure_lines = vec![];
         let mut state_rects = vec![];
 
-        world
-            .chunk_handler
-            .loaded_chunks
-            .iter_mut()
-            .for_each(|(_i, ch)| {
-                let world_x = ch.chunk_x() * i32::from(CHUNK_SIZE);
-                let world_y = ch.chunk_y() * i32::from(CHUNK_SIZE);
-                let rc = Rect::new_wh(world_x, world_y, CHUNK_SIZE, CHUNK_SIZE);
+        unsafe { world.chunk_handler.manager.raw_mut().iter_mut() }.for_each(|(_i, ch)| {
+            let world_x = ch.chunk_x() * i32::from(CHUNK_SIZE);
+            let world_y = ch.chunk_y() * i32::from(CHUNK_SIZE);
+            let rc = Rect::new_wh(world_x, world_y, CHUNK_SIZE, CHUNK_SIZE);
 
-                // queue structure set debug
-                if let (true, Some(set)) =
-                    (ctx.settings.debug, ctx.settings.draw_structure_set.clone())
-                {
-                    if let Some(v) = ctx.registries.structure_sets.get(&set) {
-                        let (start_x, start_y) =
-                            v.nearest_start_chunk((ch.chunk_x(), ch.chunk_y()), world.seed as _);
-                        let should_gen_start = v.should_generate_at(
-                            (start_x, start_y),
-                            world.seed as _,
-                            &ctx.registries,
-                            true,
-                        );
-                        structure_lines.push((
-                            (world_x as f32, world_y as f32),
-                            (
-                                (start_x * i32::from(CHUNK_SIZE)) as f32,
-                                (start_y * i32::from(CHUNK_SIZE)) as f32,
-                            ),
-                            if start_x == ch.chunk_x() && start_y == ch.chunk_y() {
-                                Color::GREEN
-                            } else if should_gen_start {
-                                Color::ORANGE.with_a(0.25)
-                            } else {
-                                Color::RED.with_a(0.125)
-                            },
-                        ));
-                    }
-                }
-
-                target.transform.push();
-                target.transform.translate(world_x, world_y);
-
-                if (ctx.settings.debug && !ctx.settings.cull_chunks) || rc.intersects(screen_zone) {
-                    ch.render(target, ctx.settings);
-
-                    // draw dirty rects
-                    if ctx.settings.debug && ctx.settings.draw_chunk_dirty_rects {
-                        if let Some(dr) = ch.dirty_rect() {
-                            let rect = dr.into_f32();
-                            target.rectangle(
-                                rect,
-                                Color::rgba(255, 64, 64, 127),
-                                DrawParameters {
-                                    blend: Blend::alpha_blending(),
-                                    ..Default::default()
-                                },
-                            );
-                            target.rectangle(
-                                rect,
-                                Color::rgba(255, 64, 64, 127),
-                                DrawParameters {
-                                    polygon_mode: PolygonMode::Line,
-                                    line_width: Some(1.0),
-                                    blend: Blend::alpha_blending(),
-                                    ..Default::default()
-                                },
-                            );
-                        }
-                        if ch.graphics.was_dirty {
-                            let rect = Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE).into_f32();
-                            target.rectangle(
-                                rect,
-                                Color::rgba(255, 255, 64, 127),
-                                DrawParameters {
-                                    blend: Blend::alpha_blending(),
-                                    ..Default::default()
-                                },
-                            );
-                            target.rectangle(
-                                rect,
-                                Color::rgba(255, 255, 64, 127),
-                                DrawParameters {
-                                    polygon_mode: PolygonMode::Line,
-                                    line_width: Some(1.0),
-                                    blend: Blend::alpha_blending(),
-                                    ..Default::default()
-                                },
-                            );
-                        }
-                    }
-                }
-
-                // queue state overlay
-                if ctx.settings.debug && ctx.settings.draw_chunk_state_overlay {
-                    let rect = Rect::new_wh(world_x, world_y, CHUNK_SIZE, CHUNK_SIZE);
-
-                    let alpha: u8 = (ctx.settings.draw_chunk_state_overlay_alpha * 255.0) as u8;
-                    let color = match ch.state() {
-                        ChunkState::NotGenerated => Color::rgba(127, 127, 127, alpha),
-                        ChunkState::Generating(stage) => Color::rgba(
-                            64,
-                            (f32::from(stage)
-                                / f32::from(world.chunk_handler.generator.max_gen_stage())
-                                * 255.0) as u8,
-                            255,
-                            alpha,
+            // queue structure set debug
+            if let (true, Some(set)) = (ctx.settings.debug, ctx.settings.draw_structure_set.clone())
+            {
+                if let Some(v) = ctx.registries.structure_sets.get(&set) {
+                    let (start_x, start_y) =
+                        v.nearest_start_chunk((ch.chunk_x(), ch.chunk_y()), world.seed as _);
+                    let should_gen_start = v.should_generate_at(
+                        (start_x, start_y),
+                        world.seed as _,
+                        &ctx.registries,
+                        true,
+                    );
+                    structure_lines.push((
+                        (world_x as f32, world_y as f32),
+                        (
+                            (start_x * i32::from(CHUNK_SIZE)) as f32,
+                            (start_y * i32::from(CHUNK_SIZE)) as f32,
                         ),
-                        ChunkState::Cached => Color::rgba(255, 127, 64, alpha),
-                        ChunkState::Active => Color::rgba(64, 255, 64, alpha),
-                    };
-                    state_rects.push((rect.into_f32(), color));
+                        if start_x == ch.chunk_x() && start_y == ch.chunk_y() {
+                            Color::GREEN
+                        } else if should_gen_start {
+                            Color::ORANGE.with_a(0.25)
+                        } else {
+                            Color::RED.with_a(0.125)
+                        },
+                    ));
                 }
+            }
 
-                target.transform.pop();
-            });
+            target.transform.push();
+            target.transform.translate(world_x, world_y);
+
+            if (ctx.settings.debug && !ctx.settings.cull_chunks) || rc.intersects(screen_zone) {
+                ch.render(target, ctx.settings);
+
+                // draw dirty rects
+                if ctx.settings.debug && ctx.settings.draw_chunk_dirty_rects {
+                    if let Some(dr) = ch.dirty_rect() {
+                        let rect = dr.into_f32();
+                        target.rectangle(
+                            rect,
+                            Color::rgba(255, 64, 64, 127),
+                            DrawParameters {
+                                blend: Blend::alpha_blending(),
+                                ..Default::default()
+                            },
+                        );
+                        target.rectangle(
+                            rect,
+                            Color::rgba(255, 64, 64, 127),
+                            DrawParameters {
+                                polygon_mode: PolygonMode::Line,
+                                line_width: Some(1.0),
+                                blend: Blend::alpha_blending(),
+                                ..Default::default()
+                            },
+                        );
+                    }
+                    if ch.graphics.was_dirty {
+                        let rect = Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE).into_f32();
+                        target.rectangle(
+                            rect,
+                            Color::rgba(255, 255, 64, 127),
+                            DrawParameters {
+                                blend: Blend::alpha_blending(),
+                                ..Default::default()
+                            },
+                        );
+                        target.rectangle(
+                            rect,
+                            Color::rgba(255, 255, 64, 127),
+                            DrawParameters {
+                                polygon_mode: PolygonMode::Line,
+                                line_width: Some(1.0),
+                                blend: Blend::alpha_blending(),
+                                ..Default::default()
+                            },
+                        );
+                    }
+                }
+            }
+
+            // queue state overlay
+            if ctx.settings.debug && ctx.settings.draw_chunk_state_overlay {
+                let rect = Rect::new_wh(world_x, world_y, CHUNK_SIZE, CHUNK_SIZE);
+
+                let alpha: u8 = (ctx.settings.draw_chunk_state_overlay_alpha * 255.0) as u8;
+                let color = match ch.state() {
+                    ChunkState::NotGenerated => Color::rgba(127, 127, 127, alpha),
+                    ChunkState::Generating(stage) => Color::rgba(
+                        64,
+                        (f32::from(stage)
+                            / f32::from(world.chunk_handler.generator.max_gen_stage())
+                            * 255.0) as u8,
+                        255,
+                        alpha,
+                    ),
+                    ChunkState::Cached => Color::rgba(255, 127, 64, alpha),
+                    ChunkState::Active => Color::rgba(64, 255, 64, alpha),
+                };
+                state_rects.push((rect.into_f32(), color));
+            }
+
+            target.transform.pop();
+        });
 
         // draw state overlay
         if ctx.settings.debug && ctx.settings.draw_chunk_state_overlay {

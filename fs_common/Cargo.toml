@@ -11,6 +11,7 @@ categories = ["game-engines", "games"]
 edition = "2021"
 
 [dependencies]
+chunksystem = { path = "../chunksystem" }
 profiling = "1.0"
 rand = "0.8"
 simdnoise = "3.1"

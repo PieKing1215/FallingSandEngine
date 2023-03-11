@@ -23,7 +23,7 @@ use fs_common::game::{
         cli::{CLArgs, CLSubcommand},
         commands::CommandHandler,
         networking::{Packet, PacketType},
-        world::{chunk_index_inv, Chunk, ChunkState, CHUNK_SIZE},
+        world::{Chunk, ChunkState, CHUNK_SIZE},
         FileHelper,
     },
     BuildData, GameData,
@@ -93,9 +93,9 @@ impl ServerGame {
                 info!("Incoming Connection: {}", addr.to_string());
                 stream.set_nonblocking(false).unwrap();
                 if let Some(w) = &self.0.world {
-                    for ci in &w.chunk_handler.loaded_chunks {
+                    for ci in unsafe { w.chunk_handler.manager.raw().iter() } {
                         // println!("Writing SyncChunkPacket");
-                        let (chunk_x, chunk_y) = chunk_index_inv(*ci.0);
+                        let (chunk_x, chunk_y) = *ci.0;
                         let packet = Packet {
                             packet_type: PacketType::SyncChunkPacket {
                                 chunk_x,
@@ -176,7 +176,7 @@ impl ServerGame {
                 if self.0.tick_time % 4 == 0 {
                     if let Some(w) = &self.0.world {
                         let mut n = 0;
-                        for ci in &w.chunk_handler.loaded_chunks {
+                        for ci in unsafe { w.chunk_handler.manager.raw().iter() } {
                             n += 1;
                             if ci.1.state() == ChunkState::Active
                                 && ci.1.dirty
@@ -184,7 +184,7 @@ impl ServerGame {
                             {
                                 for c in &mut connections {
                                     // println!("Writing SyncChunkPacket");
-                                    let (chunk_x, chunk_y) = chunk_index_inv(*ci.0);
+                                    let (chunk_x, chunk_y) = *ci.0;
                                     let pixels_vec = ci.1.pixels().as_ref().unwrap().to_vec();
                                     let colors_vec = ci.1.colors().to_vec();
 
@@ -233,7 +233,7 @@ impl ServerGame {
 
                     // TODO: come up with a good way to merge this loop with the one right above
                     if let Some(w) = &mut self.0.world {
-                        for ci in &mut w.chunk_handler.loaded_chunks {
+                        for ci in unsafe { w.chunk_handler.manager.raw_mut().iter_mut() } {
                             if ci.1.state() == ChunkState::Active && ci.1.dirty {
                                 ci.1.dirty = false;
                             }

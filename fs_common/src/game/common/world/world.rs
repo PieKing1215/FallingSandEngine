@@ -1,5 +1,4 @@
 use std::{
-    borrow::BorrowMut,
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
     path::PathBuf,
@@ -12,6 +11,7 @@ use crate::game::common::{
     FileHelper, Registries, Settings,
 };
 
+use chunksystem::ChunkQuery;
 use rapier2d::{
     na::{Point2, Vector2},
     prelude::{ColliderBuilder, InteractionGroups, RigidBodyBuilder, RigidBodyType},
@@ -777,7 +777,7 @@ where
 
         {
             profiling::scope!("update chunk collision");
-            for c in self.chunk_handler.loaded_chunks.borrow_mut().values_mut() {
+            for c in self.chunk_handler.manager.chunks_iter_mut() {
                 if c.rigidbody().is_none() {
                     // if let Some(tr) = c.get_tris() {
                     //     let mut body_def = BodyDef::default();

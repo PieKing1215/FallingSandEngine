@@ -1,17 +1,15 @@
+use chunksystem::{BoxedIterator, ChunkQuery};
 use core::slice;
-use std::{
-    borrow::Cow, collections::HashMap, convert::TryInto, hash::BuildHasherDefault, sync::Arc,
-};
+use fs_common::game::common::world::Chunk;
+use std::{borrow::Cow, convert::TryInto, sync::Arc};
 
 use fs_common::game::common::{
     world::{
         chunk_data::{CommonChunkData, SidedChunkData},
-        chunk_index,
         material::{color::Color, MaterialInstance},
         mesh::{self, Mesh},
         tile_entity::{TileEntity, TileEntityCommon},
-        Chunk, ChunkHandler, ChunkState, PassThroughHasherU32, RigidBodyState, SidedChunk,
-        CHUNK_SIZE, LIGHT_SCALE,
+        ChunkHandler, ChunkState, RigidBodyState, SidedChunk, CHUNK_SIZE, LIGHT_SCALE,
     },
     FileHelper, Rect, Settings,
 };
@@ -489,7 +487,7 @@ impl ChunkGraphics {
     #[profiling::function]
     pub fn update_lighting(
         &mut self,
-        neighbors: Option<[Option<&ClientChunk>; 8]>,
+        neighbors: Option<[Option<&chunksystem::Chunk<ClientChunk>>; 8]>,
         shaders: &Shaders,
     ) {
         if self.lighting_dirty
@@ -649,27 +647,27 @@ impl ClientChunk {
     // #[profiling::function]
     fn update_graphics(
         &mut self,
-        other_loaded_chunks: Option<&HashMap<u32, Self, BuildHasherDefault<PassThroughHasherU32>>>,
+        other_loaded_chunks: Option<BoxedIterator<&mut chunksystem::Chunk<Self>>>,
         shaders: &Shaders,
     ) -> Result<(), String> {
         self.graphics.was_dirty = self.graphics.dirty;
 
+        let other_loaded_chunks = other_loaded_chunks.map(|chs| chs.collect::<Vec<_>>());
+        let other_loaded_chunks = other_loaded_chunks.as_ref().map(|ch| {
+            [
+                ch.chunk_at((self.data.chunk_x - 1, self.data.chunk_y - 1)),
+                ch.chunk_at((self.data.chunk_x, self.data.chunk_y - 1)),
+                ch.chunk_at((self.data.chunk_x + 1, self.data.chunk_y - 1)),
+                ch.chunk_at((self.data.chunk_x - 1, self.data.chunk_y)),
+                ch.chunk_at((self.data.chunk_x + 1, self.data.chunk_y)),
+                ch.chunk_at((self.data.chunk_x - 1, self.data.chunk_y + 1)),
+                ch.chunk_at((self.data.chunk_x, self.data.chunk_y + 1)),
+                ch.chunk_at((self.data.chunk_x + 1, self.data.chunk_y + 1)),
+            ]
+        });
+
         self.graphics.update_texture();
-        self.graphics.update_lighting(
-            other_loaded_chunks.map(|ch| {
-                [
-                    ch.get(&chunk_index(self.data.chunk_x - 1, self.data.chunk_y - 1)),
-                    ch.get(&chunk_index(self.data.chunk_x, self.data.chunk_y - 1)),
-                    ch.get(&chunk_index(self.data.chunk_x + 1, self.data.chunk_y - 1)),
-                    ch.get(&chunk_index(self.data.chunk_x - 1, self.data.chunk_y)),
-                    ch.get(&chunk_index(self.data.chunk_x + 1, self.data.chunk_y)),
-                    ch.get(&chunk_index(self.data.chunk_x - 1, self.data.chunk_y + 1)),
-                    ch.get(&chunk_index(self.data.chunk_x, self.data.chunk_y + 1)),
-                    ch.get(&chunk_index(self.data.chunk_x + 1, self.data.chunk_y + 1)),
-                ]
-            }),
-            shaders,
-        );
+        self.graphics.update_lighting(other_loaded_chunks, shaders);
 
         Ok(())
     }
@@ -970,8 +968,8 @@ impl ClientChunkHandlerExt for ChunkHandler<ClientChunk> {
             ));
         }
 
-        if let Some(chunk) = self.loaded_chunks.get_mut(&chunk_index(chunk_x, chunk_y)) {
-            chunk.data.pixels = Some(pixels.try_into().unwrap());
+        if let Some(chunk) = self.manager.chunk_at_mut((chunk_x, chunk_y)) {
+            chunk.data.data.pixels = Some(pixels.try_into().unwrap());
             chunk.graphics.pixel_data = colors.try_into().unwrap();
             chunk.mark_dirty();
             chunk.set_state(ChunkState::Cached);
@@ -981,8 +979,7 @@ impl ClientChunkHandlerExt for ChunkHandler<ClientChunk> {
             chunk.graphics.pixel_data = colors.try_into().unwrap();
             chunk.mark_dirty();
             chunk.set_state(ChunkState::Cached);
-            self.loaded_chunks
-                .insert(chunk_index(chunk_x, chunk_y), chunk);
+            self.manager.insert((chunk_x, chunk_y), chunk);
         }
 
         Ok(())
@@ -990,12 +987,10 @@ impl ClientChunkHandlerExt for ChunkHandler<ClientChunk> {
 
     #[profiling::function]
     fn update_chunk_graphics(&mut self, shaders: &Shaders) {
-        let keys = self.loaded_chunks.keys().copied().collect::<Vec<u32>>();
+        let keys = self.manager.keys();
         for key in keys {
-            let mut ch = self.loaded_chunks.remove(&key).unwrap();
-            ch.update_graphics(Some(&self.loaded_chunks), shaders)
-                .unwrap();
-            self.loaded_chunks.insert(key, ch);
+            let (ch, others) = self.manager.chunk_at_with_others_mut(key).unwrap();
+            ch.data.update_graphics(Some(others), shaders).unwrap();
         }
     }
 }

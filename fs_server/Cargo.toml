@@ -14,6 +14,7 @@ edition = "2021"
 
 [dependencies]
 fs_common = { path = "../fs_common" }
+chunksystem = { path = "../chunksystem" }
 profiling = "1.0"
 clap = { version = "4.1", features = ["cargo"] }
 log = "0.4"

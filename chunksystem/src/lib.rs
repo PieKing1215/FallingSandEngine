@@ -1,14 +1,16 @@
 use std::{
     collections::HashMap,
     fmt::Debug,
-    hash::Hash,
+    hash::{BuildHasher, BuildHasherDefault, Hash},
     ops::{Deref, DerefMut},
 };
 
 #[derive(Debug)]
 pub struct ChunkManager<D> {
-    chunks: HashMap<(i32, i32), Chunk<D>>,
+    chunks: HashMap<ChunkKey, Chunk<D>, BuildHasherDefault<PassThroughHasherI32I32>>,
 }
+
+pub type ChunkKey = (i32, i32);
 
 #[derive(Debug)]
 pub struct Chunk<D> {
@@ -18,22 +20,97 @@ pub struct Chunk<D> {
     pub data: D,
 }
 
-impl<D> ChunkManager<D> {
-    pub fn new() -> Self {
-        Self { chunks: HashMap::new() }
+impl<D> Deref for Chunk<D> {
+    type Target = D;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl<D> DerefMut for Chunk<D> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.data
+    }
+}
+
+#[derive(Default)]
+pub struct PassThroughHasherI32I32(([i32; 2], usize));
+
+impl std::hash::Hasher for PassThroughHasherI32I32 {
+    fn finish(&self) -> u64 {
+        u64::from_le_bytes(unsafe {
+            // Safety: casting [i32; 2] to u64 is fine
+            *(self.0 .0.as_ptr() as *const () as *const _)
+        })
     }
 
-    pub fn insert(&mut self, chunk_x: i32, chunk_y: i32, data: D) {
-        self.chunks
-            .insert((chunk_x, chunk_y), Chunk { chunk_x, chunk_y, data });
+    fn write_i32(&mut self, i: i32) {
+        self.0 .0[self.0 .1] = i;
+        self.0 .1 = if self.0 .1 == 0 { 1 } else { 0 };
+    }
+
+    fn write(&mut self, _bytes: &[u8]) {
+        unimplemented!("PassThroughHasherI32I32 only supports (i32, i32)")
+    }
+}
+
+impl<D> ChunkManager<D> {
+    pub fn new() -> Self {
+        Self { chunks: HashMap::default() }
+    }
+
+    pub fn new_with_capacity(capacity: usize) -> Self {
+        Self {
+            chunks: HashMap::with_capacity_and_hasher(capacity, BuildHasherDefault::default()),
+        }
+    }
+
+    pub fn insert(&mut self, chunk_pos: (i32, i32), data: D) {
+        self.chunks.insert(
+            chunk_pos,
+            Chunk { chunk_x: chunk_pos.0, chunk_y: chunk_pos.1, data },
+        );
     }
 
     pub fn query_each(&mut self, mut cb: impl FnMut(ChunkQueryOne<D>)) {
         let keys = self.keys();
         for k in keys {
-            let query = self.query_one(k.0, k.1).unwrap(); // we're iterating keys so we know they're valid
+            let query = self.query_one(k).unwrap(); // we're iterating keys so we know they're valid
             cb(query);
         }
+    }
+
+    pub fn contains(&self, chunk_pos: (i32, i32)) -> bool {
+        self.chunks.contains_key(&chunk_pos)
+    }
+
+    pub fn len(&self) -> usize {
+        self.chunks.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.chunks.is_empty()
+    }
+
+    pub fn clear(&mut self) {
+        self.chunks.clear();
+    }
+
+    /// # Safety
+    /// Raw access to the chunks map makes it possible to move [`Chunk`]s to invalid keys.
+    pub unsafe fn raw(
+        &self,
+    ) -> &HashMap<ChunkKey, Chunk<D>, BuildHasherDefault<PassThroughHasherI32I32>> {
+        &self.chunks
+    }
+
+    /// # Safety
+    /// Raw access to the chunks map makes it possible to move [`Chunk`]s to invalid keys.
+    pub unsafe fn raw_mut(
+        &mut self,
+    ) -> &mut HashMap<ChunkKey, Chunk<D>, BuildHasherDefault<PassThroughHasherI32I32>> {
+        &mut self.chunks
     }
 }
 
@@ -56,30 +133,29 @@ impl<D> Chunk<D> {
 pub type BoxedIterator<'a, I> = Box<dyn Iterator<Item = I> + 'a>;
 
 pub trait ChunkQuery<'a, D: 'a> {
-    fn chunk_at(&self, chunk_x: i32, chunk_y: i32) -> Option<&Chunk<D>>;
-    fn chunk_at_mut(&mut self, chunk_x: i32, chunk_y: i32) -> Option<&mut Chunk<D>>;
+    fn chunk_at(&self, chunk_pos: ChunkKey) -> Option<&Chunk<D>>;
+    fn chunk_at_mut(&mut self, chunk_pos: ChunkKey) -> Option<&mut Chunk<D>>;
     fn chunks_iter(&self) -> Box<dyn Iterator<Item = &Chunk<D>> + '_>;
     fn chunks_iter_mut(&mut self) -> Box<dyn Iterator<Item = &mut Chunk<D>> + '_>;
-    fn keys(&self) -> Vec<(i32, i32)>;
-    fn query_one(&mut self, chunk_x: i32, chunk_y: i32) -> Option<ChunkQueryOne<D>>;
+    fn keys(&self) -> Vec<ChunkKey>;
+    fn query_one(&mut self, chunk_pos: ChunkKey) -> Option<ChunkQueryOne<D>>;
 
     fn query_each(&mut self, mut cb: impl FnMut(ChunkQueryOne<D>)) {
         let keys = self.keys();
         for k in keys {
-            let query = self.query_one(k.0, k.1).unwrap(); // we're iterating keys so we know they're valid
+            let query = self.query_one(k).unwrap(); // we're iterating keys so we know they're valid
             cb(query);
         }
     }
 
     fn chunk_at_with_others(
         &self,
-        chunk_x: i32,
-        chunk_y: i32,
+        chunk_pos: (i32, i32),
     ) -> Option<(&Chunk<D>, BoxedIterator<&Chunk<D>>)> {
         // TODO: is there a way to partition into two iterators or something instead of collecting?
         let (one, others) = self
             .chunks_iter()
-            .partition::<Vec<_>, _>(|ch| ch.chunk_x == chunk_x && ch.chunk_y == chunk_y);
+            .partition::<Vec<_>, _>(|ch| ch.chunk_x == chunk_pos.0 && ch.chunk_y == chunk_pos.1);
         one.into_iter()
             .next()
             .map(|ch| (ch, Box::new(others.into_iter()) as _))
@@ -87,13 +163,12 @@ pub trait ChunkQuery<'a, D: 'a> {
 
     fn chunk_at_with_others_mut(
         &mut self,
-        chunk_x: i32,
-        chunk_y: i32,
+        chunk_pos: (i32, i32),
     ) -> Option<(&mut Chunk<D>, BoxedIterator<&mut Chunk<D>>)> {
         // TODO: is there a way to partition into two iterators or something instead of collecting?
         let (one, others) = self
             .chunks_iter_mut()
-            .partition::<Vec<_>, _>(|ch| ch.chunk_x == chunk_x && ch.chunk_y == chunk_y);
+            .partition::<Vec<_>, _>(|ch| ch.chunk_x == chunk_pos.0 && ch.chunk_y == chunk_pos.1);
         one.into_iter()
             .next()
             .map(|ch| (ch, Box::new(others.into_iter()) as _))
@@ -101,16 +176,16 @@ pub trait ChunkQuery<'a, D: 'a> {
 }
 
 pub struct ChunkQueryOne<'a, D> {
-    key: (i32, i32),
-    chunks: BorrowOrOwnMap<'a, (i32, i32), Chunk<D>>,
+    key: ChunkKey,
+    chunks: BorrowOrOwnMap<'a, ChunkKey, Chunk<D>, BuildHasherDefault<PassThroughHasherI32I32>>,
 }
 
-enum BorrowOrOwnMap<'a, K, V> {
-    BorrowOwned(&'a mut HashMap<K, V>),
-    OwnBorrowed(HashMap<K, &'a mut V>),
+enum BorrowOrOwnMap<'a, K, V, H> {
+    BorrowOwned(&'a mut HashMap<K, V, H>),
+    OwnBorrowed(HashMap<K, &'a mut V, H>),
 }
 
-impl<K: Eq + Hash, V> BorrowOrOwnMap<'_, K, V> {
+impl<K: Eq + Hash, V, H: BuildHasher> BorrowOrOwnMap<'_, K, V, H> {
     fn get(&self, key: &K) -> Option<&V> {
         match self {
             BorrowOrOwnMap::BorrowOwned(m) => m.get(key),
@@ -162,9 +237,7 @@ impl<'a, D> ChunkQueryOne<'a, D> {
         for k in get_accessor(&mut self.one().data).keys() {
             let mut this = get_accessor(&mut self.one().data).remove(&k);
 
-            let (this_chunk, others) = self
-                .chunk_at_with_others_mut(self.key.0, self.key.1)
-                .unwrap();
+            let (this_chunk, others) = self.chunk_at_with_others_mut(self.key).unwrap();
 
             let mut others = std::iter::once(this_chunk)
                 .chain(others)
@@ -178,16 +251,16 @@ impl<'a, D> ChunkQueryOne<'a, D> {
 }
 
 impl<'a, D: 'a, T: Deref<Target = Chunk<D>> + DerefMut> ChunkQuery<'a, D> for [T] {
-    fn chunk_at(&self, chunk_x: i32, chunk_y: i32) -> Option<&Chunk<D>> {
+    fn chunk_at(&self, chunk_pos: ChunkKey) -> Option<&Chunk<D>> {
         self.iter()
             .map(|t| &**t)
-            .find(|ch| ch.chunk_x() == chunk_x && ch.chunk_y() == chunk_y)
+            .find(|ch| ch.chunk_x() == chunk_pos.0 && ch.chunk_y() == chunk_pos.1)
     }
 
-    fn chunk_at_mut(&mut self, chunk_x: i32, chunk_y: i32) -> Option<&mut Chunk<D>> {
+    fn chunk_at_mut(&mut self, chunk_pos: ChunkKey) -> Option<&mut Chunk<D>> {
         self.iter_mut()
             .map(|t| &mut **t)
-            .find(|ch| ch.chunk_x() == chunk_x && ch.chunk_y() == chunk_y)
+            .find(|ch| ch.chunk_x() == chunk_pos.0 && ch.chunk_y() == chunk_pos.1)
     }
 
     fn chunks_iter(&self) -> Box<dyn Iterator<Item = &Chunk<D>> + '_> {
@@ -198,22 +271,22 @@ impl<'a, D: 'a, T: Deref<Target = Chunk<D>> + DerefMut> ChunkQuery<'a, D> for [T
         Box::new(self.iter_mut().map(|t| &mut **t))
     }
 
-    fn keys(&self) -> Vec<(i32, i32)> {
+    fn keys(&self) -> Vec<ChunkKey> {
         self.iter()
             .map(|t| &**t)
             .map(|ch| (ch.chunk_x(), ch.chunk_y()))
             .collect()
     }
 
-    fn query_one(&mut self, chunk_x: i32, chunk_y: i32) -> Option<ChunkQueryOne<D>> {
-        if self.chunk_at(chunk_x, chunk_y).is_some() {
+    fn query_one(&mut self, chunk_pos: ChunkKey) -> Option<ChunkQueryOne<D>> {
+        if self.chunk_at(chunk_pos).is_some() {
             let map = self
                 .iter_mut()
                 .map(|c| &mut **c)
                 .map(|c| ((c.chunk_x(), c.chunk_y()), c))
                 .collect();
             Some(ChunkQueryOne {
-                key: (chunk_x, chunk_y),
+                key: chunk_pos,
                 chunks: BorrowOrOwnMap::OwnBorrowed(map),
             })
         } else {
@@ -223,12 +296,12 @@ impl<'a, D: 'a, T: Deref<Target = Chunk<D>> + DerefMut> ChunkQuery<'a, D> for [T
 }
 
 impl<'a, D: 'a> ChunkQuery<'a, D> for ChunkManager<D> {
-    fn chunk_at(&self, chunk_x: i32, chunk_y: i32) -> Option<&Chunk<D>> {
-        self.chunks.get(&(chunk_x, chunk_y))
+    fn chunk_at(&self, chunk_pos: ChunkKey) -> Option<&Chunk<D>> {
+        self.chunks.get(&chunk_pos)
     }
 
-    fn chunk_at_mut(&mut self, chunk_x: i32, chunk_y: i32) -> Option<&mut Chunk<D>> {
-        self.chunks.get_mut(&(chunk_x, chunk_y))
+    fn chunk_at_mut(&mut self, chunk_pos: ChunkKey) -> Option<&mut Chunk<D>> {
+        self.chunks.get_mut(&chunk_pos)
     }
 
     fn chunks_iter(&self) -> Box<dyn Iterator<Item = &Chunk<D>> + '_> {
@@ -239,14 +312,14 @@ impl<'a, D: 'a> ChunkQuery<'a, D> for ChunkManager<D> {
         Box::new(self.chunks.values_mut())
     }
 
-    fn keys(&self) -> Vec<(i32, i32)> {
+    fn keys(&self) -> Vec<ChunkKey> {
         self.chunks.keys().copied().collect()
     }
 
-    fn query_one(&mut self, chunk_x: i32, chunk_y: i32) -> Option<ChunkQueryOne<D>> {
-        if self.chunk_at(chunk_x, chunk_y).is_some() {
+    fn query_one(&mut self, chunk_pos: ChunkKey) -> Option<ChunkQueryOne<D>> {
+        if self.chunk_at(chunk_pos).is_some() {
             Some(ChunkQueryOne {
-                key: (chunk_x, chunk_y),
+                key: chunk_pos,
                 chunks: BorrowOrOwnMap::BorrowOwned(&mut self.chunks),
             })
         } else {
@@ -256,12 +329,12 @@ impl<'a, D: 'a> ChunkQuery<'a, D> for ChunkManager<D> {
 }
 
 impl<'a, D> ChunkQuery<'a, D> for ChunkQueryOne<'a, D> {
-    fn chunk_at(&self, chunk_x: i32, chunk_y: i32) -> Option<&Chunk<D>> {
-        self.chunks.get(&(chunk_x, chunk_y))
+    fn chunk_at(&self, chunk_pos: ChunkKey) -> Option<&Chunk<D>> {
+        self.chunks.get(&chunk_pos)
     }
 
-    fn chunk_at_mut(&mut self, chunk_x: i32, chunk_y: i32) -> Option<&mut Chunk<D>> {
-        self.chunks.get_mut(&(chunk_x, chunk_y))
+    fn chunk_at_mut(&mut self, chunk_pos: ChunkKey) -> Option<&mut Chunk<D>> {
+        self.chunks.get_mut(&chunk_pos)
     }
 
     fn chunks_iter(&self) -> Box<dyn Iterator<Item = &Chunk<D>> + '_> {
@@ -272,14 +345,14 @@ impl<'a, D> ChunkQuery<'a, D> for ChunkQueryOne<'a, D> {
         Box::new(self.chunks.values_mut())
     }
 
-    fn keys(&self) -> Vec<(i32, i32)> {
+    fn keys(&self) -> Vec<ChunkKey> {
         self.chunks.keys().copied().collect()
     }
 
-    fn query_one(&mut self, chunk_x: i32, chunk_y: i32) -> Option<ChunkQueryOne<D>> {
-        if self.chunk_at(chunk_x, chunk_y).is_some() {
+    fn query_one(&mut self, chunk_pos: ChunkKey) -> Option<ChunkQueryOne<D>> {
+        if self.chunk_at(chunk_pos).is_some() {
             Some(ChunkQueryOne {
-                key: (chunk_x, chunk_y),
+                key: chunk_pos,
                 chunks: match &mut self.chunks {
                     BorrowOrOwnMap::BorrowOwned(m) => BorrowOrOwnMap::BorrowOwned(&mut **m),
                     BorrowOrOwnMap::OwnBorrowed(m) => BorrowOrOwnMap::OwnBorrowed(
@@ -349,8 +422,8 @@ mod test {
                     .flat_map(|ch| ch.data.items.iter_mut())
             }
 
-            fn items_with_others(&'a mut self, chunk_x: i32, chunk_y: i32) {
-                let (one, others) = self.chunk_at_with_others_mut(chunk_x, chunk_y).unwrap();
+            fn items_with_others(&'a mut self, chunk_pos: (i32, i32)) {
+                let (one, others) = self.chunk_at_with_others_mut(chunk_pos).unwrap();
                 let cl = |ch: &'a mut Chunk<Data>| &mut ch.data.items;
                 let i_one = cl(one);
                 let i_others = others.map(cl);
@@ -359,9 +432,9 @@ mod test {
 
         let mut cm = ChunkManager::<Data>::new();
 
-        cm.insert(0, 0, Data { items: [0, 1, 2].map(|n| n.into()).to_vec() });
-        cm.insert(1, 0, Data { items: [0, 1, 2].map(|n| n.into()).to_vec() });
-        cm.insert(0, 1, Data { items: [0, 1, 2].map(|n| n.into()).to_vec() });
+        cm.insert((0, 0), Data { items: [0, 1, 2].map(|n| n.into()).to_vec() });
+        cm.insert((1, 0), Data { items: [0, 1, 2].map(|n| n.into()).to_vec() });
+        cm.insert((0, 1), Data { items: [0, 1, 2].map(|n| n.into()).to_vec() });
 
         cm.query_each(|mut q| {
             q.for_each_with(
@@ -405,6 +478,6 @@ mod test {
     fn test2<D>(cm: &mut ChunkManager<D>) {
         for ch in cm.chunks_iter_mut() {}
 
-        for ch in cm.query_one(0, 0).unwrap().chunks_iter_mut() {}
+        for ch in cm.query_one((0, 0)).unwrap().chunks_iter_mut() {}
     }
 }

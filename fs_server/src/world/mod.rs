@@ -6,7 +6,7 @@ pub use chunk::*;
 mod tests {
     use fs_common::game::common::world::physics::Physics;
     use fs_common::game::common::world::{
-        self, chunk_index, Chunk, ChunkHandler, ChunkHandlerGeneric, Loader, Position,
+        self, ChunkHandler, ChunkHandlerGeneric, Loader, Position,
     };
     use fs_common::game::common::Settings;
     use fs_common::game::common::{FileHelper, Registries};
@@ -25,14 +25,14 @@ mod tests {
             ChunkHandler::<ServerChunk>::new(TestGenerator::new(), None);
 
         assert_eq!(ch.load_queue.len(), 0);
-        assert_eq!(ch.loaded_chunks.len(), 0);
+        assert_eq!(ch.manager.len(), 0);
 
         // queue a chunk
         let queued_1 = ch.queue_load_chunk(11, -12);
 
         assert!(queued_1);
         assert_eq!(ch.load_queue.len(), 1);
-        assert_eq!(ch.loaded_chunks.len(), 0);
+        assert_eq!(ch.manager.len(), 0);
 
         // queue the same chunk
         // should fail since it's already queued
@@ -40,14 +40,14 @@ mod tests {
 
         assert!(!queued_1_again);
         assert_eq!(ch.load_queue.len(), 1);
-        assert_eq!(ch.loaded_chunks.len(), 0);
+        assert_eq!(ch.manager.len(), 0);
 
         // queue a different chunk
         let queued_2 = ch.queue_load_chunk(-3, 2);
 
         assert!(queued_2);
         assert_eq!(ch.load_queue.len(), 2);
-        assert_eq!(ch.loaded_chunks.len(), 0);
+        assert_eq!(ch.manager.len(), 0);
 
         assert!(!ch.is_chunk_loaded(11, -12));
         assert!(!ch.is_chunk_loaded(-3, 2));
@@ -89,18 +89,14 @@ mod tests {
         assert!(!ch.is_chunk_loaded(120, -120));
         assert!(!ch.is_chunk_loaded(30, 20));
 
-        let index_1 = chunk_index(11, -12);
-        let loaded_1 = ch
-            .loaded_chunks
-            .iter()
+        let index_1 = (11, -12);
+        let loaded_1 = unsafe { ch.manager.raw().iter() }
             .any(|(&i, c)| i == index_1 && c.chunk_x() == 11 && c.chunk_y() == -12);
         assert!(loaded_1);
         assert!(ch.get_chunk(11, -12).is_some());
 
-        let index_2 = chunk_index(-3, 2);
-        let loaded_2 = ch
-            .loaded_chunks
-            .iter()
+        let index_2 = (-3, 2);
+        let loaded_2 = unsafe { ch.manager.raw().iter() }
             .any(|(&i, c)| i == index_2 && c.chunk_x() == -3 && c.chunk_y() == 2);
         assert!(loaded_2);
         assert!(ch.get_chunk(-3, 2).is_some());
