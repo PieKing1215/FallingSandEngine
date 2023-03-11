@@ -644,30 +644,16 @@ impl ChunkGraphics {
 }
 
 impl ClientChunk {
-    // #[profiling::function]
+    #[profiling::function]
     fn update_graphics(
         &mut self,
-        other_loaded_chunks: Option<BoxedIterator<&mut chunksystem::Chunk<Self>>>,
+        surrounding: Option<[Option<&chunksystem::Chunk<Self>>; 8]>,
         shaders: &Shaders,
     ) -> Result<(), String> {
         self.graphics.was_dirty = self.graphics.dirty;
 
-        let other_loaded_chunks = other_loaded_chunks.map(|chs| chs.collect::<Vec<_>>());
-        let other_loaded_chunks = other_loaded_chunks.as_ref().map(|ch| {
-            [
-                ch.chunk_at((self.data.chunk_x - 1, self.data.chunk_y - 1)),
-                ch.chunk_at((self.data.chunk_x, self.data.chunk_y - 1)),
-                ch.chunk_at((self.data.chunk_x + 1, self.data.chunk_y - 1)),
-                ch.chunk_at((self.data.chunk_x - 1, self.data.chunk_y)),
-                ch.chunk_at((self.data.chunk_x + 1, self.data.chunk_y)),
-                ch.chunk_at((self.data.chunk_x - 1, self.data.chunk_y + 1)),
-                ch.chunk_at((self.data.chunk_x, self.data.chunk_y + 1)),
-                ch.chunk_at((self.data.chunk_x + 1, self.data.chunk_y + 1)),
-            ]
-        });
-
         self.graphics.update_texture();
-        self.graphics.update_lighting(other_loaded_chunks, shaders);
+        self.graphics.update_lighting(surrounding, shaders);
 
         Ok(())
     }
@@ -987,10 +973,8 @@ impl ClientChunkHandlerExt for ChunkHandler<ClientChunk> {
 
     #[profiling::function]
     fn update_chunk_graphics(&mut self, shaders: &Shaders) {
-        let keys = self.manager.keys();
-        for key in keys {
-            let (ch, others) = self.manager.chunk_at_with_others_mut(key).unwrap();
+        self.manager.each_chunk_mut_with_surrounding(|ch, others| {
             ch.data.update_graphics(Some(others), shaders).unwrap();
-        }
+        });
     }
 }
