@@ -3,6 +3,7 @@ use crate::game::common::{
     Registries,
 };
 
+use chunksystem::ChunkKey;
 use simdnoise::NoiseBuilder;
 
 use crate::game::common::world::CHUNK_SIZE;
@@ -26,17 +27,16 @@ impl WorldGenerator for TestGenerator {
     #[profiling::function]
     fn generate(
         &self,
-        chunk_x: i32,
-        chunk_y: i32,
+        chunk_pos: ChunkKey,
         seed: i32,
         pixels: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        colors: &mut [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize],
+        colors: &mut [Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize],
         _background: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        _background_colors: &mut [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize],
+        _background_colors: &mut [Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize],
         _registries: &Registries,
     ) {
-        let cofs_x = (chunk_x * CHUNK_SIZE as i32) as f32;
-        let cofs_y = (chunk_y * CHUNK_SIZE as i32) as f32;
+        let cofs_x = (chunk_pos.0 * CHUNK_SIZE as i32) as f32;
+        let cofs_y = (chunk_pos.1 * CHUNK_SIZE as i32) as f32;
 
         let noise_cave_2 =
             NoiseBuilder::gradient_2d_offset(cofs_x, CHUNK_SIZE.into(), cofs_y, CHUNK_SIZE.into())
@@ -76,10 +76,7 @@ impl WorldGenerator for TestGenerator {
                         PhysicsType::Sand,
                         Color::rgb((f * 191.0) as u8 + 64, 64, ((1.0 - f) * 191.0) as u8 + 64),
                     );
-                    colors[i * 4] = pixels[i].color.r;
-                    colors[i * 4 + 1] = pixels[i].color.g;
-                    colors[i * 4 + 2] = pixels[i].color.b;
-                    colors[i * 4 + 3] = pixels[i].color.a;
+                    colors[i] = pixels[i].color;
                     // chunk.set(x, y, MaterialInstance {
                     //     material_id: material::TEST,
                     //     physics: crate::game::world::PhysicsType::Solid,
@@ -87,10 +84,7 @@ impl WorldGenerator for TestGenerator {
                     // }).unwrap();
                 } else {
                     pixels[i] = material::TEST.instance(PhysicsType::Solid, Color::rgb(80, 64, 32));
-                    colors[i * 4] = pixels[i].color.r;
-                    colors[i * 4 + 1] = pixels[i].color.g;
-                    colors[i * 4 + 2] = pixels[i].color.b;
-                    colors[i * 4 + 3] = pixels[i].color.a;
+                    colors[i] = pixels[i].color;
                     // chunk.set(x, y, MaterialInstance {
                     //     material_id: material::TEST,
                     //     physics: crate::game::world::PhysicsType::Solid,

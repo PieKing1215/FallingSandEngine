@@ -3,12 +3,14 @@ use std::sync::Arc;
 use crate::game::common::{
     world::material::{
         self,
+        color::Color,
         placer::{self, MaterialPlacerSampler},
         MaterialInstance, PhysicsType,
     },
     Registries,
 };
 
+use chunksystem::ChunkKey;
 use rand::Rng;
 
 use crate::game::common::world::CHUNK_SIZE;
@@ -195,17 +197,16 @@ impl WorldGenerator for BiomeTestGenerator {
     #[profiling::function]
     fn generate(
         &self,
-        chunk_x: i32,
-        chunk_y: i32,
+        chunk_pos: ChunkKey,
         seed: i32,
         pixels: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        colors: &mut [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize],
+        colors: &mut [Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize],
         background: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        background_colors: &mut [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize],
+        background_colors: &mut [Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize],
         registries: &Registries,
     ) {
-        let chunk_pixel_x = chunk_x as i64 * CHUNK_SIZE as i64;
-        let chunk_pixel_y = chunk_y as i64 * CHUNK_SIZE as i64;
+        let chunk_pixel_x = chunk_pos.0 as i64 * CHUNK_SIZE as i64;
+        let chunk_pixel_y = chunk_pos.1 as i64 * CHUNK_SIZE as i64;
 
         let biomes = registries.biomes.biome_block::<CHUNK_SIZE, CHUNK_SIZE>(
             chunk_pixel_x,
@@ -225,19 +226,13 @@ impl WorldGenerator for BiomeTestGenerator {
                         .base_placer
                         .as_placer(registries)
                         .pixel(chunk_pixel_x + x as i64, chunk_pixel_y + y as i64);
-                    colors[i * 4] = pixels[i].color.r;
-                    colors[i * 4 + 1] = pixels[i].color.g;
-                    colors[i * 4 + 2] = pixels[i].color.b;
-                    colors[i * 4 + 3] = pixels[i].color.a;
+                    colors[i] = pixels[i].color;
 
                     background[i] = biome
                         .base_placer
                         .as_placer(registries)
                         .pixel(chunk_pixel_x + x as i64, chunk_pixel_y + y as i64);
-                    background_colors[i * 4] = background[i].color.r;
-                    background_colors[i * 4 + 1] = background[i].color.g;
-                    background_colors[i * 4 + 2] = background[i].color.b;
-                    background_colors[i * 4 + 3] = background[i].color.a;
+                    background_colors[i] = background[i].color;
                 }
             }
         }

@@ -15,9 +15,9 @@ use fs_common::game::common::Rect;
 
 pub struct ServerChunk {
     pub data: CommonChunkData<Self>,
-    pub pixel_data: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
+    pub pixel_data: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
     pub light_data: Box<[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
-    pub background_data: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
+    pub background_data: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
     pub dirty: bool,
 }
 
@@ -36,9 +36,11 @@ impl Chunk for ServerChunk {
     fn new_empty(chunk_x: i32, chunk_y: i32) -> Self {
         Self {
             data: CommonChunkData::new(chunk_x, chunk_y),
-            pixel_data: Box::new([0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]),
+            pixel_data: Box::new([Color::TRANSPARENT; CHUNK_SIZE as usize * CHUNK_SIZE as usize]),
             light_data: Box::new([[0.0; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]),
-            background_data: Box::new([0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]),
+            background_data: Box::new(
+                [Color::TRANSPARENT; CHUNK_SIZE as usize * CHUNK_SIZE as usize],
+            ),
             dirty: true,
         }
     }
@@ -113,10 +115,7 @@ impl Chunk for ServerChunk {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             let i = (x + y * CHUNK_SIZE) as usize;
 
-            self.pixel_data[i * 4] = color.r;
-            self.pixel_data[i * 4 + 1] = color.g;
-            self.pixel_data[i * 4 + 2] = color.b;
-            self.pixel_data[i * 4 + 3] = color.a;
+            self.pixel_data[i] = color;
             self.dirty = true;
 
             return Ok(());
@@ -129,12 +128,7 @@ impl Chunk for ServerChunk {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             let i = (x + y * CHUNK_SIZE) as usize;
 
-            return Ok(Color::rgba(
-                self.pixel_data[i * 4],
-                self.pixel_data[i * 4 + 1],
-                self.pixel_data[i * 4 + 2],
-                self.pixel_data[i * 4 + 3],
-            ));
+            return Ok(self.pixel_data[i]);
         }
 
         Err("Invalid pixel coordinate.".to_string())
@@ -156,16 +150,16 @@ impl Chunk for ServerChunk {
 
     fn set_pixel_colors(
         &mut self,
-        colors: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
+        colors: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
     ) {
         self.pixel_data = colors;
     }
 
-    fn colors_mut(&mut self) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
+    fn colors_mut(&mut self) -> &mut [Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         &mut self.pixel_data
     }
 
-    fn colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
+    fn colors(&self) -> &[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         &self.pixel_data
     }
 
@@ -190,18 +184,16 @@ impl Chunk for ServerChunk {
 
     fn set_background_pixel_colors(
         &mut self,
-        colors: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
+        colors: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
     ) {
         self.background_data = colors;
     }
 
-    fn background_colors_mut(
-        &mut self,
-    ) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
+    fn background_colors_mut(&mut self) -> &mut [Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         &mut self.background_data
     }
 
-    fn background_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
+    fn background_colors(&self) -> &[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         &self.background_data
     }
 

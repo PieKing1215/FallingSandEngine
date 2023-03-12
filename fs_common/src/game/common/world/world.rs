@@ -36,9 +36,9 @@ use super::{
     rigidbody::FSRigidBody,
     simulator,
     tile_entity::TileEntitySided,
-    ApplyRigidBodies, AutoTarget, Camera, Chunk, ChunkHandler, CollisionFlags, DeltaTime,
-    FilePersistent, Loader, Position, RigidBodyComponent, SidedChunk, TickTime, UpdateAutoTargets,
-    UpdateRigidBodies, Velocity, CHUNK_SIZE,
+    ApplyRigidBodies, AutoTarget, Camera, Chunk, ChunkHandler, ChunkTickContext, CollisionFlags,
+    DeltaTime, FilePersistent, Loader, Position, RigidBodyComponent, SidedChunk, TickTime,
+    UpdateAutoTargets, UpdateRigidBodies, Velocity, CHUNK_SIZE,
 };
 
 #[derive(Debug)]
@@ -657,15 +657,15 @@ where
             // }
         }
 
-        self.chunk_handler.tick(
+        self.chunk_handler.tick(ChunkTickContext {
             tick_time,
             settings,
-            &mut self.ecs,
-            &mut self.physics,
-            &registries,
-            self.seed,
+            world: &mut self.ecs,
+            physics: &mut self.physics,
+            registries: &registries,
+            seed: self.seed,
             file_helper,
-        );
+        });
 
         if settings.simulate_particles {
             let mut update_particles = UpdateParticles { chunk_handler: &mut self.chunk_handler };

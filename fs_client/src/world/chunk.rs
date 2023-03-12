@@ -39,9 +39,13 @@ impl Chunk for ClientChunk {
             data: CommonChunkData::new(chunk_x, chunk_y),
             graphics: Box::new(ChunkGraphics {
                 data: None,
-                pixel_data: Box::new([0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]),
+                pixel_data: Box::new(
+                    [Color::TRANSPARENT; CHUNK_SIZE as usize * CHUNK_SIZE as usize],
+                ),
                 lighting_data: Box::new([[0.0; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]),
-                background_data: Box::new([0; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]),
+                background_data: Box::new(
+                    [Color::TRANSPARENT; CHUNK_SIZE as usize * CHUNK_SIZE as usize],
+                ),
                 dirty: true,
                 was_dirty: true,
                 lighting_dirty: true,
@@ -181,16 +185,16 @@ impl Chunk for ClientChunk {
 
     fn set_pixel_colors(
         &mut self,
-        colors: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
+        colors: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
     ) {
         self.graphics.replace(colors);
     }
 
-    fn colors_mut(&mut self) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
+    fn colors_mut(&mut self) -> &mut [Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         &mut self.graphics.pixel_data
     }
 
-    fn colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
+    fn colors(&self) -> &[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         &self.graphics.pixel_data
     }
 
@@ -216,18 +220,16 @@ impl Chunk for ClientChunk {
 
     fn set_background_pixel_colors(
         &mut self,
-        colors: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
+        colors: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
     ) {
         self.graphics.replace_background(colors);
     }
 
-    fn background_colors_mut(
-        &mut self,
-    ) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
+    fn background_colors_mut(&mut self) -> &mut [Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         &mut self.graphics.background_data
     }
 
-    fn background_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4] {
+    fn background_colors(&self) -> &[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
         &self.graphics.background_data
     }
 
@@ -348,9 +350,9 @@ pub struct ChunkGraphicsData {
 
 pub struct ChunkGraphics {
     pub data: Option<Arc<ChunkGraphicsData>>,
-    pub pixel_data: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
+    pub pixel_data: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
     pub lighting_data: Box<[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
-    pub background_data: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
+    pub background_data: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
     pub dirty: bool,
     pub was_dirty: bool,
     pub lighting_dirty: bool,
@@ -366,10 +368,7 @@ impl ChunkGraphics {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             // self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
             let i = (x + y * CHUNK_SIZE) as usize;
-            self.pixel_data[i * 4] = color.r;
-            self.pixel_data[i * 4 + 1] = color.g;
-            self.pixel_data[i * 4 + 2] = color.b;
-            self.pixel_data[i * 4 + 3] = color.a;
+            self.pixel_data[i] = color;
             self.dirty = true;
             self.lighting_dirty = true;
 
@@ -399,12 +398,7 @@ impl ChunkGraphics {
             // self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
             let i = (x + y * CHUNK_SIZE) as usize;
 
-            return Ok(Color::rgba(
-                self.pixel_data[i * 4],
-                self.pixel_data[i * 4 + 1],
-                self.pixel_data[i * 4 + 2],
-                self.pixel_data[i * 4 + 3],
-            ));
+            return Ok(self.pixel_data[i]);
         }
 
         Err("Invalid pixel coordinate.".to_string())
@@ -414,10 +408,7 @@ impl ChunkGraphics {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
             // self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
             let i = (x + y * CHUNK_SIZE) as usize;
-            self.background_data[i * 4] = color.r;
-            self.background_data[i * 4 + 1] = color.g;
-            self.background_data[i * 4 + 2] = color.b;
-            self.background_data[i * 4 + 3] = color.a;
+            self.background_data[i] = color;
             self.dirty = true;
             self.lighting_dirty = true;
 
@@ -436,7 +427,16 @@ impl ChunkGraphics {
                     profiling::scope!("RawImage2d");
 
                     glium::texture::RawImage2d {
-                        data: Cow::Borrowed(self.pixel_data.as_slice()),
+                        data: Cow::Borrowed({
+                            let color_sl = self.pixel_data.as_slice();
+                            unsafe {
+                                // Safety: Color is statically guaranteed to be equivalent to four u8s
+                                core::slice::from_raw_parts(
+                                    color_sl.as_ptr().cast::<u8>(),
+                                    color_sl.len() * 4,
+                                )
+                            }
+                        }),
                         width: CHUNK_SIZE.into(),
                         height: CHUNK_SIZE.into(),
                         format: glium::texture::ClientFormat::U8U8U8U8,
@@ -466,7 +466,16 @@ impl ChunkGraphics {
                     profiling::scope!("RawImage2d");
 
                     glium::texture::RawImage2d {
-                        data: Cow::Borrowed(self.background_data.as_slice()),
+                        data: Cow::Borrowed({
+                            let color_sl = self.background_data.as_slice();
+                            unsafe {
+                                // Safety: Color is statically guaranteed to be equivalent to four u8s
+                                core::slice::from_raw_parts(
+                                    color_sl.as_ptr().cast::<u8>(),
+                                    color_sl.len() * 4,
+                                )
+                            }
+                        }),
                         width: CHUNK_SIZE.into(),
                         height: CHUNK_SIZE.into(),
                         format: glium::texture::ClientFormat::U8U8U8U8,
@@ -632,7 +641,7 @@ impl ChunkGraphics {
     #[allow(clippy::cast_lossless)]
     pub fn replace(
         &mut self,
-        colors: Box<[u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]>,
+        colors: Box<[Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize]>,
     ) {
         self.pixel_data = colors;
         self.dirty = true;
@@ -642,7 +651,7 @@ impl ChunkGraphics {
     #[allow(clippy::cast_lossless)]
     pub fn replace_background(
         &mut self,
-        colors: Box<[u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]>,
+        colors: Box<[Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize]>,
     ) {
         self.background_data = colors;
         self.background_dirty = true;
@@ -802,7 +811,16 @@ impl ChunkGraphics {
         if self.data.is_none() {
             let image = {
                 glium::texture::RawImage2d {
-                    data: Cow::Borrowed(self.pixel_data.as_slice()),
+                    data: Cow::Borrowed({
+                        let color_sl = self.pixel_data.as_slice();
+                        unsafe {
+                            // Safety: Color is statically guaranteed to be equivalent to four u8s
+                            core::slice::from_raw_parts(
+                                color_sl.as_ptr().cast::<u8>(),
+                                color_sl.len() * 4,
+                            )
+                        }
+                    }),
                     width: CHUNK_SIZE.into(),
                     height: CHUNK_SIZE.into(),
                     format: glium::texture::ClientFormat::U8U8U8U8,
@@ -818,7 +836,16 @@ impl ChunkGraphics {
 
             let background_image = {
                 glium::texture::RawImage2d {
-                    data: Cow::Borrowed(self.background_data.as_slice()),
+                    data: Cow::Borrowed({
+                        let color_sl = self.background_data.as_slice();
+                        unsafe {
+                            // Safety: Color is statically guaranteed to be equivalent to four u8s
+                            core::slice::from_raw_parts(
+                                color_sl.as_ptr().cast::<u8>(),
+                                color_sl.len() * 4,
+                            )
+                        }
+                    }),
                     width: CHUNK_SIZE.into(),
                     height: CHUNK_SIZE.into(),
                     format: glium::texture::ClientFormat::U8U8U8U8,
@@ -930,7 +957,7 @@ pub trait ClientChunkHandlerExt {
         chunk_x: i32,
         chunk_y: i32,
         pixels: Vec<MaterialInstance>,
-        colors: Vec<u8>,
+        colors: Vec<Color>,
     ) -> Result<(), String>;
 
     fn update_chunk_graphics(&mut self, shaders: &Shaders);
@@ -942,7 +969,7 @@ impl ClientChunkHandlerExt for ChunkHandler<ClientChunk> {
         chunk_x: i32,
         chunk_y: i32,
         pixels: Vec<MaterialInstance>,
-        colors: Vec<u8>,
+        colors: Vec<Color>,
     ) -> Result<(), String> {
         if pixels.len() != (CHUNK_SIZE * CHUNK_SIZE) as usize {
             return Err(format!(

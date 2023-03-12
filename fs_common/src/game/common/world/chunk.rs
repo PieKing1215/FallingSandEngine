@@ -35,6 +35,7 @@ use super::tile_entity::{TileEntity, TileEntityCommon, TileEntitySided};
 use crate::game::common::world::material::MaterialInstance;
 
 pub const CHUNK_SIZE: u16 = 100;
+pub const CHUNK_AREA: usize = CHUNK_SIZE as usize * CHUNK_SIZE as usize;
 // must be a factor of CHUNK_SIZE
 // also (CHUNK_SIZE / LIGHT_SCALE)^2 must be <= 1024 for compute shader (and local_size needs to be set to CHUNK_SIZE / LIGHT_SCALE in the shader)
 pub const LIGHT_SCALE: u8 = 4;
@@ -58,12 +59,9 @@ pub trait Chunk {
         &mut self,
     ) -> &mut Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>;
     fn pixels(&self) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>;
-    fn set_pixel_colors(
-        &mut self,
-        colors: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
-    );
-    fn colors_mut(&mut self) -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
-    fn colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
+    fn set_pixel_colors(&mut self, colors: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>);
+    fn colors_mut(&mut self) -> &mut [Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
+    fn colors(&self) -> &[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
     fn lights_mut(&mut self) -> &mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
     fn lights(&self) -> &[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
     fn set_background_pixels(
@@ -78,11 +76,10 @@ pub trait Chunk {
     ) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>;
     fn set_background_pixel_colors(
         &mut self,
-        colors: Box<[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4]>,
+        colors: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
     );
-    fn background_colors_mut(&mut self)
-        -> &mut [u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
-    fn background_colors(&self) -> &[u8; CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4];
+    fn background_colors_mut(&mut self) -> &mut [Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
+    fn background_colors(&self) -> &[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
 
     fn generate_mesh(&mut self) -> Result<(), String>;
     // fn get_tris(&self) -> &Option<Vec<Vec<((f64, f64), (f64, f64), (f64, f64))>>>;
@@ -188,15 +185,25 @@ pub struct ChunkHandler<C: Chunk> {
 pub type ChunkGenOutput = (
     ChunkKey,
     Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
-    Box<[u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]>,
+    Box<[Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize]>,
     Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
-    Box<[u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]>,
+    Box<[Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize]>,
 );
 
 #[derive(Serialize, Deserialize)]
 struct ChunkSaveFormat {
     pixels: Vec<MaterialInstance>,
-    colors: Vec<u8>,
+    colors: Vec<Color>,
+}
+
+pub struct ChunkTickContext<'a> {
+    pub tick_time: u32,
+    pub settings: &'a Settings,
+    pub world: &'a mut specs::World,
+    pub physics: &'a mut Physics,
+    pub registries: &'a Arc<Registries>,
+    pub seed: i32,
+    pub file_helper: &'a FileHelper,
 }
 
 impl<C: Chunk + SidedChunk + Send> ChunkHandler<C>
@@ -206,20 +213,13 @@ where
     // #[profiling::function] // breaks clippy
     #[warn(clippy::too_many_arguments)] // TODO
     #[allow(clippy::too_many_lines)]
-    pub fn tick(
-        &mut self,
-        tick_time: u32,
-        settings: &Settings,
-        world: &mut specs::World,
-        physics: &mut Physics,
-        registries: &Arc<Registries>,
-        seed: i32,
-        file_helper: &FileHelper,
-    ) {
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn tick(&mut self, ctx: ChunkTickContext) {
         profiling::scope!("tick");
 
-        let (loaders, positions) =
-            world.system_data::<(ReadStorage<Loader>, ReadStorage<Position>)>();
+        let (loaders, positions) = ctx
+            .world
+            .system_data::<(ReadStorage<Loader>, ReadStorage<Position>)>();
 
         let unload_zone: Vec<Rect<i32>> = (&loaders, &positions)
             .join()
@@ -238,7 +238,7 @@ where
             .map(|(_, p)| self.get_screen_zone((p.x, p.y)))
             .collect();
 
-        if settings.load_chunks {
+        if ctx.settings.load_chunks {
             {
                 profiling::scope!("queue chunk loading");
                 for load_zone in load_zone {
@@ -289,7 +289,7 @@ where
                         let c = self.load_chunk(to_load.0, to_load.1);
                         if to_load == (0, 0) {
                             let ase = AsepriteFile::read_file(
-                                &file_helper.asset_path("data/tile_entity/test/test.ase"),
+                                &ctx.file_helper.asset_path("data/tile_entity/test/test.ase"),
                             )
                             .unwrap();
                             c.add_tile_entity(TileEntityCommon {
@@ -302,7 +302,7 @@ where
         }
 
         // switch chunks between cached and active
-        if tick_time % 2 == 0 {
+        if ctx.tick_time % 2 == 0 {
             profiling::scope!("chunk update A");
 
             let keys = self.manager.keys();
@@ -324,7 +324,7 @@ where
                             if let Err(e) = self.save_chunk(key) {
                                 log::error!("Chunk @ {}, {} failed to save: {:?}", key.0, key.1, e);
                             }
-                            if let Err(e) = self.unload_chunk(key, physics) {
+                            if let Err(e) = self.unload_chunk(key, ctx.physics) {
                                 log::error!(
                                     "Chunk @ {}, {} failed to unload: {:?}",
                                     key.0,
@@ -378,13 +378,13 @@ where
                 }
             }
 
-            if settings.load_chunks {
+            if ctx.settings.load_chunks {
                 let mut iter = keep_map.iter();
                 unsafe { self.manager.raw_mut() }.retain(|_, _| *iter.next().unwrap());
             }
         }
 
-        if settings.load_chunks && tick_time % 2 == 0 {
+        if ctx.settings.load_chunks && ctx.tick_time % 2 == 0 {
             let num_active = self
                 .manager
                 .chunks_iter()
@@ -564,7 +564,7 @@ where
                     for (key, chunk_x, chunk_y) in to_generate {
                         // need to clone since these need to be 'static
                         let generator = self.generator.clone();
-                        let reg = registries.clone();
+                        let reg = ctx.registries.clone();
                         let (tx, rx) = futures::channel::oneshot::channel();
                         self.gen_pool.spawn_fifo(move || {
                             profiling::register_thread!("Generation thread");
@@ -578,8 +578,10 @@ where
                             );
 
                             #[allow(clippy::cast_lossless)]
-                            let mut colors =
-                                Box::new([0; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]);
+                            let mut colors = Box::new(
+                                [Color::TRANSPARENT;
+                                    (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize],
+                            );
 
                             let mut background = Box::new(
                                 [(); (CHUNK_SIZE * CHUNK_SIZE) as usize]
@@ -587,13 +589,14 @@ where
                             );
 
                             #[allow(clippy::cast_lossless)]
-                            let mut background_colors =
-                                Box::new([0; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]);
+                            let mut background_colors = Box::new(
+                                [Color::TRANSPARENT;
+                                    (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize],
+                            );
 
                             generator.generate(
-                                chunk_x,
-                                chunk_y,
-                                seed,
+                                (chunk_x, chunk_y),
+                                ctx.seed,
                                 &mut pixels,
                                 &mut colors,
                                 &mut background,
@@ -653,8 +656,8 @@ where
                             pops.populate(
                                 0,
                                 &mut [&mut chunk.data as &mut dyn Chunk],
-                                seed,
-                                registries.as_ref(),
+                                ctx.seed,
+                                ctx.registries,
                             );
                         });
                 }
@@ -692,7 +695,7 @@ where
                                         e
                                     );
                                 };
-                                if let Err(e) = self.unload_chunk(key, physics) {
+                                if let Err(e) = self.unload_chunk(key, ctx.physics) {
                                     log::error!(
                                         "Chunk @ {}, {} failed to unload: {:?}",
                                         key.0,
@@ -779,32 +782,32 @@ where
                                             .collect();
 
                                         if cur_stage + 1 == 1 {
-                                            let mut ctx =
+                                            let mut chunk_ctx =
                                                 ChunkContext::<1>::new(&mut chunks_dyn).unwrap();
                                             let mut rng = StdRng::seed_from_u64(
-                                                seed as u64
+                                                ctx.seed as u64
                                                     + u64::from(chunk_index(
-                                                        ctx.center_chunk().0,
-                                                        ctx.center_chunk().1,
+                                                        chunk_ctx.center_chunk().0,
+                                                        chunk_ctx.center_chunk().1,
                                                     )),
                                             );
                                             for feat in self.generator.features() {
                                                 feat.generate(
-                                                    &mut ctx,
-                                                    seed,
+                                                    &mut chunk_ctx,
+                                                    ctx.seed,
                                                     &mut rng,
-                                                    registries.as_ref(),
-                                                    world,
+                                                    ctx.registries,
+                                                    ctx.world,
                                                 );
-                                                world.maintain();
+                                                ctx.world.maintain();
                                             }
                                         }
 
                                         self.generator.populators().populate(
                                             cur_stage + 1,
                                             &mut chunks_dyn,
-                                            seed,
-                                            registries.as_ref(),
+                                            ctx.seed,
+                                            ctx.registries,
                                         );
 
                                         self.manager
@@ -825,7 +828,7 @@ where
                                             e
                                         );
                                     };
-                                    if let Err(e) = self.unload_chunk(key, physics) {
+                                    if let Err(e) = self.unload_chunk(key, ctx.physics) {
                                         log::error!(
                                             "Chunk @ {}, {} failed to unload: {:?}",
                                             key.0,
@@ -844,17 +847,17 @@ where
                 // tick structures
                 let mut update_structures = UpdateStructureNodes {
                     chunk_handler: self,
-                    registries: registries.clone(),
+                    registries: ctx.registries.clone(),
                 };
-                update_structures.run_now(world);
-                world.maintain();
+                update_structures.run_now(ctx.world);
+                ctx.world.maintain();
 
                 let mut iter = keep_map.iter();
                 unsafe { self.manager.raw_mut() }.retain(|_, _| *iter.next().unwrap());
             }
         }
 
-        if settings.simulate_chunks {
+        if ctx.settings.simulate_chunks {
             profiling::scope!("chunk simulate");
 
             let old_dirty_rects = unsafe { self.manager.raw_mut().iter_mut() }
@@ -910,7 +913,7 @@ where
                                             // blatantly bypassing the borrow checker, see safety comment above
                                             // I'm not sure if doing this while the data is already in a `&[UnsafeCell<_>; _]` is UB
 
-                                            let raw: *mut [u8; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)] = c.colors_mut();
+                                            let raw: *mut [Color; (CHUNK_SIZE as usize * CHUNK_SIZE as usize)] = c.colors_mut();
                                             let colors = unsafe { &*(raw as *const [UnsafeCell<u8>; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]) };
 
                                             let raw: *mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] = c.lights_mut();
@@ -958,7 +961,7 @@ where
                         Vec<Particle>,
                     )> = {
                         profiling::scope!("par_iter");
-                        let reg = registries.clone();
+                        let reg = ctx.registries.clone();
                         to_exec
                             .into_par_iter()
                             .map(move |(ch_pos, mut chunk_data)| {
@@ -986,7 +989,7 @@ where
 
                         {
                             profiling::scope!("particles");
-                            world
+                            ctx.world
                                 .write_resource::<ParticleSystem>()
                                 .active
                                 .append(&mut parts);
@@ -1070,9 +1073,9 @@ where
                     |ch| ch.sided_tile_entities_removable(),
                     |te, chunks| {
                         te.tick(TileEntityTickContext::<C> {
-                            tick_time,
-                            registries,
-                            file_helper,
+                            tick_time: ctx.tick_time,
+                            registries: ctx.registries,
+                            file_helper: ctx.file_helper,
                             chunks,
                         });
                     },

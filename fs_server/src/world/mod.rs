@@ -7,7 +7,7 @@ mod tests {
     use chunksystem::ChunkQuery;
     use fs_common::game::common::world::chunk_access::FSChunkAccess;
     use fs_common::game::common::world::physics::Physics;
-    use fs_common::game::common::world::{self, ChunkHandler, Loader, Position};
+    use fs_common::game::common::world::{self, ChunkHandler, ChunkTickContext, Loader, Position};
     use fs_common::game::common::Settings;
     use fs_common::game::common::{FileHelper, Registries};
 
@@ -63,25 +63,25 @@ mod tests {
 
         let mut phys = Physics::new();
 
-        ch.tick(
-            0,
-            &Settings::default(),
-            &mut ecs,
-            &mut phys,
-            &registries,
-            2,
-            &file_helper,
-        );
+        ch.tick(ChunkTickContext {
+            tick_time: 0,
+            settings: &Settings::default(),
+            world: &mut ecs,
+            physics: &mut phys,
+            registries: &registries,
+            seed: 2,
+            file_helper: &file_helper,
+        });
         while !ch.load_queue.is_empty() {
-            ch.tick(
-                0,
-                &Settings::default(),
-                &mut ecs,
-                &mut phys,
-                &registries,
-                2,
-                &file_helper,
-            );
+            ch.tick(ChunkTickContext {
+                tick_time: 0,
+                settings: &Settings::default(),
+                world: &mut ecs,
+                physics: &mut phys,
+                registries: &registries,
+                seed: 2,
+                file_helper: &file_helper,
+            });
         }
 
         assert!(ch.is_chunk_loaded((11, -12)));
@@ -110,15 +110,15 @@ mod tests {
 
         // should unload since no loaders are nearby
         assert_eq!(ecs.delete_entity(loader), Ok(()));
-        ch.tick(
-            0,
-            &Settings::default(),
-            &mut ecs,
-            &mut phys,
-            &registries,
-            2,
-            &file_helper,
-        );
+        ch.tick(ChunkTickContext {
+            tick_time: 0,
+            settings: &Settings::default(),
+            world: &mut ecs,
+            physics: &mut phys,
+            registries: &registries,
+            seed: 2,
+            file_helper: &file_helper,
+        });
 
         assert!(!ch.is_chunk_loaded((11, -12)));
         assert!(!ch.is_chunk_loaded((-3, 2)));

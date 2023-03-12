@@ -1,4 +1,4 @@
-use super::world::material::MaterialInstance;
+use super::world::material::{color::Color, MaterialInstance};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -18,7 +18,7 @@ pub enum PacketType {
         chunk_x: i32,
         chunk_y: i32,
         pixels: Vec<MaterialInstance>,
-        colors: Vec<u8>,
+        colors: Vec<Color>,
     },
     SyncLiquidFunPacket {
         //TODO: this assumes the number of particles never changes

@@ -10,6 +10,7 @@ use std::collections::HashMap;
 use std::usize;
 use std::{any::Any, vec::Vec};
 
+use chunksystem::ChunkKey;
 pub use test::*;
 
 use crate::game::common::world::gen::populator::ChunkContext;
@@ -19,6 +20,7 @@ use crate::game::common::Registries;
 use self::feature::PlacedFeature;
 use self::populator::Populator;
 
+use super::material::color::Color;
 use super::{material::MaterialInstance, CHUNK_SIZE};
 
 #[derive(Debug)]
@@ -99,13 +101,12 @@ pub trait WorldGenerator: Send + Sync + std::fmt::Debug {
     #[warn(clippy::too_many_arguments)] // TODO
     fn generate(
         &self,
-        chunk_x: i32,
-        chunk_y: i32,
+        chunk_pos: ChunkKey,
         seed: i32,
         pixels: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        colors: &mut [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize],
+        colors: &mut [Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize],
         background: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        background_colors: &mut [u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize],
+        background_colors: &mut [Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize],
         registries: &Registries,
     );
 

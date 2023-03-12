@@ -1,4 +1,7 @@
-use fs_common::game::common::world::{material::MaterialInstance, World};
+use fs_common::game::common::world::{
+    material::{color::Color, MaterialInstance},
+    World,
+};
 
 use super::{ClientChunk, ClientChunkHandlerExt};
 
@@ -17,7 +20,7 @@ pub trait ClientWorldExt {
         chunk_x: i32,
         chunk_y: i32,
         pixels: Vec<MaterialInstance>,
-        colors: Vec<u8>,
+        colors: Vec<Color>,
     ) -> Result<(), String>;
 }
 
@@ -27,7 +30,7 @@ impl ClientWorldExt for World<ClientChunk> {
         chunk_x: i32,
         chunk_y: i32,
         pixels: Vec<MaterialInstance>,
-        colors: Vec<u8>,
+        colors: Vec<Color>,
     ) -> Result<(), String> {
         self.chunk_handler
             .sync_chunk(chunk_x, chunk_y, pixels, colors)
