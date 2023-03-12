@@ -14,8 +14,7 @@ use fs_common::game::common::{
         material::color::Color,
         particle::ParticleSystem,
         physics::PHYSICS_SCALE,
-        AutoTarget, Camera, Chunk, ChunkHandlerGeneric, ChunkState, Position, SidedChunk, Velocity,
-        World, CHUNK_SIZE,
+        AutoTarget, Camera, Chunk, ChunkState, Position, SidedChunk, Velocity, World, CHUNK_SIZE,
     },
     FileHelper, Rect, Registries, Settings,
 };

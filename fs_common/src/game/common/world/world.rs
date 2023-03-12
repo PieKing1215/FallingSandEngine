@@ -36,9 +36,9 @@ use super::{
     rigidbody::FSRigidBody,
     simulator,
     tile_entity::TileEntitySided,
-    ApplyRigidBodies, AutoTarget, Camera, Chunk, ChunkHandler, ChunkHandlerGeneric, CollisionFlags,
-    DeltaTime, FilePersistent, Loader, Position, RigidBodyComponent, SidedChunk, TickTime,
-    UpdateAutoTargets, UpdateRigidBodies, Velocity, CHUNK_SIZE,
+    ApplyRigidBodies, AutoTarget, Camera, Chunk, ChunkHandler, CollisionFlags, DeltaTime,
+    FilePersistent, Loader, Position, RigidBodyComponent, SidedChunk, TickTime, UpdateAutoTargets,
+    UpdateRigidBodies, Velocity, CHUNK_SIZE,
 };
 
 #[derive(Debug)]

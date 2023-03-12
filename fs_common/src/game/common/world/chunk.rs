@@ -24,7 +24,6 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use specs::{Join, ReadStorage, RunNow, WorldExt};
 
-use super::chunk_access::FSChunkAccess;
 use super::chunk_data::SidedChunkData;
 use super::gen::WorldGenerator;
 use super::material::buf::MaterialRect;
@@ -194,22 +193,6 @@ pub type ChunkGenOutput = (
     Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
     Box<[u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]>,
 );
-
-pub trait ChunkHandlerGeneric: FSChunkAccess {
-    fn save_chunk(&mut self, index: ChunkKey) -> Result<(), Box<dyn std::error::Error>>;
-    fn unload_all_chunks(
-        &mut self,
-        physics: &mut Physics,
-    ) -> Result<(), Box<dyn std::error::Error>>;
-    fn save_all_chunks(&mut self) -> Result<(), Box<dyn std::error::Error>>;
-    fn queue_load_chunk(&mut self, chunk_x: i32, chunk_y: i32) -> bool;
-    fn force_update_chunk(&mut self, chunk_x: i32, chunk_y: i32);
-    fn get_zone(&self, center: (f64, f64), padding: u16) -> Rect<i32>;
-    fn get_screen_zone(&self, center: (f64, f64)) -> Rect<i32>;
-    fn get_active_zone(&self, center: (f64, f64)) -> Rect<i32>;
-    fn get_load_zone(&self, center: (f64, f64)) -> Rect<i32>;
-    fn get_unload_zone(&self, center: (f64, f64)) -> Rect<i32>;
-}
 
 #[derive(Serialize, Deserialize)]
 struct ChunkSaveFormat {
@@ -1150,9 +1133,9 @@ impl<C: Chunk> ChunkQuery for ChunkHandler<C> {
     }
 }
 
-impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
+impl<C: Chunk + Send> ChunkHandler<C> {
     #[profiling::function]
-    fn save_chunk(&mut self, index: ChunkKey) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn save_chunk(&mut self, index: ChunkKey) -> Result<(), Box<dyn std::error::Error>> {
         let chunk = self.manager.chunk_at_mut(index).ok_or("Chunk not loaded")?;
         if let Some(path) = &self.path {
             if let Some(pixels) = chunk.pixels() {
@@ -1190,7 +1173,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
         Ok(())
     }
 
-    fn unload_all_chunks(
+    pub fn unload_all_chunks(
         &mut self,
         physics: &mut Physics,
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -1203,7 +1186,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
         Ok(())
     }
 
-    fn save_all_chunks(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn save_all_chunks(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         #[allow(clippy::for_kv_map)] // want ? to work
         let keys = self.manager.keys();
         for i in keys {
@@ -1213,7 +1196,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
     }
 
     #[profiling::function]
-    fn queue_load_chunk(&mut self, chunk_x: i32, chunk_y: i32) -> bool {
+    pub fn queue_load_chunk(&mut self, chunk_x: i32, chunk_y: i32) -> bool {
         // make sure not loaded
         if self.is_chunk_loaded((chunk_x, chunk_y)) {
             return false;
@@ -1233,14 +1216,15 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
         true
     }
 
-    fn force_update_chunk(&mut self, chunk_x: i32, chunk_y: i32) {
+    pub fn force_update_chunk(&mut self, chunk_x: i32, chunk_y: i32) {
         if let Some(ch) = self.manager.chunk_at_mut((chunk_x, chunk_y)) {
             ch.set_dirty_rect(Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE)));
         }
     }
 
     #[profiling::function]
-    fn get_zone(&self, center: (f64, f64), padding: u16) -> Rect<i32> {
+    #[inline]
+    pub fn get_zone(&self, center: (f64, f64), padding: u16) -> Rect<i32> {
         let width = self.screen_size.0 + padding * 2;
         let height = self.screen_size.1 + padding * 2;
         Rect::new_wh(
@@ -1252,22 +1236,26 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
     }
 
     #[profiling::function]
-    fn get_screen_zone(&self, center: (f64, f64)) -> Rect<i32> {
+    #[inline]
+    pub fn get_screen_zone(&self, center: (f64, f64)) -> Rect<i32> {
         self.get_zone(center, 0)
     }
 
     #[profiling::function]
-    fn get_active_zone(&self, center: (f64, f64)) -> Rect<i32> {
+    #[inline]
+    pub fn get_active_zone(&self, center: (f64, f64)) -> Rect<i32> {
         self.get_zone(center, CHUNK_SIZE)
     }
 
     #[profiling::function]
-    fn get_load_zone(&self, center: (f64, f64)) -> Rect<i32> {
+    #[inline]
+    pub fn get_load_zone(&self, center: (f64, f64)) -> Rect<i32> {
         self.get_zone(center, CHUNK_SIZE * 10)
     }
 
     #[profiling::function]
-    fn get_unload_zone(&self, center: (f64, f64)) -> Rect<i32> {
+    #[inline]
+    pub fn get_unload_zone(&self, center: (f64, f64)) -> Rect<i32> {
         self.get_zone(center, CHUNK_SIZE * 15)
     }
 }
