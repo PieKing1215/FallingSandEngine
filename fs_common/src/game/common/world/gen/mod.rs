@@ -7,7 +7,6 @@ mod test;
 
 use std::boxed::Box;
 use std::collections::HashMap;
-use std::usize;
 use std::{any::Any, vec::Vec};
 
 use chunksystem::ChunkKey;
@@ -21,7 +20,8 @@ use self::feature::PlacedFeature;
 use self::populator::Populator;
 
 use super::material::color::Color;
-use super::{material::MaterialInstance, CHUNK_SIZE};
+use super::material::MaterialInstance;
+use super::CHUNK_AREA;
 
 #[derive(Debug)]
 pub struct PopulatorList {
@@ -103,10 +103,10 @@ pub trait WorldGenerator: Send + Sync + std::fmt::Debug {
         &self,
         chunk_pos: ChunkKey,
         seed: i32,
-        pixels: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        colors: &mut [Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize],
-        background: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        background_colors: &mut [Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize],
+        pixels: &mut [MaterialInstance; CHUNK_AREA],
+        colors: &mut [Color; CHUNK_AREA],
+        background: &mut [MaterialInstance; CHUNK_AREA],
+        background_colors: &mut [Color; CHUNK_AREA],
         registries: &Registries,
     );
 

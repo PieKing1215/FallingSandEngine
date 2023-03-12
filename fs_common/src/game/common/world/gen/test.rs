@@ -1,5 +1,8 @@
 use crate::game::common::{
-    world::material::{self, color::Color, MaterialInstance, PhysicsType},
+    world::{
+        material::{self, color::Color, MaterialInstance, PhysicsType},
+        CHUNK_AREA,
+    },
     Registries,
 };
 
@@ -29,10 +32,10 @@ impl WorldGenerator for TestGenerator {
         &self,
         chunk_pos: ChunkKey,
         seed: i32,
-        pixels: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        colors: &mut [Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize],
-        _background: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        _background_colors: &mut [Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize],
+        pixels: &mut [MaterialInstance; CHUNK_AREA],
+        colors: &mut [Color; CHUNK_AREA],
+        _background: &mut [MaterialInstance; CHUNK_AREA],
+        _background_colors: &mut [Color; CHUNK_AREA],
         _registries: &Registries,
     ) {
         let cofs_x = (chunk_pos.0 * CHUNK_SIZE as i32) as f32;

@@ -10,14 +10,15 @@ use fs_common::game::common::world::Chunk;
 use fs_common::game::common::world::ChunkRigidBodyState;
 use fs_common::game::common::world::ChunkState;
 use fs_common::game::common::world::SidedChunk;
+use fs_common::game::common::world::CHUNK_AREA;
 use fs_common::game::common::world::CHUNK_SIZE;
 use fs_common::game::common::Rect;
 
 pub struct ServerChunk {
     pub data: CommonChunkData<Self>,
-    pub pixel_data: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
-    pub light_data: Box<[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
-    pub background_data: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
+    pub pixel_data: Box<[Color; CHUNK_AREA]>,
+    pub light_data: Box<[[f32; 4]; CHUNK_AREA]>,
+    pub background_data: Box<[Color; CHUNK_AREA]>,
     pub dirty: bool,
 }
 
@@ -36,11 +37,9 @@ impl Chunk for ServerChunk {
     fn new_empty(chunk_x: i32, chunk_y: i32) -> Self {
         Self {
             data: CommonChunkData::new(chunk_x, chunk_y),
-            pixel_data: Box::new([Color::TRANSPARENT; CHUNK_SIZE as usize * CHUNK_SIZE as usize]),
-            light_data: Box::new([[0.0; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]),
-            background_data: Box::new(
-                [Color::TRANSPARENT; CHUNK_SIZE as usize * CHUNK_SIZE as usize],
-            ),
+            pixel_data: Box::new([Color::TRANSPARENT; CHUNK_AREA]),
+            light_data: Box::new([[0.0; 4]; CHUNK_AREA]),
+            background_data: Box::new([Color::TRANSPARENT; CHUNK_AREA]),
             dirty: true,
         }
     }
@@ -134,66 +133,51 @@ impl Chunk for ServerChunk {
         Err("Invalid pixel coordinate.".to_string())
     }
 
-    fn set_pixels(&mut self, pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>) {
+    fn set_pixels(&mut self, pixels: Box<[MaterialInstance; CHUNK_AREA]>) {
         self.data.set_pixels(pixels);
     }
 
-    fn pixels_mut(
-        &mut self,
-    ) -> &mut Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
+    fn pixels_mut(&mut self) -> &mut Option<Box<[MaterialInstance; CHUNK_AREA]>> {
         &mut self.data.pixels
     }
 
-    fn pixels(&self) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
+    fn pixels(&self) -> &Option<Box<[MaterialInstance; CHUNK_AREA]>> {
         &self.data.pixels
     }
 
-    fn set_pixel_colors(
-        &mut self,
-        colors: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
-    ) {
+    fn set_pixel_colors(&mut self, colors: Box<[Color; CHUNK_AREA]>) {
         self.pixel_data = colors;
     }
 
-    fn colors_mut(&mut self) -> &mut [Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn colors_mut(&mut self) -> &mut [Color; CHUNK_AREA] {
         &mut self.pixel_data
     }
 
-    fn colors(&self) -> &[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn colors(&self) -> &[Color; CHUNK_AREA] {
         &self.pixel_data
     }
 
-    fn set_background_pixels(
-        &mut self,
-        pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
-    ) {
+    fn set_background_pixels(&mut self, pixels: Box<[MaterialInstance; CHUNK_AREA]>) {
         self.data.background = Some(pixels);
     }
 
-    fn background_pixels_mut(
-        &mut self,
-    ) -> &mut Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
+    fn background_pixels_mut(&mut self) -> &mut Option<Box<[MaterialInstance; CHUNK_AREA]>> {
         &mut self.data.background
     }
 
-    fn background_pixels(
-        &self,
-    ) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
+    fn background_pixels(&self) -> &Option<Box<[MaterialInstance; CHUNK_AREA]>> {
         &self.data.background
     }
 
-    fn set_background_pixel_colors(
-        &mut self,
-        colors: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
-    ) {
+    fn set_background_pixel_colors(&mut self, colors: Box<[Color; CHUNK_AREA]>) {
         self.background_data = colors;
     }
 
-    fn background_colors_mut(&mut self) -> &mut [Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn background_colors_mut(&mut self) -> &mut [Color; CHUNK_AREA] {
         &mut self.background_data
     }
 
-    fn background_colors(&self) -> &[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn background_colors(&self) -> &[Color; CHUNK_AREA] {
         &self.background_data
     }
 
@@ -232,11 +216,11 @@ impl Chunk for ServerChunk {
         self.data.rigidbody = body;
     }
 
-    fn lights_mut(&mut self) -> &mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn lights_mut(&mut self) -> &mut [[f32; 4]; CHUNK_AREA] {
         self.light_data.as_mut()
     }
 
-    fn lights(&self) -> &[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn lights(&self) -> &[[f32; 4]; CHUNK_AREA] {
         self.light_data.as_ref()
     }
 

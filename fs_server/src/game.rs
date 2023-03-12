@@ -23,7 +23,7 @@ use fs_common::game::{
         cli::{CLArgs, CLSubcommand},
         commands::CommandHandler,
         networking::{Packet, PacketType},
-        world::{Chunk, ChunkState, CHUNK_SIZE},
+        world::{Chunk, ChunkState, CHUNK_AREA},
         FileHelper,
     },
     BuildData, GameData,
@@ -189,19 +189,17 @@ impl ServerGame {
                                     let colors_vec = ci.1.colors().to_vec();
 
                                     assert!(
-                                        pixels_vec.len() == (CHUNK_SIZE * CHUNK_SIZE) as usize,
+                                        pixels_vec.len() == CHUNK_AREA,
                                         "Almost sent wrong size pixels Vec: {} (expected {})",
                                         pixels_vec.len(),
-                                        CHUNK_SIZE * CHUNK_SIZE
+                                        CHUNK_AREA
                                     );
 
-                                    if colors_vec.len()
-                                        != CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4
-                                    {
+                                    if colors_vec.len() != CHUNK_AREA * 4 {
                                         panic!(
                                             "Almost sent wrong size colors Vec: {} (expected {})",
                                             colors_vec.len(),
-                                            CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4
+                                            CHUNK_AREA * 4
                                         );
                                     }
 

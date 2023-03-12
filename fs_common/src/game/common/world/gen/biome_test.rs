@@ -1,11 +1,14 @@
 use std::sync::Arc;
 
 use crate::game::common::{
-    world::material::{
-        self,
-        color::Color,
-        placer::{self, MaterialPlacerSampler},
-        MaterialInstance, PhysicsType,
+    world::{
+        material::{
+            self,
+            color::Color,
+            placer::{self, MaterialPlacerSampler},
+            MaterialInstance, PhysicsType,
+        },
+        CHUNK_AREA,
     },
     Registries,
 };
@@ -199,10 +202,10 @@ impl WorldGenerator for BiomeTestGenerator {
         &self,
         chunk_pos: ChunkKey,
         seed: i32,
-        pixels: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        colors: &mut [Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize],
-        background: &mut [MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize],
-        background_colors: &mut [Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize],
+        pixels: &mut [MaterialInstance; CHUNK_AREA],
+        colors: &mut [Color; CHUNK_AREA],
+        background: &mut [MaterialInstance; CHUNK_AREA],
+        background_colors: &mut [Color; CHUNK_AREA],
         registries: &Registries,
     ) {
         let chunk_pixel_x = chunk_pos.0 as i64 * CHUNK_SIZE as i64;

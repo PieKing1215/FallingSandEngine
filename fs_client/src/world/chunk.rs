@@ -1,6 +1,6 @@
 use chunksystem::ChunkQuery;
 use core::slice;
-use fs_common::game::common::world::Chunk;
+use fs_common::game::common::world::{Chunk, CHUNK_AREA};
 use std::{borrow::Cow, convert::TryInto, sync::Arc};
 
 use fs_common::game::common::{
@@ -39,13 +39,9 @@ impl Chunk for ClientChunk {
             data: CommonChunkData::new(chunk_x, chunk_y),
             graphics: Box::new(ChunkGraphics {
                 data: None,
-                pixel_data: Box::new(
-                    [Color::TRANSPARENT; CHUNK_SIZE as usize * CHUNK_SIZE as usize],
-                ),
-                lighting_data: Box::new([[0.0; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]),
-                background_data: Box::new(
-                    [Color::TRANSPARENT; CHUNK_SIZE as usize * CHUNK_SIZE as usize],
-                ),
+                pixel_data: Box::new([Color::TRANSPARENT; CHUNK_AREA]),
+                lighting_data: Box::new([[0.0; 4]; CHUNK_AREA]),
+                background_data: Box::new([Color::TRANSPARENT; CHUNK_AREA]),
                 dirty: true,
                 was_dirty: true,
                 lighting_dirty: true,
@@ -168,68 +164,53 @@ impl Chunk for ClientChunk {
         Err("Invalid pixel coordinate.".to_string())
     }
 
-    fn set_pixels(&mut self, pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>) {
+    fn set_pixels(&mut self, pixels: Box<[MaterialInstance; CHUNK_AREA]>) {
         self.data.set_pixels(pixels);
         self.refresh();
     }
 
-    fn pixels_mut(
-        &mut self,
-    ) -> &mut Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
+    fn pixels_mut(&mut self) -> &mut Option<Box<[MaterialInstance; CHUNK_AREA]>> {
         &mut self.data.pixels
     }
 
-    fn pixels(&self) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
+    fn pixels(&self) -> &Option<Box<[MaterialInstance; CHUNK_AREA]>> {
         &self.data.pixels
     }
 
-    fn set_pixel_colors(
-        &mut self,
-        colors: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
-    ) {
+    fn set_pixel_colors(&mut self, colors: Box<[Color; CHUNK_AREA]>) {
         self.graphics.replace(colors);
     }
 
-    fn colors_mut(&mut self) -> &mut [Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn colors_mut(&mut self) -> &mut [Color; CHUNK_AREA] {
         &mut self.graphics.pixel_data
     }
 
-    fn colors(&self) -> &[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn colors(&self) -> &[Color; CHUNK_AREA] {
         &self.graphics.pixel_data
     }
 
-    fn set_background_pixels(
-        &mut self,
-        pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
-    ) {
+    fn set_background_pixels(&mut self, pixels: Box<[MaterialInstance; CHUNK_AREA]>) {
         self.data.background = Some(pixels);
         self.refresh();
     }
 
-    fn background_pixels_mut(
-        &mut self,
-    ) -> &mut Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
+    fn background_pixels_mut(&mut self) -> &mut Option<Box<[MaterialInstance; CHUNK_AREA]>> {
         &mut self.data.background
     }
 
-    fn background_pixels(
-        &self,
-    ) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>> {
+    fn background_pixels(&self) -> &Option<Box<[MaterialInstance; CHUNK_AREA]>> {
         &self.data.background
     }
 
-    fn set_background_pixel_colors(
-        &mut self,
-        colors: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
-    ) {
+    fn set_background_pixel_colors(&mut self, colors: Box<[Color; CHUNK_AREA]>) {
         self.graphics.replace_background(colors);
     }
 
-    fn background_colors_mut(&mut self) -> &mut [Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn background_colors_mut(&mut self) -> &mut [Color; CHUNK_AREA] {
         &mut self.graphics.background_data
     }
 
-    fn background_colors(&self) -> &[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn background_colors(&self) -> &[Color; CHUNK_AREA] {
         &self.graphics.background_data
     }
 
@@ -278,11 +259,11 @@ impl Chunk for ClientChunk {
         self.data.rigidbody = body;
     }
 
-    fn lights_mut(&mut self) -> &mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn lights_mut(&mut self) -> &mut [[f32; 4]; CHUNK_AREA] {
         &mut self.graphics.lighting_data
     }
 
-    fn lights(&self) -> &[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] {
+    fn lights(&self) -> &[[f32; 4]; CHUNK_AREA] {
         &self.graphics.lighting_data
     }
 
@@ -350,9 +331,9 @@ pub struct ChunkGraphicsData {
 
 pub struct ChunkGraphics {
     pub data: Option<Arc<ChunkGraphicsData>>,
-    pub pixel_data: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
-    pub lighting_data: Box<[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
-    pub background_data: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
+    pub pixel_data: Box<[Color; CHUNK_AREA]>,
+    pub lighting_data: Box<[[f32; 4]; CHUNK_AREA]>,
+    pub background_data: Box<[Color; CHUNK_AREA]>,
     pub dirty: bool,
     pub was_dirty: bool,
     pub lighting_dirty: bool,
@@ -639,20 +620,14 @@ impl ChunkGraphics {
 
     #[profiling::function]
     #[allow(clippy::cast_lossless)]
-    pub fn replace(
-        &mut self,
-        colors: Box<[Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize]>,
-    ) {
+    pub fn replace(&mut self, colors: Box<[Color; CHUNK_AREA]>) {
         self.pixel_data = colors;
         self.dirty = true;
     }
 
     #[profiling::function]
     #[allow(clippy::cast_lossless)]
-    pub fn replace_background(
-        &mut self,
-        colors: Box<[Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize]>,
-    ) {
+    pub fn replace_background(&mut self, colors: Box<[Color; CHUNK_AREA]>) {
         self.background_data = colors;
         self.background_dirty = true;
     }
@@ -860,7 +835,7 @@ impl ChunkGraphics {
             .unwrap();
 
             let default_src = glium::texture::RawImage2d {
-                data: Cow::Owned(vec![0.0; (CHUNK_SIZE * CHUNK_SIZE) as usize * 4]),
+                data: Cow::Owned(vec![0.0; CHUNK_AREA * 4]),
                 width: CHUNK_SIZE.into(),
                 height: CHUNK_SIZE.into(),
                 format: glium::texture::ClientFormat::F32F32F32F32,
@@ -937,10 +912,7 @@ impl ChunkGraphics {
                 display: target.display.clone(),
                 texture,
                 background_texture,
-                lighting_src_buf: PixelBuffer::new_empty(
-                    &target.display,
-                    (CHUNK_SIZE * CHUNK_SIZE) as _,
-                ),
+                lighting_src_buf: PixelBuffer::new_empty(&target.display, CHUNK_AREA),
                 lighting_src,
                 lighting_dst,
                 lighting_neighbors,
@@ -971,19 +943,19 @@ impl ClientChunkHandlerExt for ChunkHandler<ClientChunk> {
         pixels: Vec<MaterialInstance>,
         colors: Vec<Color>,
     ) -> Result<(), String> {
-        if pixels.len() != (CHUNK_SIZE * CHUNK_SIZE) as usize {
+        if pixels.len() != CHUNK_AREA {
             return Err(format!(
                 "pixels Vec is the wrong size: {} (expected {})",
                 pixels.len(),
-                CHUNK_SIZE * CHUNK_SIZE
+                CHUNK_AREA
             ));
         }
 
-        if colors.len() != CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4 {
+        if colors.len() != CHUNK_AREA * 4 {
             return Err(format!(
                 "colors Vec is the wrong size: {} (expected {})",
                 colors.len(),
-                CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4
+                CHUNK_AREA * 4
             ));
         }
 

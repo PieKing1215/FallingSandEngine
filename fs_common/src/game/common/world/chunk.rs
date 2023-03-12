@@ -54,32 +54,20 @@ pub trait Chunk {
     fn dirty_rect(&self) -> Option<Rect<i32>>;
     fn set_dirty_rect(&mut self, rect: Option<Rect<i32>>);
 
-    fn set_pixels(&mut self, pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>);
-    fn pixels_mut(
-        &mut self,
-    ) -> &mut Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>;
-    fn pixels(&self) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>;
-    fn set_pixel_colors(&mut self, colors: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>);
-    fn colors_mut(&mut self) -> &mut [Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
-    fn colors(&self) -> &[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
-    fn lights_mut(&mut self) -> &mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
-    fn lights(&self) -> &[[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
-    fn set_background_pixels(
-        &mut self,
-        pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
-    );
-    fn background_pixels_mut(
-        &mut self,
-    ) -> &mut Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>;
-    fn background_pixels(
-        &self,
-    ) -> &Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>;
-    fn set_background_pixel_colors(
-        &mut self,
-        colors: Box<[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize]>,
-    );
-    fn background_colors_mut(&mut self) -> &mut [Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
-    fn background_colors(&self) -> &[Color; CHUNK_SIZE as usize * CHUNK_SIZE as usize];
+    fn set_pixels(&mut self, pixels: Box<[MaterialInstance; CHUNK_AREA]>);
+    fn pixels_mut(&mut self) -> &mut Option<Box<[MaterialInstance; CHUNK_AREA]>>;
+    fn pixels(&self) -> &Option<Box<[MaterialInstance; CHUNK_AREA]>>;
+    fn set_pixel_colors(&mut self, colors: Box<[Color; CHUNK_AREA]>);
+    fn colors_mut(&mut self) -> &mut [Color; CHUNK_AREA];
+    fn colors(&self) -> &[Color; CHUNK_AREA];
+    fn lights_mut(&mut self) -> &mut [[f32; 4]; CHUNK_AREA];
+    fn lights(&self) -> &[[f32; 4]; CHUNK_AREA];
+    fn set_background_pixels(&mut self, pixels: Box<[MaterialInstance; CHUNK_AREA]>);
+    fn background_pixels_mut(&mut self) -> &mut Option<Box<[MaterialInstance; CHUNK_AREA]>>;
+    fn background_pixels(&self) -> &Option<Box<[MaterialInstance; CHUNK_AREA]>>;
+    fn set_background_pixel_colors(&mut self, colors: Box<[Color; CHUNK_AREA]>);
+    fn background_colors_mut(&mut self) -> &mut [Color; CHUNK_AREA];
+    fn background_colors(&self) -> &[Color; CHUNK_AREA];
 
     fn generate_mesh(&mut self) -> Result<(), String>;
     // fn get_tris(&self) -> &Option<Vec<Vec<((f64, f64), (f64, f64), (f64, f64))>>>;
@@ -184,10 +172,10 @@ pub struct ChunkHandler<C: Chunk> {
 #[allow(clippy::cast_lossless)]
 pub type ChunkGenOutput = (
     ChunkKey,
-    Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
-    Box<[Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize]>,
-    Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
-    Box<[Color; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize]>,
+    Box<[MaterialInstance; CHUNK_AREA]>,
+    Box<[Color; CHUNK_AREA]>,
+    Box<[MaterialInstance; CHUNK_AREA]>,
+    Box<[Color; CHUNK_AREA]>,
 );
 
 #[derive(Serialize, Deserialize)]
@@ -492,7 +480,7 @@ where
                                             let save: ChunkSaveFormat = res;
 
                                             if save.pixels.len()
-                                                == (CHUNK_SIZE as usize * CHUNK_SIZE as usize)
+                                                == (CHUNK_AREA)
                                             {
                                                 let chunk =  self.manager.chunk_at_mut(*key).unwrap();
                                                 chunk.set_state(ChunkState::Cached);
@@ -507,13 +495,13 @@ where
                                                 {
                                                     chunk.set_pixel_colors(save.colors.try_into().unwrap());
                                                 } else {
-                                                    log::error!("colors Vec is the wrong size: {} (expected {})", save.colors.len(), CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4);
+                                                    log::error!("colors Vec is the wrong size: {} (expected {})", save.colors.len(), CHUNK_AREA * 4);
                                                     chunk.refresh();
                                                 }
 
                                                 should_generate = false;
                                             } else {
-                                                log::error!("pixels Vec is the wrong size: {} (expected {})", save.pixels.len(), CHUNK_SIZE * CHUNK_SIZE);
+                                                log::error!("pixels Vec is the wrong size: {} (expected {})", save.pixels.len(), CHUNK_AREA);
                                                 self.manager
                                                     .chunk_at_mut(*key)
                                                     .unwrap()
@@ -572,27 +560,17 @@ where
 
                             // these arrays are too large for the stack
 
-                            let mut pixels = Box::new(
-                                [(); (CHUNK_SIZE * CHUNK_SIZE) as usize]
-                                    .map(|_| MaterialInstance::air()),
-                            );
+                            let mut pixels =
+                                Box::new([(); CHUNK_AREA].map(|_| MaterialInstance::air()));
 
                             #[allow(clippy::cast_lossless)]
-                            let mut colors = Box::new(
-                                [Color::TRANSPARENT;
-                                    (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize],
-                            );
+                            let mut colors = Box::new([Color::TRANSPARENT; CHUNK_AREA]);
 
-                            let mut background = Box::new(
-                                [(); (CHUNK_SIZE * CHUNK_SIZE) as usize]
-                                    .map(|_| MaterialInstance::air()),
-                            );
+                            let mut background =
+                                Box::new([(); CHUNK_AREA].map(|_| MaterialInstance::air()));
 
                             #[allow(clippy::cast_lossless)]
-                            let mut background_colors = Box::new(
-                                [Color::TRANSPARENT;
-                                    (CHUNK_SIZE as u32 * CHUNK_SIZE as u32) as usize],
-                            );
+                            let mut background_colors = Box::new([Color::TRANSPARENT; CHUNK_AREA]);
 
                             generator.generate(
                                 (chunk_x, chunk_y),
@@ -913,11 +891,11 @@ where
                                             // blatantly bypassing the borrow checker, see safety comment above
                                             // I'm not sure if doing this while the data is already in a `&[UnsafeCell<_>; _]` is UB
 
-                                            let raw: *mut [Color; (CHUNK_SIZE as usize * CHUNK_SIZE as usize)] = c.colors_mut();
-                                            let colors = unsafe { &*(raw as *const [UnsafeCell<u8>; (CHUNK_SIZE as usize * CHUNK_SIZE as usize * 4)]) };
+                                            let raw: *mut [Color; (CHUNK_AREA)] = c.colors_mut();
+                                            let colors = unsafe { &*(raw as *const [UnsafeCell<u8>; (CHUNK_AREA * 4)]) };
 
-                                            let raw: *mut [[f32; 4]; CHUNK_SIZE as usize * CHUNK_SIZE as usize] = c.lights_mut();
-                                            let lights = unsafe { &*(raw as *const [UnsafeCell<[f32; 4]>; CHUNK_SIZE as usize * CHUNK_SIZE as usize]) };
+                                            let raw: *mut [[f32; 4]; CHUNK_AREA] = c.lights_mut();
+                                            let lights = unsafe { &*(raw as *const [UnsafeCell<[f32; 4]>; CHUNK_AREA]) };
 
                                             let dirty_rect = *old_dirty_rects
                                                 .get(&(ch_pos.0 + x, ch_pos.1 + y))

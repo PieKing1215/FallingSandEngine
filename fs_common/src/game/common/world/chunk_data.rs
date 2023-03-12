@@ -2,16 +2,16 @@ use crate::game::common::Rect;
 
 use super::{
     material::MaterialInstance, mesh::Mesh, tile_entity::TileEntity, ChunkRigidBodyState,
-    ChunkState, CHUNK_SIZE,
+    ChunkState, CHUNK_AREA, CHUNK_SIZE,
 };
 
 pub struct CommonChunkData<S: SidedChunkData> {
     pub chunk_x: i32,
     pub chunk_y: i32,
     pub state: ChunkState,
-    pub pixels: Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
-    pub light: Option<Box<[[f32; 3]; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
-    pub background: Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
+    pub pixels: Option<Box<[MaterialInstance; CHUNK_AREA]>>,
+    pub light: Option<Box<[[f32; 3]; CHUNK_AREA]>>,
+    pub background: Option<Box<[MaterialInstance; CHUNK_AREA]>>,
     pub dirty_rect: Option<Rect<i32>>,
     pub rigidbody: Option<ChunkRigidBodyState>,
     pub mesh_simplified: Option<Mesh>,
@@ -177,12 +177,9 @@ impl<S: SidedChunkData> CommonChunkData<S> {
         unsafe { self.light.as_ref().unwrap().get_unchecked(i) }
     }
 
-    pub fn set_pixels(
-        &mut self,
-        pixels: Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>,
-    ) {
+    pub fn set_pixels(&mut self, pixels: Box<[MaterialInstance; CHUNK_AREA]>) {
         self.pixels = Some(pixels);
-        self.light = Some(Box::new([[0.0; 3]; (CHUNK_SIZE * CHUNK_SIZE) as usize]));
+        self.light = Some(Box::new([[0.0; 3]; CHUNK_AREA]));
     }
 
     pub fn set_background(
