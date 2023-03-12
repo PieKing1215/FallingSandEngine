@@ -39,12 +39,6 @@ pub const CHUNK_SIZE: u16 = 100;
 // also (CHUNK_SIZE / LIGHT_SCALE)^2 must be <= 1024 for compute shader (and local_size needs to be set to CHUNK_SIZE / LIGHT_SCALE in the shader)
 pub const LIGHT_SCALE: u8 = 4;
 
-#[warn(clippy::large_enum_variant)]
-pub enum RigidBodyState {
-    Active(RigidBodyHandle),
-    Inactive(Box<RigidBody>, Vec<Collider>),
-}
-
 pub trait Chunk {
     fn new_empty(chunk_x: i32, chunk_y: i32) -> Self
     where
@@ -93,9 +87,9 @@ pub trait Chunk {
     fn generate_mesh(&mut self) -> Result<(), String>;
     // fn get_tris(&self) -> &Option<Vec<Vec<((f64, f64), (f64, f64), (f64, f64))>>>;
     fn mesh_loops(&self) -> &Option<Mesh>;
-    fn rigidbody(&self) -> &Option<RigidBodyState>;
-    fn rigidbody_mut(&mut self) -> &mut Option<RigidBodyState>;
-    fn set_rigidbody(&mut self, body: Option<RigidBodyState>);
+    fn rigidbody(&self) -> &Option<ChunkRigidBodyState>;
+    fn rigidbody_mut(&mut self) -> &mut Option<ChunkRigidBodyState>;
+    fn set_rigidbody(&mut self, body: Option<ChunkRigidBodyState>);
 
     fn mark_dirty(&mut self);
 
@@ -172,10 +166,15 @@ pub enum ChunkState {
     Active,
 }
 
+#[warn(clippy::large_enum_variant)]
+pub enum ChunkRigidBodyState {
+    Active(RigidBodyHandle),
+    Inactive(Box<RigidBody>, Vec<Collider>),
+}
+
 #[derive(Debug)]
 pub struct ChunkHandler<C: Chunk> {
     pub manager: ChunkManager<C>,
-    // pub manager: HashMap<u32, C, BuildHasherDefault<PassThroughHasherU32>>,
     pub load_queue: Vec<(i32, i32)>,
     pub gen_pool: rayon::ThreadPool,
     pub gen_threads: Vec<(ChunkKey, Receiver<ChunkGenOutput>)>,
@@ -213,7 +212,7 @@ where
         settings: &Settings,
         world: &mut specs::World,
         physics: &mut Physics,
-        registries: Arc<Registries>,
+        registries: &Arc<Registries>,
         seed: i32,
         file_helper: &FileHelper,
     ) {
@@ -563,6 +562,7 @@ where
                 {
                     profiling::scope!("gen chunks");
                     for (key, chunk_x, chunk_y) in to_generate {
+                        // need to clone since these need to be 'static
                         let generator = self.generator.clone();
                         let reg = registries.clone();
                         let (tx, rx) = futures::channel::oneshot::channel();
@@ -598,7 +598,7 @@ where
                                 &mut colors,
                                 &mut background,
                                 &mut background_colors,
-                                reg.as_ref(),
+                                &reg,
                             );
 
                             tx.send((key, pixels, colors, background, background_colors))
@@ -1070,9 +1070,9 @@ where
                     |ch| ch.sided_tile_entities_removable(),
                     |te, chunks| {
                         te.tick(TileEntityTickContext::<C> {
-                            registries: registries.clone(),
-                            file_helper,
                             tick_time,
+                            registries,
+                            file_helper,
                             chunks,
                         });
                     },
@@ -1133,7 +1133,23 @@ impl<C: Chunk> ChunkQuery for ChunkHandler<C> {
     }
 }
 
-impl<C: Chunk + Send> ChunkHandler<C> {
+impl<C: Chunk> ChunkHandler<C> {
+    // #[profiling::function]
+    pub fn new(generator: impl WorldGenerator + 'static, path: Option<PathBuf>) -> Self {
+        ChunkHandler {
+            manager: ChunkManager::new_with_capacity(1000),
+            load_queue: vec![],
+            gen_pool: rayon::ThreadPoolBuilder::new()
+                .num_threads(2)
+                .build()
+                .expect("Failed to build gen_poool"),
+            gen_threads: vec![],
+            screen_size: (1920 / 2, 1080 / 2),
+            generator: Arc::new(generator),
+            path,
+        }
+    }
+
     #[profiling::function]
     pub fn save_chunk(&mut self, index: ChunkKey) -> Result<(), Box<dyn std::error::Error>> {
         let chunk = self.manager.chunk_at_mut(index).ok_or("Chunk not loaded")?;
@@ -1222,6 +1238,30 @@ impl<C: Chunk + Send> ChunkHandler<C> {
         }
     }
 
+    #[allow(clippy::unnecessary_wraps)]
+    #[profiling::function]
+    fn unload_chunk(
+        &mut self,
+        index: ChunkKey,
+        physics: &mut Physics,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let chunk = self.manager.chunk_at_mut(index).unwrap();
+        if let Some(ChunkRigidBodyState::Active(handle)) = chunk.rigidbody() {
+            physics.remove_rigidbody(*handle);
+            chunk.set_rigidbody(None);
+        }
+
+        Ok(())
+    }
+
+    #[profiling::function]
+    fn load_chunk(&mut self, chunk_x: i32, chunk_y: i32) -> &mut C {
+        let chunk = Chunk::new_empty(chunk_x, chunk_y);
+        let i = (chunk_x, chunk_y);
+        self.manager.insert(i, chunk);
+        self.manager.chunk_at_mut(i).unwrap()
+    }
+
     #[profiling::function]
     #[inline]
     pub fn get_zone(&self, center: (f64, f64), padding: u16) -> Rect<i32> {
@@ -1274,48 +1314,6 @@ impl std::hash::Hasher for PassThroughHasherU32 {
 
     fn write(&mut self, _bytes: &[u8]) {
         unimplemented!("NopHasherU32 only supports u32")
-    }
-}
-
-impl<C: Chunk> ChunkHandler<C> {
-    // #[profiling::function]
-    pub fn new(generator: impl WorldGenerator + 'static, path: Option<PathBuf>) -> Self {
-        ChunkHandler {
-            manager: ChunkManager::new_with_capacity(1000),
-            load_queue: vec![],
-            gen_pool: rayon::ThreadPoolBuilder::new()
-                .num_threads(2)
-                .build()
-                .expect("Failed to build gen_poool"),
-            gen_threads: vec![],
-            screen_size: (1920 / 2, 1080 / 2),
-            generator: Arc::new(generator),
-            path,
-        }
-    }
-
-    #[allow(clippy::unnecessary_wraps)]
-    #[profiling::function]
-    fn unload_chunk(
-        &mut self,
-        index: ChunkKey,
-        physics: &mut Physics,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let chunk = self.manager.chunk_at_mut(index).unwrap();
-        if let Some(RigidBodyState::Active(handle)) = chunk.rigidbody() {
-            physics.remove_rigidbody(*handle);
-            chunk.set_rigidbody(None);
-        }
-
-        Ok(())
-    }
-
-    #[profiling::function]
-    fn load_chunk(&mut self, chunk_x: i32, chunk_y: i32) -> &mut C {
-        let chunk = Chunk::new_empty(chunk_x, chunk_y);
-        let i = (chunk_x, chunk_y);
-        self.manager.insert(i, chunk);
-        self.manager.chunk_at_mut(i).unwrap()
     }
 }
 

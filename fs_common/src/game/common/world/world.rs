@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::game::common::{
-    world::{physics::PHYSICS_SCALE, RigidBodyState},
+    world::{physics::PHYSICS_SCALE, ChunkRigidBodyState},
     FileHelper, Registries, Settings,
 };
 
@@ -662,7 +662,7 @@ where
             settings,
             &mut self.ecs,
             &mut self.physics,
-            registries,
+            &registries,
             self.seed,
             file_helper,
         );
@@ -835,7 +835,7 @@ where
                             }
                         }
 
-                        c.set_rigidbody(Some(RigidBodyState::Inactive(
+                        c.set_rigidbody(Some(ChunkRigidBodyState::Inactive(
                             Box::new(rigid_body),
                             colliders,
                         )));
@@ -884,7 +884,7 @@ where
 
                     if let Some(state) = c.rigidbody_mut() {
                         match state {
-                            RigidBodyState::Active(h) if !should_be_active => {
+                            ChunkRigidBodyState::Active(h) if !should_be_active => {
                                 let cls = self.physics.bodies.get(*h).unwrap().colliders().to_vec();
                                 let colls = cls
                                     .iter()
@@ -912,14 +912,15 @@ where
                                         true,
                                     )
                                     .unwrap();
-                                *state = RigidBodyState::Inactive(Box::new(rb), colls);
+                                *state = ChunkRigidBodyState::Inactive(Box::new(rb), colls);
                             },
                             _ => {},
                         }
 
-                        if should_be_active && matches!(state, RigidBodyState::Inactive(_, _)) {
+                        if should_be_active && matches!(state, ChunkRigidBodyState::Inactive(_, _))
+                        {
                             match c.rigidbody_mut().take().unwrap() {
-                                RigidBodyState::Inactive(rb, colls) if should_be_active => {
+                                ChunkRigidBodyState::Inactive(rb, colls) if should_be_active => {
                                     let rb_handle = self.physics.bodies.insert(*rb);
                                     for collider in colls {
                                         // let bo_handle = self
@@ -938,7 +939,7 @@ where
                                         //     ColliderSampling::DynamicContactSampling,
                                         // );
                                     }
-                                    c.set_rigidbody(Some(RigidBodyState::Active(rb_handle)));
+                                    c.set_rigidbody(Some(ChunkRigidBodyState::Active(rb_handle)));
                                 },
                                 _ => {},
                             }

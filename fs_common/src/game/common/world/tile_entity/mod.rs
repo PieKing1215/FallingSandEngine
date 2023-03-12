@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use chunksystem::ChunkQueryOne;
 
 use crate::game::common::{FileHelper, Registries};
@@ -30,7 +28,7 @@ pub trait TileEntitySided {
 
 pub struct TileEntityTickContext<'a, 'b, D> {
     pub tick_time: u32,
-    pub registries: Arc<Registries>,
+    pub registries: &'a Registries,
     pub file_helper: &'a FileHelper,
     pub chunks: &'a mut ChunkQueryOne<'b, D>,
 }

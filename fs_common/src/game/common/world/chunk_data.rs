@@ -1,8 +1,8 @@
 use crate::game::common::Rect;
 
 use super::{
-    material::MaterialInstance, mesh::Mesh, tile_entity::TileEntity, ChunkState, RigidBodyState,
-    CHUNK_SIZE,
+    material::MaterialInstance, mesh::Mesh, tile_entity::TileEntity, ChunkRigidBodyState,
+    ChunkState, CHUNK_SIZE,
 };
 
 pub struct CommonChunkData<S: SidedChunkData> {
@@ -13,7 +13,7 @@ pub struct CommonChunkData<S: SidedChunkData> {
     pub light: Option<Box<[[f32; 3]; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
     pub background: Option<Box<[MaterialInstance; (CHUNK_SIZE * CHUNK_SIZE) as usize]>>,
     pub dirty_rect: Option<Rect<i32>>,
-    pub rigidbody: Option<RigidBodyState>,
+    pub rigidbody: Option<ChunkRigidBodyState>,
     pub mesh_simplified: Option<Mesh>,
     pub tile_entities: Vec<TileEntity<S::TileEntityData>>,
 }

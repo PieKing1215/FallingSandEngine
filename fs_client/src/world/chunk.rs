@@ -9,7 +9,7 @@ use fs_common::game::common::{
         material::{color::Color, MaterialInstance},
         mesh::{self, Mesh},
         tile_entity::{TileEntity, TileEntityCommon},
-        ChunkHandler, ChunkState, RigidBodyState, SidedChunk, CHUNK_SIZE, LIGHT_SCALE,
+        ChunkHandler, ChunkRigidBodyState, ChunkState, SidedChunk, CHUNK_SIZE, LIGHT_SCALE,
     },
     FileHelper, Rect, Settings,
 };
@@ -264,15 +264,15 @@ impl Chunk for ClientChunk {
         &self.data.mesh_simplified
     }
 
-    fn rigidbody(&self) -> &Option<RigidBodyState> {
+    fn rigidbody(&self) -> &Option<ChunkRigidBodyState> {
         &self.data.rigidbody
     }
 
-    fn rigidbody_mut(&mut self) -> &mut Option<RigidBodyState> {
+    fn rigidbody_mut(&mut self) -> &mut Option<ChunkRigidBodyState> {
         &mut self.data.rigidbody
     }
 
-    fn set_rigidbody(&mut self, body: Option<RigidBodyState>) {
+    fn set_rigidbody(&mut self, body: Option<ChunkRigidBodyState>) {
         self.data.rigidbody = body;
     }
 

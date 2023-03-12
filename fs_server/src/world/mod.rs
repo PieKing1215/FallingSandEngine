@@ -68,7 +68,7 @@ mod tests {
             &Settings::default(),
             &mut ecs,
             &mut phys,
-            registries.clone(),
+            &registries,
             2,
             &file_helper,
         );
@@ -78,7 +78,7 @@ mod tests {
                 &Settings::default(),
                 &mut ecs,
                 &mut phys,
-                registries.clone(),
+                &registries,
                 2,
                 &file_helper,
             );
@@ -115,7 +115,7 @@ mod tests {
             &Settings::default(),
             &mut ecs,
             &mut phys,
-            registries,
+            &registries,
             2,
             &file_helper,
         );
