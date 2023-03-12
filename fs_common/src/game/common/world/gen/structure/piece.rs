@@ -6,9 +6,9 @@ use image::{DynamicImage, GenericImageView};
 use crate::game::common::{
     registry::{Registry, RegistryID},
     world::{
+        chunk_access::FSChunkAccess,
         gen::structure::AngleMod,
         material::{self, buf::MaterialBuf, color::Color, MaterialInstance, PhysicsType},
-        ChunkHandlerGeneric,
     },
     FileHelper, Rect,
 };
@@ -73,7 +73,7 @@ impl StructureNodeConfig {
     }
 }
 
-type PlaceFn = dyn Fn(&StructurePiece, &mut dyn ChunkHandlerGeneric) -> Result<(), String>;
+type PlaceFn = dyn Fn(&StructurePiece, &mut dyn FSChunkAccess) -> Result<(), String>;
 
 impl StructurePiece {
     #[allow(clippy::type_complexity)]
@@ -151,13 +151,11 @@ impl StructurePiece {
             opts.push((
                 bounds,
                 children,
-                Box::new(
-                    move |st: &Self, chunk_handler: &mut dyn ChunkHandlerGeneric| {
-                        st.buf
-                            .rotated(angle)
-                            .paste(chunk_handler, bounds.left(), bounds.top())
-                    },
-                ) as Box<PlaceFn>,
+                Box::new(move |st: &Self, chunk_handler: &mut dyn FSChunkAccess| {
+                    st.buf
+                        .rotated(angle)
+                        .paste(chunk_handler, bounds.left(), bounds.top())
+                }) as Box<PlaceFn>,
             ));
         }
 

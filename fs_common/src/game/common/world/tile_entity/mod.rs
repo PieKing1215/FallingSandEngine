@@ -4,7 +4,7 @@ use chunksystem::ChunkQueryOne;
 
 use crate::game::common::{FileHelper, Registries};
 
-use super::material::buf::MaterialRect;
+use super::{material::buf::MaterialRect, Chunk};
 
 pub struct TileEntity<S> {
     pub common: TileEntityCommon,
@@ -35,7 +35,10 @@ pub struct TileEntityTickContext<'a, 'b, D> {
     pub chunks: &'a mut ChunkQueryOne<'b, D>,
 }
 
-impl<S: TileEntitySided> TileEntity<S> {
+impl<S: TileEntitySided> TileEntity<S>
+where
+    S::D: Chunk,
+{
     pub fn tick(&mut self, ctx: TileEntityTickContext<S::D>) {
         self.sided.tick(&mut self.common, ctx);
     }

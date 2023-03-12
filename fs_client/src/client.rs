@@ -6,13 +6,14 @@ use rapier2d::{na::Vector2, prelude::RigidBodyHandle};
 use specs::{Entities, Join, ReadStorage, WorldExt, WriteStorage};
 
 use fs_common::game::common::world::{
+    chunk_access::FSChunkAccess,
     entity::{
         CollisionDetector, CutCopy, GameEntity, Hitbox, PhysicsEntity, Player,
         PlayerClipboardState, PlayerGrappleState, PlayerJumpState, PlayerLaunchState,
         PlayerMovementMode,
     },
     material::{buf::MaterialBuf, MaterialInstance, PhysicsType},
-    Camera, ChunkHandler, ChunkHandlerGeneric, Position, Velocity, World,
+    Camera, ChunkHandler, Position, Velocity, World,
 };
 
 use crate::{
@@ -413,7 +414,7 @@ fn tick_player(
                                         .y as i64,
                                     raycast_filter,
                                 ) {
-                                    let side_1 = world.chunk_handler.get(
+                                    let side_1 = world.chunk_handler.pixel(
                                         r.0 .0 + ((dy / mag) * 2.0) as i64,
                                         r.0 .1 + ((-dx / mag) * 2.0) as i64,
                                     );

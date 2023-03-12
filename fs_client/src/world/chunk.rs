@@ -98,7 +98,7 @@ impl Chunk for ClientChunk {
     }
 
     // #[profiling::function] // huge performance impact
-    fn set(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String> {
+    fn set_pixel(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String> {
         self.data.set(x, y, mat, |mat| {
             self.graphics.set(x, y, mat.color)?;
             self.graphics.set_light(x, y, mat.light)

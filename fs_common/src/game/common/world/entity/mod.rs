@@ -11,8 +11,9 @@ use crate::game::common::world::{
 };
 
 use super::{
+    chunk_access::FSChunkAccess,
     particle::{Particle, ParticleSystem},
-    ChunkHandlerGeneric, ChunkState, Position, Velocity,
+    ChunkState, Position, Velocity,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,20 +65,20 @@ impl Component for Persistent {
     type Storage = BTreeStorage<Self>;
 }
 
-pub struct UpdatePhysicsEntities<'a, H: ChunkHandlerGeneric> {
+pub struct UpdatePhysicsEntities<'a, H: FSChunkAccess> {
     pub chunk_handler: &'a mut H,
 }
 
-impl<'a, H: ChunkHandlerGeneric> UpdatePhysicsEntities<'a, H> {
+impl<'a, H: FSChunkAccess> UpdatePhysicsEntities<'a, H> {
     fn check_collide(&self, x: i64, y: i64, phys_ent: &PhysicsEntity) -> Option<&MaterialInstance> {
-        self.chunk_handler.get(x, y).ok().filter(|mat| {
+        self.chunk_handler.pixel(x, y).ok().filter(|mat| {
             mat.physics == PhysicsType::Solid
                 || (mat.physics == PhysicsType::Sand && phys_ent.collide_with_sand)
         })
     }
 }
 
-impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdatePhysicsEntities<'a, H> {
+impl<'a, H: FSChunkAccess> System<'a> for UpdatePhysicsEntities<'a, H> {
     #[allow(clippy::type_complexity)]
     type SystemData = (
         Entities<'a>,
@@ -116,8 +117,7 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdatePhysicsEntities<'a, H> {
         (&entities, &mut pos, &mut vel, &mut game_ent, &mut phys_ent, persistent.maybe(), &mut hitbox, (&mut collision_detect).maybe()).join().for_each(|(_ent, pos, vel, _game_ent, phys_ent, persistent, hitbox, mut collision_detect): (specs::Entity, &mut Position, &mut Velocity, &mut GameEntity, &mut PhysicsEntity, Option<&Persistent>, &mut Hitbox, Option<&mut CollisionDetector>)| {
 
             // skip if chunk not active
-            let (chunk_x, chunk_y) = pixel_to_chunk_pos(pos.x as i64, pos.y as i64);
-            if persistent.is_none() && !matches!(self.chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.state() == ChunkState::Active) {
+            if persistent.is_none() && !matches!(self.chunk_handler.chunk_at_dyn(pixel_to_chunk_pos(pos.x as i64, pos.y as i64)), Some(c) if c.state() == ChunkState::Active) {
                 return;
             }
 
@@ -194,7 +194,7 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdatePhysicsEntities<'a, H> {
                                 if let Some(mat) = self.check_collide((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + clip_y + f64::from(h_dy)).floor() as i64, phys_ent).cloned() {
                                     would_clip_collide = true;
                                     if debug_visualize {
-                                        let _ignore = self.chunk_handler.set((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + clip_y + f64::from(h_dy)).floor() as i64, MaterialInstance {
+                                        let _ignore = self.chunk_handler.set_pixel((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + clip_y + f64::from(h_dy)).floor() as i64, MaterialInstance {
                                             color: Color::rgb(255, 255, 0),
                                             ..mat
                                         });
@@ -216,7 +216,7 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdatePhysicsEntities<'a, H> {
                                 // 3.0 -> 0.5 (clamped)
                                 vel.x *= (1.0 - (clip_y.abs() / 3.0).powi(4)).clamp(0.5, 1.0);
                             }
-                        } else if mat.physics == PhysicsType::Sand && self.chunk_handler.set((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + f64::from(h_dy)).floor() as i64, MaterialInstance::air()).is_ok() {
+                        } else if mat.physics == PhysicsType::Sand && self.chunk_handler.set_pixel((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + f64::from(h_dy)).floor() as i64, MaterialInstance::air()).is_ok() {
                             create_particles.push(
                                 Particle::new(
                                     mat,
@@ -229,7 +229,7 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdatePhysicsEntities<'a, H> {
                         }else {
                             collided_x = true;
                             if debug_visualize {
-                                let _ignore = self.chunk_handler.set((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + f64::from(h_dy)).floor() as i64, MaterialInstance {
+                                let _ignore = self.chunk_handler.set_pixel((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + f64::from(h_dy)).floor() as i64, MaterialInstance {
                                     color: Color::rgb(255, 255, 0),
                                     ..mat
                                 });
@@ -252,7 +252,7 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdatePhysicsEntities<'a, H> {
                 let mut collided_y = false;
                 for &(h_dx, h_dy) in &r {
                     if let Some(mat) = self.check_collide((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, phys_ent).cloned() {
-                        if (vel.y < -0.001 || vel.y > 1.0) && mat.physics == PhysicsType::Sand && self.chunk_handler.set((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, MaterialInstance::air()).is_ok() {
+                        if (vel.y < -0.001 || vel.y > 1.0) && mat.physics == PhysicsType::Sand && self.chunk_handler.set_pixel((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, MaterialInstance::air()).is_ok() {
                             create_particles.push(
                                 Particle::new(
                                     mat,
@@ -269,7 +269,7 @@ impl<'a, H: ChunkHandlerGeneric> System<'a> for UpdatePhysicsEntities<'a, H> {
                         } else {
                             collided_y = true;
                             if debug_visualize {
-                                let _ignore = self.chunk_handler.set((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, MaterialInstance {
+                                let _ignore = self.chunk_handler.set_pixel((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, MaterialInstance {
                                     color: Color::rgb(255, 0, 255),
                                     ..mat
                                 });

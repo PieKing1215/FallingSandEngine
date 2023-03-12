@@ -1,6 +1,7 @@
 use std::cell::UnsafeCell;
 use std::sync::Arc;
 
+use chunksystem::ChunkQuery;
 use fastrand::Rng;
 use rapier2d::na::Isometry2;
 
@@ -8,13 +9,14 @@ use crate::game::common::world::material::{MaterialInstance, PhysicsType};
 use crate::game::common::world::{rigidbody, CHUNK_SIZE};
 use crate::game::common::{Rect, Registries};
 
+use super::chunk_access::FSChunkAccess;
 use super::material::color::Color;
 use super::particle::Particle;
 use super::rigidbody::FSRigidBody;
 use super::{material, pixel_to_chunk_pos};
 use super::{
     physics::{Physics, PHYSICS_SCALE},
-    Chunk, ChunkHandler, ChunkHandlerGeneric, Position, Velocity,
+    Chunk, ChunkHandler, Position, Velocity,
 };
 
 pub struct Simulator {}
@@ -305,7 +307,7 @@ struct SimulationHelperRigidBody<'a, C: Chunk> {
 
 impl<C: Chunk + Send> SimulationHelper for SimulationHelperRigidBody<'_, C> {
     fn pixel_local(&self, x: i32, y: i32) -> &MaterialInstance {
-        let world_mat = self.chunk_handler.get(i64::from(x), i64::from(y)); // TODO: consider changing the args to i64
+        let world_mat = self.chunk_handler.pixel(i64::from(x), i64::from(y)); // TODO: consider changing the args to i64
         if let Ok(m) = world_mat {
             if m.material_id != *material::AIR {
                 return m;
@@ -338,12 +340,14 @@ impl<C: Chunk + Send> SimulationHelper for SimulationHelperRigidBody<'_, C> {
     }
 
     fn set_pixel_local(&mut self, x: i32, y: i32, mat: MaterialInstance) {
-        let _ignore = self.chunk_handler.set(i64::from(x), i64::from(y), mat); // TODO: consider changing the args to i64
+        let _ignore = self
+            .chunk_handler
+            .set_pixel(i64::from(x), i64::from(y), mat); // TODO: consider changing the args to i64
     }
 
     fn color_local(&self, x: i32, y: i32) -> Color {
         let (chunk_x, chunk_y) = pixel_to_chunk_pos(i64::from(x), i64::from(y));
-        let chunk = self.chunk_handler.get_chunk(chunk_x, chunk_y);
+        let chunk = self.chunk_handler.chunk_at((chunk_x, chunk_y));
 
         if let Some(ch) = chunk {
             let col_r = ch.color(
@@ -384,7 +388,7 @@ impl<C: Chunk + Send> SimulationHelper for SimulationHelperRigidBody<'_, C> {
 
     fn set_color_local(&mut self, x: i32, y: i32, col: Color) {
         let (chunk_x, chunk_y) = pixel_to_chunk_pos(i64::from(x), i64::from(y));
-        let chunk = self.chunk_handler.get_chunk_mut(chunk_x, chunk_y);
+        let chunk = self.chunk_handler.chunk_at_mut_dyn((chunk_x, chunk_y));
 
         if let Some(ch) = chunk {
             let _ignore = ch.set_color(

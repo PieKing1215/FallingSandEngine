@@ -24,10 +24,11 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use specs::{Join, ReadStorage, RunNow, WorldExt};
 
+use super::chunk_access::FSChunkAccess;
 use super::chunk_data::SidedChunkData;
 use super::gen::WorldGenerator;
 use super::material::buf::MaterialRect;
-use super::material::{color::Color, PhysicsType};
+use super::material::color::Color;
 use super::mesh::Mesh;
 use super::particle::Particle;
 use super::physics::Physics;
@@ -101,7 +102,7 @@ pub trait Chunk {
 
     fn refresh(&mut self);
 
-    fn set(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String>;
+    fn set_pixel(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String>;
     /// # Safety
     /// x and y must be in `0..CHUNK_SIZE`
     unsafe fn set_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance);
@@ -147,7 +148,7 @@ pub trait Chunk {
     #[profiling::function]
     fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]) {
         for (x, y, mat) in diff {
-            self.set(*x, *y, mat.clone()).unwrap(); // TODO: handle this Err
+            self.set_pixel(*x, *y, mat.clone()).unwrap(); // TODO: handle this Err
         }
     }
 }
@@ -194,18 +195,7 @@ pub type ChunkGenOutput = (
     Box<[u8; (CHUNK_SIZE as u32 * CHUNK_SIZE as u32 * 4) as usize]>,
 );
 
-pub trait ChunkHandlerGeneric {
-    // #[warn(clippy::too_many_arguments)] // TODO
-    // fn tick(
-    //     &mut self,
-    //     tick_time: u32,
-    //     settings: &Settings,
-    //     world: &mut specs::World,
-    //     physics: &mut Physics,
-    //     registries: Arc<Registries>,
-    //     seed: i32,
-    //     file_helper: &FileHelper,
-    // );
+pub trait ChunkHandlerGeneric: FSChunkAccess {
     fn save_chunk(&mut self, index: ChunkKey) -> Result<(), Box<dyn std::error::Error>>;
     fn unload_all_chunks(
         &mut self,
@@ -213,17 +203,6 @@ pub trait ChunkHandlerGeneric {
     ) -> Result<(), Box<dyn std::error::Error>>;
     fn save_all_chunks(&mut self) -> Result<(), Box<dyn std::error::Error>>;
     fn queue_load_chunk(&mut self, chunk_x: i32, chunk_y: i32) -> bool;
-    fn is_chunk_loaded(&self, chunk_x: i32, chunk_y: i32) -> bool;
-    fn is_pixel_loaded(&self, x: i64, y: i64) -> bool;
-    fn get_chunk(&self, chunk_x: i32, chunk_y: i32) -> Option<&dyn Chunk>;
-    fn get_chunk_mut(&mut self, chunk_x: i32, chunk_y: i32) -> Option<&mut dyn Chunk>;
-    fn set(&mut self, x: i64, y: i64, mat: MaterialInstance) -> Result<(), String>;
-    fn get(&self, x: i64, y: i64) -> Result<&MaterialInstance, String>;
-    fn replace<F>(&mut self, x: i64, y: i64, cb: F) -> Result<bool, String>
-    where
-        Self: Sized,
-        F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>;
-    fn displace(&mut self, x: i64, y: i64, material: MaterialInstance) -> bool;
     fn force_update_chunk(&mut self, chunk_x: i32, chunk_y: i32);
     fn get_zone(&self, center: (f64, f64), padding: u16) -> Rect<i32>;
     fn get_screen_zone(&self, center: (f64, f64)) -> Rect<i32>;
@@ -373,18 +352,17 @@ where
                             }
                             keep_map[i] = false;
                         } else if active_zone.iter().any(|z| rect.intersects(z)) {
-                            let chunk_x = self.manager.chunk_at(key).unwrap().chunk_x();
-                            let chunk_y = self.manager.chunk_at(key).unwrap().chunk_y();
+                            let (chunk_x, chunk_y) = key;
                             if [
-                                self.get_chunk(chunk_x - 1, chunk_y - 1),
-                                self.get_chunk(chunk_x, chunk_y - 1),
-                                self.get_chunk(chunk_x + 1, chunk_y - 1),
-                                self.get_chunk(chunk_x - 1, chunk_y),
-                                self.get_chunk(chunk_x, chunk_y),
-                                self.get_chunk(chunk_x + 1, chunk_y),
-                                self.get_chunk(chunk_x - 1, chunk_y + 1),
-                                self.get_chunk(chunk_x, chunk_y + 1),
-                                self.get_chunk(chunk_x + 1, chunk_y + 1),
+                                self.chunk_at((chunk_x - 1, chunk_y - 1)),
+                                self.chunk_at((chunk_x, chunk_y - 1)),
+                                self.chunk_at((chunk_x + 1, chunk_y - 1)),
+                                self.chunk_at((chunk_x - 1, chunk_y)),
+                                self.chunk_at((chunk_x, chunk_y)),
+                                self.chunk_at((chunk_x + 1, chunk_y)),
+                                self.chunk_at((chunk_x - 1, chunk_y + 1)),
+                                self.chunk_at((chunk_x, chunk_y + 1)),
+                                self.chunk_at((chunk_x + 1, chunk_y + 1)),
                             ]
                             .iter()
                             .all(|ch| {
@@ -765,15 +743,15 @@ where
                                         8
                                     }
                                     && [
-                                        self.get_chunk(chunk_x - 1, chunk_y - 1),
-                                        self.get_chunk(chunk_x, chunk_y - 1),
-                                        self.get_chunk(chunk_x + 1, chunk_y - 1),
-                                        self.get_chunk(chunk_x - 1, chunk_y),
-                                        self.get_chunk(chunk_x, chunk_y),
-                                        self.get_chunk(chunk_x + 1, chunk_y),
-                                        self.get_chunk(chunk_x - 1, chunk_y + 1),
-                                        self.get_chunk(chunk_x, chunk_y + 1),
-                                        self.get_chunk(chunk_x + 1, chunk_y + 1),
+                                        self.chunk_at((chunk_x - 1, chunk_y - 1)),
+                                        self.chunk_at((chunk_x, chunk_y - 1)),
+                                        self.chunk_at((chunk_x + 1, chunk_y - 1)),
+                                        self.chunk_at((chunk_x - 1, chunk_y)),
+                                        self.chunk_at((chunk_x, chunk_y)),
+                                        self.chunk_at((chunk_x + 1, chunk_y)),
+                                        self.chunk_at((chunk_x - 1, chunk_y + 1)),
+                                        self.chunk_at((chunk_x, chunk_y + 1)),
+                                        self.chunk_at((chunk_x + 1, chunk_y + 1)),
                                     ]
                                     .iter()
                                     .all(|ch| {
@@ -1121,6 +1099,57 @@ where
     }
 }
 
+impl<C: Chunk> ChunkQuery for ChunkHandler<C> {
+    type D = C;
+
+    #[inline]
+    fn chunk_at(&self, chunk_pos: ChunkKey) -> Option<&chunksystem::Chunk<Self::D>> {
+        self.manager.chunk_at(chunk_pos)
+    }
+
+    #[inline]
+    fn chunk_at_mut(&mut self, chunk_pos: ChunkKey) -> Option<&mut chunksystem::Chunk<Self::D>> {
+        self.manager.chunk_at_mut(chunk_pos)
+    }
+
+    #[inline]
+    fn chunks_iter(&self) -> chunksystem::BoxedIterator<&chunksystem::Chunk<Self::D>> {
+        self.manager.chunks_iter()
+    }
+
+    #[inline]
+    fn chunks_iter_mut(&mut self) -> chunksystem::BoxedIterator<&mut chunksystem::Chunk<Self::D>> {
+        self.manager.chunks_iter_mut()
+    }
+
+    #[inline]
+    fn kv_iter(&self) -> chunksystem::BoxedIterator<(ChunkKey, &chunksystem::Chunk<Self::D>)> {
+        self.manager.kv_iter()
+    }
+
+    #[inline]
+    fn kv_iter_mut(
+        &mut self,
+    ) -> chunksystem::BoxedIterator<(ChunkKey, &mut chunksystem::Chunk<Self::D>)> {
+        self.manager.kv_iter_mut()
+    }
+
+    #[inline]
+    fn keys(&self) -> Vec<ChunkKey> {
+        self.manager.keys()
+    }
+
+    #[inline]
+    fn query_one(&mut self, chunk_pos: ChunkKey) -> Option<chunksystem::ChunkQueryOne<Self::D>> {
+        self.manager.query_one(chunk_pos)
+    }
+
+    #[inline]
+    fn is_chunk_loaded(&self, chunk_pos: (i32, i32)) -> bool {
+        self.manager.is_chunk_loaded(chunk_pos)
+    }
+}
+
 impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
     #[profiling::function]
     fn save_chunk(&mut self, index: ChunkKey) -> Result<(), Box<dyn std::error::Error>> {
@@ -1186,7 +1215,7 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
     #[profiling::function]
     fn queue_load_chunk(&mut self, chunk_x: i32, chunk_y: i32) -> bool {
         // make sure not loaded
-        if self.is_chunk_loaded(chunk_x, chunk_y) {
+        if self.is_chunk_loaded((chunk_x, chunk_y)) {
             return false;
         }
 
@@ -1204,125 +1233,10 @@ impl<C: Chunk + Send> ChunkHandlerGeneric for ChunkHandler<C> {
         true
     }
 
-    // #[profiling::function]
-    fn is_chunk_loaded(&self, chunk_x: i32, chunk_y: i32) -> bool {
-        self.manager.contains((chunk_x, chunk_y))
-    }
-
-    // #[profiling::function]
-    fn is_pixel_loaded(&self, x: i64, y: i64) -> bool {
-        let chunk_pos = pixel_to_chunk_pos(x, y);
-        self.is_chunk_loaded(chunk_pos.0, chunk_pos.1)
-    }
-
-    fn set(&mut self, x: i64, y: i64, mat: MaterialInstance) -> Result<(), String> {
-        let (chunk_x, chunk_y) = pixel_to_chunk_pos(x, y);
-        self.manager.chunk_at_mut((chunk_x, chunk_y)).map_or_else(
-            || Err("Position is not loaded".to_string()),
-            |ch| {
-                ch.set(
-                    (x - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16,
-                    (y - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16,
-                    mat,
-                )
-            },
-        )
-    }
-
-    fn get(&self, x: i64, y: i64) -> Result<&MaterialInstance, String> {
-        let (chunk_x, chunk_y) = pixel_to_chunk_pos(x, y);
-        self.manager.chunk_at((chunk_x, chunk_y)).map_or_else(
-            || Err("Position is not loaded".to_string()),
-            |ch| {
-                ch.pixel(
-                    (x - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16,
-                    (y - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16,
-                )
-            },
-        )
-    }
-
-    fn replace<F>(&mut self, x: i64, y: i64, cb: F) -> Result<bool, String>
-    where
-        F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>,
-    {
-        let (chunk_x, chunk_y) = pixel_to_chunk_pos(x, y);
-        self.manager.chunk_at_mut((chunk_x, chunk_y)).map_or_else(
-            || Err("Position is not loaded".to_string()),
-            |ch| {
-                ch.replace_pixel(
-                    (x - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16,
-                    (y - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16,
-                    cb,
-                )
-            },
-        )
-    }
-
-    #[profiling::function]
-    fn displace(&mut self, x: i64, y: i64, material: MaterialInstance) -> bool {
-        let mut succeeded = false;
-
-        let scan_w = 32;
-        let scan_h = 32;
-        let mut scan_x = 0;
-        let mut scan_y = 0;
-        let mut scan_delta_x = 0;
-        let mut scan_delta_y = -1;
-        let scan_max_i = scan_w.max(scan_h) * scan_w.max(scan_h); // the max is pointless now but could change w or h later
-
-        for _ in 0..scan_max_i {
-            if (scan_x >= -scan_w / 2)
-                && (scan_x <= scan_w / 2)
-                && (scan_y >= -scan_h / 2)
-                && (scan_y <= scan_h / 2)
-            {
-                if let Ok(true) =
-                    self.replace(x + i64::from(scan_x), y + i64::from(scan_y), |scan_mat| {
-                        (scan_mat.physics == PhysicsType::Air).then_some(material.clone())
-                    })
-                {
-                    succeeded = true;
-                    break;
-                }
-            }
-
-            // update scan coordinates
-
-            if (scan_x == scan_y)
-                || ((scan_x < 0) && (scan_x == -scan_y))
-                || ((scan_x > 0) && (scan_x == 1 - scan_y))
-            {
-                let temp = scan_delta_x;
-                scan_delta_x = -scan_delta_y;
-                scan_delta_y = temp;
-            }
-
-            scan_x += scan_delta_x;
-            scan_y += scan_delta_y;
-        }
-
-        succeeded
-    }
-
     fn force_update_chunk(&mut self, chunk_x: i32, chunk_y: i32) {
         if let Some(ch) = self.manager.chunk_at_mut((chunk_x, chunk_y)) {
             ch.set_dirty_rect(Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE)));
         }
-    }
-
-    // #[profiling::function]
-    fn get_chunk(&self, chunk_x: i32, chunk_y: i32) -> Option<&dyn Chunk> {
-        self.manager
-            .chunk_at((chunk_x, chunk_y))
-            .map(|c| &c.data as _)
-    }
-
-    // #[profiling::function]
-    fn get_chunk_mut(&mut self, chunk_x: i32, chunk_y: i32) -> Option<&mut dyn Chunk> {
-        self.manager
-            .chunk_at_mut((chunk_x, chunk_y))
-            .map(|c| &mut c.data as _)
     }
 
     #[profiling::function]
@@ -1557,6 +1471,15 @@ pub const fn pixel_to_chunk_pos_with_chunk_size(x: i64, y: i64, chunk_size: u16)
     (
         x.div_euclid(chunk_size as _) as _,
         y.div_euclid(chunk_size as _) as _,
+    )
+}
+
+#[inline]
+pub const fn pixel_to_pos_in_chunk(world_x: i64, world_y: i64) -> (u16, u16) {
+    let (chunk_x, chunk_y) = pixel_to_chunk_pos(world_x, world_y);
+    (
+        (world_x - chunk_x as i64 * CHUNK_SIZE as i64) as u16,
+        (world_y - chunk_y as i64 * CHUNK_SIZE as i64) as u16,
     )
 }
 

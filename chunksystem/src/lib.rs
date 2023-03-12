@@ -86,11 +86,6 @@ impl<D> ChunkManager<D> {
     }
 
     #[inline]
-    pub fn contains(&self, chunk_pos: (i32, i32)) -> bool {
-        self.chunks.contains_key(&chunk_pos)
-    }
-
-    #[inline]
     pub fn len(&self) -> usize {
         self.chunks.len()
     }
@@ -192,21 +187,25 @@ impl<D> Chunk<D> {
 
 pub type BoxedIterator<'a, I> = Box<dyn Iterator<Item = I> + 'a>;
 
-pub trait ChunkQuery<'a, D: 'a> {
-    fn chunk_at(&self, chunk_pos: ChunkKey) -> Option<&Chunk<D>>;
-    fn chunk_at_mut(&mut self, chunk_pos: ChunkKey) -> Option<&mut Chunk<D>>;
+pub trait ChunkQuery {
+    type D;
+
+    fn chunk_at(&self, chunk_pos: ChunkKey) -> Option<&Chunk<Self::D>>;
+    fn chunk_at_mut(&mut self, chunk_pos: ChunkKey) -> Option<&mut Chunk<Self::D>>;
+
+    fn is_chunk_loaded(&self, chunk_pos: (i32, i32)) -> bool;
 
     // TODO: use ATs since impl can't be used here
-    fn chunks_iter(&self) -> BoxedIterator<&Chunk<D>>;
-    fn chunks_iter_mut(&mut self) -> BoxedIterator<&mut Chunk<D>>;
-    fn kv_iter(&self) -> BoxedIterator<(ChunkKey, &Chunk<D>)>;
-    fn kv_iter_mut(&mut self) -> BoxedIterator<(ChunkKey, &mut Chunk<D>)>;
+    fn chunks_iter(&self) -> BoxedIterator<&Chunk<Self::D>>;
+    fn chunks_iter_mut(&mut self) -> BoxedIterator<&mut Chunk<Self::D>>;
+    fn kv_iter(&self) -> BoxedIterator<(ChunkKey, &Chunk<Self::D>)>;
+    fn kv_iter_mut(&mut self) -> BoxedIterator<(ChunkKey, &mut Chunk<Self::D>)>;
 
     fn keys(&self) -> Vec<ChunkKey>;
-    fn query_one(&mut self, chunk_pos: ChunkKey) -> Option<ChunkQueryOne<D>>;
+    fn query_one(&mut self, chunk_pos: ChunkKey) -> Option<ChunkQueryOne<Self::D>>;
 
     #[inline]
-    fn query_each(&mut self, mut cb: impl FnMut(ChunkQueryOne<D>)) {
+    fn query_each(&mut self, mut cb: impl FnMut(ChunkQueryOne<Self::D>)) {
         let keys = self.keys();
         for k in keys {
             // we're iterating keys so we know they're valid
@@ -215,11 +214,12 @@ pub trait ChunkQuery<'a, D: 'a> {
         }
     }
 
+    #[allow(clippy::type_complexity)]
     #[inline]
     fn chunk_at_with_others(
         &self,
         chunk_pos: (i32, i32),
-    ) -> Option<(&Chunk<D>, BoxedIterator<&Chunk<D>>)> {
+    ) -> Option<(&Chunk<Self::D>, BoxedIterator<&Chunk<Self::D>>)> {
         // TODO: is there a way to partition into two iterators or something instead of collecting?
         let (one, others) = self
             .chunks_iter()
@@ -229,11 +229,12 @@ pub trait ChunkQuery<'a, D: 'a> {
             .map(|ch| (ch, Box::new(others.into_iter()) as _))
     }
 
+    #[allow(clippy::type_complexity)]
     #[inline]
     fn chunk_at_with_others_mut(
         &mut self,
         chunk_pos: (i32, i32),
-    ) -> Option<(&mut Chunk<D>, BoxedIterator<&mut Chunk<D>>)> {
+    ) -> Option<(&mut Chunk<Self::D>, BoxedIterator<&mut Chunk<Self::D>>)> {
         // TODO: is there a way to partition into two iterators or something instead of collecting?
         let (one, others) = self
             .chunks_iter_mut()
@@ -336,7 +337,9 @@ impl<'a, D> ChunkQueryOne<'a, D> {
     }
 }
 
-impl<'a, D: 'a, T: Deref<Target = Chunk<D>> + DerefMut> ChunkQuery<'a, D> for [T] {
+impl<D, T: Deref<Target = Chunk<D>> + DerefMut> ChunkQuery for [T] {
+    type D = D;
+
     #[inline]
     fn chunk_at(&self, chunk_pos: ChunkKey) -> Option<&Chunk<D>> {
         self.iter()
@@ -403,9 +406,16 @@ impl<'a, D: 'a, T: Deref<Target = Chunk<D>> + DerefMut> ChunkQuery<'a, D> for [T
             None
         }
     }
+
+    fn is_chunk_loaded(&self, chunk_pos: (i32, i32)) -> bool {
+        self.iter()
+            .any(|ch| (ch.chunk_x(), ch.chunk_y()) == chunk_pos)
+    }
 }
 
-impl<'a, D: 'a> ChunkQuery<'a, D> for ChunkManager<D> {
+impl<D> ChunkQuery for ChunkManager<D> {
+    type D = D;
+
     #[inline]
     fn chunk_at(&self, chunk_pos: ChunkKey) -> Option<&Chunk<D>> {
         self.chunks.get(&chunk_pos)
@@ -451,9 +461,15 @@ impl<'a, D: 'a> ChunkQuery<'a, D> for ChunkManager<D> {
             None
         }
     }
+
+    fn is_chunk_loaded(&self, chunk_pos: (i32, i32)) -> bool {
+        self.chunks.contains_key(&chunk_pos)
+    }
 }
 
-impl<'a, D> ChunkQuery<'a, D> for ChunkQueryOne<'a, D> {
+impl<D> ChunkQuery for ChunkQueryOne<'_, D> {
+    type D = D;
+
     #[inline]
     fn chunk_at(&self, chunk_pos: ChunkKey) -> Option<&Chunk<D>> {
         self.chunks.get(&chunk_pos)
@@ -505,6 +521,13 @@ impl<'a, D> ChunkQuery<'a, D> for ChunkQueryOne<'a, D> {
             None
         }
     }
+
+    fn is_chunk_loaded(&self, chunk_pos: (i32, i32)) -> bool {
+        match &self.chunks {
+            BorrowOrOwnMap::BorrowOwned(m) => m.contains_key(&chunk_pos),
+            BorrowOrOwnMap::OwnBorrowed(m) => m.contains_key(&chunk_pos),
+        }
+    }
 }
 
 pub trait Accessor<V> {
@@ -550,7 +573,7 @@ mod test {
         fn get_item(&mut self, chunk_x: i32, chunk_y: i32, idx: usize) -> Option<&mut Cell<i32>>;
     }
 
-    impl<'a, Q: ChunkQuery<'a, Data>> ChunkQueryExt for Q {
+    impl<Q: ChunkQuery<D = Data>> ChunkQueryExt for Q {
         fn get_item(&mut self, chunk_x: i32, chunk_y: i32, idx: usize) -> Option<&mut Cell<i32>> {
             self.chunks_iter_mut()
                 .find(|ch| ch.chunk_x() == chunk_x && ch.chunk_y() == chunk_y)

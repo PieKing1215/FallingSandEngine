@@ -23,6 +23,7 @@ use specs::{
 };
 
 use super::{
+    chunk_access::FSChunkAccess,
     chunk_data::SidedChunkData,
     entity::{
         CollisionDetector, GameEntity, Hitbox, Persistent, PhysicsEntity, Player,
@@ -337,7 +338,7 @@ impl<C: Chunk + Send> World<C> {
         collide_filder: fn((i64, i64), &MaterialInstance) -> bool,
     ) -> Option<((i64, i64), &MaterialInstance)> {
         let check_pixel = |x: i64, y: i64| {
-            let r = self.chunk_handler.get(x, y);
+            let r = self.chunk_handler.pixel(x, y);
             if let Ok(m) = r {
                 if m.physics != PhysicsType::Air {
                     return Some(((x, y), m));
@@ -418,11 +419,11 @@ where
 
                             let cur = &rb.pixels[(rb_x + rb_y * rb_w) as usize];
                             if cur.material_id != *material::AIR {
-                                let world = self.chunk_handler.get(tx as i64, ty as i64);
+                                let world = self.chunk_handler.pixel(tx as i64, ty as i64);
                                 if let Ok(mat) = world {
                                     if mat.material_id == *material::AIR {
                                         // ok to fail since the chunk might just not be ready
-                                        let _ignore = self.chunk_handler.set(
+                                        let _ignore = self.chunk_handler.set_pixel(
                                             tx as i64,
                                             ty as i64,
                                             MaterialInstance {
@@ -460,7 +461,7 @@ where
                                                 y: f64::from(point_velocity.y * 0.1 - 0.5),
                                             };
 
-                                            let res = self.chunk_handler.set(
+                                            let res = self.chunk_handler.set_pixel(
                                                 tx as i64,
                                                 ty as i64,
                                                 MaterialInstance {
@@ -470,7 +471,7 @@ where
                                             );
 
                                             if res.is_ok() {
-                                                match self.chunk_handler.get(
+                                                match self.chunk_handler.pixel(
                                                     (part_pos.x + part_vel.x) as i64,
                                                     (part_pos.y + part_vel.y) as i64,
                                                 ) {
@@ -514,7 +515,7 @@ where
                                                         );
                                                     },
                                                     _ => {
-                                                        if !self.chunk_handler.displace(
+                                                        if !self.chunk_handler.displace_pixel(
                                                             tx as i64,
                                                             ty as i64,
                                                             m.clone(),
@@ -635,7 +636,7 @@ where
 
                         // ok to fail since the chunk might just not be ready
                         let _ignore =
-                            ch.replace(pos_x.floor() as i64, pos_y.floor() as i64, |mat| {
+                            ch.replace_pixel(pos_x.floor() as i64, pos_y.floor() as i64, |mat| {
                                 (mat.material_id == *material::AIR).then_some(MaterialInstance {
                                     physics: PhysicsType::Object,
                                     color: Color::rgb(0, 255, 0),
@@ -718,7 +719,7 @@ where
 
                         // ok to fail since the chunk might just not be ready
                         let _ignore =
-                            ch.replace(pos_x.floor() as i64, pos_y.floor() as i64, |mat| {
+                            ch.replace_pixel(pos_x.floor() as i64, pos_y.floor() as i64, |mat| {
                                 (mat.physics == PhysicsType::Object).then(MaterialInstance::air)
                             });
                     }
@@ -749,10 +750,11 @@ where
                             if cur.material_id != *material::AIR {
                                 // ok to fail since the chunk might just not be ready
                                 let _ignore =
-                                    self.chunk_handler.replace(tx as i64, ty as i64, |mat| {
-                                        (mat.physics == PhysicsType::Object)
-                                            .then(MaterialInstance::air)
-                                    });
+                                    self.chunk_handler
+                                        .replace_pixel(tx as i64, ty as i64, |mat| {
+                                            (mat.physics == PhysicsType::Object)
+                                                .then(MaterialInstance::air)
+                                        });
                             }
                         }
                     }

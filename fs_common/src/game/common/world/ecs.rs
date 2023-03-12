@@ -15,7 +15,7 @@ use specs::{
 
 use crate::game::common::world::physics::PHYSICS_SCALE;
 
-use super::{entity::Hitbox, physics::Physics, Chunk, ChunkHandlerGeneric, World};
+use super::{chunk_access::FSChunkAccess, entity::Hitbox, physics::Physics, Chunk, World};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Position {
@@ -49,11 +49,11 @@ pub struct DeltaTime(pub std::time::Duration);
 #[derive(Default)]
 pub struct TickTime(pub u32);
 
-pub struct ChunkHandlerResource<'a>(pub &'a mut (dyn ChunkHandlerGeneric));
+pub struct ChunkHandlerResource<'a>(pub &'a mut (dyn FSChunkAccess));
 
 impl Debug for ChunkHandlerResource<'_> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "ChunkHandlerGeneric")
+        write!(f, "FSChunkAccess")
     }
 }
 

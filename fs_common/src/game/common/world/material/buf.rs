@@ -4,7 +4,7 @@ use asefile::AsepriteFile;
 
 use crate::game::common::{
     registry::RegistryID,
-    world::{gen::structure::AngleMod, Chunk, ChunkHandler, ChunkHandlerGeneric},
+    world::{chunk_access::FSChunkAccess, gen::structure::AngleMod, Chunk, ChunkHandler},
     Rect,
 };
 
@@ -131,7 +131,7 @@ impl MaterialBuf {
             for dx in 0..width {
                 let wx = x + i64::from(dx);
                 let wy = y + i64::from(dy);
-                buf.push(chunk_handler.get(wx, wy).cloned()?);
+                buf.push(chunk_handler.pixel(wx, wy).cloned()?);
             }
         }
 
@@ -156,8 +156,8 @@ impl MaterialBuf {
             for dx in 0..width {
                 let wx = x + i64::from(dx);
                 let wy = y + i64::from(dy);
-                buf.push(chunk_handler.get(wx, wy).cloned()?);
-                chunk_handler.set(wx, wy, MaterialInstance::air())?;
+                buf.push(chunk_handler.pixel(wx, wy).cloned()?);
+                chunk_handler.set_pixel(wx, wy, MaterialInstance::air())?;
             }
         }
 
@@ -166,7 +166,7 @@ impl MaterialBuf {
 
     pub fn paste(
         &self,
-        chunk_handler: &mut dyn ChunkHandlerGeneric,
+        chunk_handler: &mut dyn FSChunkAccess,
         x: impl Into<i64>,
         y: impl Into<i64>,
     ) -> Result<(), String> {
@@ -179,7 +179,7 @@ impl MaterialBuf {
                 let wy = y + i64::from(dy);
                 let m = &self.materials[dx as usize + dy as usize * self.width as usize];
                 if m.material_id != *super::STRUCTURE_VOID {
-                    chunk_handler.set(wx, wy, m.clone())?;
+                    chunk_handler.set_pixel(wx, wy, m.clone())?;
                 }
             }
         }

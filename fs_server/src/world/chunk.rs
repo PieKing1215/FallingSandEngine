@@ -69,7 +69,7 @@ impl Chunk for ServerChunk {
 
     fn refresh(&mut self) {}
 
-    fn set(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String> {
+    fn set_pixel(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String> {
         self.data.set(x, y, mat, |_| Ok(()))
     }
 

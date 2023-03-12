@@ -16,8 +16,8 @@ use specs::{
 use crate::game::common::{
     registry::RegistryID,
     world::{
-        self, entity::Persistent, gen::structure::piece::StructureNodeConfig, ChunkHandlerGeneric,
-        ChunkState, Position,
+        self, chunk_access::FSChunkAccess, entity::Persistent,
+        gen::structure::piece::StructureNodeConfig, ChunkState, Position,
     },
     Rect, Registries,
 };
@@ -219,7 +219,7 @@ impl Component for StructureNode {
     type Storage = HashMapStorage<Self>;
 }
 
-pub struct UpdateStructureNodes<'a, H: ChunkHandlerGeneric + Send> {
+pub struct UpdateStructureNodes<'a, H: FSChunkAccess + Send> {
     pub chunk_handler: &'a mut H,
     pub registries: Arc<Registries>,
 }
@@ -256,7 +256,7 @@ fn all_bounds(node: &StructureNode, node_storage: &WriteStorage<StructureNode>) 
     v
 }
 
-impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, H> {
+impl<'a, H: FSChunkAccess + Send> System<'a> for UpdateStructureNodes<'a, H> {
     #[allow(clippy::type_complexity)]
     type SystemData = (
         Entities<'a>,
@@ -298,7 +298,7 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
             }
 
             let (chunk_x, chunk_y) = world::pixel_to_chunk_pos(pos.x as i64, pos.y as i64);
-            let ch = self.chunk_handler.get_chunk(chunk_x, chunk_y);
+            let ch = self.chunk_handler.chunk_at_dyn((chunk_x, chunk_y));
 
             let Some(ch) = ch else {
                 // log::trace!("add {entity:?}");
@@ -389,7 +389,7 @@ impl<'a, H: ChunkHandlerGeneric + Send> System<'a> for UpdateStructureNodes<'a, 
     }
 }
 
-impl<H: ChunkHandlerGeneric + Send> UpdateStructureNodes<'_, H> {
+impl<H: FSChunkAccess + Send> UpdateStructureNodes<'_, H> {
     #[allow(clippy::too_many_arguments)]
     fn place(
         &mut self,

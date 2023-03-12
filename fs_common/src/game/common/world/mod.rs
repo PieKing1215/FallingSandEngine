@@ -9,6 +9,7 @@ mod simulator;
 mod world;
 mod world_loading;
 
+pub mod chunk_access;
 pub mod chunk_data;
 pub mod gen;
 pub mod physics;

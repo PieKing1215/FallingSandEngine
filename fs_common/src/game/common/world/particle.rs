@@ -1,7 +1,8 @@
 use std::{collections::HashMap, hash::BuildHasherDefault, sync::Arc};
 
 use super::{
-    entity::Hitbox, material::MaterialInstance, ChunkHandlerGeneric, Position, TickTime, Velocity,
+    chunk_access::FSChunkAccess, entity::Hitbox, material::MaterialInstance, Position, TickTime,
+    Velocity,
 };
 use crate::game::common::world::{
     chunk_index, chunk_update_order, material::PhysicsType, pixel_to_chunk_pos,
@@ -81,11 +82,11 @@ pub struct ParticleSystem {
     pub sleeping: Vec<Particle>,
 }
 
-pub struct UpdateParticles<'a, H: ChunkHandlerGeneric + Send + Sync> {
+pub struct UpdateParticles<'a, H: FSChunkAccess + Send + Sync> {
     pub chunk_handler: &'a mut H,
 }
 
-impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a, H> {
+impl<'a, H: FSChunkAccess + Send + Sync> System<'a> for UpdateParticles<'a, H> {
     #[allow(clippy::type_complexity)]
     type SystemData = (
         Entities<'a>,
@@ -125,8 +126,7 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
             use drain_filter_polyfill::VecExt;
             #[allow(unstable_name_collisions)]
             let mut removed = system.active.drain_filter(|p| {
-                let (chunk_x, chunk_y) = pixel_to_chunk_pos(p.pos.x as i64, p.pos.y as i64);
-                !matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.state() == ChunkState::Active)
+                !matches!(chunk_handler.chunk_at_dyn(pixel_to_chunk_pos(p.pos.x as i64, p.pos.y as i64)), Some(c) if c.state() == ChunkState::Active)
             }).collect::<Vec<_>>();
             system.sleeping.append(&mut removed);
         } else if tick_time.0 % 29 == 10 {
@@ -135,8 +135,7 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
             use drain_filter_polyfill::VecExt;
             #[allow(unstable_name_collisions)]
             let mut removed = system.sleeping.drain_filter(|p| {
-                let (chunk_x, chunk_y) = pixel_to_chunk_pos(p.pos.x as i64, p.pos.y as i64);
-                matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.state() == ChunkState::Active)
+                matches!(chunk_handler.chunk_at_dyn(pixel_to_chunk_pos(p.pos.x as i64, p.pos.y as i64)), Some(c) if c.state() == ChunkState::Active)
             }).collect::<Vec<_>>();
             system.active.append(&mut removed);
         }
@@ -215,7 +214,7 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
                                     // this check does catch repeated steps, but actually makes performance slightly worse
                                     // if pos.x as i64 != last_step_x || pos.y as i64 != last_step_y {
                                     if let Ok(mat) =
-                                        chunk_handler.get(part.pos.x as i64, part.pos.y as i64)
+                                        chunk_handler.pixel(part.pos.x as i64, part.pos.y as i64)
                                     {
                                         if mat.physics == PhysicsType::Air {
                                             part.in_object_state = InObjectState::Outside;
@@ -244,13 +243,14 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
                                             if !is_object
                                                 || part.in_object_state == InObjectState::Outside
                                             {
-                                                match chunk_handler.get(lx as i64, ly as i64) {
+                                                match chunk_handler.pixel(lx as i64, ly as i64) {
                                                     Ok(m) if m.physics != PhysicsType::Air => {
-                                                        let succeeded = chunk_handler.displace(
-                                                            part.pos.x as i64,
-                                                            part.pos.y as i64,
-                                                            part.material.clone(),
-                                                        );
+                                                        let succeeded = chunk_handler
+                                                            .displace_pixel(
+                                                                part.pos.x as i64,
+                                                                part.pos.y as i64,
+                                                                part.material.clone(),
+                                                            );
 
                                                         if succeeded {
                                                             return false;
@@ -264,7 +264,7 @@ impl<'a, H: ChunkHandlerGeneric + Send + Sync> System<'a> for UpdateParticles<'a
                                                     },
                                                     _ => {
                                                         if chunk_handler
-                                                            .set(
+                                                            .set_pixel(
                                                                 lx as i64,
                                                                 ly as i64,
                                                                 part.material.clone(),
