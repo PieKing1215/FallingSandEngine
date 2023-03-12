@@ -324,18 +324,12 @@ impl<'a, D> ChunkQueryOne<'a, D> {
     pub fn for_each_with<I, A: Accessor<I>>(
         &mut self,
         get_accessor: impl Fn(&mut D) -> &mut A,
-        mut cb: impl FnMut(&mut I, &mut [&mut Chunk<D>]),
+        mut cb: impl FnMut(&mut I, &mut Self),
     ) {
         for k in get_accessor(&mut self.one().data).keys() {
             let mut this = get_accessor(&mut self.one().data).remove(&k);
 
-            let (this_chunk, others) = self.chunk_at_with_others_mut(self.key).unwrap();
-
-            let mut others = std::iter::once(this_chunk)
-                .chain(others)
-                .collect::<Vec<_>>();
-
-            cb(&mut this, &mut others);
+            cb(&mut this, self);
 
             get_accessor(&mut self.one().data).insert(k, this);
         }
@@ -591,9 +585,8 @@ mod test {
                 |ch| &mut ch.items,
                 |item, chunks| {
                     for ch in chunks.chunks_iter_mut() {}
-                    for ch in chunks.iter_mut() {}
 
-                    let (this, others) = chunks.split_first().unwrap();
+                    let this = chunks.one();
 
                     println!("{} {} @ {item:?}", this.chunk_x(), this.chunk_y());
 
@@ -614,7 +607,7 @@ mod test {
                         q.for_each_with(
                             |ch| &mut ch.items,
                             |item, chunks| {
-                                let (this, others) = chunks.split_first().unwrap();
+                                let this = chunks.one();
                                 println!("-> {} {} @ {item:?}", this.chunk_x(), this.chunk_y());
                                 // println!("{item:?} {item2:?}");
                             },

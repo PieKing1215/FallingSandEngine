@@ -1108,13 +1108,11 @@ where
                 q.for_each_with(
                     |ch| ch.sided_tile_entities_removable(),
                     |te, chunks| {
-                        let mut chs = chunks.iter_mut().map(|ch| &mut **ch).collect::<Vec<_>>();
-
                         te.tick(TileEntityTickContext::<C> {
                             registries: registries.clone(),
                             file_helper,
                             tick_time,
-                            chunks: chs.as_mut_slice(),
+                            chunks,
                         });
                     },
                 );

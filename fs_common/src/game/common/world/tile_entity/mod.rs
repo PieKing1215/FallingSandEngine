@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use chunksystem::ChunkQueryOne;
+
 use crate::game::common::{FileHelper, Registries};
 
 use super::material::buf::MaterialRect;
@@ -26,11 +28,11 @@ pub trait TileEntitySided {
     fn tick(&mut self, common: &mut TileEntityCommon, ctx: TileEntityTickContext<Self::D>) {}
 }
 
-pub struct TileEntityTickContext<'a, D> {
+pub struct TileEntityTickContext<'a, 'b, D> {
     pub tick_time: u32,
     pub registries: Arc<Registries>,
     pub file_helper: &'a FileHelper,
-    pub chunks: &'a mut [&'a mut chunksystem::Chunk<D>],
+    pub chunks: &'a mut ChunkQueryOne<'b, D>,
 }
 
 impl<S: TileEntitySided> TileEntity<S> {
