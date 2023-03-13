@@ -2,7 +2,7 @@ use chunksystem::{ChunkKey, ChunkQuery};
 
 use super::{
     material::{MaterialInstance, PhysicsType},
-    pixel_to_chunk_pos, pixel_to_pos_in_chunk, Chunk,
+    pixel_to_chunk, pixel_to_chunk_pos, pixel_to_pos_in_chunk, Chunk,
 };
 
 pub trait FSChunkAccess {
@@ -13,10 +13,12 @@ pub trait FSChunkAccess {
         world_y: i64,
         mat: MaterialInstance,
     ) -> Result<(), String>;
+
     fn replace_pixel<F>(&mut self, world_x: i64, world_y: i64, cb: F) -> Result<bool, String>
     where
         Self: Sized,
         F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>;
+
     fn displace_pixel(&mut self, world_x: i64, world_y: i64, material: MaterialInstance) -> bool;
 
     fn chunk_at_dyn(&self, chunk_pos: ChunkKey) -> Option<&dyn Chunk>;
@@ -62,13 +64,13 @@ where
         Self: Sized,
         F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>,
     {
-        let Some(ch) = self.chunk_at_mut(pixel_to_chunk_pos(world_x, world_y)) else {
+        let (chunk_pos, local_x, local_y) = pixel_to_chunk(world_x, world_y);
+        let Some(ch) = self.chunk_at_mut(chunk_pos) else {
             return Err("Position is not loaded".into());
         };
 
-        let (local_x, local_y) = pixel_to_pos_in_chunk(world_x, world_y);
-
-        ch.replace_pixel(local_x, local_y, cb)
+        // Safety: local_x and local_y from pixel_to_chunk will always be in 0..CHUNK_SIZE
+        unsafe { ch.replace_pixel_unchecked(local_x, local_y, cb) }
     }
 
     #[inline]

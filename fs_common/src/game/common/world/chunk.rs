@@ -8,7 +8,7 @@ use crate::game::common::world::{Loader, Position};
 use crate::game::common::{FileHelper, Registries};
 use crate::game::common::{Rect, Settings};
 use std::cell::UnsafeCell;
-use std::collections::HashMap;
+
 use std::convert::TryInto;
 
 use std::path::PathBuf;
@@ -91,6 +91,13 @@ pub trait Chunk {
     unsafe fn pixel_unchecked(&self, x: u16, y: u16) -> &MaterialInstance;
 
     fn replace_pixel<F>(&mut self, x: u16, y: u16, cb: F) -> Result<bool, String>
+    where
+        Self: Sized,
+        F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>;
+
+    /// # Safety
+    /// x and y must be in `0..CHUNK_SIZE`
+    unsafe fn replace_pixel_unchecked<F>(&mut self, x: u16, y: u16, cb: F) -> Result<bool, String>
     where
         Self: Sized,
         F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>;
@@ -1441,6 +1448,16 @@ pub const fn pixel_to_chunk_pos_with_chunk_size(x: i64, y: i64, chunk_size: u16)
 pub const fn pixel_to_pos_in_chunk(world_x: i64, world_y: i64) -> (u16, u16) {
     let (chunk_x, chunk_y) = pixel_to_chunk_pos(world_x, world_y);
     (
+        (world_x - chunk_x as i64 * CHUNK_SIZE as i64) as u16,
+        (world_y - chunk_y as i64 * CHUNK_SIZE as i64) as u16,
+    )
+}
+
+#[inline]
+pub const fn pixel_to_chunk(world_x: i64, world_y: i64) -> (ChunkKey, u16, u16) {
+    let (chunk_x, chunk_y) = pixel_to_chunk_pos(world_x, world_y);
+    (
+        (chunk_x, chunk_y),
         (world_x - chunk_x as i64 * CHUNK_SIZE as i64) as u16,
         (world_y - chunk_y as i64 * CHUNK_SIZE as i64) as u16,
     )

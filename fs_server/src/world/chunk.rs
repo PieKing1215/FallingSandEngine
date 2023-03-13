@@ -94,6 +94,14 @@ impl Chunk for ServerChunk {
         self.data.replace_pixel(x, y, cb, |_| Ok(()))
     }
 
+    unsafe fn replace_pixel_unchecked<F>(&mut self, x: u16, y: u16, cb: F) -> Result<bool, String>
+    where
+        Self: Sized,
+        F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>,
+    {
+        self.data.replace_pixel_unchecked(x, y, cb, |_| Ok(()))
+    }
+
     fn set_light(&mut self, x: u16, y: u16, light: [f32; 3]) -> Result<(), String> {
         self.data.set_light(x, y, light, |_| Ok(()))
     }

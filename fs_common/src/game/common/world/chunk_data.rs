@@ -126,6 +126,36 @@ impl<S: SidedChunkData> CommonChunkData<S> {
         Err("Invalid pixel coordinate.".to_string())
     }
 
+    pub unsafe fn replace_pixel_unchecked<F>(
+        &mut self,
+        x: u16,
+        y: u16,
+        cb: F,
+        mut chunk_cb: impl FnMut(&MaterialInstance) -> Result<(), String>,
+    ) -> Result<bool, String>
+    where
+        Self: Sized,
+        F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>,
+    {
+        if let Some(px) = &mut self.pixels {
+            let i = (x + y * CHUNK_SIZE) as usize;
+            // Safety: input index assumed to be valid
+            let px = unsafe { px.get_unchecked_mut(i) };
+            if let Some(mat) = (cb)(px) {
+                (chunk_cb)(&mat)?;
+                *px = mat;
+
+                self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
+
+                return Ok(true);
+            }
+
+            Ok(false)
+        } else {
+            Err("Chunk is not ready yet.".to_string())
+        }
+    }
+
     pub fn set_light(
         &mut self,
         x: u16,

@@ -399,14 +399,11 @@ where
 
         {
             profiling::scope!("fill rigidbodies");
-            for rb_i in 0..self.rigidbodies.len() {
-                let rb = &mut self.rigidbodies[rb_i];
-                let rb_w = rb.width;
-                let rb_h = rb.height;
-
+            for rb in &mut self.rigidbodies {
                 if let Some(body) = rb.get_body_mut(&mut self.physics) {
-                    let s = body.rotation().angle().sin();
-                    let c = body.rotation().angle().cos();
+                    let rb_w = rb.width;
+                    let rb_h = rb.height;
+                    let (s, c) = body.rotation().angle().sin_cos();
                     let pos_x = body.translation().x * PHYSICS_SCALE;
                     let pos_y = body.translation().y * PHYSICS_SCALE;
 
@@ -418,7 +415,7 @@ where
                             let ty = f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y;
 
                             let cur = &rb.pixels[(rb_x + rb_y * rb_w) as usize];
-                            if cur.material_id != *material::AIR {
+                            if cur.physics != PhysicsType::Air {
                                 let world = self.chunk_handler.pixel(tx as i64, ty as i64);
                                 if let Ok(mat) = world {
                                     if mat.material_id == *material::AIR {
@@ -734,27 +731,32 @@ where
         {
             profiling::scope!("unfill rigidbodies");
             for rb in &self.rigidbodies {
-                let body_opt = rb.get_body(&self.physics);
-
-                if let Some(body) = body_opt {
+                if let Some(body) = rb.get_body(&self.physics) {
                     let (s, c) = body.rotation().angle().sin_cos();
                     let pos_x = body.translation().x * PHYSICS_SCALE;
                     let pos_y = body.translation().y * PHYSICS_SCALE;
 
-                    for rb_y in 0..rb.height {
-                        for rb_x in 0..rb.width {
-                            let tx = f32::from(rb_x) * c - f32::from(rb_y) * s + pos_x;
-                            let ty = f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y;
+                    {
+                        // profiling::scope!("iter");
+                        for rb_y in 0..rb.height {
+                            for rb_x in 0..rb.width {
+                                // Safety: rb.pixels.len() is guaranteed to be rb.width * rb.height
+                                let rb_mat = unsafe {
+                                    rb.pixels.get_unchecked((rb_x + rb_y * rb.width) as usize)
+                                };
+                                if rb_mat.physics != PhysicsType::Air {
+                                    let wx =
+                                        (f32::from(rb_x) * c - f32::from(rb_y) * s + pos_x) as i64;
+                                    let wy =
+                                        (f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y) as i64;
 
-                            let cur = &rb.pixels[(rb_x + rb_y * rb.width) as usize];
-                            if cur.material_id != *material::AIR {
-                                // ok to fail since the chunk might just not be ready
-                                let _ignore =
-                                    self.chunk_handler
-                                        .replace_pixel(tx as i64, ty as i64, |mat| {
-                                            (mat.physics == PhysicsType::Object)
-                                                .then(MaterialInstance::air)
-                                        });
+                                    // ok to fail since the chunk might just not be ready
+                                    let _ignore = self.chunk_handler.replace_pixel(
+                                        wx,
+                                        wy,
+                                        replace_object_with_air,
+                                    );
+                                }
                             }
                         }
                     }
@@ -956,4 +958,9 @@ where
         //     WorldNetworkMode::Remote => {},
         // }
     }
+}
+
+#[inline]
+fn replace_object_with_air(mat: &MaterialInstance) -> Option<MaterialInstance> {
+    (mat.physics == PhysicsType::Object).then(MaterialInstance::air)
 }
