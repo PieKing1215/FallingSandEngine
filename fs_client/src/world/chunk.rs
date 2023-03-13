@@ -426,12 +426,13 @@ impl ChunkGraphics {
         Err("Invalid pixel coordinate.".to_string())
     }
 
-    #[profiling::function]
+    // #[profiling::function]
     pub fn update_texture(&mut self) {
         self.pixels_updated_last_update = false;
         if self.dirty {
-            profiling::scope!("dirty");
             if let Some(data) = &mut self.data {
+                profiling::scope!("dirty");
+
                 let image = {
                     profiling::scope!("RawImage2d");
 
@@ -471,8 +472,8 @@ impl ChunkGraphics {
         }
 
         if self.background_dirty {
-            profiling::scope!("background_dirty");
             if let Some(data) = &mut self.data {
+                profiling::scope!("background_dirty");
                 let image = {
                     profiling::scope!("RawImage2d");
 
@@ -510,23 +511,14 @@ impl ChunkGraphics {
         }
     }
 
-    #[profiling::function]
+    // #[profiling::function]
     pub fn update_lighting(
         &mut self,
-        neighbors: Option<[Option<&chunksystem::Chunk<ClientChunk>>; 8]>,
+        neighbors: Option<[Option<&chunksystem::Chunk<ClientChunk>>; 4]>,
         shaders: &Shaders,
     ) {
         self.lighting_updated_last_update = false;
-        if self.lighting_dirty || self.dist_to_nearest_dirty_light.is_some()
-        // || (neighbors.map_or(false, |n| {
-        //     n.iter().any(|c| {
-        //         c.map_or(false, |c| {
-        //             c.graphics.data.is_some()
-        //                 && (c.graphics.lighting_dirty || c.graphics.was_lighting_dirty)
-        //         })
-        //     })
-        // }))
-        {
+        if self.lighting_dirty || self.dist_to_nearest_dirty_light.is_some() {
             if let Some(data) = &mut self.data {
                 profiling::scope!("lighting update");
 
@@ -590,28 +582,28 @@ impl ChunkGraphics {
                 let t_light_n = r32f_read(
                     neighbors
                         .and_then(|ch| {
-                            ch[1].and_then(|c| c.graphics.data.as_ref().map(|d| &d.lighting_dst))
+                            ch[0].and_then(|c| c.graphics.data.as_ref().map(|d| &d.lighting_dst))
                         })
                         .unwrap_or(&data.lighting_constant_black),
                 );
                 let t_light_w = r32f_read(
                     neighbors
                         .and_then(|ch| {
-                            ch[3].and_then(|c| c.graphics.data.as_ref().map(|d| &d.lighting_dst))
+                            ch[1].and_then(|c| c.graphics.data.as_ref().map(|d| &d.lighting_dst))
                         })
                         .unwrap_or(&data.lighting_constant_black),
                 );
                 let t_light_e = r32f_read(
                     neighbors
                         .and_then(|ch| {
-                            ch[4].and_then(|c| c.graphics.data.as_ref().map(|d| &d.lighting_dst))
+                            ch[2].and_then(|c| c.graphics.data.as_ref().map(|d| &d.lighting_dst))
                         })
                         .unwrap_or(&data.lighting_constant_black),
                 );
                 let t_light_s = r32f_read(
                     neighbors
                         .and_then(|ch| {
-                            ch[6].and_then(|c| c.graphics.data.as_ref().map(|d| &d.lighting_dst))
+                            ch[3].and_then(|c| c.graphics.data.as_ref().map(|d| &d.lighting_dst))
                         })
                         .unwrap_or(&data.lighting_constant_black),
                 );
@@ -678,7 +670,7 @@ impl ClientChunk {
     #[profiling::function]
     fn update_graphics(
         &mut self,
-        surrounding: Option<[Option<&chunksystem::Chunk<Self>>; 8]>,
+        surrounding: Option<[Option<&chunksystem::Chunk<Self>>; 4]>,
         shaders: &Shaders,
     ) -> Result<(), String> {
         self.graphics.update_texture();
@@ -1022,10 +1014,12 @@ impl ClientChunkHandlerExt for ChunkHandler<ClientChunk> {
             ch.graphics.was_lighting_dirty = ch.graphics.lighting_dirty;
         }
 
-        self.manager.each_chunk_mut_with_surrounding(|ch, others| {
-            ch.data.update_graphics(Some(others), shaders).unwrap();
-            ch.graphics.prev_dist_to_nearest_dirty_light = ch.graphics.dist_to_nearest_dirty_light;
-        });
+        self.manager
+            .each_chunk_mut_with_surrounding_cardinal(|ch, others| {
+                ch.data.update_graphics(Some(others), shaders).unwrap();
+                ch.graphics.prev_dist_to_nearest_dirty_light =
+                    ch.graphics.dist_to_nearest_dirty_light;
+            });
 
         self.manager.each_chunk_mut_with_surrounding(|ch, others| {
             let d = others

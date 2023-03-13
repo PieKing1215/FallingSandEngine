@@ -151,6 +151,29 @@ impl<D> ChunkManager<D> {
         }
     }
 
+    #[inline]
+    pub fn each_chunk_mut_with_surrounding_cardinal(
+        &mut self,
+        cb: impl Fn(&mut Chunk<D>, [Option<&Chunk<D>>; 4]),
+    ) {
+        let keys = self.keys();
+        for k in keys {
+            // Safety: we are iterating though keys, so the value must exist
+            let mut this = unsafe { self.chunks.remove(&k).unwrap_unchecked() };
+
+            let surrounding = [
+                self.chunk_at((k.0, k.1 - 1)),
+                self.chunk_at((k.0 - 1, k.1)),
+                self.chunk_at((k.0 + 1, k.1)),
+                self.chunk_at((k.0, k.1 + 1)),
+            ];
+
+            cb(&mut this, surrounding);
+
+            self.chunks.insert(k, this);
+        }
+    }
+
     /// # Safety
     /// Raw access to the chunks map makes it possible to move [`Chunk`]s to invalid keys.
     #[inline]
