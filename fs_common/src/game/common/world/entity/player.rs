@@ -118,7 +118,7 @@ impl Player {
             .build();
         let handle = world.physics.bodies.insert(rigid_body);
         let collider =
-            ColliderBuilder::cuboid(12.0 / PHYSICS_SCALE / 2.0, 20.0 / PHYSICS_SCALE / 2.0)
+            ColliderBuilder::cuboid(11.9 / PHYSICS_SCALE / 2.0, 19.9 / PHYSICS_SCALE / 2.0)
                 .collision_groups(InteractionGroups::new(
                     CollisionFlags::PLAYER.bits().into(),
                     (CollisionFlags::RIGIDBODY | CollisionFlags::ENTITY)
@@ -152,7 +152,12 @@ impl Player {
             .with(Persistent)
             .with(Position { x: 0.0, y: -20.0 })
             .with(Velocity { x: 0.0, y: 0.0 })
-            .with(Hitbox { x1: -6.0, y1: -10.0, x2: 6.0, y2: 10.0 })
+            .with(Hitbox {
+                x1: -11.9 / 2.0,
+                y1: -19.9 / 2.0,
+                x2: 11.9 / 2.0,
+                y2: 19.9 / 2.0,
+            })
             .with(Loader)
             .with(RigidBodyComponent::of(handle))
             .build();
