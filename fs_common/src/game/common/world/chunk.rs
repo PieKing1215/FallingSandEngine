@@ -845,90 +845,93 @@ where
         if ctx.settings.simulate_chunks {
             profiling::scope!("chunk simulate");
 
-            let old_dirty_rects = {
-                profiling::scope!("build old_dirty_rects");
-                unsafe { self.manager.raw_mut().iter_mut() }
-                    .map(|(key, ch)| {
-                        let rect = ch.dirty_rect();
-                        ch.set_dirty_rect(None);
-                        (*key, rect)
-                    })
-                    .collect::<ahash::HashMap<_, _>>()
-            };
+            let mut old_dirty_rects = ahash::AHashMap::with_capacity(128);
+            let mut keys_for_phases = [
+                Vec::with_capacity(32),
+                Vec::with_capacity(32),
+                Vec::with_capacity(32),
+                Vec::with_capacity(32),
+            ];
 
-            let keys = self.manager.keys();
-            for tick_phase in 0..4 {
-                profiling::scope!("phase", format!("phase {}", tick_phase).as_str());
-                let mut to_exec = vec![];
-                for key in &keys {
-                    let ch = self.manager.chunk_at(*key).unwrap();
-                    let state = ch.state(); // copy
-                    let ch_pos = (ch.chunk_x(), ch.chunk_y());
+            {
+                profiling::scope!("pre prep");
+                for (key, ch) in unsafe { self.manager.raw_mut().iter_mut() } {
+                    let rect = ch.dirty_rect();
+                    ch.set_dirty_rect(None);
+                    old_dirty_rects.insert(*key, rect);
+                    if ch.state() == ChunkState::Active {
+                        keys_for_phases[chunk_update_order(key.0, key.1) as usize].push(*key);
+                    }
+                }
+            }
 
-                    if chunk_update_order(ch_pos.0, ch_pos.1) == tick_phase
-                        && state == ChunkState::Active
-                    {
+            #[allow(unused_variables)] // false positive
+            for (tick_phase, keys) in keys_for_phases.into_iter().enumerate() {
+                profiling::scope!("phase", format!("phase {tick_phase}").as_str());
+                let mut to_exec = Vec::with_capacity(keys.len());
+                {
+                    profiling::scope!("prep");
+                    for key in keys {
+                        let ch_pos = key;
                         profiling::scope!("iter");
 
-                        if old_dirty_rects.get(key).is_some() {
-                            // SAFETY: the same chunks' arrays may be modified mutably on multiple threads at once, which is necessary for multithreading
-                            // However, ticking a chunk can only affect pixels within CHUNK_SIZE/2 of the center chunk (this is unchecked)
-                            //   and we the 4-phase thing ensures no chunks directly next to each other are ticked at the same time
-                            //   so multiple threads will not modify the same index in the array at the same time
-                            // The chunk arrays are cast to `&[UnsafeCell<T>; _]`, so there should be no actual `&mut`s involved
-                            // There is still a very good chance there's UB here, I'm not an expert on aliasing
-                            // TODO: see if miri can run this
+                        // SAFETY: the same chunks' arrays may be modified mutably on multiple threads at once, which is necessary for multithreading
+                        // However, ticking a chunk can only affect pixels within CHUNK_SIZE/2 of the center chunk (this is unchecked)
+                        //   and we the 4-phase thing ensures no chunks directly next to each other are ticked at the same time
+                        //   so multiple threads will not modify the same index in the array at the same time
+                        // The chunk arrays are cast to `&[UnsafeCell<T>; _]`, so there should be no actual `&mut`s involved
+                        // There is still a very good chance there's UB here, I'm not an expert on aliasing
+                        // TODO: see if miri can run this
 
-                            let Some(arr) = [
-                                (-1, -1),
-                                (0, -1),
-                                (1, -1),
-                                (-1, 0),
-                                (0, 0),
-                                (1, 0),
-                                (-1, 1),
-                                (0, 1),
-                                (1, 1),
-                            ]
-                                .into_iter()
-                                .map(|(x, y)| {
-                                    let chunk = self.manager.chunk_at_mut((ch_pos.0 + x, ch_pos.1 + y));
-                                    chunk.and_then(|c| {
-                                        c.pixels_mut().as_mut().map(|raw| {
-                                            // blatantly bypassing the borrow checker, see safety comment above
-                                            unsafe { &*(raw.as_mut() as *mut _ as *const _) }
-                                        }).map(|pixels| {
-                                            // blatantly bypassing the borrow checker, see safety comment above
-                                            // I'm not sure if doing this while the data is already in a `&[UnsafeCell<_>; _]` is UB
+                        let Some(arr) = [
+                            (-1, -1),
+                            (0, -1),
+                            (1, -1),
+                            (-1, 0),
+                            (0, 0),
+                            (1, 0),
+                            (-1, 1),
+                            (0, 1),
+                            (1, 1),
+                        ]
+                            .map(|(x, y)| {
+                                let chunk = self.manager.chunk_at_mut((ch_pos.0 + x, ch_pos.1 + y));
+                                chunk.and_then(|c| {
+                                    c.pixels_mut().as_mut().map(|raw| {
+                                        // blatantly bypassing the borrow checker, see safety comment above
+                                        unsafe { &*(raw.as_mut() as *mut _ as *const _) }
+                                    }).map(|pixels| {
+                                        // blatantly bypassing the borrow checker, see safety comment above
+                                        // I'm not sure if doing this while the data is already in a `&[UnsafeCell<_>; _]` is UB
 
-                                            let raw: *mut [Color; CHUNK_AREA] = c.colors_mut();
-                                            let colors = unsafe { &*(raw as *const [UnsafeCell<Color>; CHUNK_AREA]) };
+                                        let raw: *mut [Color; CHUNK_AREA] = c.colors_mut();
+                                        let colors = unsafe { &*(raw as *const [UnsafeCell<Color>; CHUNK_AREA]) };
 
-                                            let raw: *mut [[f32; 4]; CHUNK_AREA] = c.lights_mut();
-                                            let lights = unsafe { &*(raw as *const [UnsafeCell<[f32; 4]>; CHUNK_AREA]) };
+                                        let raw: *mut [[f32; 4]; CHUNK_AREA] = c.lights_mut();
+                                        let lights = unsafe { &*(raw as *const [UnsafeCell<[f32; 4]>; CHUNK_AREA]) };
 
-                                            let dirty_rect = *old_dirty_rects
-                                                .get(&(ch_pos.0 + x, ch_pos.1 + y))
-                                                .unwrap();
+                                        let dirty_rect = *old_dirty_rects
+                                            .get(&(ch_pos.0 + x, ch_pos.1 + y))
+                                            .unwrap();
 
-                                            SimulatorChunkContext {
-                                                pixels,
-                                                colors,
-                                                lights,
-                                                dirty: false,
-                                                dirty_rect,
-                                            }
-                                        })
+                                        SimulatorChunkContext {
+                                            pixels,
+                                            colors,
+                                            lights,
+                                            dirty: false,
+                                            dirty_rect,
+                                        }
                                     })
                                 })
-                                .collect::<Option<Vec<_>>>()
-                                .map(|v| v.try_into().unwrap())
-                            else {
-                                continue;
-                            };
+                            })
+                            .into_iter()
+                            .collect::<Option<Vec<_>>>()
+                            .map(|v| v.try_into().unwrap())
+                        else {
+                            continue;
+                        };
 
-                            to_exec.push((ch_pos, arr));
-                        }
+                        to_exec.push((ch_pos, arr));
                     }
                 }
 
@@ -980,11 +983,13 @@ where
                             let rel_ch_x = (i % 3) - 1;
                             let rel_ch_y = (i / 3) - 1;
 
+                            let ch = self
+                                .manager
+                                .chunk_at_mut((ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y))
+                                .unwrap();
+
                             if dirty_info[i as usize].0 {
-                                self.manager
-                                    .chunk_at_mut((ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y))
-                                    .unwrap()
-                                    .mark_dirty();
+                                ch.mark_dirty();
                             }
 
                             if i != 4 && dirty_info[4].1.is_some() {
@@ -1002,12 +1007,8 @@ where
                                         CHUNK_SIZE / 2
                                     },
                                 );
-                                // let neighbor_rect = Rect::new_wh(0, 0, u32::from(CHUNK_SIZE), u32::from(CHUNK_SIZE));
-                                let mut r = self
-                                    .manager
-                                    .chunk_at_mut((ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y))
-                                    .unwrap()
-                                    .dirty_rect();
+
+                                let mut r = ch.dirty_rect();
                                 match r {
                                     Some(current) => {
                                         r = Some(current.union(neighbor_rect));
@@ -1016,18 +1017,11 @@ where
                                         r = Some(neighbor_rect);
                                     },
                                 }
-                                self.manager
-                                    .chunk_at_mut((ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y))
-                                    .unwrap()
-                                    .set_dirty_rect(r);
+                                ch.set_dirty_rect(r);
                             }
 
                             if let Some(new) = dirty_info[i as usize].1 {
-                                let mut r = self
-                                    .manager
-                                    .chunk_at_mut((ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y))
-                                    .unwrap()
-                                    .dirty_rect();
+                                let mut r = ch.dirty_rect();
                                 match r {
                                     Some(current) => {
                                         r = Some(current.union(new));
@@ -1036,10 +1030,7 @@ where
                                         r = Some(new);
                                     },
                                 }
-                                self.manager
-                                    .chunk_at_mut((ch_pos.0 + rel_ch_x, ch_pos.1 + rel_ch_y))
-                                    .unwrap()
-                                    .set_dirty_rect(r);
+                                ch.set_dirty_rect(r);
                             }
                         }
                     }
@@ -1500,6 +1491,7 @@ pub fn chunk_index_inv(index: u32) -> (i32, i32) {
     (x, y)
 }
 
+#[inline]
 pub const fn chunk_update_order(chunk_x: i32, chunk_y: i32) -> u8 {
     let yy = (-chunk_y).rem_euclid(2) as u8;
     let xx = chunk_x.rem_euclid(2) as u8;

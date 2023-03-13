@@ -217,8 +217,8 @@ impl SimulationHelperChunk<'_, '_> {
     fn local_to_indices(x: i32, y: i32) -> (usize, usize, u16, u16) {
         let size = i32::from(CHUNK_SIZE);
         // div_euclid is the same as div_floor in this case (div_floor is currenlty unstable)
-        let rel_chunk_x = x.div_euclid(i32::from(CHUNK_SIZE)) as i8;
-        let rel_chunk_y = y.div_euclid(i32::from(CHUNK_SIZE)) as i8;
+        let rel_chunk_x = x.div_euclid(size) as i8;
+        let rel_chunk_y = y.div_euclid(size) as i8;
 
         let chunk_px_x = x.rem_euclid(size) as u16;
         let chunk_px_y = y.rem_euclid(size) as u16;
@@ -485,13 +485,16 @@ impl Simulator {
                 //     unsafe { std::hint::unreachable_unchecked() }
                 // }
 
-                let cur = unsafe { helper.pixel_local_unchecked(x, y) }.clone();
+                let cur = unsafe { helper.pixel_local_unchecked(x, y) };
 
-                if let Some(mat) = Simulator::simulate_pixel(x, y, &cur, helper, rng) {
-                    unsafe {
-                        helper.set_color_local_unchecked(x, y, mat.color);
-                        helper.set_light_local_unchecked(x, y, mat.light);
-                        helper.set_pixel_local_unchecked(x, y, mat);
+                // having this check before the clone reduces update time by like 90%
+                if cur.dynamic() {
+                    if let Some(mat) = Simulator::simulate_pixel(x, y, &cur.clone(), helper, rng) {
+                        unsafe {
+                            helper.set_color_local_unchecked(x, y, mat.color);
+                            helper.set_light_local_unchecked(x, y, mat.light);
+                            helper.set_pixel_local_unchecked(x, y, mat);
+                        }
                     }
                 }
             }
@@ -656,7 +659,7 @@ impl Simulator {
 
                 let can_move_dl_or_dr = can_move_down_right || can_move_down_left;
 
-                if can_move_down && (!can_move_dl_or_dr || rng.f32() > 0.1) {
+                if can_move_down && (!can_move_dl_or_dr || rng.u8(0..10) != 0) {
                     // are a few pixels below clear
                     let empty_below = (0..4).all(|i| {
                         // don't include self or one below
@@ -686,14 +689,14 @@ impl Simulator {
                     let above_is_air = helper.pixel_local(x, y - 1).physics == PhysicsType::Air;
 
                     // covered pixels are less likely to move down to the sides
-                    if above_is_air || rng.f32() > 0.5 {
+                    if above_is_air || rng.bool() {
                         if can_move_down_left && can_move_down_right {
                             // randomly pick a direction
-                            if rng.bool() {
-                                helper.set_all_local(x + 1, y + 1, cur.clone());
-                            } else {
-                                helper.set_all_local(x - 1, y + 1, cur.clone());
-                            }
+                            helper.set_all_local(
+                                x + if rng.bool() { 1 } else { -1 },
+                                y + 1,
+                                cur.clone(),
+                            );
                             new_mat = Some(MaterialInstance::air());
                         } else if can_move_down_left {
                             // chance to move by 2
@@ -702,11 +705,10 @@ impl Simulator {
                                 && helper.pixel_local(x - 2, y + 2).physics != PhysicsType::Air
                             {
                                 helper.set_all_local(x - 2, y + 1, cur.clone());
-                                new_mat = Some(MaterialInstance::air());
                             } else {
                                 helper.set_all_local(x - 1, y + 1, cur.clone());
-                                new_mat = Some(MaterialInstance::air());
                             }
+                            new_mat = Some(MaterialInstance::air());
                         } else if can_move_down_right {
                             // chance to move by 2
                             if rng.bool()
@@ -714,11 +716,10 @@ impl Simulator {
                                 && helper.pixel_local(x + 2, y + 2).physics != PhysicsType::Air
                             {
                                 helper.set_all_local(x + 2, y + 1, cur.clone());
-                                new_mat = Some(MaterialInstance::air());
                             } else {
                                 helper.set_all_local(x + 1, y + 1, cur.clone());
-                                new_mat = Some(MaterialInstance::air());
                             }
+                            new_mat = Some(MaterialInstance::air());
                         }
                     }
                 }

@@ -33,7 +33,7 @@ pub struct MaterialInstance {
 }
 
 impl MaterialInstance {
-    #[inline]
+    #[inline(always)] // this function is very hot
     pub fn air() -> Self {
         AIR.instance(PhysicsType::Air, Color::TRANSPARENT)
     }
@@ -41,6 +41,12 @@ impl MaterialInstance {
     #[must_use]
     pub fn with_light(self, light: [f32; 3]) -> Self {
         Self { light, ..self }
+    }
+
+    /// Any instance that returns false will be skipped when simulating
+    #[inline(always)] // this function is very hot
+    pub fn dynamic(&self) -> bool {
+        self.physics == PhysicsType::Sand
     }
 }
 
@@ -51,7 +57,7 @@ impl Default for MaterialInstance {
 }
 
 impl RegistryID<Material> {
-    #[inline]
+    #[inline(always)] // this function is very hot
     pub fn instance(&self, physics: PhysicsType, color: Color) -> MaterialInstance {
         MaterialInstance {
             material_id: self.clone(),
