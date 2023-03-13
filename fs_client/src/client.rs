@@ -251,6 +251,11 @@ fn tick_player(
             .get_mut(eid)
             .expect("Missing Player component on local_entity");
 
+        let on_ground = phys_ent_storage
+            .get_mut(eid)
+            .expect("Missing PhysicsEntity component on local_entity")
+            .on_ground;
+
         match player.movement {
             PlayerMovementMode::Normal {
                 ref mut state,
@@ -306,14 +311,21 @@ fn tick_player(
 
                                 velocity_storage.get_mut(eid).unwrap().x = *dir_x;
                                 velocity_storage.get_mut(eid).unwrap().y = *dir_y;
+
+                                // wavedash
+                                if on_ground {
+                                    *time = (*time).min(4);
+                                    if controls.jump.get() {
+                                        velocity_storage.get_mut(eid).unwrap().y = -8.0;
+                                        velocity_storage.get_mut(eid).unwrap().x += target_x * 0.5;
+                                        *launch_state = PlayerLaunchState::Ready;
+                                        *state = PlayerJumpState::Jumping;
+                                    }
+                                }
                             }
                         },
                         PlayerLaunchState::Used => {
-                            if phys_ent_storage
-                                .get_mut(eid)
-                                .expect("Missing PhysicsEntity component on local_entity")
-                                .on_ground
-                            {
+                            if on_ground {
                                 *launch_state = PlayerLaunchState::Ready;
                             }
                         },
