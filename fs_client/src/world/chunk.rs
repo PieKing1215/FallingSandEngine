@@ -1021,18 +1021,19 @@ impl ClientChunkHandlerExt for ChunkHandler<ClientChunk> {
                     ch.graphics.dist_to_nearest_dirty_light;
             });
 
-        self.manager.each_chunk_mut_with_surrounding(|ch, others| {
-            let d = others
-                .iter()
-                .filter_map(|ch| ch.map(|ch| ch.graphics.prev_dist_to_nearest_dirty_light))
-                .flatten()
-                .min();
-            ch.graphics.dist_to_nearest_dirty_light = None;
-            if let Some(d) = d {
-                if d < 2 {
-                    ch.graphics.dist_to_nearest_dirty_light = Some(d + 1);
+        self.manager
+            .each_chunk_mut_with_surrounding_cardinal(|ch, others| {
+                let d = others
+                    .iter()
+                    .filter_map(|ch| ch.map(|ch| ch.graphics.prev_dist_to_nearest_dirty_light))
+                    .flatten()
+                    .min();
+                ch.graphics.dist_to_nearest_dirty_light = None;
+                if let Some(d) = d {
+                    if d < 2 {
+                        ch.graphics.dist_to_nearest_dirty_light = Some(d + 1);
+                    }
                 }
-            }
-        });
+            });
     }
 }

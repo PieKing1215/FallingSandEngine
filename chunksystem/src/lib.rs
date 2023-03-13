@@ -124,6 +124,7 @@ impl<D> ChunkManager<D> {
         }
     }
 
+    #[profiling::function]
     #[inline]
     pub fn each_chunk_mut_with_surrounding(
         &mut self,
@@ -132,25 +133,30 @@ impl<D> ChunkManager<D> {
         let keys = self.keys();
         for k in keys {
             // Safety: we are iterating though keys, so the value must exist
-            let mut this = unsafe { self.chunks.remove(&k).unwrap_unchecked() };
+            let this = unsafe { self.chunks.get_mut(&k).unwrap_unchecked() };
 
-            let surrounding = [
-                self.chunk_at((k.0 - 1, k.1 - 1)),
-                self.chunk_at((k.0, k.1 - 1)),
-                self.chunk_at((k.0 + 1, k.1 - 1)),
-                self.chunk_at((k.0 - 1, k.1)),
-                self.chunk_at((k.0 + 1, k.1)),
-                self.chunk_at((k.0 - 1, k.1 + 1)),
-                self.chunk_at((k.0, k.1 + 1)),
-                self.chunk_at((k.0 + 1, k.1 + 1)),
-            ];
+            // need to borrow other chunks as well so force 'static
+            // Safety: only chunks with different keys are borrowed after this so `this` will always be unique
+            let this = unsafe { &mut *(this as *mut _) };
 
-            cb(&mut this, surrounding);
+            let surrounding = {
+                [
+                    self.chunk_at((k.0 - 1, k.1 - 1)),
+                    self.chunk_at((k.0, k.1 - 1)),
+                    self.chunk_at((k.0 + 1, k.1 - 1)),
+                    self.chunk_at((k.0 - 1, k.1)),
+                    self.chunk_at((k.0 + 1, k.1)),
+                    self.chunk_at((k.0 - 1, k.1 + 1)),
+                    self.chunk_at((k.0, k.1 + 1)),
+                    self.chunk_at((k.0 + 1, k.1 + 1)),
+                ]
+            };
 
-            self.chunks.insert(k, this);
+            cb(this, surrounding);
         }
     }
 
+    #[profiling::function]
     #[inline]
     pub fn each_chunk_mut_with_surrounding_cardinal(
         &mut self,
@@ -159,18 +165,22 @@ impl<D> ChunkManager<D> {
         let keys = self.keys();
         for k in keys {
             // Safety: we are iterating though keys, so the value must exist
-            let mut this = unsafe { self.chunks.remove(&k).unwrap_unchecked() };
+            let this = unsafe { self.chunks.get_mut(&k).unwrap_unchecked() };
 
-            let surrounding = [
-                self.chunk_at((k.0, k.1 - 1)),
-                self.chunk_at((k.0 - 1, k.1)),
-                self.chunk_at((k.0 + 1, k.1)),
-                self.chunk_at((k.0, k.1 + 1)),
-            ];
+            // need to borrow other chunks as well so force 'static
+            // Safety: only chunks with different keys are borrowed after this so `this` will always be unique
+            let this = unsafe { &mut *(this as *mut _) };
 
-            cb(&mut this, surrounding);
+            let surrounding = {
+                [
+                    self.chunk_at((k.0, k.1 - 1)),
+                    self.chunk_at((k.0 - 1, k.1)),
+                    self.chunk_at((k.0 + 1, k.1)),
+                    self.chunk_at((k.0, k.1 + 1)),
+                ]
+            };
 
-            self.chunks.insert(k, this);
+            cb(this, surrounding);
         }
     }
 

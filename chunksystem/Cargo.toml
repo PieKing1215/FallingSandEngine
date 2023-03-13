@@ -14,3 +14,4 @@ edition = "2021"
 
 [dependencies]
 ahash = "0.8"
+profiling = "1.0"
