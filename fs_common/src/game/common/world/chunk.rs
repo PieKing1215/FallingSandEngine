@@ -838,13 +838,16 @@ where
         if ctx.settings.simulate_chunks {
             profiling::scope!("chunk simulate");
 
-            let old_dirty_rects = unsafe { self.manager.raw_mut().iter_mut() }
-                .map(|(key, ch)| {
-                    let rect = ch.dirty_rect();
-                    ch.set_dirty_rect(None);
-                    (*key, rect)
-                })
-                .collect::<HashMap<_, _>>();
+            let old_dirty_rects = {
+                profiling::scope!("build old_dirty_rects");
+                unsafe { self.manager.raw_mut().iter_mut() }
+                    .map(|(key, ch)| {
+                        let rect = ch.dirty_rect();
+                        ch.set_dirty_rect(None);
+                        (*key, rect)
+                    })
+                    .collect::<ahash::HashMap<_, _>>()
+            };
 
             let keys = self.manager.keys();
             for tick_phase in 0..4 {
@@ -891,8 +894,8 @@ where
                                             // blatantly bypassing the borrow checker, see safety comment above
                                             // I'm not sure if doing this while the data is already in a `&[UnsafeCell<_>; _]` is UB
 
-                                            let raw: *mut [Color; (CHUNK_AREA)] = c.colors_mut();
-                                            let colors = unsafe { &*(raw as *const [UnsafeCell<u8>; (CHUNK_AREA * 4)]) };
+                                            let raw: *mut [Color; CHUNK_AREA] = c.colors_mut();
+                                            let colors = unsafe { &*(raw as *const [UnsafeCell<Color>; CHUNK_AREA]) };
 
                                             let raw: *mut [[f32; 4]; CHUNK_AREA] = c.lights_mut();
                                             let lights = unsafe { &*(raw as *const [UnsafeCell<[f32; 4]>; CHUNK_AREA]) };
@@ -900,13 +903,6 @@ where
                                             let dirty_rect = *old_dirty_rects
                                                 .get(&(ch_pos.0 + x, ch_pos.1 + y))
                                                 .unwrap();
-
-                                            let colors = unsafe {
-                                                // Safety: `Color` has is exactly identical to 4 `u8`s (statically asserted)
-                                                //         so it's fine to cast a slice of `u8` to a slice of `Color` with 1/4 the size
-                                                let cs: &[UnsafeCell<Color>] = core::slice::from_raw_parts(colors.as_ptr().cast(), colors.len()/4);
-                                                cs.try_into().unwrap_unchecked()
-                                            };
 
                                             SimulatorChunkContext {
                                                 pixels,
