@@ -19,7 +19,7 @@ mod tests {
     #[test]
     fn chunk_loading() {
         let registries = std::sync::Arc::new(Registries::empty());
-        let file_helper = FileHelper::new("./gamedir/".into(), "./gamedir/assets/".into());
+        let file_helper = FileHelper::new("../gamedir/".into(), "../gamedir/assets/".into());
 
         let mut ch: ChunkHandler<ServerChunk> =
             ChunkHandler::<ServerChunk>::new(TestGenerator::new(), None);
