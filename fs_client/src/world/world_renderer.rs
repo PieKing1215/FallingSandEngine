@@ -664,6 +664,20 @@ impl WorldRenderer {
                             },
                         );
                     }
+
+                    if let Some(dist) = ch.graphics.dist_to_nearest_dirty_light {
+                        for i in 0..dist {
+                            let rect = Rect::new_wh(20 + i * 12, 20, 10, 10).into_f32();
+                            target.rectangle(
+                                rect,
+                                Color::rgba(255, 64, 255, 32),
+                                DrawParameters {
+                                    blend: Blend::alpha_blending(),
+                                    ..Default::default()
+                                },
+                            );
+                        }
+                    }
                 }
             }
 

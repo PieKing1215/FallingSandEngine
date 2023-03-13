@@ -49,6 +49,8 @@ impl Chunk for ClientChunk {
                 background_dirty: true,
                 pixels_updated_last_update: true,
                 lighting_updated_last_update: true,
+                dist_to_nearest_dirty_light: None,
+                prev_dist_to_nearest_dirty_light: None,
             }),
             mesh: None,
             tris: None,
@@ -357,6 +359,9 @@ pub struct ChunkGraphics {
 
     pub pixels_updated_last_update: bool,
     pub lighting_updated_last_update: bool,
+
+    pub prev_dist_to_nearest_dirty_light: Option<u8>,
+    pub dist_to_nearest_dirty_light: Option<u8>,
 }
 
 unsafe impl Send for ChunkGraphics {}
@@ -512,15 +517,15 @@ impl ChunkGraphics {
         shaders: &Shaders,
     ) {
         self.lighting_updated_last_update = false;
-        if self.lighting_dirty
-            || (neighbors.map_or(false, |n| {
-                n.iter().any(|c| {
-                    c.map_or(false, |c| {
-                        c.graphics.data.is_some()
-                            && (c.graphics.lighting_dirty || c.graphics.was_lighting_dirty)
-                    })
-                })
-            }))
+        if self.lighting_dirty || self.dist_to_nearest_dirty_light.is_some()
+        // || (neighbors.map_or(false, |n| {
+        //     n.iter().any(|c| {
+        //         c.map_or(false, |c| {
+        //             c.graphics.data.is_some()
+        //                 && (c.graphics.lighting_dirty || c.graphics.was_lighting_dirty)
+        //         })
+        //     })
+        // }))
         {
             if let Some(data) = &mut self.data {
                 profiling::scope!("lighting update");
@@ -642,6 +647,10 @@ impl ChunkGraphics {
                 {
                     profiling::scope!("propagate");
                     shaders.lighting_compute_propagate.execute(uni, 1, 1, 1);
+                }
+
+                if self.lighting_dirty {
+                    self.dist_to_nearest_dirty_light = Some(0);
                 }
 
                 self.lighting_updated_last_update = true;
@@ -1015,6 +1024,21 @@ impl ClientChunkHandlerExt for ChunkHandler<ClientChunk> {
 
         self.manager.each_chunk_mut_with_surrounding(|ch, others| {
             ch.data.update_graphics(Some(others), shaders).unwrap();
+            ch.graphics.prev_dist_to_nearest_dirty_light = ch.graphics.dist_to_nearest_dirty_light;
+        });
+
+        self.manager.each_chunk_mut_with_surrounding(|ch, others| {
+            let d = others
+                .iter()
+                .filter_map(|ch| ch.map(|ch| ch.graphics.prev_dist_to_nearest_dirty_light))
+                .flatten()
+                .min();
+            ch.graphics.dist_to_nearest_dirty_light = None;
+            if let Some(d) = d {
+                if d < 2 {
+                    ch.graphics.dist_to_nearest_dirty_light = Some(d + 1);
+                }
+            }
         });
     }
 }
