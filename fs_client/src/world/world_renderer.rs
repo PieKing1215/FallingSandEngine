@@ -616,11 +616,14 @@ impl WorldRenderer {
                             },
                         );
                     }
-                    if ch.graphics.was_dirty {
-                        let rect = Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE).into_f32();
+
+                    if ch.graphics.pixels_updated_last_update {
+                        let rect = Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE)
+                            .into_f32()
+                            .inflated(-2.0);
                         target.rectangle(
                             rect,
-                            Color::rgba(255, 255, 64, 127),
+                            Color::rgba(255, 255, 64, 80),
                             DrawParameters {
                                 blend: Blend::alpha_blending(),
                                 ..Default::default()
@@ -628,7 +631,31 @@ impl WorldRenderer {
                         );
                         target.rectangle(
                             rect,
-                            Color::rgba(255, 255, 64, 127),
+                            Color::rgba(255, 255, 64, 100),
+                            DrawParameters {
+                                polygon_mode: PolygonMode::Line,
+                                line_width: Some(1.0),
+                                blend: Blend::alpha_blending(),
+                                ..Default::default()
+                            },
+                        );
+                    }
+
+                    if ch.graphics.lighting_updated_last_update {
+                        let rect = Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE)
+                            .into_f32()
+                            .inflated(-4.0);
+                        target.rectangle(
+                            rect,
+                            Color::rgba(64, 255, 255, 32),
+                            DrawParameters {
+                                blend: Blend::alpha_blending(),
+                                ..Default::default()
+                            },
+                        );
+                        target.rectangle(
+                            rect,
+                            Color::rgba(64, 255, 255, 64),
                             DrawParameters {
                                 polygon_mode: PolygonMode::Line,
                                 line_width: Some(1.0),

@@ -83,7 +83,7 @@ pub trait Chunk {
     fn set_pixel(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String>;
     /// # Safety
     /// x and y must be in `0..CHUNK_SIZE`
-    unsafe fn set_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance);
+    unsafe fn set_pixel_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance);
 
     fn pixel(&self, x: u16, y: u16) -> Result<&MaterialInstance, String>;
     /// # Safety

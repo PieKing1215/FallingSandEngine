@@ -66,7 +66,7 @@ impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
         // Safety: rem_euclid covers bounds check and we check in `Self::new` if the chunks have a pixel buffer
         unsafe {
             let ch = self.0.get_unchecked_mut(i);
-            ch.set_unchecked(
+            ch.set_pixel_unchecked(
                 x.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
                 y.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
                 mat,
@@ -105,7 +105,7 @@ impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
         unsafe {
             let ch = self.0.get_unchecked_mut(i);
             if let Some(mat) = (cb)(ch.pixel_unchecked(x, y)) {
-                ch.set_unchecked(x, y, mat);
+                ch.set_pixel_unchecked(x, y, mat);
                 true
             } else {
                 false

@@ -1,6 +1,6 @@
 use chunksystem::ChunkQuery;
 use core::slice;
-use fs_common::game::common::world::{Chunk, CHUNK_AREA};
+use fs_common::game::common::world::{material::PhysicsType, Chunk, CHUNK_AREA};
 use std::{borrow::Cow, convert::TryInto, sync::Arc};
 
 use fs_common::game::common::{
@@ -46,6 +46,8 @@ impl Chunk for ClientChunk {
                 was_dirty: true,
                 lighting_dirty: true,
                 background_dirty: true,
+                pixels_updated_last_update: true,
+                lighting_updated_last_update: true,
             }),
             mesh: None,
             tris: None,
@@ -100,14 +102,20 @@ impl Chunk for ClientChunk {
     // #[profiling::function] // huge performance impact
     fn set_pixel(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String> {
         self.data.set(x, y, mat, |mat| {
-            self.graphics.set(x, y, mat.color)?;
-            self.graphics.set_light(x, y, mat.light)
+            if mat.physics != PhysicsType::Object {
+                self.graphics.set(x, y, mat.color)?;
+                self.graphics.set_light(x, y, mat.light)
+            } else {
+                Ok(())
+            }
         })
     }
 
-    unsafe fn set_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance) {
-        self.graphics.set(x, y, mat.color).unwrap();
-        self.graphics.set_light(x, y, mat.light).unwrap();
+    unsafe fn set_pixel_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance) {
+        if mat.physics != PhysicsType::Object {
+            self.graphics.set(x, y, mat.color).unwrap();
+            self.graphics.set_light(x, y, mat.light).unwrap();
+        }
 
         self.data.set_unchecked(x, y, mat);
     }
@@ -125,8 +133,14 @@ impl Chunk for ClientChunk {
         Self: Sized,
         F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>,
     {
-        self.data
-            .replace_pixel(x, y, cb, |m| self.graphics.set(x, y, m.color))
+        self.data.replace_pixel(x, y, cb, |m| {
+            if m.physics != PhysicsType::Object {
+                self.graphics.set(x, y, m.color)?;
+                self.graphics.set_light(x, y, m.light)
+            } else {
+                Ok(())
+            }
+        })
     }
 
     fn set_light(&mut self, x: u16, y: u16, light: [f32; 3]) -> Result<(), String> {
@@ -338,6 +352,9 @@ pub struct ChunkGraphics {
     pub was_dirty: bool,
     pub lighting_dirty: bool,
     pub background_dirty: bool,
+
+    pub pixels_updated_last_update: bool,
+    pub lighting_updated_last_update: bool,
 }
 
 unsafe impl Send for ChunkGraphics {}
@@ -347,11 +364,14 @@ impl ChunkGraphics {
     // #[profiling::function] // huge performance impact
     pub fn set(&mut self, x: u16, y: u16, color: Color) -> Result<(), String> {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            // self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
             let i = (x + y * CHUNK_SIZE) as usize;
-            self.pixel_data[i] = color;
-            self.dirty = true;
-            self.lighting_dirty = true;
+            if self.pixel_data[i] != color {
+                if self.pixel_data[i].a != color.a {
+                    self.lighting_dirty = true;
+                }
+                self.pixel_data[i] = color;
+                self.dirty = true;
+            }
 
             return Ok(());
         }
@@ -362,10 +382,11 @@ impl ChunkGraphics {
     // #[profiling::function] // huge performance impact
     pub fn set_light(&mut self, x: u16, y: u16, color: [f32; 3]) -> Result<(), String> {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            // self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
             let i = (x + y * CHUNK_SIZE) as usize;
-            self.lighting_data[i] = [color[0], color[1], color[2], 1.0];
-            self.dirty = true;
+            if self.lighting_data[i] != [color[0], color[1], color[2], 1.0] {
+                self.lighting_data[i] = [color[0], color[1], color[2], 1.0];
+                self.lighting_dirty = true;
+            }
 
             return Ok(());
         }
@@ -376,7 +397,6 @@ impl ChunkGraphics {
     // #[profiling::function] // huge performance impact
     pub fn get(&self, x: u16, y: u16) -> Result<Color, String> {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            // self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
             let i = (x + y * CHUNK_SIZE) as usize;
 
             return Ok(self.pixel_data[i]);
@@ -387,11 +407,11 @@ impl ChunkGraphics {
 
     pub fn set_background(&mut self, x: u16, y: u16, color: Color) -> Result<(), String> {
         if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            // self.surface.fill_rect(Rect::new(x as i32, y as i32, 1, 1), color)?;
             let i = (x + y * CHUNK_SIZE) as usize;
-            self.background_data[i] = color;
-            self.dirty = true;
-            self.lighting_dirty = true;
+            if self.background_data[i] != color {
+                self.background_data[i] = color;
+                self.background_dirty = true;
+            }
 
             return Ok(());
         }
@@ -401,6 +421,7 @@ impl ChunkGraphics {
 
     #[profiling::function]
     pub fn update_texture(&mut self) {
+        self.pixels_updated_last_update = false;
         if self.dirty {
             profiling::scope!("dirty");
             if let Some(data) = &mut self.data {
@@ -436,8 +457,10 @@ impl ChunkGraphics {
                         image,
                     );
                 }
+
+                self.pixels_updated_last_update = true;
+                self.dirty = false;
             }
-            self.dirty = false;
         }
 
         if self.background_dirty {
@@ -475,8 +498,8 @@ impl ChunkGraphics {
                         image,
                     );
                 }
+                self.background_dirty = false;
             }
-            self.background_dirty = false;
         }
     }
 
@@ -486,6 +509,7 @@ impl ChunkGraphics {
         neighbors: Option<[Option<&chunksystem::Chunk<ClientChunk>>; 8]>,
         shaders: &Shaders,
     ) {
+        self.lighting_updated_last_update = false;
         if self.lighting_dirty
             || (neighbors.map_or(false, |n| {
                 n.iter()
@@ -613,8 +637,10 @@ impl ChunkGraphics {
                     profiling::scope!("propagate");
                     shaders.lighting_compute_propagate.execute(uni, 1, 1, 1);
                 }
+
+                self.lighting_updated_last_update = true;
+                self.lighting_dirty = false;
             }
-            self.lighting_dirty = false;
         }
     }
 

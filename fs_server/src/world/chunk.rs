@@ -74,7 +74,7 @@ impl Chunk for ServerChunk {
         self.data.set(x, y, mat, |_| Ok(()))
     }
 
-    unsafe fn set_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance) {
+    unsafe fn set_pixel_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance) {
         self.data.set_unchecked(x, y, mat)
     }
 
