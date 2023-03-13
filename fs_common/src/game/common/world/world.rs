@@ -412,8 +412,8 @@ where
 
                     let mut impediment = 0.0_f32;
 
-                    for rb_y in 0..rb_w {
-                        for rb_x in 0..rb_h {
+                    for rb_y in 0..rb_h {
+                        for rb_x in 0..rb_w {
                             let tx = f32::from(rb_x) * c - f32::from(rb_y) * s + pos_x;
                             let ty = f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y;
 
@@ -741,8 +741,8 @@ where
                     let pos_x = body.translation().x * PHYSICS_SCALE;
                     let pos_y = body.translation().y * PHYSICS_SCALE;
 
-                    for rb_y in 0..rb.width {
-                        for rb_x in 0..rb.height {
+                    for rb_y in 0..rb.height {
+                        for rb_x in 0..rb.width {
                             let tx = f32::from(rb_x) * c - f32::from(rb_y) * s + pos_x;
                             let ty = f32::from(rb_x) * s + f32::from(rb_y) * c + pos_y;
 
