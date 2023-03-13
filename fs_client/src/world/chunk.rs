@@ -45,6 +45,7 @@ impl Chunk for ClientChunk {
                 dirty: true,
                 was_dirty: true,
                 lighting_dirty: true,
+                was_lighting_dirty: true,
                 background_dirty: true,
                 pixels_updated_last_update: true,
                 lighting_updated_last_update: true,
@@ -351,6 +352,7 @@ pub struct ChunkGraphics {
     pub dirty: bool,
     pub was_dirty: bool,
     pub lighting_dirty: bool,
+    pub was_lighting_dirty: bool,
     pub background_dirty: bool,
 
     pub pixels_updated_last_update: bool,
@@ -512,8 +514,12 @@ impl ChunkGraphics {
         self.lighting_updated_last_update = false;
         if self.lighting_dirty
             || (neighbors.map_or(false, |n| {
-                n.iter()
-                    .any(|c| c.map_or(false, |c| c.graphics.dirty || c.graphics.was_dirty))
+                n.iter().any(|c| {
+                    c.map_or(false, |c| {
+                        c.graphics.data.is_some()
+                            && (c.graphics.lighting_dirty || c.graphics.was_lighting_dirty)
+                    })
+                })
             }))
         {
             if let Some(data) = &mut self.data {
@@ -666,8 +672,6 @@ impl ClientChunk {
         surrounding: Option<[Option<&chunksystem::Chunk<Self>>; 8]>,
         shaders: &Shaders,
     ) -> Result<(), String> {
-        self.graphics.was_dirty = self.graphics.dirty;
-
         self.graphics.update_texture();
         self.graphics.update_lighting(surrounding, shaders);
 
@@ -1004,6 +1008,11 @@ impl ClientChunkHandlerExt for ChunkHandler<ClientChunk> {
 
     #[profiling::function]
     fn update_chunk_graphics(&mut self, shaders: &Shaders) {
+        for ch in self.manager.chunks_iter_mut() {
+            ch.graphics.was_dirty = ch.graphics.dirty;
+            ch.graphics.was_lighting_dirty = ch.graphics.lighting_dirty;
+        }
+
         self.manager.each_chunk_mut_with_surrounding(|ch, others| {
             ch.data.update_graphics(Some(others), shaders).unwrap();
         });
