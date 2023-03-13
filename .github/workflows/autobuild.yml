@@ -17,10 +17,10 @@ jobs:
     - uses: actions/checkout@v3
     - uses: benjlevesque/short-sha@v2.1
       id: short-sha
-    - uses: Swatinem/rust-cache@v2.2.0
+    - uses: Swatinem/rust-cache@v2.2.1
     
     - name: Install cargo-lichking
-      uses: baptiste0928/cargo-install@v1.3.0
+      uses: baptiste0928/cargo-install@v1.3.1
       with:
         crate: cargo-lichking
     
@@ -60,7 +60,7 @@ jobs:
         path: package/
         
     - name: Steam Deploy
-      uses: game-ci/steam-deploy@v1.3.0
+      uses: game-ci/steam-deploy@v2.0.0
       with:
         username: ${{ secrets.STEAM_USERNAME }}
         password: ${{ secrets.STEAM_PASSWORD }}
