@@ -196,9 +196,9 @@ impl Chunk for ClientChunk {
         Err("Invalid pixel coordinate.".to_string())
     }
 
+    #[profiling::function]
     fn set_pixels(&mut self, pixels: Box<[MaterialInstance; CHUNK_AREA]>) {
         self.data.set_pixels(pixels);
-        self.refresh();
     }
 
     fn pixels_mut(&mut self) -> &mut Option<Box<[MaterialInstance; CHUNK_AREA]>> {
@@ -209,6 +209,7 @@ impl Chunk for ClientChunk {
         &self.data.pixels
     }
 
+    #[profiling::function]
     fn set_pixel_colors(&mut self, colors: Box<[Color; CHUNK_AREA]>) {
         self.graphics.replace(colors);
     }
@@ -221,9 +222,9 @@ impl Chunk for ClientChunk {
         &self.graphics.pixel_data
     }
 
+    #[profiling::function]
     fn set_background_pixels(&mut self, pixels: Box<[MaterialInstance; CHUNK_AREA]>) {
         self.data.background = Some(pixels);
-        self.refresh();
     }
 
     fn background_pixels_mut(&mut self) -> &mut Option<Box<[MaterialInstance; CHUNK_AREA]>> {
@@ -234,6 +235,7 @@ impl Chunk for ClientChunk {
         &self.data.background
     }
 
+    #[profiling::function]
     fn set_background_pixel_colors(&mut self, colors: Box<[Color; CHUNK_AREA]>) {
         self.graphics.replace_background(colors);
     }

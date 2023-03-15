@@ -209,7 +209,6 @@ impl<S: SidedChunkData> CommonChunkData<S> {
 
     pub fn set_pixels(&mut self, pixels: Box<[MaterialInstance; CHUNK_AREA]>) {
         self.pixels = Some(pixels);
-        self.light = Some(Box::new([[0.0; 3]; CHUNK_AREA]));
     }
 
     pub fn set_background(
