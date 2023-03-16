@@ -67,7 +67,7 @@ impl<S: SidedChunkData> CommonChunkData<S> {
     pub unsafe fn set_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance) {
         let i = (x + y * CHUNK_SIZE) as usize;
         // Safety: input index assumed to be valid
-        *unsafe { self.pixels.as_mut().unwrap().get_unchecked_mut(i) } = mat;
+        *unsafe { self.pixels.as_mut().unwrap_unchecked().get_unchecked_mut(i) } = mat;
 
         self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
     }
@@ -89,7 +89,7 @@ impl<S: SidedChunkData> CommonChunkData<S> {
     pub unsafe fn pixel_unchecked(&self, x: u16, y: u16) -> &MaterialInstance {
         let i = (x + y * CHUNK_SIZE) as usize;
         // Safety: input index assumed to be valid
-        unsafe { self.pixels.as_ref().unwrap().get_unchecked(i) }
+        unsafe { self.pixels.as_ref().unwrap_unchecked().get_unchecked(i) }
     }
 
     pub fn replace_pixel<F>(

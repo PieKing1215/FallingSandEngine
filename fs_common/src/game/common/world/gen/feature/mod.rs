@@ -5,16 +5,16 @@ use std::fmt::Debug;
 
 use rand::RngCore;
 
-use crate::game::common::Registries;
+use crate::game::common::{world::Chunk, Registries};
 
 use super::populator::ChunkContext;
 
 pub type ProviderFn<T> = dyn Fn(&mut dyn rand::RngCore) -> T + Send + Sync;
 
-pub trait ConfiguredFeature: Debug {
+pub trait ConfiguredFeature<C: Chunk>: Debug {
     fn try_place(
         &self,
-        chunks: &mut ChunkContext<1>,
+        chunks: &mut ChunkContext<1, C>,
         pos: (i32, i32),
         world_seed: i32,
         rng: &mut dyn RngCore,
@@ -24,25 +24,28 @@ pub trait ConfiguredFeature: Debug {
 }
 
 #[derive(Debug)]
-pub struct PlacedFeature {
-    feature: Box<dyn ConfiguredFeature + Send + Sync>,
-    placement_mods: Vec<Box<dyn PlacementModifier + Send + Sync>>,
+pub struct PlacedFeature<C: Chunk> {
+    feature: Box<dyn ConfiguredFeature<C> + Send + Sync>,
+    placement_mods: Vec<Box<dyn PlacementModifier<C> + Send + Sync>>,
 }
 
-impl PlacedFeature {
-    pub fn new(feature: impl ConfiguredFeature + Send + Sync + 'static) -> Self {
+impl<C: Chunk> PlacedFeature<C> {
+    pub fn new(feature: impl ConfiguredFeature<C> + Send + Sync + 'static) -> Self {
         Self { feature: Box::new(feature), placement_mods: vec![] }
     }
 
     #[must_use]
-    pub fn placement(mut self, modifier: impl PlacementModifier + Send + Sync + 'static) -> Self {
+    pub fn placement(
+        mut self,
+        modifier: impl PlacementModifier<C> + Send + Sync + 'static,
+    ) -> Self {
         self.placement_mods.push(Box::new(modifier));
         self
     }
 
     pub fn generate(
         &self,
-        chunks: &mut ChunkContext<1>,
+        chunks: &mut ChunkContext<1, C>,
         seed: i32,
         rng: &mut dyn RngCore,
         registries: &Registries,
@@ -63,10 +66,10 @@ impl PlacedFeature {
     }
 }
 
-pub trait PlacementModifier: Debug {
+pub trait PlacementModifier<C: Chunk>: Debug {
     fn process(
         &self,
-        chunks: &mut ChunkContext<1>,
+        chunks: &mut ChunkContext<1, C>,
         pos: (i32, i32),
         seed: i32,
         rng: &mut dyn RngCore,

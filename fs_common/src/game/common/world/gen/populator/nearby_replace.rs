@@ -1,19 +1,27 @@
 use crate::game::common::{
-    world::{material::MaterialInstance, CHUNK_SIZE},
+    world::{material::MaterialInstance, Chunk, CHUNK_SIZE},
     Registries,
 };
 
 use super::{ChunkContext, Populator};
 
-pub struct NearbyReplacePopulator {
+pub struct NearbyReplacePopulator<
+    R: Fn(&MaterialInstance, i64, i64, &Registries) -> Option<MaterialInstance>,
+    S: Fn(&MaterialInstance) -> bool,
+> {
     pub radius: u16,
-    pub replace: fn(&MaterialInstance, i64, i64, &Registries) -> Option<MaterialInstance>,
-    pub searching_for: fn(&MaterialInstance) -> bool,
+    pub replace: R,
+    pub searching_for: S,
 }
 
-impl Populator<1> for NearbyReplacePopulator {
+impl<
+        R: Fn(&MaterialInstance, i64, i64, &Registries) -> Option<MaterialInstance>,
+        S: Fn(&MaterialInstance) -> bool,
+        C: Chunk,
+    > Populator<1, C> for NearbyReplacePopulator<R, S>
+{
     #[profiling::function]
-    fn populate(&self, chunks: &mut ChunkContext<1>, _seed: i32, registries: &Registries) {
+    fn populate(&self, chunks: &mut ChunkContext<1, C>, _seed: i32, registries: &Registries) {
         // the skip_x and skip_y stuff helps avoid a lot of redundant pixel checks
         // otherwise this is basically just brute force
         // for each pixel that matches `searching_for`, scan around it and try to `replace`
@@ -23,15 +31,59 @@ impl Populator<1> for NearbyReplacePopulator {
 
         const OVERSCAN: u16 = 4;
 
-        let mut skip_y = [0; CHUNK_SIZE as usize + OVERSCAN as usize * 2];
+        // const SIDE: usize = CHUNK_SIZE as usize + (OVERSCAN as usize * 2);
+        // let mut mask = [false; SIDE * SIDE];
 
+        // {
+        //     profiling::scope!("build mask");
+        //     let range = i32::from(self.radius);
+        //     for y in -i32::from(OVERSCAN)..i32::from(CHUNK_SIZE) + i32::from(OVERSCAN) {
+        //         for x in -i32::from(OVERSCAN)..i32::from(CHUNK_SIZE) + i32::from(OVERSCAN) {
+        //             // let i = (x + i32::from(OVERSCAN)) as usize + (y + i32::from(OVERSCAN)) as usize * SIDE;
+        //             // if !mask[i] {
+        //             let m = unsafe { chunks.get(x, y).unwrap_unchecked() };
+        //             if (self.searching_for)(m) {
+        //                 for dx in -range..=range {
+        //                     for dy in -range..=range {
+        //                         let i = (x + dx + i32::from(OVERSCAN)) as usize + (y + dy + i32::from(OVERSCAN)) as usize * SIDE;
+        //                         if let Some(v) = mask.get_mut(i) {
+        //                             *v = true;
+        //                         }
+        //                     }
+        //                 }
+        //             }
+        //             // }
+        //         }
+        //     }
+        // }
+
+        // {
+        //     profiling::scope!("loop");
+        //     for x in 0..CHUNK_SIZE {
+        //         for y in 0..CHUNK_SIZE {
+        //             let i = (x as i32 + i32::from(OVERSCAN)) as usize + (y as i32 + i32::from(OVERSCAN)) as usize * SIDE;
+        //             if unsafe { *mask.get_unchecked(i) } {
+        //                 chunks.replace(x, y, |mat| {
+        //                     (self.replace)(
+        //                         mat,
+        //                         cofs_x + i64::from(x),
+        //                         cofs_y + i64::from(y),
+        //                         registries,
+        //                     )
+        //                 });
+        //             }
+        //         }
+        //     }
+        // }
+
+        let mut skip_y = [0; CHUNK_SIZE as usize + OVERSCAN as usize * 2];
         {
             profiling::scope!("loop");
             let range = i32::from(self.radius);
             for y in -i32::from(OVERSCAN)..i32::from(CHUNK_SIZE) + i32::from(OVERSCAN) {
                 let mut skip_x = 0;
                 for x in -i32::from(OVERSCAN)..i32::from(CHUNK_SIZE) + i32::from(OVERSCAN) {
-                    let m = chunks.get(x, y).unwrap();
+                    let m = unsafe { chunks.get(x, y).unwrap_unchecked() };
                     let cur_skip_y =
                         unsafe { skip_y.get_unchecked_mut((x + i32::from(OVERSCAN)) as usize) };
                     if (self.searching_for)(m) {

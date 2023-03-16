@@ -39,7 +39,7 @@ pub struct FPSCounter {
     pub tick_physics_times: [f32; 200],
 }
 
-impl<C: Chunk + Send> GameData<C> {
+impl<C: Chunk + Send + Sync + 'static> GameData<C> {
     #[profiling::function]
     pub fn new(file_helper: FileHelper, build_data: BuildData) -> Self {
         GameData {

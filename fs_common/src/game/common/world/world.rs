@@ -80,7 +80,7 @@ pub fn ecs() -> specs::World {
     ecs
 }
 
-impl<C: Chunk + Send> World<C> {
+impl<C: Chunk + Send + Sync + 'static> World<C> {
     #[profiling::function]
     pub fn create(path: Option<PathBuf>, seed: Option<i32>) -> Self {
         let mut ecs = ecs();
@@ -383,7 +383,7 @@ impl<C: Chunk + Send> World<C> {
     }
 }
 
-impl<C: Chunk + SidedChunk + Send + Sync> World<C>
+impl<C: Chunk + SidedChunk + Send + Sync + 'static> World<C>
 where
     <<C as SidedChunk>::S as SidedChunkData>::TileEntityData: TileEntitySided<D = C>,
 {

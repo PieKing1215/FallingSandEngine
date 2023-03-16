@@ -16,7 +16,7 @@ use crate::game::common::{
             self,
             placer::{MaterialPlacer, MaterialPlacerSampler},
         },
-        CHUNK_SIZE,
+        Chunk, CHUNK_SIZE,
     },
     Registries,
 };
@@ -47,10 +47,10 @@ impl Debug for Blob {
     }
 }
 
-impl ConfiguredFeature for Blob {
+impl<C: Chunk> ConfiguredFeature<C> for Blob {
     fn try_place(
         &self,
-        chunks: &mut ChunkContext<1>,
+        chunks: &mut ChunkContext<1, C>,
         pos: (i32, i32),
         seed: i32,
         rng: &mut dyn rand::RngCore,

@@ -13,16 +13,16 @@ use crate::game::common::{
 };
 
 // where S=0 means 1x1, S=1 means 3x3, etc
-pub trait Populator<const S: u8> {
-    fn populate(&self, chunks: &mut ChunkContext<S>, seed: i32, registries: &Registries);
+pub trait Populator<const S: u8, C: Chunk> {
+    fn populate(&self, chunks: &mut ChunkContext<S, C>, seed: i32, registries: &Registries);
 }
 
 // where S=0 means 1x1, S=1 means 3x3, etc
 // when generic_const_exprs gets stablized eventually, could use [&mut dyn Chunk; (S * 2 + 1) * (S * 2 + 1)]
-pub struct ChunkContext<'a, 'b, const S: u8>(&'a mut [&'b mut dyn Chunk]);
+pub struct ChunkContext<'a, 'b, const S: u8, C: Chunk>(&'a mut [&'b mut C]);
 
-impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
-    pub fn new(slice: &'a mut [&'b mut dyn Chunk]) -> Result<Self, String> {
+impl<'a, 'b, const S: u8, C: Chunk> ChunkContext<'a, 'b, S, C> {
+    pub fn new(slice: &'a mut [&'b mut C]) -> Result<Self, String> {
         if slice.len() == ((S * 2 + 1) * (S * 2 + 1)) as usize {
             if slice.iter().all(|c| c.pixels().is_some()) {
                 Ok(Self(slice))
@@ -38,6 +38,7 @@ impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
         }
     }
 
+    #[inline]
     pub fn center_chunk(&self) -> (i32, i32) {
         let ch = &self.0[Self::chunk_index(0, 0)];
         (ch.chunk_x(), ch.chunk_y())
@@ -60,6 +61,7 @@ impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
         abs_x + abs_y * width
     }
 
+    #[inline]
     pub fn set(&mut self, x: i32, y: i32, mat: MaterialInstance) -> Result<(), String> {
         let (cx, cy) = Self::pixel_to_chunk(x, y);
         let i = Self::chunk_index(cx, cy);
@@ -75,6 +77,7 @@ impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
         }
     }
 
+    #[inline]
     pub fn get(&self, x: impl Into<i32>, y: impl Into<i32>) -> Result<&MaterialInstance, String> {
         let x = x.into();
         let y = y.into();
@@ -90,6 +93,7 @@ impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
         }
     }
 
+    #[inline]
     fn replace<F>(&mut self, x: impl Into<i32>, y: impl Into<i32>, cb: F) -> bool
     where
         F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>,
@@ -104,15 +108,11 @@ impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
         let y = y.rem_euclid(i32::from(CHUNK_SIZE)) as u16;
         unsafe {
             let ch = self.0.get_unchecked_mut(i);
-            if let Some(mat) = (cb)(ch.pixel_unchecked(x, y)) {
-                ch.set_pixel_unchecked(x, y, mat);
-                true
-            } else {
-                false
-            }
+            ch.replace_pixel_unchecked(x, y, cb).unwrap_or(false)
         }
     }
 
+    #[inline]
     pub fn set_background(&mut self, x: i32, y: i32, mat: MaterialInstance) -> Result<(), String> {
         let (cx, cy) = Self::pixel_to_chunk(x, y);
         let i = Self::chunk_index(cx, cy);
@@ -128,6 +128,7 @@ impl<'a, 'b, const S: u8> ChunkContext<'a, 'b, S> {
         }
     }
 
+    #[inline]
     pub fn get_background(
         &self,
         x: impl Into<i32>,

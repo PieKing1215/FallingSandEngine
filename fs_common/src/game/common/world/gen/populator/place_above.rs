@@ -1,7 +1,7 @@
 use crate::game::common::{
     world::{
         material::{self, MaterialInstance},
-        CHUNK_SIZE,
+        Chunk, CHUNK_SIZE,
     },
     Registries,
 };
@@ -17,9 +17,9 @@ pub struct PlaceAbovePopulator {
     pub searching_for: fn(&MaterialInstance) -> bool,
 }
 
-impl Populator<1> for PlaceAbovePopulator {
+impl<C: Chunk> Populator<1, C> for PlaceAbovePopulator {
     #[profiling::function]
-    fn populate(&self, chunks: &mut ChunkContext<1>, _seed: i32, registries: &Registries) {
+    fn populate(&self, chunks: &mut ChunkContext<1, C>, _seed: i32, registries: &Registries) {
         let cofs_x = i64::from(chunks.center_chunk().0) * i64::from(CHUNK_SIZE);
         let cofs_y = i64::from(chunks.center_chunk().1) * i64::from(CHUNK_SIZE);
 

@@ -3,7 +3,10 @@ use std::ops::Range;
 use rand::Rng;
 
 use crate::game::common::{
-    world::gen::{feature::PlacementModifier, populator::ChunkContext},
+    world::{
+        gen::{feature::PlacementModifier, populator::ChunkContext},
+        Chunk,
+    },
     Registries,
 };
 
@@ -15,10 +18,10 @@ pub struct Spread {
     pub y: Range<i32>,
 }
 
-impl PlacementModifier for Spread {
+impl<C: Chunk> PlacementModifier<C> for Spread {
     fn process(
         &self,
-        _chunks: &mut ChunkContext<1>,
+        _chunks: &mut ChunkContext<1, C>,
         pos: (i32, i32),
         _seed: i32,
         rng: &mut dyn rand::RngCore,

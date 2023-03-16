@@ -5,7 +5,7 @@ use crate::game::common::{
     world::{
         gen::{feature::ConfiguredFeature, populator::ChunkContext},
         material::placer::MaterialPlacer,
-        CHUNK_SIZE,
+        Chunk, CHUNK_SIZE,
     },
     Registries,
 };
@@ -21,10 +21,10 @@ impl SinglePixel {
     }
 }
 
-impl ConfiguredFeature for SinglePixel {
+impl<C: Chunk> ConfiguredFeature<C> for SinglePixel {
     fn try_place(
         &self,
-        chunks: &mut ChunkContext<1>,
+        chunks: &mut ChunkContext<1, C>,
         pos: (i32, i32),
         _seed: i32,
         _rng: &mut dyn RngCore,

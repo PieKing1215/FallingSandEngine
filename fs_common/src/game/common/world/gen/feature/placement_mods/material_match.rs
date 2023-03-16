@@ -5,6 +5,7 @@ use crate::game::common::{
     world::{
         gen::{feature::PlacementModifier, populator::ChunkContext},
         material::{self, Material, MaterialInstance, PhysicsType},
+        Chunk,
     },
     Registries,
 };
@@ -39,10 +40,10 @@ impl std::fmt::Debug for MaterialMatch {
     }
 }
 
-impl PlacementModifier for MaterialMatch {
+impl<C: Chunk> PlacementModifier<C> for MaterialMatch {
     fn process(
         &self,
-        chunks: &mut ChunkContext<1>,
+        chunks: &mut ChunkContext<1, C>,
         pos: (i32, i32),
         _seed: i32,
         _rng: &mut dyn rand::RngCore,

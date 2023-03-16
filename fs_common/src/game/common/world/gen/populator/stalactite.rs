@@ -3,7 +3,7 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 use crate::game::common::{
     world::{
         material::{self, MaterialInstance},
-        CHUNK_SIZE,
+        Chunk, CHUNK_SIZE,
     },
     Registries,
 };
@@ -15,9 +15,9 @@ pub struct StalactitePopulator {
     pub replace: fn(&MaterialInstance, i64, i64, &Registries) -> Option<MaterialInstance>,
 }
 
-impl Populator<1> for StalactitePopulator {
+impl<C: Chunk> Populator<1, C> for StalactitePopulator {
     #[profiling::function]
-    fn populate(&self, chunks: &mut ChunkContext<1>, seed: i32, registries: &Registries) {
+    fn populate(&self, chunks: &mut ChunkContext<1, C>, seed: i32, registries: &Registries) {
         let mut rng = StdRng::seed_from_u64(seed as u64);
 
         'skip: for _ in 0..1000 {

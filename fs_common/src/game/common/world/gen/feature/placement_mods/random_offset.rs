@@ -5,7 +5,7 @@ use rand::{Rng, RngCore};
 use crate::game::common::{
     world::{
         gen::{feature::PlacementModifier, populator::ChunkContext},
-        CHUNK_SIZE,
+        Chunk, CHUNK_SIZE,
     },
     Registries,
 };
@@ -37,10 +37,10 @@ impl RandomOffset {
     }
 }
 
-impl PlacementModifier for RandomOffset {
+impl<C: Chunk> PlacementModifier<C> for RandomOffset {
     fn process(
         &self,
-        _chunks: &mut ChunkContext<1>,
+        _chunks: &mut ChunkContext<1, C>,
         pos: (i32, i32),
         _seed: i32,
         rng: &mut dyn RngCore,

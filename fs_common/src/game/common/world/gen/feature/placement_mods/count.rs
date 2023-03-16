@@ -3,9 +3,12 @@ use std::{fmt::Debug, sync::Arc};
 use rand::{distributions::uniform::SampleRange, Rng};
 
 use crate::game::common::{
-    world::gen::{
-        feature::{PlacementModifier, ProviderFn},
-        populator::ChunkContext,
+    world::{
+        gen::{
+            feature::{PlacementModifier, ProviderFn},
+            populator::ChunkContext,
+        },
+        Chunk,
     },
     Registries,
 };
@@ -30,10 +33,10 @@ impl Debug for Count {
     }
 }
 
-impl PlacementModifier for Count {
+impl<C: Chunk> PlacementModifier<C> for Count {
     fn process(
         &self,
-        _chunks: &mut ChunkContext<1>,
+        _chunks: &mut ChunkContext<1, C>,
         pos: (i32, i32),
         _seed: i32,
         rng: &mut dyn rand::RngCore,

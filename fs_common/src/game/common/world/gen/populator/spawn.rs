@@ -4,7 +4,7 @@ use crate::game::common::{
             placer::{self, MaterialPlacerSampler},
             MaterialInstance,
         },
-        CHUNK_SIZE,
+        Chunk, CHUNK_SIZE,
     },
     Registries,
 };
@@ -13,9 +13,9 @@ use super::{ChunkContext, Populator};
 
 pub struct SpawnPopulator;
 
-impl Populator<0> for SpawnPopulator {
+impl<C: Chunk> Populator<0, C> for SpawnPopulator {
     #[profiling::function]
-    fn populate(&self, chunks: &mut ChunkContext<0>, _seed: i32, registries: &Registries) {
+    fn populate(&self, chunks: &mut ChunkContext<0, C>, _seed: i32, registries: &Registries) {
         let (chunk_x, chunk_y) = chunks.center_chunk();
         let chunk_pixel_x = i64::from(chunk_x) * i64::from(CHUNK_SIZE);
         let chunk_pixel_y = i64::from(chunk_y) * i64::from(CHUNK_SIZE);

@@ -7,7 +7,7 @@ use crate::game::common::{
                 ConfiguredStructurePlaceContext, ConfiguredStructurePlacer,
             },
         },
-        CHUNK_SIZE,
+        Chunk, CHUNK_SIZE,
     },
     Registries,
 };
@@ -15,10 +15,10 @@ use crate::game::common::{
 #[derive(Debug)]
 pub struct TestStructure;
 
-impl ConfiguredFeature for TestStructure {
+impl<C: Chunk> ConfiguredFeature<C> for TestStructure {
     fn try_place(
         &self,
-        chunks: &mut ChunkContext<1>,
+        chunks: &mut ChunkContext<1, C>,
         pos: (i32, i32),
         world_seed: i32,
         _rng: &mut dyn rand::RngCore,

@@ -1,7 +1,7 @@
 use crate::game::common::{
     world::{
         material::{self, color::Color, MaterialInstance, PhysicsType},
-        CHUNK_AREA,
+        Chunk, CHUNK_AREA,
     },
     Registries,
 };
@@ -14,18 +14,18 @@ use crate::game::common::world::CHUNK_SIZE;
 use super::{feature::PlacedFeature, PopulatorList, WorldGenerator};
 
 #[derive(Debug)]
-pub struct TestGenerator {
-    populators: PopulatorList,
+pub struct TestGenerator<C: Chunk> {
+    populators: PopulatorList<C>,
 }
 
-impl TestGenerator {
+impl<C: Chunk + 'static> TestGenerator<C> {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self { populators: PopulatorList::new() }
     }
 }
 
-impl WorldGenerator for TestGenerator {
+impl<C: Chunk + Send + Sync> WorldGenerator<C> for TestGenerator<C> {
     #[allow(clippy::cast_lossless)]
     #[profiling::function]
     fn generate(
@@ -102,11 +102,11 @@ impl WorldGenerator for TestGenerator {
         2
     }
 
-    fn populators(&self) -> &PopulatorList {
+    fn populators(&self) -> &PopulatorList<C> {
         &self.populators
     }
 
-    fn features(&self) -> &[PlacedFeature] {
+    fn features(&self) -> &[PlacedFeature<C>] {
         &[]
     }
 }

@@ -2,7 +2,7 @@ use crate::game::common::{
     world::{
         gen::{feature::PlacementModifier, populator::ChunkContext},
         material::PhysicsType,
-        CHUNK_SIZE,
+        Chunk, CHUNK_SIZE,
     },
     Registries,
 };
@@ -12,10 +12,10 @@ pub struct OnGround {
     pub max_distance: Option<u32>,
 }
 
-impl PlacementModifier for OnGround {
+impl<C: Chunk> PlacementModifier<C> for OnGround {
     fn process(
         &self,
-        chunks: &mut ChunkContext<1>,
+        chunks: &mut ChunkContext<1, C>,
         mut pos: (i32, i32),
         _seed: i32,
         _rng: &mut dyn rand::RngCore,

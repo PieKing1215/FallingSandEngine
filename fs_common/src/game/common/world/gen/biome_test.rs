@@ -8,7 +8,7 @@ use crate::game::common::{
             placer::{self, MaterialPlacerSampler},
             MaterialInstance, PhysicsType,
         },
-        CHUNK_AREA,
+        Chunk, CHUNK_AREA,
     },
     Registries,
 };
@@ -39,12 +39,12 @@ use super::{
 };
 
 #[derive(Debug)]
-pub struct BiomeTestGenerator {
-    populators: PopulatorList,
-    features: Vec<PlacedFeature>,
+pub struct BiomeTestGenerator<C: Chunk> {
+    populators: PopulatorList<C>,
+    features: Vec<PlacedFeature<C>>,
 }
 
-impl BiomeTestGenerator {
+impl<C: Chunk + 'static> BiomeTestGenerator<C> {
     #[allow(clippy::new_without_default)]
     #[allow(clippy::too_many_lines)]
     pub fn new() -> Self {
@@ -195,7 +195,7 @@ impl BiomeTestGenerator {
     }
 }
 
-impl WorldGenerator for BiomeTestGenerator {
+impl<C: Chunk + Send + Sync> WorldGenerator<C> for BiomeTestGenerator<C> {
     #[allow(clippy::cast_lossless)]
     #[profiling::function]
     fn generate(
@@ -245,11 +245,11 @@ impl WorldGenerator for BiomeTestGenerator {
         2
     }
 
-    fn populators(&self) -> &PopulatorList {
+    fn populators(&self) -> &PopulatorList<C> {
         &self.populators
     }
 
-    fn features(&self) -> &[PlacedFeature] {
+    fn features(&self) -> &[PlacedFeature<C>] {
         &self.features
     }
 }

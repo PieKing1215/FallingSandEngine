@@ -11,6 +11,7 @@ use std::cell::UnsafeCell;
 
 use std::convert::TryInto;
 
+use std::fmt::Debug;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -164,7 +165,6 @@ pub enum ChunkRigidBodyState {
     Inactive(Box<RigidBody>, Vec<Collider>),
 }
 
-#[derive(Debug)]
 pub struct ChunkHandler<C: Chunk> {
     pub manager: ChunkManager<C>,
     pub load_queue: Vec<(i32, i32)>,
@@ -172,8 +172,20 @@ pub struct ChunkHandler<C: Chunk> {
     pub gen_threads: Vec<(ChunkKey, Receiver<ChunkGenOutput>)>,
     /** The size of the "presentable" area (not necessarily the current window size) */
     pub screen_size: (u16, u16),
-    pub generator: Arc<dyn WorldGenerator>,
+    pub generator: Arc<dyn WorldGenerator<C>>,
     pub path: Option<PathBuf>,
+}
+
+impl<C: Chunk> Debug for ChunkHandler<C> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ChunkHandler")
+            .field("load_queue", &self.load_queue)
+            .field("gen_pool", &self.gen_pool)
+            .field("gen_threads", &self.gen_threads)
+            .field("screen_size", &self.screen_size)
+            .field("path", &self.path)
+            .finish()
+    }
 }
 
 #[allow(clippy::cast_lossless)]
@@ -201,7 +213,7 @@ pub struct ChunkTickContext<'a> {
     pub file_helper: &'a FileHelper,
 }
 
-impl<C: Chunk + SidedChunk + Send> ChunkHandler<C>
+impl<C: Chunk + SidedChunk + Send + Sync + 'static> ChunkHandler<C>
 where
     <<C as SidedChunk>::S as SidedChunkData>::TileEntityData: TileEntitySided<D = C>,
 {
@@ -638,12 +650,7 @@ where
                         .into_par_iter()
                         .for_each(|chunk| {
                             profiling::scope!("populate thread");
-                            pops.populate(
-                                0,
-                                &mut [&mut chunk.data as &mut dyn Chunk],
-                                ctx.seed,
-                                ctx.registries,
-                            );
+                            pops.populate(0, &mut [&mut chunk.data], ctx.seed, ctx.registries);
                         });
                 }
             }
@@ -660,6 +667,7 @@ where
                 let mut keep_map = vec![true; keys.len()];
                 let mut populated_num = 0;
                 for i in 0..keys.len() {
+                    profiling::scope!("chunk");
                     let key = keys[i];
                     let state = self.manager.chunk_at(key).unwrap().state(); // copy
                     let rect = Rect::new_wh(
@@ -671,6 +679,7 @@ where
 
                     match state {
                         ChunkState::NotGenerated => {
+                            profiling::scope!("NotGenerated");
                             if !unload_zone.iter().any(|z| rect.intersects(z)) {
                                 if let Err(e) = self.save_chunk(key) {
                                     log::error!(
@@ -692,12 +701,14 @@ where
                             }
                         },
                         ChunkState::Generating(cur_stage) => {
+                            profiling::scope!("Generating");
                             let chunk_x = self.manager.chunk_at(key).unwrap().chunk_x();
                             let chunk_y = self.manager.chunk_at(key).unwrap().chunk_y();
 
                             let max_stage = self.generator.max_gen_stage();
 
                             if cur_stage >= max_stage {
+                                profiling::scope!("finish");
                                 let _ = self.manager.chunk_at_mut(key).unwrap().generate_mesh();
 
                                 self.manager
@@ -713,39 +724,46 @@ where
                                     } else {
                                         8
                                     }
-                                    && [
-                                        self.chunk_at((chunk_x - 1, chunk_y - 1)),
-                                        self.chunk_at((chunk_x, chunk_y - 1)),
-                                        self.chunk_at((chunk_x + 1, chunk_y - 1)),
-                                        self.chunk_at((chunk_x - 1, chunk_y)),
-                                        self.chunk_at((chunk_x, chunk_y)),
-                                        self.chunk_at((chunk_x + 1, chunk_y)),
-                                        self.chunk_at((chunk_x - 1, chunk_y + 1)),
-                                        self.chunk_at((chunk_x, chunk_y + 1)),
-                                        self.chunk_at((chunk_x + 1, chunk_y + 1)),
-                                    ]
-                                    .iter()
-                                    .all(|ch| {
-                                        let Some(chunk) = ch else {
-                                            return false;
-                                        };
+                                    && {
+                                        profiling::scope!("check neighbors");
+                                        [
+                                            self.chunk_at((chunk_x - 1, chunk_y - 1)),
+                                            self.chunk_at((chunk_x, chunk_y - 1)),
+                                            self.chunk_at((chunk_x + 1, chunk_y - 1)),
+                                            self.chunk_at((chunk_x - 1, chunk_y)),
+                                            self.chunk_at((chunk_x, chunk_y)),
+                                            self.chunk_at((chunk_x + 1, chunk_y)),
+                                            self.chunk_at((chunk_x - 1, chunk_y + 1)),
+                                            self.chunk_at((chunk_x, chunk_y + 1)),
+                                            self.chunk_at((chunk_x + 1, chunk_y + 1)),
+                                        ]
+                                        .iter()
+                                        .all(|ch| {
+                                            let Some(chunk) = ch else {
+                                                return false;
+                                            };
 
-                                        if chunk.pixels().is_none() {
-                                            return false;
-                                        }
+                                            if chunk.pixels().is_none() {
+                                                return false;
+                                            }
 
-                                        let state = ch.unwrap().state();
+                                            let state = ch.unwrap().state();
 
-                                        match state {
-                                            ChunkState::Cached | ChunkState::Active => true,
-                                            ChunkState::Generating(st) if st >= cur_stage => true,
-                                            _ => false,
-                                        }
-                                    })
+                                            match state {
+                                                ChunkState::Cached | ChunkState::Active => true,
+                                                ChunkState::Generating(st) if st >= cur_stage => {
+                                                    true
+                                                },
+                                                _ => false,
+                                            }
+                                        })
+                                    }
                                 {
-                                    let mut keys = Vec::new();
+                                    profiling::scope!("check populate");
 
                                     let range = i32::from(cur_stage + 1);
+                                    let mut keys =
+                                        Vec::with_capacity(((range * 2) * (range * 2)) as usize);
 
                                     // try to gather the nearby chunks needed to populate this one
                                     for y in -range..=range {
@@ -761,14 +779,14 @@ where
                                     if let Some((true, chunks)) = chunks
                                         .map(|chs| (chs.iter().all(|c| c.pixels().is_some()), chs))
                                     {
-                                        let mut chunks_dyn: Vec<_> = chunks
-                                            .into_iter()
-                                            .map(|c| &mut c.data as &mut dyn Chunk)
-                                            .collect();
+                                        profiling::scope!("populating");
+                                        let mut chunks_data: Vec<_> =
+                                            chunks.into_iter().map(|c| &mut c.data).collect();
 
                                         if cur_stage + 1 == 1 {
                                             let mut chunk_ctx =
-                                                ChunkContext::<1>::new(&mut chunks_dyn).unwrap();
+                                                ChunkContext::<1, C>::new(&mut chunks_data)
+                                                    .unwrap();
                                             let mut rng = StdRng::seed_from_u64(
                                                 ctx.seed as u64
                                                     + u64::from(chunk_index(
@@ -790,7 +808,7 @@ where
 
                                         self.generator.populators().populate(
                                             cur_stage + 1,
-                                            &mut chunks_dyn,
+                                            &mut chunks_data,
                                             ctx.seed,
                                             ctx.registries,
                                         );
@@ -804,24 +822,27 @@ where
                                     }
                                 }
 
-                                if !unload_zone.iter().any(|z| rect.intersects(z)) {
-                                    if let Err(e) = self.save_chunk(key) {
-                                        log::error!(
-                                            "Chunk @ {}, {} failed to save: {:?}",
-                                            key.0,
-                                            key.1,
-                                            e
-                                        );
-                                    };
-                                    if let Err(e) = self.unload_chunk(key, ctx.physics) {
-                                        log::error!(
-                                            "Chunk @ {}, {} failed to unload: {:?}",
-                                            key.0,
-                                            key.1,
-                                            e
-                                        );
-                                    };
-                                    keep_map[i] = false;
+                                {
+                                    profiling::scope!("check unload");
+                                    if !unload_zone.iter().any(|z| rect.intersects(z)) {
+                                        if let Err(e) = self.save_chunk(key) {
+                                            log::error!(
+                                                "Chunk @ {}, {} failed to save: {:?}",
+                                                key.0,
+                                                key.1,
+                                                e
+                                            );
+                                        };
+                                        if let Err(e) = self.unload_chunk(key, ctx.physics) {
+                                            log::error!(
+                                                "Chunk @ {}, {} failed to unload: {:?}",
+                                                key.0,
+                                                key.1,
+                                                e
+                                            );
+                                        };
+                                        keep_map[i] = false;
+                                    }
                                 }
                             }
                         },
@@ -1110,7 +1131,7 @@ impl<C: Chunk> ChunkQuery for ChunkHandler<C> {
 
 impl<C: Chunk> ChunkHandler<C> {
     // #[profiling::function]
-    pub fn new(generator: impl WorldGenerator + 'static, path: Option<PathBuf>) -> Self {
+    pub fn new(generator: impl WorldGenerator<C> + 'static, path: Option<PathBuf>) -> Self {
         ChunkHandler {
             manager: ChunkManager::new_with_capacity(1000),
             load_queue: vec![],

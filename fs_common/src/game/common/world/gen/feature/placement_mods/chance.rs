@@ -1,17 +1,20 @@
 use rand::Rng;
 
 use crate::game::common::{
-    world::gen::{feature::PlacementModifier, populator::ChunkContext},
+    world::{
+        gen::{feature::PlacementModifier, populator::ChunkContext},
+        Chunk,
+    },
     Registries,
 };
 
 #[derive(Debug)]
 pub struct Chance(pub f32);
 
-impl PlacementModifier for Chance {
+impl<C: Chunk> PlacementModifier<C> for Chance {
     fn process(
         &self,
-        _chunks: &mut ChunkContext<1>,
+        _chunks: &mut ChunkContext<1, C>,
         pos: (i32, i32),
         _seed: i32,
         rng: &mut dyn rand::RngCore,

@@ -4,7 +4,7 @@ use crate::game::common::{
     registry::RegistryID,
     world::{
         gen::{biome::Biome, feature::PlacementModifier, populator::ChunkContext},
-        CHUNK_SIZE,
+        Chunk, CHUNK_SIZE,
     },
     Registries,
 };
@@ -32,10 +32,10 @@ impl std::fmt::Debug for BiomeMatch {
     }
 }
 
-impl PlacementModifier for BiomeMatch {
+impl<C: Chunk> PlacementModifier<C> for BiomeMatch {
     fn process(
         &self,
-        chunks: &mut ChunkContext<1>,
+        chunks: &mut ChunkContext<1, C>,
         pos: (i32, i32),
         seed: i32,
         _rng: &mut dyn rand::RngCore,
