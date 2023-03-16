@@ -136,18 +136,18 @@ impl<'a> Renderer<'a> {
             profiling::scope!("egui");
 
             self.egui_glium.run(&self.display, |egui_ctx| {
+                let mut visuals = egui::Visuals::dark();
+                visuals.window_fill = egui::Color32::from_black_alpha(127);
+                visuals.window_shadow.extrusion = 10.0;
+                visuals.window_shadow.color = egui::Color32::from_black_alpha(64);
+                visuals.widgets.noninteractive.fg_stroke.color = egui::Color32::from_gray(180);
+                visuals.widgets.inactive.fg_stroke.color = egui::Color32::from_gray(200);
+                egui_ctx.set_visuals(visuals);
+
                 if game.settings.debug {
                     // TODO: reimplement vsync for glutin
                     // let last_vsync = game.settings.vsync;
                     // let last_minimize_on_lost_focus = game.settings.minimize_on_lost_focus;
-
-                    let mut visuals = egui::Visuals::dark();
-                    visuals.window_fill = egui::Color32::from_black_alpha(127);
-                    visuals.window_shadow.extrusion = 10.0;
-                    visuals.window_shadow.color = egui::Color32::from_black_alpha(64);
-                    visuals.widgets.noninteractive.fg_stroke.color = egui::Color32::from_gray(180);
-                    visuals.widgets.inactive.fg_stroke.color = egui::Color32::from_gray(200);
-                    egui_ctx.set_visuals(visuals);
 
                     egui::Window::new("Debug")
                         .resizable(false)
