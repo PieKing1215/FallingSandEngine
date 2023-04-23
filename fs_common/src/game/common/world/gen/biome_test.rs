@@ -1,16 +1,12 @@
 use std::sync::Arc;
 
-use crate::game::common::{
-    world::{
-        material::{
-            self,
-            color::Color,
-            placer::{self, MaterialPlacerSampler},
-            MaterialInstance, PhysicsType,
-        },
-        Chunk, CHUNK_AREA,
+use crate::game::common::world::{
+    material::{
+        self,
+        placer::{self, MaterialPlacerSampler},
+        PhysicsType,
     },
-    Registries,
+    Chunk,
 };
 
 use chunksystem::ChunkKey;
@@ -35,7 +31,7 @@ use super::{
         cave::CavePopulator, nearby_replace::NearbyReplacePopulator,
         place_above::PlaceAbovePopulator, spawn::SpawnPopulator, stalactite::StalactitePopulator,
     },
-    PopulatorList, WorldGenerator,
+    GenBuffers, GenContext, PopulatorList, WorldGenerator,
 };
 
 #[derive(Debug)]
@@ -198,23 +194,14 @@ impl<C: Chunk + 'static> BiomeTestGenerator<C> {
 impl<C: Chunk + Send + Sync> WorldGenerator<C> for BiomeTestGenerator<C> {
     #[allow(clippy::cast_lossless)]
     #[profiling::function]
-    fn generate(
-        &self,
-        chunk_pos: ChunkKey,
-        seed: i32,
-        pixels: &mut [MaterialInstance; CHUNK_AREA],
-        colors: &mut [Color; CHUNK_AREA],
-        background: &mut [MaterialInstance; CHUNK_AREA],
-        background_colors: &mut [Color; CHUNK_AREA],
-        registries: &Registries,
-    ) {
+    fn generate(&self, chunk_pos: ChunkKey, mut buf: GenBuffers, ctx: GenContext) {
         let chunk_pixel_x = chunk_pos.0 as i64 * CHUNK_SIZE as i64;
         let chunk_pixel_y = chunk_pos.1 as i64 * CHUNK_SIZE as i64;
 
-        let biomes = registries.biomes.biome_block::<CHUNK_SIZE, CHUNK_SIZE>(
+        let biomes = ctx.registries.biomes.biome_block::<CHUNK_SIZE, CHUNK_SIZE>(
             chunk_pixel_x,
             chunk_pixel_y,
-            seed,
+            ctx.seed,
         );
 
         {
@@ -224,18 +211,21 @@ impl<C: Chunk + Send + Sync> WorldGenerator<C> for BiomeTestGenerator<C> {
                     let i = (x + y * CHUNK_SIZE) as usize;
                     let biome = biomes[i].1;
 
-                    // using `get_unchecked` has no noticeable performance effect here
-                    pixels[i] = biome
-                        .base_placer
-                        .as_placer(registries)
-                        .pixel(chunk_pixel_x + x as i64, chunk_pixel_y + y as i64);
-                    colors[i] = pixels[i].color;
+                    buf.set_pixel_idx(
+                        i,
+                        biome
+                            .base_placer
+                            .as_placer(ctx.registries)
+                            .pixel(chunk_pixel_x + x as i64, chunk_pixel_y + y as i64),
+                    );
 
-                    background[i] = biome
-                        .base_placer
-                        .as_placer(registries)
-                        .pixel(chunk_pixel_x + x as i64, chunk_pixel_y + y as i64);
-                    background_colors[i] = background[i].color;
+                    buf.set_bg_idx(
+                        i,
+                        biome
+                            .base_placer
+                            .as_placer(ctx.registries)
+                            .pixel(chunk_pixel_x + x as i64, chunk_pixel_y + y as i64),
+                    );
                 }
             }
         }

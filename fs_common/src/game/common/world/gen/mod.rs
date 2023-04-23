@@ -22,7 +22,7 @@ use self::populator::Populator;
 
 use super::material::color::Color;
 use super::material::MaterialInstance;
-use super::CHUNK_AREA;
+use super::{CHUNK_AREA, CHUNK_SIZE};
 
 #[derive(Debug)]
 pub struct PopulatorList<C: Chunk> {
@@ -92,19 +92,55 @@ impl<C: Chunk + 'static> PopulatorList<C> {
 //     }
 // }
 
+pub struct GenContext<'a> {
+    pub seed: i32,
+    pub registries: &'a Registries,
+}
+
+pub struct GenBuffers<'a> {
+    pixels: &'a mut [MaterialInstance; CHUNK_AREA],
+    colors: &'a mut [Color; CHUNK_AREA],
+    background: &'a mut [MaterialInstance; CHUNK_AREA],
+    background_colors: &'a mut [Color; CHUNK_AREA],
+}
+
+impl<'a> GenBuffers<'a> {
+    pub fn new(
+        pixels: &'a mut [MaterialInstance; CHUNK_AREA],
+        colors: &'a mut [Color; CHUNK_AREA],
+        background: &'a mut [MaterialInstance; CHUNK_AREA],
+        background_colors: &'a mut [Color; CHUNK_AREA],
+    ) -> Self {
+        Self { pixels, colors, background, background_colors }
+    }
+
+    #[inline]
+    pub fn set_pixel(&mut self, x: u16, y: u16, mat: MaterialInstance) {
+        self.set_pixel_idx((x + y * CHUNK_SIZE) as usize, mat);
+    }
+
+    #[inline]
+    pub fn set_pixel_idx(&mut self, i: usize, mat: MaterialInstance) {
+        self.pixels[i] = mat;
+        self.colors[i] = self.pixels[i].color;
+    }
+
+    #[inline]
+    pub fn set_bg(&mut self, x: u16, y: u16, mat: MaterialInstance) {
+        self.set_bg_idx((x + y * CHUNK_SIZE) as usize, mat);
+    }
+
+    #[inline]
+    pub fn set_bg_idx(&mut self, i: usize, mat: MaterialInstance) {
+        self.background[i] = mat;
+        self.background_colors[i] = self.background[i].color;
+    }
+}
+
 pub trait WorldGenerator<C: Chunk>: Send + Sync {
     #[allow(clippy::cast_lossless)]
     #[warn(clippy::too_many_arguments)] // TODO
-    fn generate(
-        &self,
-        chunk_pos: ChunkKey,
-        seed: i32,
-        pixels: &mut [MaterialInstance; CHUNK_AREA],
-        colors: &mut [Color; CHUNK_AREA],
-        background: &mut [MaterialInstance; CHUNK_AREA],
-        background_colors: &mut [Color; CHUNK_AREA],
-        registries: &Registries,
-    );
+    fn generate(&self, chunk_pos: ChunkKey, buf: GenBuffers, ctx: GenContext);
 
     fn max_gen_stage(&self) -> u8;
 

@@ -1,6 +1,7 @@
 use crate::game::common::hashmap_ext::HashMapExt;
 use crate::game::common::world::gen::populator::ChunkContext;
 use crate::game::common::world::gen::structure::UpdateStructureNodes;
+use crate::game::common::world::gen::{GenBuffers, GenContext};
 use crate::game::common::world::particle::ParticleSystem;
 use crate::game::common::world::simulator::{Simulator, SimulatorChunkContext};
 use crate::game::common::world::tile_entity::TileEntityTickContext;
@@ -12,6 +13,7 @@ use std::cell::UnsafeCell;
 use std::convert::TryInto;
 
 use std::fmt::Debug;
+
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -593,12 +595,13 @@ where
 
                             generator.generate(
                                 (chunk_x, chunk_y),
-                                ctx.seed,
-                                &mut pixels,
-                                &mut colors,
-                                &mut background,
-                                &mut background_colors,
-                                &reg,
+                                GenBuffers::new(
+                                    &mut pixels,
+                                    &mut colors,
+                                    &mut background,
+                                    &mut background_colors,
+                                ),
+                                GenContext { seed: ctx.seed, registries: &reg },
                             );
 
                             tx.send((key, pixels, colors, background, background_colors))

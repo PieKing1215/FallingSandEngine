@@ -1,9 +1,6 @@
-use crate::game::common::{
-    world::{
-        material::{self, color::Color, MaterialInstance, PhysicsType},
-        Chunk, CHUNK_AREA,
-    },
-    Registries,
+use crate::game::common::world::{
+    material::{self, color::Color, MaterialInstance, PhysicsType},
+    Chunk,
 };
 
 use chunksystem::ChunkKey;
@@ -11,7 +8,7 @@ use simdnoise::NoiseBuilder;
 
 use crate::game::common::world::CHUNK_SIZE;
 
-use super::{feature::PlacedFeature, PopulatorList, WorldGenerator};
+use super::{feature::PlacedFeature, GenBuffers, GenContext, PopulatorList, WorldGenerator};
 
 #[derive(Debug)]
 pub struct TestGenerator<C: Chunk> {
@@ -28,23 +25,14 @@ impl<C: Chunk + 'static> TestGenerator<C> {
 impl<C: Chunk + Send + Sync> WorldGenerator<C> for TestGenerator<C> {
     #[allow(clippy::cast_lossless)]
     #[profiling::function]
-    fn generate(
-        &self,
-        chunk_pos: ChunkKey,
-        seed: i32,
-        pixels: &mut [MaterialInstance; CHUNK_AREA],
-        colors: &mut [Color; CHUNK_AREA],
-        _background: &mut [MaterialInstance; CHUNK_AREA],
-        _background_colors: &mut [Color; CHUNK_AREA],
-        _registries: &Registries,
-    ) {
+    fn generate(&self, chunk_pos: ChunkKey, mut buf: GenBuffers, ctx: GenContext) {
         let cofs_x = (chunk_pos.0 * CHUNK_SIZE as i32) as f32;
         let cofs_y = (chunk_pos.1 * CHUNK_SIZE as i32) as f32;
 
         let noise_cave_2 =
             NoiseBuilder::gradient_2d_offset(cofs_x, CHUNK_SIZE.into(), cofs_y, CHUNK_SIZE.into())
                 .with_freq(0.002)
-                .with_seed(seed)
+                .with_seed(ctx.seed)
                 .generate()
                 .0;
 
@@ -55,7 +43,7 @@ impl<C: Chunk + Send + Sync> WorldGenerator<C> for TestGenerator<C> {
             CHUNK_SIZE.into(),
         )
         .with_freq(0.004)
-        .with_seed(seed)
+        .with_seed(ctx.seed)
         .generate();
         let noise2 = noise2_r.0;
 
@@ -71,28 +59,21 @@ impl<C: Chunk + Send + Sync> WorldGenerator<C> for TestGenerator<C> {
                             && (40..56).contains(&y)
                             && !(47..49).contains(&x)))
                 {
-                    pixels[i] = MaterialInstance::air();
-                    // chunk.set(x, y, MaterialInstance::air()).unwrap();
+                    buf.set_pixel_idx(i, MaterialInstance::air());
                 } else if v2 > 0.0 {
                     let f = (v2 / 0.02).clamp(0.0, 1.0);
-                    pixels[i] = material::TEST.instance(
-                        PhysicsType::Sand,
-                        Color::rgb((f * 191.0) as u8 + 64, 64, ((1.0 - f) * 191.0) as u8 + 64),
+                    buf.set_pixel_idx(
+                        i,
+                        material::TEST.instance(
+                            PhysicsType::Sand,
+                            Color::rgb((f * 191.0) as u8 + 64, 64, ((1.0 - f) * 191.0) as u8 + 64),
+                        ),
                     );
-                    colors[i] = pixels[i].color;
-                    // chunk.set(x, y, MaterialInstance {
-                    //     material_id: material::TEST,
-                    //     physics: crate::game::world::PhysicsType::Solid,
-                    //     color: Color::rgb(0, 0, 255),
-                    // }).unwrap();
                 } else {
-                    pixels[i] = material::TEST.instance(PhysicsType::Solid, Color::rgb(80, 64, 32));
-                    colors[i] = pixels[i].color;
-                    // chunk.set(x, y, MaterialInstance {
-                    //     material_id: material::TEST,
-                    //     physics: crate::game::world::PhysicsType::Solid,
-                    //     color: Color::rgb(0, 255, 0),
-                    // }).unwrap();
+                    buf.set_pixel_idx(
+                        i,
+                        material::TEST.instance(PhysicsType::Solid, Color::rgb(80, 64, 32)),
+                    );
                 }
             }
         }
