@@ -41,6 +41,6 @@ impl<C: Chunk> ConfiguredFeature<C> for SinglePixel {
                 i64::from(cx * i32::from(CHUNK_SIZE)) + i64::from(pos.0),
                 i64::from(cy * i32::from(CHUNK_SIZE)) + i64::from(pos.1),
             );
-        let _ = chunks.set(pos.0, pos.1, m);
+        let _: Result<(), _> = chunks.set(pos.0, pos.1, m);
     }
 }

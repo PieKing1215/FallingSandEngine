@@ -958,9 +958,8 @@ impl WorldRenderer {
     fn draw_chunk_grid(&mut self, camera_pos: &Position, target: &mut RenderTarget) {
         profiling::scope!("draw_chunk_grid");
         let rects = (-10..10)
-            .into_iter()
             .flat_map(|x| {
-                (-8..8).into_iter().map(move |y| {
+                (-8..8).map(move |y| {
                     let rc_x = x + (camera_pos.x / f64::from(CHUNK_SIZE)) as i32;
                     let rc_y = y + (camera_pos.y / f64::from(CHUNK_SIZE)) as i32;
                     let rc = Rect::new_wh(

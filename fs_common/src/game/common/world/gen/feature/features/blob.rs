@@ -101,7 +101,7 @@ impl<C: Chunk> ConfiguredFeature<C> for Blob {
 
                     if (self.replace)(chunks.get(x, y).unwrap()) {
                         let air_below = self.check_air_below
-                            && (1..=4).into_iter().any(|i| {
+                            && (1..=4).any(|i| {
                                 chunks
                                     .get(x, y + i)
                                     .map(|m| m.material_id == *material::AIR)

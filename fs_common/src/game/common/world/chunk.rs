@@ -505,7 +505,7 @@ where
                                                 chunk.set_state(ChunkState::Cached);
                                                 chunk.set_pixels(save.pixels.try_into().unwrap());
                                                 chunk.mark_dirty();
-                                                let _ = chunk.generate_mesh();
+                                                let _: Result<(), _> = chunk.generate_mesh();
 
                                                 if save.colors.len()
                                                     == (CHUNK_SIZE as usize
@@ -709,7 +709,8 @@ where
 
                             if cur_stage >= max_stage {
                                 profiling::scope!("finish");
-                                let _ = self.manager.chunk_at_mut(key).unwrap().generate_mesh();
+                                let _: Result<(), _> =
+                                    self.manager.chunk_at_mut(key).unwrap().generate_mesh();
 
                                 self.manager
                                     .chunk_at_mut(key)
