@@ -1,7 +1,9 @@
 use chunksystem::ChunkQuery;
 use core::slice;
 use fs_common::game::common::world::{
-    material::PhysicsType, Chunk, ChunkLocalIndex, ChunkLocalPosition, CHUNK_AREA,
+    chunk_index::{ChunkLocalIndex, ChunkLocalPosition},
+    material::PhysicsType,
+    Chunk, CHUNK_AREA,
 };
 use std::{borrow::Cow, convert::TryInto, sync::Arc};
 

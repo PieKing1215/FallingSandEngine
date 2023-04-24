@@ -8,7 +8,7 @@ pub mod test;
 use std::usize;
 
 use crate::game::common::{
-    world::{material::MaterialInstance, Chunk, ChunkLocalPosition, CHUNK_SIZE},
+    world::{chunk_index::ChunkLocalPosition, material::MaterialInstance, Chunk, CHUNK_SIZE},
     Registries,
 };
 

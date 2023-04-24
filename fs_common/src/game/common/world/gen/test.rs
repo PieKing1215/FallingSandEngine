@@ -1,6 +1,7 @@
 use crate::game::common::world::{
+    chunk_index::{ChunkLocalIndex, ChunkLocalPosition},
     material::{self, color::Color, MaterialInstance, PhysicsType},
-    Chunk, ChunkLocalIndex, ChunkLocalPosition, CHUNK_AREA,
+    Chunk, CHUNK_AREA,
 };
 
 use chunksystem::ChunkKey;

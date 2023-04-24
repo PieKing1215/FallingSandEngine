@@ -20,9 +20,10 @@ use crate::game::common::Registries;
 use self::feature::PlacedFeature;
 use self::populator::Populator;
 
+use super::chunk_index::ChunkLocalIndex;
 use super::material::color::Color;
 use super::material::MaterialInstance;
-use super::{ChunkLocalIndex, CHUNK_AREA};
+use super::CHUNK_AREA;
 
 #[derive(Debug)]
 pub struct PopulatorList<C: Chunk> {

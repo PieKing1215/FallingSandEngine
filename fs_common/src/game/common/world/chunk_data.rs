@@ -1,8 +1,11 @@
 use crate::game::common::Rect;
 
 use super::{
-    material::MaterialInstance, mesh::Mesh, tile_entity::TileEntity, ChunkLocalIndex,
-    ChunkRigidBodyState, ChunkState, IndexLocal, CHUNK_AREA, CHUNK_SIZE,
+    chunk_index::{ChunkLocalIndex, IndexLocal},
+    material::MaterialInstance,
+    mesh::Mesh,
+    tile_entity::TileEntity,
+    ChunkRigidBodyState, ChunkState, CHUNK_AREA, CHUNK_SIZE,
 };
 
 pub struct CommonChunkData<S: SidedChunkData> {

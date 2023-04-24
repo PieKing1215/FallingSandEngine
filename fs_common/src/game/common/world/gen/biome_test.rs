@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
 use crate::game::common::world::{
+    chunk_index::{ChunkLocalIndex, ChunkLocalPosition},
     material::{
         self,
         placer::{self, MaterialPlacerSampler},
         PhysicsType,
     },
-    Chunk, ChunkLocalIndex, ChunkLocalPosition, CHUNK_AREA,
+    Chunk, CHUNK_AREA,
 };
 
 use chunksystem::ChunkKey;

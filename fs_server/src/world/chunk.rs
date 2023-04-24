@@ -1,5 +1,7 @@
 use fs_common::game::common::world::chunk_data::CommonChunkData;
 use fs_common::game::common::world::chunk_data::SidedChunkData;
+use fs_common::game::common::world::chunk_index::ChunkLocalIndex;
+use fs_common::game::common::world::chunk_index::ChunkLocalPosition;
 use fs_common::game::common::world::material::color::Color;
 use fs_common::game::common::world::material::MaterialInstance;
 use fs_common::game::common::world::mesh;
@@ -7,8 +9,6 @@ use fs_common::game::common::world::tile_entity::TileEntity;
 use fs_common::game::common::world::tile_entity::TileEntityCommon;
 use fs_common::game::common::world::tile_entity::TileEntitySided;
 use fs_common::game::common::world::Chunk;
-use fs_common::game::common::world::ChunkLocalIndex;
-use fs_common::game::common::world::ChunkLocalPosition;
 use fs_common::game::common::world::ChunkRigidBodyState;
 use fs_common::game::common::world::ChunkState;
 use fs_common::game::common::world::SidedChunk;
