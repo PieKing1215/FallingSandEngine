@@ -1,10 +1,7 @@
 use crate::game::common::Rect;
 
 use super::{
-    chunk_index::{ChunkLocalIndex, IndexLocal},
-    material::MaterialInstance,
-    mesh::Mesh,
-    tile_entity::TileEntity,
+    chunk_index::ChunkLocalIndex, material::MaterialInstance, mesh::Mesh, tile_entity::TileEntity,
     ChunkRigidBodyState, ChunkState, CHUNK_AREA, CHUNK_SIZE,
 };
 
@@ -51,7 +48,7 @@ impl<S: SidedChunkData> CommonChunkData<S> {
         if let Some(px) = &mut self.pixels {
             (cb)(&mat)?;
 
-            *px.local_mut(pos) = mat;
+            px[pos.into()] = mat;
 
             self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
 
@@ -62,21 +59,21 @@ impl<S: SidedChunkData> CommonChunkData<S> {
     }
 
     pub unsafe fn set_unchecked(&mut self, pos: impl Into<ChunkLocalIndex>, mat: MaterialInstance) {
-        *self.pixels.as_mut().unwrap_unchecked().local_mut(pos) = mat;
+        self.pixels.as_mut().unwrap_unchecked()[pos.into()] = mat;
 
         self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
     }
 
     pub fn pixel(&self, pos: impl Into<ChunkLocalIndex>) -> Result<&MaterialInstance, String> {
         if let Some(px) = &self.pixels {
-            Ok(px.local(pos))
+            Ok(&px[pos.into()])
         } else {
             Err("Chunk is not ready yet.".to_string())
         }
     }
 
     pub unsafe fn pixel_unchecked(&self, pos: impl Into<ChunkLocalIndex>) -> &MaterialInstance {
-        self.pixels.as_ref().unwrap_unchecked().local(pos)
+        &self.pixels.as_ref().unwrap_unchecked()[pos.into()]
     }
 
     pub fn replace_pixel<F>(
@@ -116,7 +113,7 @@ impl<S: SidedChunkData> CommonChunkData<S> {
         if let Some(li) = &mut self.light {
             (cb)(&light)?;
 
-            *li.local_mut(pos) = light;
+            li[pos.into()] = light;
 
             // self.data.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
 
@@ -128,12 +125,12 @@ impl<S: SidedChunkData> CommonChunkData<S> {
 
     pub unsafe fn set_light_unchecked(&mut self, pos: impl Into<ChunkLocalIndex>, light: [f32; 3]) {
         // TODO: should this unwrap be unchecked?
-        *self.light.as_mut().unwrap().local_mut(pos) = light;
+        self.light.as_mut().unwrap()[pos.into()] = light;
     }
 
     pub fn light(&self, pos: impl Into<ChunkLocalIndex>) -> Result<&[f32; 3], String> {
         if let Some(li) = &self.light {
-            Ok(li.local(pos))
+            Ok(&li[pos.into()])
         } else {
             Err("Chunk is not ready yet.".to_string())
         }
@@ -141,7 +138,7 @@ impl<S: SidedChunkData> CommonChunkData<S> {
 
     pub unsafe fn light_unchecked(&self, pos: impl Into<ChunkLocalIndex>) -> &[f32; 3] {
         // TODO: should this unwrap be unchecked?
-        self.light.as_ref().unwrap().local(pos)
+        &self.light.as_ref().unwrap()[pos.into()]
     }
 
     pub fn set_pixels(&mut self, pixels: Box<[MaterialInstance; CHUNK_AREA]>) {
@@ -157,7 +154,7 @@ impl<S: SidedChunkData> CommonChunkData<S> {
         if let Some(px) = &mut self.background {
             (cb)(&mat)?;
 
-            *px.local_mut(pos) = mat;
+            px[pos.into()] = mat;
 
             Ok(())
         } else {
@@ -171,12 +168,12 @@ impl<S: SidedChunkData> CommonChunkData<S> {
         mat: MaterialInstance,
     ) {
         // TODO: should this unwrap be unchecked?
-        *self.background.as_mut().unwrap().local_mut(pos) = mat;
+        self.background.as_mut().unwrap()[pos.into()] = mat;
     }
 
     pub fn background(&self, pos: impl Into<ChunkLocalIndex>) -> Result<&MaterialInstance, String> {
         if let Some(px) = &self.background {
-            Ok(px.local(pos))
+            Ok(&px[pos.into()])
         } else {
             Err("Chunk is not ready yet.".to_string())
         }
@@ -187,6 +184,6 @@ impl<S: SidedChunkData> CommonChunkData<S> {
         pos: impl Into<ChunkLocalIndex>,
     ) -> &MaterialInstance {
         // TODO: should this unwrap be unchecked?
-        self.background.as_ref().unwrap().local(pos)
+        &self.background.as_ref().unwrap()[pos.into()]
     }
 }

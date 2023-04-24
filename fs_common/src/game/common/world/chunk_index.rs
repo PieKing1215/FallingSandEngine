@@ -1,4 +1,4 @@
-use std::ops::{Deref, DerefMut, Index, IndexMut};
+use std::ops::{Deref, Index, IndexMut};
 
 use crate::game::common::world::{CHUNK_AREA, CHUNK_SIZE};
 
@@ -138,32 +138,6 @@ impl Deref for ChunkLocalIndex {
     #[inline]
     fn deref(&self) -> &Self::Target {
         &self.0
-    }
-}
-
-pub trait IndexLocal {
-    type T;
-
-    fn local<L: Into<ChunkLocalIndex>>(&self, i: L) -> &Self::T;
-    fn local_mut<L: Into<ChunkLocalIndex>>(&mut self, i: L) -> &mut Self::T;
-}
-
-impl<T, D> IndexLocal for D
-where
-    D: DerefMut + Deref<Target = [T; CHUNK_AREA]>,
-{
-    type T = T;
-
-    #[inline]
-    fn local<L: Into<ChunkLocalIndex>>(&self, i: L) -> &Self::T {
-        // Safety: ChunkLocalIndex is guaranteed to be `0..CHUNK_AREA`
-        unsafe { self.get_unchecked(i.into().idx()) }
-    }
-
-    #[inline]
-    fn local_mut<L: Into<ChunkLocalIndex>>(&mut self, i: L) -> &mut Self::T {
-        // Safety: ChunkLocalIndex is guaranteed to be `0..CHUNK_AREA`
-        unsafe { self.get_unchecked_mut(i.into().idx()) }
     }
 }
 
