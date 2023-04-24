@@ -1,6 +1,7 @@
 use chunksystem::ChunkQuery;
 use core::slice;
 use fs_common::game::common::world::{
+    chunk_handler::ChunkHandler,
     chunk_index::{ChunkLocalIndex, ChunkLocalPosition},
     material::PhysicsType,
     Chunk, CHUNK_AREA,
@@ -13,7 +14,7 @@ use fs_common::game::common::{
         material::{color::Color, MaterialInstance},
         mesh::{self, Mesh},
         tile_entity::{TileEntity, TileEntityCommon},
-        ChunkHandler, ChunkRigidBodyState, ChunkState, SidedChunk, CHUNK_SIZE, LIGHT_SCALE,
+        ChunkRigidBodyState, ChunkState, SidedChunk, CHUNK_SIZE, LIGHT_SCALE,
     },
     FileHelper, Rect, Settings,
 };

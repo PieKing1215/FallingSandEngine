@@ -10,6 +10,7 @@ use crate::game::common::world::{rigidbody, CHUNK_SIZE};
 use crate::game::common::{Rect, Registries};
 
 use super::chunk_access::FSChunkAccess;
+use super::chunk_handler::ChunkHandler;
 use super::chunk_index::ChunkLocalPosition;
 use super::material::color::Color;
 use super::particle::Particle;
@@ -17,7 +18,7 @@ use super::rigidbody::FSRigidBody;
 use super::{material, pixel_to_chunk_pos, CHUNK_AREA};
 use super::{
     physics::{Physics, PHYSICS_SCALE},
-    Chunk, ChunkHandler, Position, Velocity,
+    Chunk, Position, Velocity,
 };
 
 pub struct Simulator {}

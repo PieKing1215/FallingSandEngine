@@ -25,6 +25,7 @@ use specs::{
 use super::{
     chunk_access::FSChunkAccess,
     chunk_data::SidedChunkData,
+    chunk_handler::{ChunkHandler, ChunkTickContext},
     entity::{
         CollisionDetector, GameEntity, Hitbox, Persistent, PhysicsEntity, Player,
         UpdatePhysicsEntities,
@@ -36,9 +37,9 @@ use super::{
     rigidbody::FSRigidBody,
     simulator,
     tile_entity::TileEntitySided,
-    ApplyRigidBodies, AutoTarget, Camera, Chunk, ChunkHandler, ChunkTickContext, CollisionFlags,
-    DeltaTime, FilePersistent, Loader, Position, RigidBodyComponent, SidedChunk, TickTime,
-    UpdateAutoTargets, UpdateRigidBodies, Velocity, CHUNK_SIZE,
+    ApplyRigidBodies, AutoTarget, Camera, Chunk, CollisionFlags, DeltaTime, FilePersistent, Loader,
+    Position, RigidBodyComponent, SidedChunk, TickTime, UpdateAutoTargets, UpdateRigidBodies,
+    Velocity, CHUNK_SIZE,
 };
 
 #[derive(Debug)]

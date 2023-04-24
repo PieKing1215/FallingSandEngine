@@ -11,6 +11,7 @@ mod world_loading;
 
 pub mod chunk_access;
 pub mod chunk_data;
+pub mod chunk_handler;
 pub mod chunk_index;
 pub mod gen;
 pub mod physics;

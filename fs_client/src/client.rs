@@ -7,13 +7,14 @@ use specs::{Entities, Join, ReadStorage, WorldExt, WriteStorage};
 
 use fs_common::game::common::world::{
     chunk_access::FSChunkAccess,
+    chunk_handler::ChunkHandler,
     entity::{
         CollisionDetector, CutCopy, GameEntity, Hitbox, PhysicsEntity, Player,
         PlayerClipboardState, PlayerGrappleState, PlayerJumpState, PlayerLaunchState,
         PlayerMovementMode,
     },
     material::{buf::MaterialBuf, MaterialInstance, PhysicsType},
-    Camera, ChunkHandler, Position, Velocity, World,
+    Camera, Position, Velocity, World,
 };
 
 use crate::{

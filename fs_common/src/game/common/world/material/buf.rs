@@ -4,7 +4,9 @@ use asefile::AsepriteFile;
 
 use crate::game::common::{
     registry::RegistryID,
-    world::{chunk_access::FSChunkAccess, gen::structure::AngleMod, Chunk, ChunkHandler},
+    world::{
+        chunk_access::FSChunkAccess, chunk_handler::ChunkHandler, gen::structure::AngleMod, Chunk,
+    },
     Rect,
 };
 

@@ -6,8 +6,9 @@ pub use chunk::*;
 mod tests {
     use chunksystem::ChunkQuery;
     use fs_common::game::common::world::chunk_access::FSChunkAccess;
+    use fs_common::game::common::world::chunk_handler::{ChunkHandler, ChunkTickContext};
     use fs_common::game::common::world::physics::Physics;
-    use fs_common::game::common::world::{self, ChunkHandler, ChunkTickContext, Loader, Position};
+    use fs_common::game::common::world::{self, Loader, Position};
     use fs_common::game::common::Settings;
     use fs_common::game::common::{FileHelper, Registries};
 
