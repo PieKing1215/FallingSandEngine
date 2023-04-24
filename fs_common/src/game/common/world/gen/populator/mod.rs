@@ -8,7 +8,7 @@ pub mod test;
 use std::usize;
 
 use crate::game::common::{
-    world::{material::MaterialInstance, Chunk, CHUNK_SIZE},
+    world::{material::MaterialInstance, Chunk, ChunkLocalPosition, CHUNK_SIZE},
     Registries,
 };
 
@@ -68,12 +68,13 @@ impl<'a, 'b, const S: u8, C: Chunk> ChunkContext<'a, 'b, S, C> {
         // Safety: rem_euclid covers bounds check and we check in `Self::new` if the chunks have a pixel buffer
         unsafe {
             let ch = self.0.get_unchecked_mut(i);
-            ch.set_pixel_unchecked(
-                x.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
-                y.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
+            ch.set_pixel(
+                ChunkLocalPosition::new_unchecked(
+                    x.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
+                    y.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
+                ),
                 mat,
-            );
-            Ok(())
+            )
         }
     }
 
@@ -86,10 +87,10 @@ impl<'a, 'b, const S: u8, C: Chunk> ChunkContext<'a, 'b, S, C> {
         // Safety: rem_euclid covers bounds check and we check in `Self::new` if the chunks have a pixel buffer
         unsafe {
             let ch = self.0.get_unchecked(i);
-            Ok(ch.pixel_unchecked(
+            Ok(ch.pixel_unchecked(ChunkLocalPosition::new_unchecked(
                 x.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
                 y.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
-            ))
+            )))
         }
     }
 
@@ -108,7 +109,8 @@ impl<'a, 'b, const S: u8, C: Chunk> ChunkContext<'a, 'b, S, C> {
         let y = y.rem_euclid(i32::from(CHUNK_SIZE)) as u16;
         unsafe {
             let ch = self.0.get_unchecked_mut(i);
-            ch.replace_pixel_unchecked(x, y, cb).unwrap_or(false)
+            ch.replace_pixel(ChunkLocalPosition::new_unchecked(x, y), cb)
+                .unwrap_or(false)
         }
     }
 
@@ -120,8 +122,10 @@ impl<'a, 'b, const S: u8, C: Chunk> ChunkContext<'a, 'b, S, C> {
         unsafe {
             let ch = self.0.get_unchecked_mut(i);
             ch.set_background_unchecked(
-                x.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
-                y.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
+                ChunkLocalPosition::new_unchecked(
+                    x.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
+                    y.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
+                ),
                 mat,
             );
             Ok(())
@@ -141,10 +145,10 @@ impl<'a, 'b, const S: u8, C: Chunk> ChunkContext<'a, 'b, S, C> {
         // Safety: rem_euclid covers bounds check and we check in `Self::new` if the chunks have a pixel buffer
         unsafe {
             let ch = self.0.get_unchecked(i);
-            Ok(ch.background_unchecked(
+            Ok(ch.background_unchecked(ChunkLocalPosition::new_unchecked(
                 x.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
                 y.rem_euclid(i32::from(CHUNK_SIZE)) as u16,
-            ))
+            )))
         }
     }
 }

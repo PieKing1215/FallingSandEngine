@@ -13,7 +13,7 @@ use super::chunk_access::FSChunkAccess;
 use super::material::color::Color;
 use super::particle::Particle;
 use super::rigidbody::FSRigidBody;
-use super::{material, pixel_to_chunk_pos, CHUNK_AREA};
+use super::{material, pixel_to_chunk_pos, ChunkLocalPosition, CHUNK_AREA};
 use super::{
     physics::{Physics, PHYSICS_SCALE},
     Chunk, ChunkHandler, Position, Velocity,
@@ -350,14 +350,16 @@ impl<C: Chunk + Send> SimulationHelper for SimulationHelperRigidBody<'_, C> {
         let chunk = self.chunk_handler.chunk_at((chunk_x, chunk_y));
 
         if let Some(ch) = chunk {
-            let col_r = ch.color(
-                (i64::from(x) - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16,
-                (i64::from(y) - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16,
+            let col = ch.color(
+                // TODO: test if using unchecked would matter
+                ChunkLocalPosition::new(
+                    (i64::from(x) - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16,
+                    (i64::from(y) - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16,
+                )
+                .unwrap(),
             );
-            if let Ok(col) = col_r {
-                if col.a > 0 {
-                    return col;
-                }
+            if col.a > 0 {
+                return col;
             }
         }
 
@@ -391,9 +393,13 @@ impl<C: Chunk + Send> SimulationHelper for SimulationHelperRigidBody<'_, C> {
         let chunk = self.chunk_handler.chunk_at_mut_dyn((chunk_x, chunk_y));
 
         if let Some(ch) = chunk {
-            let _ignore = ch.set_color(
-                (i64::from(x) - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16,
-                (i64::from(y) - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16,
+            ch.set_color(
+                // TODO: test if using unchecked would matter
+                ChunkLocalPosition::new(
+                    (i64::from(x) - i64::from(chunk_x) * i64::from(CHUNK_SIZE)) as u16,
+                    (i64::from(y) - i64::from(chunk_y) * i64::from(CHUNK_SIZE)) as u16,
+                )
+                .unwrap(),
                 col,
             );
         }

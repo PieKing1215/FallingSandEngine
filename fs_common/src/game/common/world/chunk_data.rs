@@ -1,8 +1,8 @@
 use crate::game::common::Rect;
 
 use super::{
-    material::MaterialInstance, mesh::Mesh, tile_entity::TileEntity, ChunkRigidBodyState,
-    ChunkState, CHUNK_AREA, CHUNK_SIZE,
+    material::MaterialInstance, mesh::Mesh, tile_entity::TileEntity, ChunkLocalIndex,
+    ChunkRigidBodyState, ChunkState, IndexLocal, CHUNK_AREA, CHUNK_SIZE,
 };
 
 pub struct CommonChunkData<S: SidedChunkData> {
@@ -41,95 +41,44 @@ impl<S: SidedChunkData> CommonChunkData<S> {
 
     pub fn set(
         &mut self,
-        x: u16,
-        y: u16,
+        pos: impl Into<ChunkLocalIndex>,
         mat: MaterialInstance,
         mut cb: impl FnMut(&MaterialInstance) -> Result<(), String>,
     ) -> Result<(), String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            if let Some(px) = &mut self.pixels {
-                let i = (x + y * CHUNK_SIZE) as usize;
-                // Safety: we do our own bounds check
-                (cb)(&mat)?;
-                *unsafe { px.get_unchecked_mut(i) } = mat;
+        if let Some(px) = &mut self.pixels {
+            (cb)(&mat)?;
 
-                self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
+            *px.local_mut(pos) = mat;
 
-                return Ok(());
-            }
+            self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
 
-            return Err("Chunk is not ready yet.".to_string());
+            return Ok(());
         }
 
-        Err("Invalid pixel coordinate.".to_string())
+        Err("Chunk is not ready yet.".to_string())
     }
 
-    pub unsafe fn set_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance) {
-        let i = (x + y * CHUNK_SIZE) as usize;
-        // Safety: input index assumed to be valid
-        *unsafe { self.pixels.as_mut().unwrap_unchecked().get_unchecked_mut(i) } = mat;
+    pub unsafe fn set_unchecked(&mut self, pos: impl Into<ChunkLocalIndex>, mat: MaterialInstance) {
+        *self.pixels.as_mut().unwrap_unchecked().local_mut(pos) = mat;
 
         self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
     }
 
-    pub fn pixel(&self, x: u16, y: u16) -> Result<&MaterialInstance, String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            if let Some(px) = &self.pixels {
-                let i = (x + y * CHUNK_SIZE) as usize;
-                // Safety: we do our own bounds check
-                return Ok(unsafe { px.get_unchecked(i) });
-            }
-
-            return Err("Chunk is not ready yet.".to_string());
+    pub fn pixel(&self, pos: impl Into<ChunkLocalIndex>) -> Result<&MaterialInstance, String> {
+        if let Some(px) = &self.pixels {
+            Ok(px.local(pos))
+        } else {
+            Err("Chunk is not ready yet.".to_string())
         }
-
-        Err("Invalid pixel coordinate.".to_string())
     }
 
-    pub unsafe fn pixel_unchecked(&self, x: u16, y: u16) -> &MaterialInstance {
-        let i = (x + y * CHUNK_SIZE) as usize;
-        // Safety: input index assumed to be valid
-        unsafe { self.pixels.as_ref().unwrap_unchecked().get_unchecked(i) }
+    pub unsafe fn pixel_unchecked(&self, pos: impl Into<ChunkLocalIndex>) -> &MaterialInstance {
+        self.pixels.as_ref().unwrap_unchecked().local(pos)
     }
 
     pub fn replace_pixel<F>(
         &mut self,
-        x: u16,
-        y: u16,
-        cb: F,
-        mut chunk_cb: impl FnMut(&MaterialInstance) -> Result<(), String>,
-    ) -> Result<bool, String>
-    where
-        Self: Sized,
-        F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>,
-    {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            if let Some(px) = &mut self.pixels {
-                let i = (x + y * CHUNK_SIZE) as usize;
-                // Safety: we do our own bounds check
-                let px = unsafe { px.get_unchecked_mut(i) };
-                if let Some(mat) = (cb)(px) {
-                    (chunk_cb)(&mat)?;
-                    *px = mat;
-
-                    self.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
-
-                    return Ok(true);
-                }
-
-                return Ok(false);
-            }
-
-            return Err("Chunk is not ready yet.".to_string());
-        }
-
-        Err("Invalid pixel coordinate.".to_string())
-    }
-
-    pub unsafe fn replace_pixel_unchecked<F>(
-        &mut self,
-        x: u16,
-        y: u16,
+        pos: impl Into<ChunkLocalIndex>,
         cb: F,
         mut chunk_cb: impl FnMut(&MaterialInstance) -> Result<(), String>,
     ) -> Result<bool, String>
@@ -138,9 +87,8 @@ impl<S: SidedChunkData> CommonChunkData<S> {
         F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>,
     {
         if let Some(px) = &mut self.pixels {
-            let i = (x + y * CHUNK_SIZE) as usize;
-            // Safety: input index assumed to be valid
-            let px = unsafe { px.get_unchecked_mut(i) };
+            let i: ChunkLocalIndex = pos.into();
+            let px = unsafe { px.get_unchecked_mut(*i) };
             if let Some(mat) = (cb)(px) {
                 (chunk_cb)(&mat)?;
                 *px = mat;
@@ -158,53 +106,39 @@ impl<S: SidedChunkData> CommonChunkData<S> {
 
     pub fn set_light(
         &mut self,
-        x: u16,
-        y: u16,
+        pos: impl Into<ChunkLocalIndex>,
         light: [f32; 3],
         mut cb: impl FnMut(&[f32; 3]) -> Result<(), String>,
     ) -> Result<(), String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            if let Some(li) = &mut self.light {
-                (cb)(&light)?;
-                // Safety: we do our own bounds check
-                let i = (x + y * CHUNK_SIZE) as usize;
-                *unsafe { li.get_unchecked_mut(i) } = light;
+        if let Some(li) = &mut self.light {
+            (cb)(&light)?;
 
-                // self.data.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
+            *li.local_mut(pos) = light;
 
-                return Ok(());
-            }
+            // self.data.dirty_rect = Some(Rect::new_wh(0, 0, CHUNK_SIZE, CHUNK_SIZE));
 
-            return Err("Chunk is not ready yet.".to_string());
+            Ok(())
+        } else {
+            Err("Chunk is not ready yet.".to_string())
         }
-
-        Err("Invalid pixel coordinate.".to_string())
     }
 
-    pub unsafe fn set_light_unchecked(&mut self, x: u16, y: u16, light: [f32; 3]) {
-        let i = (x + y * CHUNK_SIZE) as usize;
-        // Safety: input index assumed to be valid
-        *unsafe { self.light.as_mut().unwrap().get_unchecked_mut(i) } = light;
+    pub unsafe fn set_light_unchecked(&mut self, pos: impl Into<ChunkLocalIndex>, light: [f32; 3]) {
+        // TODO: should this unwrap be unchecked?
+        *self.light.as_mut().unwrap().local_mut(pos) = light;
     }
 
-    pub fn light(&self, x: u16, y: u16) -> Result<&[f32; 3], String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            if let Some(li) = &self.light {
-                let i = (x + y * CHUNK_SIZE) as usize;
-                // Safety: we do our own bounds check
-                return Ok(unsafe { li.get_unchecked(i) });
-            }
-
-            return Err("Chunk is not ready yet.".to_string());
+    pub fn light(&self, pos: impl Into<ChunkLocalIndex>) -> Result<&[f32; 3], String> {
+        if let Some(li) = &self.light {
+            Ok(li.local(pos))
+        } else {
+            Err("Chunk is not ready yet.".to_string())
         }
-
-        Err("Invalid pixel coordinate.".to_string())
     }
 
-    pub unsafe fn light_unchecked(&self, x: u16, y: u16) -> &[f32; 3] {
-        let i = (x + y * CHUNK_SIZE) as usize;
-        // Safety: input index assumed to be valid
-        unsafe { self.light.as_ref().unwrap().get_unchecked(i) }
+    pub unsafe fn light_unchecked(&self, pos: impl Into<ChunkLocalIndex>) -> &[f32; 3] {
+        // TODO: should this unwrap be unchecked?
+        self.light.as_ref().unwrap().local(pos)
     }
 
     pub fn set_pixels(&mut self, pixels: Box<[MaterialInstance; CHUNK_AREA]>) {
@@ -213,50 +147,43 @@ impl<S: SidedChunkData> CommonChunkData<S> {
 
     pub fn set_background(
         &mut self,
-        x: u16,
-        y: u16,
+        pos: impl Into<ChunkLocalIndex>,
         mat: MaterialInstance,
         mut cb: impl FnMut(&MaterialInstance) -> Result<(), String>,
     ) -> Result<(), String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            if let Some(px) = &mut self.background {
-                let i = (x + y * CHUNK_SIZE) as usize;
-                // Safety: we do our own bounds check
-                (cb)(&mat)?;
-                *unsafe { px.get_unchecked_mut(i) } = mat;
+        if let Some(px) = &mut self.background {
+            (cb)(&mat)?;
 
-                return Ok(());
-            }
+            *px.local_mut(pos) = mat;
 
-            return Err("Chunk is not ready yet.".to_string());
+            Ok(())
+        } else {
+            Err("Chunk is not ready yet.".to_string())
         }
-
-        Err("Invalid pixel coordinate.".to_string())
     }
 
-    pub unsafe fn set_background_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance) {
-        let i = (x + y * CHUNK_SIZE) as usize;
-        // Safety: input index assumed to be valid
-        *unsafe { self.background.as_mut().unwrap().get_unchecked_mut(i) } = mat;
+    pub unsafe fn set_background_unchecked(
+        &mut self,
+        pos: impl Into<ChunkLocalIndex>,
+        mat: MaterialInstance,
+    ) {
+        // TODO: should this unwrap be unchecked?
+        *self.background.as_mut().unwrap().local_mut(pos) = mat;
     }
 
-    pub fn background(&self, x: u16, y: u16) -> Result<&MaterialInstance, String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            if let Some(px) = &self.background {
-                let i = (x + y * CHUNK_SIZE) as usize;
-                // Safety: we do our own bounds check
-                return Ok(unsafe { px.get_unchecked(i) });
-            }
-
-            return Err("Chunk is not ready yet.".to_string());
+    pub fn background(&self, pos: impl Into<ChunkLocalIndex>) -> Result<&MaterialInstance, String> {
+        if let Some(px) = &self.background {
+            Ok(px.local(pos))
+        } else {
+            Err("Chunk is not ready yet.".to_string())
         }
-
-        Err("Invalid pixel coordinate.".to_string())
     }
 
-    pub unsafe fn background_unchecked(&self, x: u16, y: u16) -> &MaterialInstance {
-        let i = (x + y * CHUNK_SIZE) as usize;
-        // Safety: input index assumed to be valid
-        unsafe { self.background.as_ref().unwrap().get_unchecked(i) }
+    pub unsafe fn background_unchecked(
+        &self,
+        pos: impl Into<ChunkLocalIndex>,
+    ) -> &MaterialInstance {
+        // TODO: should this unwrap be unchecked?
+        self.background.as_ref().unwrap().local(pos)
     }
 }

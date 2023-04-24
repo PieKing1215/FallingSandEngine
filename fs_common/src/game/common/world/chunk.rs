@@ -14,6 +14,7 @@ use std::convert::TryInto;
 
 use std::fmt::Debug;
 
+use std::ops::{Deref, DerefMut, Index, IndexMut};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -42,6 +43,203 @@ pub const CHUNK_AREA: usize = CHUNK_SIZE as usize * CHUNK_SIZE as usize;
 // must be a factor of CHUNK_SIZE
 // also (CHUNK_SIZE / LIGHT_SCALE)^2 must be <= 1024 for compute shader (and local_size needs to be set to CHUNK_SIZE / LIGHT_SCALE in the shader)
 pub const LIGHT_SCALE: u8 = 4;
+
+/// Local pixel position from the top left of a chunk.
+///
+/// X and Y are within `0..`[`CHUNK_SIZE`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ChunkLocalPosition((u16, u16));
+
+/// Local pixel index from the top left of a chunk.
+///
+/// Index is within `0..`[`CHUNK_AREA`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ChunkLocalIndex(usize);
+
+// ChunkLocalPosition impls
+
+impl ChunkLocalPosition {
+    #[inline]
+    pub fn new(x: u16, y: u16) -> Result<Self, <Self as TryFrom<(u16, u16)>>::Error> {
+        (x, y).try_into()
+    }
+
+    /// # Safety
+    /// `x` and `y` must both be less than [`CHUNK_SIZE`] in order to uphold invariants.
+    #[inline]
+    pub const unsafe fn new_unchecked(x: u16, y: u16) -> Self {
+        debug_assert!(x < CHUNK_SIZE);
+        debug_assert!(y < CHUNK_SIZE);
+        Self((x, y))
+    }
+
+    #[inline]
+    pub fn x(&self) -> u16 {
+        self.0 .0
+    }
+
+    #[inline]
+    pub fn y(&self) -> u16 {
+        self.0 .1
+    }
+
+    pub fn iter() -> impl Iterator<Item = Self> {
+        (0..CHUNK_SIZE).flat_map(|x| {
+            (0..CHUNK_SIZE).map(move |y| {
+                // Safety: x and y are generated from the valid range
+                unsafe { Self::new_unchecked(x, y) }
+            })
+        })
+    }
+}
+
+impl TryFrom<(u16, u16)> for ChunkLocalPosition {
+    type Error = String; // TODO: custom error type
+
+    #[inline]
+    fn try_from(value: (u16, u16)) -> Result<Self, Self::Error> {
+        if value.0 < CHUNK_SIZE && value.1 < CHUNK_SIZE {
+            Ok(Self(value))
+        } else {
+            Err(format!("Invalid value for ChunkLocalPosition: {value:?}"))
+        }
+    }
+}
+
+impl From<ChunkLocalIndex> for ChunkLocalPosition {
+    #[inline]
+    fn from(value: ChunkLocalIndex) -> Self {
+        Self((
+            (value.idx() % (CHUNK_SIZE as usize)) as _,
+            (value.idx() / (CHUNK_SIZE as usize)) as _,
+        ))
+    }
+}
+
+impl Deref for ChunkLocalPosition {
+    type Target = (u16, u16);
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+// ChunkLocalIndex impls
+
+impl ChunkLocalIndex {
+    #[inline]
+    pub fn new(idx: usize) -> Result<Self, <Self as TryFrom<usize>>::Error> {
+        idx.try_into()
+    }
+
+    /// # Safety
+    /// `idx` must be less than [`CHUNK_AREA`] in order to uphold invariants.
+    #[inline]
+    pub unsafe fn new_unchecked(idx: usize) -> Self {
+        debug_assert!(idx < CHUNK_AREA);
+        idx.try_into().unwrap_unchecked()
+    }
+
+    #[inline]
+    pub fn idx(&self) -> usize {
+        self.0
+    }
+
+    pub fn iter() -> impl Iterator<Item = Self> {
+        (0..CHUNK_AREA).map(|idx| {
+            // Safety: x and y are generated from the valid range
+            unsafe { Self::new_unchecked(idx) }
+        })
+    }
+}
+
+impl TryFrom<usize> for ChunkLocalIndex {
+    type Error = String; // TODO: custom error type
+
+    #[inline]
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        if value < CHUNK_AREA {
+            Ok(Self(value))
+        } else {
+            Err(format!("Invalid value for ChunkLocalIndex: {value:?}"))
+        }
+    }
+}
+
+impl From<ChunkLocalPosition> for ChunkLocalIndex {
+    #[inline]
+    fn from(value: ChunkLocalPosition) -> Self {
+        Self(value.x() as usize + (value.y() as usize) * (CHUNK_SIZE as usize))
+    }
+}
+
+impl Deref for ChunkLocalIndex {
+    type Target = usize;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+pub trait IndexLocal {
+    type T;
+
+    fn local<L: Into<ChunkLocalIndex>>(&self, i: L) -> &Self::T;
+    fn local_mut<L: Into<ChunkLocalIndex>>(&mut self, i: L) -> &mut Self::T;
+}
+
+impl<T, D> IndexLocal for D
+where
+    D: DerefMut + Deref<Target = [T; CHUNK_AREA]>,
+{
+    type T = T;
+
+    #[inline]
+    fn local<L: Into<ChunkLocalIndex>>(&self, i: L) -> &Self::T {
+        // Safety: ChunkLocalIndex is guaranteed to be `0..CHUNK_AREA`
+        unsafe { self.get_unchecked(i.into().idx()) }
+    }
+
+    #[inline]
+    fn local_mut<L: Into<ChunkLocalIndex>>(&mut self, i: L) -> &mut Self::T {
+        // Safety: ChunkLocalIndex is guaranteed to be `0..CHUNK_AREA`
+        unsafe { self.get_unchecked_mut(i.into().idx()) }
+    }
+}
+
+impl<T> Index<ChunkLocalIndex> for [T; CHUNK_AREA] {
+    type Output = T;
+
+    fn index(&self, index: ChunkLocalIndex) -> &Self::Output {
+        // Safety: ChunkLocalIndex is guaranteed to be `0..CHUNK_AREA`
+        unsafe { self.get_unchecked(index.idx()) }
+    }
+}
+
+impl<T> IndexMut<ChunkLocalIndex> for [T; CHUNK_AREA] {
+    fn index_mut(&mut self, index: ChunkLocalIndex) -> &mut Self::Output {
+        // Safety: ChunkLocalIndex is guaranteed to be `0..CHUNK_AREA`
+        unsafe { self.get_unchecked_mut(index.idx()) }
+    }
+}
+
+impl<T> Index<ChunkLocalPosition> for [T; CHUNK_AREA] {
+    type Output = T;
+
+    fn index(&self, index: ChunkLocalPosition) -> &Self::Output {
+        let i: ChunkLocalIndex = index.into();
+        &self[i]
+    }
+}
+
+impl<T> IndexMut<ChunkLocalPosition> for [T; CHUNK_AREA] {
+    fn index_mut(&mut self, index: ChunkLocalPosition) -> &mut Self::Output {
+        let i: ChunkLocalIndex = index.into();
+        &mut self[i]
+    }
+}
 
 pub trait Chunk {
     fn new_empty(chunk_x: i32, chunk_y: i32) -> Self
@@ -83,50 +281,47 @@ pub trait Chunk {
 
     fn refresh(&mut self);
 
-    fn set_pixel(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String>;
+    fn set_pixel(&mut self, pos: ChunkLocalPosition, mat: MaterialInstance) -> Result<(), String>;
     /// # Safety
-    /// x and y must be in `0..CHUNK_SIZE`
-    unsafe fn set_pixel_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance);
+    /// Chunk must be loaded
+    unsafe fn set_pixel_unchecked(&mut self, pos: ChunkLocalPosition, mat: MaterialInstance);
 
-    fn pixel(&self, x: u16, y: u16) -> Result<&MaterialInstance, String>;
+    fn pixel(&self, pos: ChunkLocalPosition) -> Result<&MaterialInstance, String>;
     /// # Safety
-    /// x and y must be in `0..CHUNK_SIZE`
-    unsafe fn pixel_unchecked(&self, x: u16, y: u16) -> &MaterialInstance;
+    /// Chunk must be loaded
+    unsafe fn pixel_unchecked(&self, pos: ChunkLocalPosition) -> &MaterialInstance;
 
-    fn replace_pixel<F>(&mut self, x: u16, y: u16, cb: F) -> Result<bool, String>
+    fn replace_pixel<F>(&mut self, pos: ChunkLocalPosition, cb: F) -> Result<bool, String>
     where
         Self: Sized,
         F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>;
 
+    fn set_light(&mut self, pos: ChunkLocalPosition, light: [f32; 3]) -> Result<(), String>;
     /// # Safety
-    /// x and y must be in `0..CHUNK_SIZE`
-    unsafe fn replace_pixel_unchecked<F>(&mut self, x: u16, y: u16, cb: F) -> Result<bool, String>
-    where
-        Self: Sized,
-        F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>;
+    /// Chunk must be loaded
+    unsafe fn set_light_unchecked(&mut self, pos: ChunkLocalPosition, light: [f32; 3]);
 
-    fn set_light(&mut self, x: u16, y: u16, light: [f32; 3]) -> Result<(), String>;
+    fn light(&self, pos: ChunkLocalPosition) -> Result<&[f32; 3], String>;
     /// # Safety
-    /// x and y must be in `0..CHUNK_SIZE`
-    unsafe fn set_light_unchecked(&mut self, x: u16, y: u16, light: [f32; 3]);
+    /// Chunk must be loaded
+    unsafe fn light_unchecked(&self, pos: ChunkLocalPosition) -> &[f32; 3];
 
-    fn light(&self, x: u16, y: u16) -> Result<&[f32; 3], String>;
+    fn set_color(&mut self, pos: ChunkLocalPosition, color: Color);
+    fn color(&self, pos: ChunkLocalPosition) -> Color;
+
+    fn set_background(
+        &mut self,
+        pos: ChunkLocalPosition,
+        mat: MaterialInstance,
+    ) -> Result<(), String>;
     /// # Safety
-    /// x and y must be in `0..CHUNK_SIZE`
-    unsafe fn light_unchecked(&self, x: u16, y: u16) -> &[f32; 3];
+    /// Chunk must be loaded
+    unsafe fn set_background_unchecked(&mut self, pos: ChunkLocalPosition, mat: MaterialInstance);
 
-    fn set_color(&mut self, x: u16, y: u16, color: Color) -> Result<(), String>;
-    fn color(&self, x: u16, y: u16) -> Result<Color, String>;
-
-    fn set_background(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String>;
+    fn background(&self, pos: ChunkLocalPosition) -> Result<&MaterialInstance, String>;
     /// # Safety
-    /// x and y must be in `0..CHUNK_SIZE`
-    unsafe fn set_background_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance);
-
-    fn background(&self, x: u16, y: u16) -> Result<&MaterialInstance, String>;
-    /// # Safety
-    /// x and y must be in `0..CHUNK_SIZE`
-    unsafe fn background_unchecked(&self, x: u16, y: u16) -> &MaterialInstance;
+    /// Chunk must be loaded
+    unsafe fn background_unchecked(&self, pos: ChunkLocalPosition) -> &MaterialInstance;
 
     fn add_tile_entity(&mut self, te: TileEntityCommon);
 
@@ -136,7 +331,8 @@ pub trait Chunk {
     #[profiling::function]
     fn apply_diff(&mut self, diff: &[(u16, u16, MaterialInstance)]) {
         for (x, y, mat) in diff {
-            self.set_pixel(*x, *y, mat.clone()).unwrap(); // TODO: handle this Err
+            self.set_pixel((*x, *y).try_into().unwrap(), mat.clone())
+                .unwrap(); // TODO: handle this Err
         }
     }
 }
@@ -1461,22 +1657,29 @@ pub const fn pixel_to_chunk_pos_with_chunk_size(x: i64, y: i64, chunk_size: u16)
 }
 
 #[inline]
-pub const fn pixel_to_pos_in_chunk(world_x: i64, world_y: i64) -> (u16, u16) {
+pub const fn pixel_to_pos_in_chunk(world_x: i64, world_y: i64) -> ChunkLocalPosition {
     let (chunk_x, chunk_y) = pixel_to_chunk_pos(world_x, world_y);
-    (
-        (world_x - chunk_x as i64 * CHUNK_SIZE as i64) as u16,
-        (world_y - chunk_y as i64 * CHUNK_SIZE as i64) as u16,
-    )
+    unsafe {
+        // need to use unchecked for const
+        // Safety: math guarantees x and y are 0..CHUNK_SIZE
+        ChunkLocalPosition::new_unchecked(
+            (world_x - chunk_x as i64 * CHUNK_SIZE as i64) as u16,
+            (world_y - chunk_y as i64 * CHUNK_SIZE as i64) as u16,
+        )
+    }
 }
 
 #[inline]
-pub const fn pixel_to_chunk(world_x: i64, world_y: i64) -> (ChunkKey, u16, u16) {
+pub const fn pixel_to_chunk(world_x: i64, world_y: i64) -> (ChunkKey, ChunkLocalPosition) {
     let (chunk_x, chunk_y) = pixel_to_chunk_pos(world_x, world_y);
-    (
-        (chunk_x, chunk_y),
-        (world_x - chunk_x as i64 * CHUNK_SIZE as i64) as u16,
-        (world_y - chunk_y as i64 * CHUNK_SIZE as i64) as u16,
-    )
+    ((chunk_x, chunk_y), unsafe {
+        // need to use unchecked for const
+        // Safety: math guarantees x and y are 0..CHUNK_SIZE
+        ChunkLocalPosition::new_unchecked(
+            (world_x - chunk_x as i64 * CHUNK_SIZE as i64) as u16,
+            (world_y - chunk_y as i64 * CHUNK_SIZE as i64) as u16,
+        )
+    })
 }
 
 #[inline]

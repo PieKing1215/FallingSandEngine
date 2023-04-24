@@ -6,7 +6,7 @@ use crate::game::common::world::{
         placer::{self, MaterialPlacerSampler},
         PhysicsType,
     },
-    Chunk,
+    Chunk, ChunkLocalIndex, ChunkLocalPosition, CHUNK_AREA,
 };
 
 use chunksystem::ChunkKey;
@@ -198,35 +198,34 @@ impl<C: Chunk + Send + Sync> WorldGenerator<C> for BiomeTestGenerator<C> {
         let chunk_pixel_x = chunk_pos.0 as i64 * CHUNK_SIZE as i64;
         let chunk_pixel_y = chunk_pos.1 as i64 * CHUNK_SIZE as i64;
 
-        let biomes = ctx.registries.biomes.biome_block::<CHUNK_SIZE, CHUNK_SIZE>(
+        // `biome_block` always returns Vec with size W*H, but this cannot be expressed until `generic_const_exprs` is stable
+        let Ok(biomes): Result<[_; CHUNK_AREA], _> = ctx.registries.biomes.biome_block::<CHUNK_SIZE, CHUNK_SIZE>(
             chunk_pixel_x,
             chunk_pixel_y,
             ctx.seed,
-        );
+        ).try_into() else { unreachable!() };
 
         {
             profiling::scope!("loop");
-            for x in 0..CHUNK_SIZE {
-                for y in 0..CHUNK_SIZE {
-                    let i = (x + y * CHUNK_SIZE) as usize;
-                    let biome = biomes[i].1;
+            for p in ChunkLocalPosition::iter() {
+                let i: ChunkLocalIndex = p.into();
+                let biome = biomes[i].1;
 
-                    buf.set_pixel_idx(
-                        i,
-                        biome
-                            .base_placer
-                            .as_placer(ctx.registries)
-                            .pixel(chunk_pixel_x + x as i64, chunk_pixel_y + y as i64),
-                    );
+                buf.set_pixel(
+                    i,
+                    biome
+                        .base_placer
+                        .as_placer(ctx.registries)
+                        .pixel(chunk_pixel_x + p.x() as i64, chunk_pixel_y + p.y() as i64),
+                );
 
-                    buf.set_bg_idx(
-                        i,
-                        biome
-                            .base_placer
-                            .as_placer(ctx.registries)
-                            .pixel(chunk_pixel_x + x as i64, chunk_pixel_y + y as i64),
-                    );
-                }
+                buf.set_bg(
+                    i,
+                    biome
+                        .base_placer
+                        .as_placer(ctx.registries)
+                        .pixel(chunk_pixel_x + p.x() as i64, chunk_pixel_y + p.y() as i64),
+                );
             }
         }
     }

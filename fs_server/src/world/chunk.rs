@@ -7,6 +7,8 @@ use fs_common::game::common::world::tile_entity::TileEntity;
 use fs_common::game::common::world::tile_entity::TileEntityCommon;
 use fs_common::game::common::world::tile_entity::TileEntitySided;
 use fs_common::game::common::world::Chunk;
+use fs_common::game::common::world::ChunkLocalIndex;
+use fs_common::game::common::world::ChunkLocalPosition;
 use fs_common::game::common::world::ChunkRigidBodyState;
 use fs_common::game::common::world::ChunkState;
 use fs_common::game::common::world::SidedChunk;
@@ -16,7 +18,7 @@ use fs_common::game::common::Rect;
 
 pub struct ServerChunk {
     pub data: CommonChunkData<Self>,
-    pub pixel_data: Box<[Color; CHUNK_AREA]>,
+    pub color_data: Box<[Color; CHUNK_AREA]>,
     pub light_data: Box<[[f32; 4]; CHUNK_AREA]>,
     pub background_data: Box<[Color; CHUNK_AREA]>,
     pub dirty: bool,
@@ -37,7 +39,7 @@ impl Chunk for ServerChunk {
     fn new_empty(chunk_x: i32, chunk_y: i32) -> Self {
         Self {
             data: CommonChunkData::new(chunk_x, chunk_y),
-            pixel_data: Box::new([Color::TRANSPARENT; CHUNK_AREA]),
+            color_data: Box::new([Color::TRANSPARENT; CHUNK_AREA]),
             light_data: Box::new([[0.0; 4]; CHUNK_AREA]),
             background_data: Box::new([Color::TRANSPARENT; CHUNK_AREA]),
             dirty: true,
@@ -70,75 +72,56 @@ impl Chunk for ServerChunk {
 
     fn refresh(&mut self) {}
 
-    fn set_pixel(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String> {
-        self.data.set(x, y, mat, |_| Ok(()))
+    fn set_pixel(&mut self, pos: ChunkLocalPosition, mat: MaterialInstance) -> Result<(), String> {
+        self.data.set(pos, mat, |_| Ok(()))
     }
 
-    unsafe fn set_pixel_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance) {
-        self.data.set_unchecked(x, y, mat)
+    unsafe fn set_pixel_unchecked(&mut self, pos: ChunkLocalPosition, mat: MaterialInstance) {
+        self.data.set_unchecked(pos, mat)
     }
 
-    fn pixel(&self, x: u16, y: u16) -> Result<&MaterialInstance, String> {
-        self.data.pixel(x, y)
+    fn pixel(&self, pos: ChunkLocalPosition) -> Result<&MaterialInstance, String> {
+        self.data.pixel(pos)
     }
 
-    unsafe fn pixel_unchecked(&self, x: u16, y: u16) -> &MaterialInstance {
-        self.data.pixel_unchecked(x, y)
+    unsafe fn pixel_unchecked(&self, pos: ChunkLocalPosition) -> &MaterialInstance {
+        self.data.pixel_unchecked(pos)
     }
 
-    fn replace_pixel<F>(&mut self, x: u16, y: u16, cb: F) -> Result<bool, String>
+    fn replace_pixel<F>(&mut self, pos: ChunkLocalPosition, cb: F) -> Result<bool, String>
     where
         Self: Sized,
         F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>,
     {
-        self.data.replace_pixel(x, y, cb, |_| Ok(()))
+        self.data.replace_pixel(pos, cb, |_| Ok(()))
     }
 
-    unsafe fn replace_pixel_unchecked<F>(&mut self, x: u16, y: u16, cb: F) -> Result<bool, String>
-    where
-        Self: Sized,
-        F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>,
-    {
-        self.data.replace_pixel_unchecked(x, y, cb, |_| Ok(()))
+    fn set_light(&mut self, pos: ChunkLocalPosition, light: [f32; 3]) -> Result<(), String> {
+        self.data.set_light(pos, light, |_| Ok(()))
     }
 
-    fn set_light(&mut self, x: u16, y: u16, light: [f32; 3]) -> Result<(), String> {
-        self.data.set_light(x, y, light, |_| Ok(()))
+    unsafe fn set_light_unchecked(&mut self, pos: ChunkLocalPosition, light: [f32; 3]) {
+        self.data.set_light_unchecked(pos, light)
     }
 
-    unsafe fn set_light_unchecked(&mut self, x: u16, y: u16, light: [f32; 3]) {
-        self.data.set_light_unchecked(x, y, light)
+    fn light(&self, pos: ChunkLocalPosition) -> Result<&[f32; 3], String> {
+        self.data.light(pos)
     }
 
-    fn light(&self, x: u16, y: u16) -> Result<&[f32; 3], String> {
-        self.data.light(x, y)
+    unsafe fn light_unchecked(&self, pos: ChunkLocalPosition) -> &[f32; 3] {
+        self.data.light_unchecked(pos)
     }
 
-    unsafe fn light_unchecked(&self, x: u16, y: u16) -> &[f32; 3] {
-        self.data.light_unchecked(x, y)
+    fn set_color(&mut self, pos: ChunkLocalPosition, color: Color) {
+        let i: ChunkLocalIndex = pos.into();
+
+        self.color_data[i] = color;
+        self.dirty = true;
     }
 
-    fn set_color(&mut self, x: u16, y: u16, color: Color) -> Result<(), String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            let i = (x + y * CHUNK_SIZE) as usize;
-
-            self.pixel_data[i] = color;
-            self.dirty = true;
-
-            return Ok(());
-        }
-
-        Err("Invalid pixel coordinate.".to_string())
-    }
-
-    fn color(&self, x: u16, y: u16) -> Result<Color, String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            let i = (x + y * CHUNK_SIZE) as usize;
-
-            return Ok(self.pixel_data[i]);
-        }
-
-        Err("Invalid pixel coordinate.".to_string())
+    fn color(&self, pos: ChunkLocalPosition) -> Color {
+        let i: ChunkLocalIndex = pos.into();
+        self.color_data[i]
     }
 
     fn set_pixels(&mut self, pixels: Box<[MaterialInstance; CHUNK_AREA]>) {
@@ -154,15 +137,15 @@ impl Chunk for ServerChunk {
     }
 
     fn set_pixel_colors(&mut self, colors: Box<[Color; CHUNK_AREA]>) {
-        self.pixel_data = colors;
+        self.color_data = colors;
     }
 
     fn colors_mut(&mut self) -> &mut [Color; CHUNK_AREA] {
-        &mut self.pixel_data
+        &mut self.color_data
     }
 
     fn colors(&self) -> &[Color; CHUNK_AREA] {
-        &self.pixel_data
+        &self.color_data
     }
 
     fn set_background_pixels(&mut self, pixels: Box<[MaterialInstance; CHUNK_AREA]>) {
@@ -233,21 +216,25 @@ impl Chunk for ServerChunk {
     }
 
     // #[profiling::function] // huge performance impact
-    fn set_background(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String> {
-        self.data.set_background(x, y, mat, |_| Ok(()))
+    fn set_background(
+        &mut self,
+        pos: ChunkLocalPosition,
+        mat: MaterialInstance,
+    ) -> Result<(), String> {
+        self.data.set_background(pos, mat, |_| Ok(()))
     }
 
-    unsafe fn set_background_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance) {
-        self.data.set_background_unchecked(x, y, mat);
+    unsafe fn set_background_unchecked(&mut self, pos: ChunkLocalPosition, mat: MaterialInstance) {
+        self.data.set_background_unchecked(pos, mat);
     }
 
     // #[profiling::function] // huge performance impact
-    fn background(&self, x: u16, y: u16) -> Result<&MaterialInstance, String> {
-        self.data.background(x, y)
+    fn background(&self, pos: ChunkLocalPosition) -> Result<&MaterialInstance, String> {
+        self.data.background(pos)
     }
 
-    unsafe fn background_unchecked(&self, x: u16, y: u16) -> &MaterialInstance {
-        self.data.background_unchecked(x, y)
+    unsafe fn background_unchecked(&self, pos: ChunkLocalPosition) -> &MaterialInstance {
+        self.data.background_unchecked(pos)
     }
 
     fn add_tile_entity(&mut self, te: TileEntityCommon) {

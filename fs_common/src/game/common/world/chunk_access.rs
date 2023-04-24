@@ -37,9 +37,8 @@ where
             return Err("Position is not loaded".into());
         };
 
-        let (local_x, local_y) = pixel_to_pos_in_chunk(world_x, world_y);
-
-        ch.pixel(local_x, local_y)
+        let local = pixel_to_pos_in_chunk(world_x, world_y);
+        ch.pixel(local)
     }
 
     #[inline]
@@ -53,9 +52,9 @@ where
             return Err("Position is not loaded".into());
         };
 
-        let (local_x, local_y) = pixel_to_pos_in_chunk(world_x, world_y);
+        let local = pixel_to_pos_in_chunk(world_x, world_y);
 
-        ch.set_pixel(local_x, local_y, mat)
+        ch.set_pixel(local, mat)
     }
 
     #[inline]
@@ -64,13 +63,11 @@ where
         Self: Sized,
         F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>,
     {
-        let (chunk_pos, local_x, local_y) = pixel_to_chunk(world_x, world_y);
+        let (chunk_pos, local) = pixel_to_chunk(world_x, world_y);
         let Some(ch) = self.chunk_at_mut(chunk_pos) else {
             return Err("Position is not loaded".into());
         };
-
-        // Safety: local_x and local_y from pixel_to_chunk will always be in 0..CHUNK_SIZE
-        unsafe { ch.replace_pixel_unchecked(local_x, local_y, cb) }
+        ch.replace_pixel(local, cb)
     }
 
     #[inline]

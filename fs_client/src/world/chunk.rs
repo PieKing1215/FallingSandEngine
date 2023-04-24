@@ -1,6 +1,8 @@
 use chunksystem::ChunkQuery;
 use core::slice;
-use fs_common::game::common::world::{material::PhysicsType, Chunk, CHUNK_AREA};
+use fs_common::game::common::world::{
+    material::PhysicsType, Chunk, ChunkLocalIndex, ChunkLocalPosition, CHUNK_AREA,
+};
 use std::{borrow::Cow, convert::TryInto, sync::Arc};
 
 use fs_common::game::common::{
@@ -82,118 +84,86 @@ impl Chunk for ClientChunk {
     }
 
     fn refresh(&mut self) {
-        for x in 0..CHUNK_SIZE {
-            for y in 0..CHUNK_SIZE {
-                self.graphics
-                    .set(
-                        x,
-                        y,
-                        self.data.pixels.as_ref().unwrap()[(x + y * CHUNK_SIZE) as usize].color,
-                    )
-                    .unwrap();
-                self.graphics
-                    .set_light(
-                        x,
-                        y,
-                        self.data.light.as_ref().unwrap()[(x + y * CHUNK_SIZE) as usize],
-                    )
-                    .unwrap();
-            }
+        for pos in ChunkLocalPosition::iter() {
+            let i: ChunkLocalIndex = pos.into();
+            self.graphics
+                .set(pos, self.data.pixels.as_ref().unwrap()[i].color);
+            self.graphics
+                .set_light(pos, self.data.light.as_ref().unwrap()[i]);
         }
     }
 
     // #[profiling::function] // huge performance impact
-    fn set_pixel(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String> {
-        self.data.set(x, y, mat, |mat| {
+    fn set_pixel(&mut self, pos: ChunkLocalPosition, mat: MaterialInstance) -> Result<(), String> {
+        self.data.set(pos, mat, |mat| {
             if mat.physics != PhysicsType::Object {
-                self.graphics.set(x, y, mat.color)?;
-                self.graphics.set_light(x, y, mat.light)
-            } else {
-                Ok(())
+                self.graphics.set(pos, mat.color);
+                self.graphics.set_light(pos, mat.light);
             }
+
+            Ok(())
         })
     }
 
-    unsafe fn set_pixel_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance) {
+    unsafe fn set_pixel_unchecked(&mut self, pos: ChunkLocalPosition, mat: MaterialInstance) {
         if mat.physics != PhysicsType::Object {
-            self.graphics.set(x, y, mat.color).unwrap();
-            self.graphics.set_light(x, y, mat.light).unwrap();
+            self.graphics.set(pos, mat.color);
+            self.graphics.set_light(pos, mat.light);
         }
 
-        self.data.set_unchecked(x, y, mat);
+        self.data.set_unchecked(pos, mat);
     }
 
-    fn pixel(&self, x: u16, y: u16) -> Result<&MaterialInstance, String> {
-        self.data.pixel(x, y)
+    fn pixel(&self, pos: ChunkLocalPosition) -> Result<&MaterialInstance, String> {
+        self.data.pixel(pos)
     }
 
-    unsafe fn pixel_unchecked(&self, x: u16, y: u16) -> &MaterialInstance {
-        self.data.pixel_unchecked(x, y)
+    unsafe fn pixel_unchecked(&self, pos: ChunkLocalPosition) -> &MaterialInstance {
+        self.data.pixel_unchecked(pos)
     }
 
-    fn replace_pixel<F>(&mut self, x: u16, y: u16, cb: F) -> Result<bool, String>
+    fn replace_pixel<F>(&mut self, pos: ChunkLocalPosition, cb: F) -> Result<bool, String>
     where
         Self: Sized,
         F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>,
     {
-        self.data.replace_pixel(x, y, cb, |m| {
+        self.data.replace_pixel(pos, cb, |m| {
             if m.physics != PhysicsType::Object {
-                self.graphics.set(x, y, m.color)?;
-                self.graphics.set_light(x, y, m.light)
-            } else {
-                Ok(())
+                self.graphics.set(pos, m.color);
+                self.graphics.set_light(pos, m.light);
             }
+
+            Ok(())
         })
     }
 
-    unsafe fn replace_pixel_unchecked<F>(&mut self, x: u16, y: u16, cb: F) -> Result<bool, String>
-    where
-        Self: Sized,
-        F: FnOnce(&MaterialInstance) -> Option<MaterialInstance>,
-    {
-        self.data.replace_pixel_unchecked(x, y, cb, |m| {
-            if m.physics != PhysicsType::Object {
-                self.graphics.set(x, y, m.color)?;
-                self.graphics.set_light(x, y, m.light)
-            } else {
-                Ok(())
-            }
+    fn set_light(&mut self, pos: ChunkLocalPosition, light: [f32; 3]) -> Result<(), String> {
+        self.data.set_light(pos, light, |l| {
+            self.graphics.set_light(pos, *l);
+            Ok(())
         })
     }
 
-    fn set_light(&mut self, x: u16, y: u16, light: [f32; 3]) -> Result<(), String> {
-        self.data
-            .set_light(x, y, light, |l| self.graphics.set_light(x, y, *l))
+    unsafe fn set_light_unchecked(&mut self, pos: ChunkLocalPosition, light: [f32; 3]) {
+        self.graphics.set_light(pos, light);
+
+        self.data.set_light_unchecked(pos, light);
     }
 
-    unsafe fn set_light_unchecked(&mut self, x: u16, y: u16, light: [f32; 3]) {
-        self.graphics.set_light(x, y, light).unwrap();
-
-        self.data.set_light_unchecked(x, y, light)
+    fn light(&self, pos: ChunkLocalPosition) -> Result<&[f32; 3], String> {
+        self.data.light(pos)
     }
 
-    fn light(&self, x: u16, y: u16) -> Result<&[f32; 3], String> {
-        self.data.light(x, y)
+    unsafe fn light_unchecked(&self, pos: ChunkLocalPosition) -> &[f32; 3] {
+        self.data.light_unchecked(pos)
     }
 
-    unsafe fn light_unchecked(&self, x: u16, y: u16) -> &[f32; 3] {
-        self.data.light_unchecked(x, y)
+    fn set_color(&mut self, pos: ChunkLocalPosition, color: Color) {
+        self.graphics.set(pos, color);
     }
 
-    fn set_color(&mut self, x: u16, y: u16, color: Color) -> Result<(), String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            return self.graphics.set(x, y, color);
-        }
-
-        Err("Invalid pixel coordinate.".to_string())
-    }
-
-    fn color(&self, x: u16, y: u16) -> Result<Color, String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            return self.graphics.get(x, y);
-        }
-
-        Err("Invalid pixel coordinate.".to_string())
+    fn color(&self, pos: ChunkLocalPosition) -> Color {
+        self.graphics.get(pos)
     }
 
     #[profiling::function]
@@ -301,22 +271,28 @@ impl Chunk for ClientChunk {
         &self.graphics.lighting_data
     }
 
-    fn set_background(&mut self, x: u16, y: u16, mat: MaterialInstance) -> Result<(), String> {
-        self.data
-            .set_background(x, y, mat, |m| self.graphics.set_background(x, y, m.color))
+    fn set_background(
+        &mut self,
+        pos: ChunkLocalPosition,
+        mat: MaterialInstance,
+    ) -> Result<(), String> {
+        self.data.set_background(pos, mat, |m| {
+            self.graphics.set_background(pos, m.color);
+            Ok(())
+        })
     }
 
-    unsafe fn set_background_unchecked(&mut self, x: u16, y: u16, mat: MaterialInstance) {
-        self.graphics.set_background(x, y, mat.color).unwrap();
-        self.data.set_background_unchecked(x, y, mat);
+    unsafe fn set_background_unchecked(&mut self, pos: ChunkLocalPosition, mat: MaterialInstance) {
+        self.graphics.set_background(pos, mat.color);
+        self.data.set_background_unchecked(pos, mat);
     }
 
-    fn background(&self, x: u16, y: u16) -> Result<&MaterialInstance, String> {
-        self.data.background(x, y)
+    fn background(&self, pos: ChunkLocalPosition) -> Result<&MaterialInstance, String> {
+        self.data.background(pos)
     }
 
-    unsafe fn background_unchecked(&self, x: u16, y: u16) -> &MaterialInstance {
-        self.data.background_unchecked(x, y)
+    unsafe fn background_unchecked(&self, pos: ChunkLocalPosition) -> &MaterialInstance {
+        self.data.background_unchecked(pos)
     }
 
     fn add_tile_entity(&mut self, te: TileEntityCommon) {
@@ -386,61 +362,38 @@ unsafe impl Sync for ChunkGraphics {}
 
 impl ChunkGraphics {
     // #[profiling::function] // huge performance impact
-    pub fn set(&mut self, x: u16, y: u16, color: Color) -> Result<(), String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            let i = (x + y * CHUNK_SIZE) as usize;
-            if self.pixel_data[i] != color {
-                if self.pixel_data[i].a != color.a {
-                    self.lighting_dirty = true;
-                }
-                self.pixel_data[i] = color;
-                self.dirty = true;
-            }
-
-            return Ok(());
-        }
-
-        Err("Invalid pixel coordinate.".to_string())
-    }
-
-    // #[profiling::function] // huge performance impact
-    pub fn set_light(&mut self, x: u16, y: u16, color: [f32; 3]) -> Result<(), String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            let i = (x + y * CHUNK_SIZE) as usize;
-            if self.lighting_data[i] != [color[0], color[1], color[2], 1.0] {
-                self.lighting_data[i] = [color[0], color[1], color[2], 1.0];
+    pub fn set(&mut self, pos: impl Into<ChunkLocalIndex>, color: Color) {
+        let i: ChunkLocalIndex = pos.into();
+        if self.pixel_data[i] != color {
+            if self.pixel_data[i].a != color.a {
                 self.lighting_dirty = true;
             }
-
-            return Ok(());
+            self.pixel_data[i] = color;
+            self.dirty = true;
         }
-
-        Err("Invalid pixel coordinate.".to_string())
     }
 
     // #[profiling::function] // huge performance impact
-    pub fn get(&self, x: u16, y: u16) -> Result<Color, String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            let i = (x + y * CHUNK_SIZE) as usize;
-
-            return Ok(self.pixel_data[i]);
+    pub fn set_light(&mut self, pos: impl Into<ChunkLocalIndex>, color: [f32; 3]) {
+        let i: ChunkLocalIndex = pos.into();
+        if self.lighting_data[i] != [color[0], color[1], color[2], 1.0] {
+            self.lighting_data[i] = [color[0], color[1], color[2], 1.0];
+            self.lighting_dirty = true;
         }
-
-        Err("Invalid pixel coordinate.".to_string())
     }
 
-    pub fn set_background(&mut self, x: u16, y: u16, color: Color) -> Result<(), String> {
-        if x < CHUNK_SIZE && y < CHUNK_SIZE {
-            let i = (x + y * CHUNK_SIZE) as usize;
-            if self.background_data[i] != color {
-                self.background_data[i] = color;
-                self.background_dirty = true;
-            }
+    // #[profiling::function] // huge performance impact
+    pub fn get(&self, pos: impl Into<ChunkLocalIndex>) -> Color {
+        let i: ChunkLocalIndex = pos.into();
+        self.pixel_data[i]
+    }
 
-            return Ok(());
+    pub fn set_background(&mut self, pos: impl Into<ChunkLocalIndex>, color: Color) {
+        let i: ChunkLocalIndex = pos.into();
+        if self.background_data[i] != color {
+            self.background_data[i] = color;
+            self.background_dirty = true;
         }
-
-        Err("Invalid pixel coordinate.".to_string())
     }
 
     // #[profiling::function]

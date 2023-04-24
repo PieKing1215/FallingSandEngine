@@ -22,7 +22,7 @@ use self::populator::Populator;
 
 use super::material::color::Color;
 use super::material::MaterialInstance;
-use super::{CHUNK_AREA, CHUNK_SIZE};
+use super::{ChunkLocalIndex, CHUNK_AREA};
 
 #[derive(Debug)]
 pub struct PopulatorList<C: Chunk> {
@@ -115,23 +115,15 @@ impl<'a> GenBuffers<'a> {
     }
 
     #[inline]
-    pub fn set_pixel(&mut self, x: u16, y: u16, mat: MaterialInstance) {
-        self.set_pixel_idx((x + y * CHUNK_SIZE) as usize, mat);
-    }
-
-    #[inline]
-    pub fn set_pixel_idx(&mut self, i: usize, mat: MaterialInstance) {
+    pub fn set_pixel(&mut self, i: impl Into<ChunkLocalIndex>, mat: MaterialInstance) {
+        let i = i.into();
         self.pixels[i] = mat;
         self.colors[i] = self.pixels[i].color;
     }
 
     #[inline]
-    pub fn set_bg(&mut self, x: u16, y: u16, mat: MaterialInstance) {
-        self.set_bg_idx((x + y * CHUNK_SIZE) as usize, mat);
-    }
-
-    #[inline]
-    pub fn set_bg_idx(&mut self, i: usize, mat: MaterialInstance) {
+    pub fn set_bg(&mut self, i: impl Into<ChunkLocalIndex>, mat: MaterialInstance) {
+        let i = i.into();
         self.background[i] = mat;
         self.background_colors[i] = self.background[i].color;
     }
