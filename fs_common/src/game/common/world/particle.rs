@@ -97,7 +97,6 @@ impl<'a, H: FSChunkAccess + Send + Sync> System<'a> for UpdateParticles<'a, H> {
         Read<'a, TickTime>,
     );
 
-    #[allow(clippy::too_many_lines)]
     fn run(&mut self, data: Self::SystemData) {
         let (entities, mut system, pos, vel, hitbox, tick_time) = data;
         profiling::scope!(
@@ -140,308 +139,208 @@ impl<'a, H: FSChunkAccess + Send + Sync> System<'a> for UpdateParticles<'a, H> {
             system.active.append(&mut removed);
         }
 
-        {
-            profiling::scope!("main");
+        self.move_particles(&mut system);
 
-            // ok so there's some pretty unsafe stuff going on here in order to get parallelism working
-            // chunk_handler is mutably borrowed many times on different threads in order to call get, set, and displace
-            // I don't know if HashMap::get is "thread-sound". Assuming it is, the reads/writes to the chunk buffer arrays
-            //   should be sound assuming our invariant of no particle being allowed to move > CHUNK_SIZE/2 per tick (TODO: this is not enforced anywhere)
-            // TODO: look into replacing the chunks HashMap with https://crates.io/crates/evmap or https://crates.io/crates/chashmap so it's actually sound
+        Self::interact_with_entities(&mut system, &entities, &hitbox, &pos, &vel);
+    }
+}
 
-            struct ForceSendSync<T> {
-                value: T,
+impl<H: FSChunkAccess + Send + Sync> UpdateParticles<'_, H> {
+    fn move_particles(&mut self, system: &mut Write<ParticleSystem>) {
+        profiling::scope!("move_particles");
+
+        // ok so there's some pretty unsafe stuff going on here in order to get parallelism working
+        // chunk_handler is mutably borrowed many times on different threads in order to call get, set, and displace
+        // I don't know if HashMap::get is "thread-sound". Assuming it is, the reads/writes to the chunk buffer arrays
+        //   should be sound assuming our invariant of no particle being allowed to move > CHUNK_SIZE/2 per tick (TODO: this is not enforced anywhere)
+        // TODO: look into replacing the chunks HashMap with https://crates.io/crates/evmap or https://crates.io/crates/chashmap so it's actually sound
+
+        struct ForceSendSync<T> {
+            value: T,
+        }
+
+        unsafe impl<T> Send for ForceSendSync<T> {}
+        unsafe impl<T> Sync for ForceSendSync<T> {}
+
+        let async_chunk_handler =
+            Arc::new(ForceSendSync::<*mut &mut H> { value: &mut self.chunk_handler });
+
+        let parts: Vec<_> = {
+            profiling::scope!("sort+group");
+            let mut maps = [
+                HashMap::<u32, Vec<Particle>, BuildHasherDefault<PassThroughHasherU32>>::default(),
+                HashMap::<u32, Vec<Particle>, BuildHasherDefault<PassThroughHasherU32>>::default(),
+                HashMap::<u32, Vec<Particle>, BuildHasherDefault<PassThroughHasherU32>>::default(),
+                HashMap::<u32, Vec<Particle>, BuildHasherDefault<PassThroughHasherU32>>::default(),
+            ];
+            for p in system.active.drain(..) {
+                // safety: p.chunk_cache.1 is a chunk order number, assumed to be 0..=3
+                unsafe { maps.get_unchecked_mut(p.chunk_cache.1 as usize) }
+                    .entry(p.chunk_cache.0)
+                    .or_insert_with(Vec::new)
+                    .push(p);
             }
+            maps.into_iter()
+                .map(|m| m.into_values().collect_vec())
+                .collect()
+        };
 
-            unsafe impl<T> Send for ForceSendSync<T> {}
-            unsafe impl<T> Sync for ForceSendSync<T> {}
+        for p in parts {
+            profiling::scope!("phase", format!("n_chunks = {}", p.len()).as_str());
+            let v = p.into_par_iter().flat_map_iter(|mut chunk_px| {
+                profiling::scope!("chunk");
 
-            let async_chunk_handler =
-                Arc::new(ForceSendSync::<*mut &mut H> { value: &mut self.chunk_handler });
+                chunk_px.retain_mut(|part| {
+                    // TODO: this reborrow is UB
+                    let unsafe_async_chunk_handler =
+                        unsafe { &mut **((async_chunk_handler.clone()).value) };
 
-            let parts: Vec<_> = {
-                profiling::scope!("sort+group");
-                let mut maps = [
-                    HashMap::<u32, Vec<Particle>, BuildHasherDefault<PassThroughHasherU32>>::default(),
-                    HashMap::<u32, Vec<Particle>, BuildHasherDefault<PassThroughHasherU32>>::default(),
-                    HashMap::<u32, Vec<Particle>, BuildHasherDefault<PassThroughHasherU32>>::default(),
-                    HashMap::<u32, Vec<Particle>, BuildHasherDefault<PassThroughHasherU32>>::default(),
-                ];
-                for p in system.active.drain(..) {
-                    // safety: p.chunk_cache.1 is a chunk order number, assumed to be 0..=3
-                    unsafe { maps.get_unchecked_mut(p.chunk_cache.1 as usize) }
-                        .entry(p.chunk_cache.0)
-                        .or_insert_with(Vec::new)
-                        .push(p);
-                }
-                maps.into_iter()
-                    .map(|m| m.into_values().collect_vec())
-                    .collect()
-            };
+                    let res = Self::process_particle(part, unsafe_async_chunk_handler);
 
-            for p in parts {
-                profiling::scope!("phase", format!("n_chunks = {}", p.len()).as_str());
-                let v = p.into_par_iter().flat_map_iter(|mut chunk_px| {
-                    profiling::scope!("chunk");
-
-                    chunk_px.retain_mut(|part| {
-                        let unsafe_async_chunk_handler =
-                            unsafe { &mut **((async_chunk_handler.clone()).value) };
-                        let chunk_handler = unsafe_async_chunk_handler;
-
-                        let mut process = |part: &mut Particle| {
-                            let lx = part.pos.x;
-                            let ly = part.pos.y;
-
-                            part.vel.y += 0.1;
-
-                            let dx = part.vel.x;
-                            let dy = part.vel.y;
-
-                            let steps = (dx.abs() + dy.abs()).sqrt() as u32 + 1;
-                            {
-                                // profiling::scope!("loop", format!("steps = {}", steps).as_str());
-
-                                // let mut last_step_x = pos.x as i64;
-                                // let mut last_step_y = pos.y as i64;
-                                for s in 0..steps {
-                                    // profiling::scope!("step");
-                                    let thru = f64::from(s + 1) / f64::from(steps);
-
-                                    part.pos.x = lx + dx * thru;
-                                    part.pos.y = ly + dy * thru;
-
-                                    // this check does catch repeated steps, but actually makes performance slightly worse
-                                    // if pos.x as i64 != last_step_x || pos.y as i64 != last_step_y {
-                                    if let Ok(mat) =
-                                        chunk_handler.pixel(part.pos.x as i64, part.pos.y as i64)
-                                    {
-                                        if mat.physics == PhysicsType::Air {
-                                            part.in_object_state = InObjectState::Outside;
-                                        } else {
-                                            let is_object = mat.physics == PhysicsType::Object;
-
-                                            match part.in_object_state {
-                                                InObjectState::FirstFrame => {
-                                                    if is_object {
-                                                        part.in_object_state =
-                                                            InObjectState::Inside;
-                                                    } else {
-                                                        part.in_object_state =
-                                                            InObjectState::Outside;
-                                                    }
-                                                },
-                                                InObjectState::Inside => {
-                                                    if !is_object {
-                                                        part.in_object_state =
-                                                            InObjectState::Outside;
-                                                    }
-                                                },
-                                                InObjectState::Outside => {},
-                                            }
-
-                                            if !is_object
-                                                || part.in_object_state == InObjectState::Outside
-                                            {
-                                                match chunk_handler.pixel(lx as i64, ly as i64) {
-                                                    Ok(m) if m.physics != PhysicsType::Air => {
-                                                        let succeeded = chunk_handler
-                                                            .displace_pixel(
-                                                                part.pos.x as i64,
-                                                                part.pos.y as i64,
-                                                                part.material.clone(),
-                                                            );
-
-                                                        if succeeded {
-                                                            return false;
-                                                        }
-
-                                                        // upwarp if completely blocked
-                                                        part.vel.y = -1.0;
-                                                        part.pos.y -= 16.0;
-
-                                                        break;
-                                                    },
-                                                    _ => {
-                                                        if chunk_handler
-                                                            .set_pixel(
-                                                                lx as i64,
-                                                                ly as i64,
-                                                                part.material.clone(),
-                                                            )
-                                                            .is_ok()
-                                                        {
-                                                            return false;
-                                                        }
-                                                    },
-                                                }
-                                            }
-                                        }
-                                    }
-                                    // }
-
-                                    // last_step_x = pos.x as i64;
-                                    // last_step_y = pos.y as i64;
-                                }
-                            }
-
-                            true
-                        };
-
-                        let res = process(part);
-                        let (chunk_x, chunk_y) = pixel_to_chunk_pos_with_chunk_size(
-                            part.pos.x as i64,
-                            part.pos.y as i64,
-                            PARTICLE_CHUNK_SIZE,
-                        );
-                        part.chunk_cache = (
-                            chunk_index(chunk_x, chunk_y),
-                            chunk_update_order(chunk_x, chunk_y),
-                        );
-                        res
-                    });
-
-                    chunk_px
+                    let (chunk_x, chunk_y) = pixel_to_chunk_pos_with_chunk_size(
+                        part.pos.x as i64,
+                        part.pos.y as i64,
+                        PARTICLE_CHUNK_SIZE,
+                    );
+                    part.chunk_cache = (
+                        chunk_index(chunk_x, chunk_y),
+                        chunk_update_order(chunk_x, chunk_y),
+                    );
+                    res
                 });
 
-                {
-                    profiling::scope!("par_extend");
-                    system.active.par_extend(v);
-                }
+                chunk_px
+            });
 
-                // let parts = system.active.iter_mut().filter(|p| {
-                //     let (chunk_x, chunk_y) = chunk_handler.pixel_to_chunk_pos(p.pos.x as i64, p.pos.y as i64);
-                //     chunk_handler.chunk_update_order(chunk_x, chunk_y) == phase
-                // });
-
-                // for p in parts {
-
-                // }
+            {
+                profiling::scope!("par_extend");
+                system.active.par_extend(v);
             }
         }
+    }
 
-        //     system.active.retain_mut(|part| {
-        //         // profiling::scope!("particle");
+    fn interact_with_entities(
+        system: &mut Write<ParticleSystem>,
+        entities: &Entities,
+        hitbox: &ReadStorage<Hitbox>,
+        pos: &ReadStorage<Position>,
+        vel: &ReadStorage<Velocity>,
+    ) {
+        profiling::scope!("ent");
+        for part in &mut system.active {
+            // profiling::scope!("Particle");
 
-        //         let lx = part.pos.x;
-        //         let ly = part.pos.y;
+            // let (chunk_x, chunk_y) = chunk_handler.pixel_to_chunk_pos(my_pos.x as i64, my_pos.y as i64);
+            // // skip if chunk not active
+            // if !matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active) {
+            //     return;
+            // }
 
-        //         part.vel.y += 0.1;
+            (entities, hitbox, pos).join().for_each(|(p_ent, hb, pos)| {
+                if part.pos.x >= f64::from(hb.x1) + pos.x
+                    && part.pos.y >= f64::from(hb.y1) + pos.y
+                    && part.pos.x < f64::from(hb.x2) + pos.x
+                    && part.pos.y < f64::from(hb.y2) + pos.y
+                {
+                    let p = vel.get(p_ent).cloned();
+                    let mp = Some(&mut part.vel);
+                    if let (Some(mp), Some(p)) = (mp, p) {
+                        mp.x += (-p.x - mp.x) * 0.5
+                            + rand::distributions::Uniform::from(-1.0..=1.0)
+                                .sample(&mut rand::thread_rng());
+                        mp.y += (-p.y - mp.y) * 0.25
+                            + rand::distributions::Uniform::from(-1.0..=1.0)
+                                .sample(&mut rand::thread_rng());
+                    }
+                }
+            });
+        }
+    }
 
-        //         let dx = part.vel.x;
-        //         let dy = part.vel.y;
+    fn process_particle(part: &mut Particle, chunk_handler: &mut impl FSChunkAccess) -> bool {
+        let lx = part.pos.x;
+        let ly = part.pos.y;
 
-        //         let steps = (dx.abs() + dy.abs()).sqrt() as u32 + 1;
-        //         {
-        //             // profiling::scope!("loop", format!("steps = {}", steps).as_str());
+        part.vel.y += 0.1;
 
-        //             // let mut last_step_x = pos.x as i64;
-        //             // let mut last_step_y = pos.y as i64;
-        //             for s in 0..steps {
-        //                 // profiling::scope!("step");
-        //                 let thru = f64::from(s + 1) / f64::from(steps);
+        let dx = part.vel.x;
+        let dy = part.vel.y;
 
-        //                 part.pos.x = lx + dx * thru;
-        //                 part.pos.y = ly + dy * thru;
-
-        //                 // this check does catch repeated steps, but actually makes performance slightly worse
-        //                 // if pos.x as i64 != last_step_x || pos.y as i64 != last_step_y {
-        //                 if let Ok(mat) = chunk_handler.get(part.pos.x as i64, part.pos.y as i64) {
-        //                     if mat.physics == PhysicsType::Air {
-        //                         part.in_object_state = InObjectState::Outside;
-        //                     } else {
-        //                         let is_object = mat.physics == PhysicsType::Object;
-
-        //                         match part.in_object_state {
-        //                             InObjectState::FirstFrame => {
-        //                                 if is_object {
-        //                                     part.in_object_state = InObjectState::Inside;
-        //                                 } else {
-        //                                     part.in_object_state = InObjectState::Outside;
-        //                                 }
-        //                             },
-        //                             InObjectState::Inside => {
-        //                                 if !is_object {
-        //                                     part.in_object_state = InObjectState::Outside;
-        //                                 }
-        //                             },
-        //                             InObjectState::Outside => {},
-        //                         }
-
-        //                         if !is_object || part.in_object_state == InObjectState::Outside {
-        //                             match chunk_handler.get(lx as i64, ly as i64) {
-        //                                 Ok(m) if m.physics != PhysicsType::Air => {
-        //                                     let succeeded = chunk_handler.displace(
-        //                                         part.pos.x as i64,
-        //                                         part.pos.y as i64,
-        //                                         part.material,
-        //                                     );
-
-        //                                     if succeeded {
-        //                                         return false;
-        //                                     }
-
-        //                                     // upwarp if completely blocked
-        //                                     part.vel.y = -1.0;
-        //                                     part.pos.y -= 16.0;
-
-        //                                     break;
-        //                                 },
-        //                                 _ => {
-        //                                     if chunk_handler
-        //                                         .set(lx as i64, ly as i64, part.material)
-        //                                         .is_ok()
-        //                                     {
-        //                                         return false;
-        //                                     }
-        //                                 },
-        //                             }
-        //                         }
-        //                     }
-        //                 }
-        //                 // }
-
-        //                 // last_step_x = pos.x as i64;
-        //                 // last_step_y = pos.y as i64;
-        //             }
-        //         }
-
-        //         true
-        //     });
-        // }
-
+        let steps = (dx.abs() + dy.abs()).sqrt() as u32 + 1;
         {
-            profiling::scope!("ent");
-            for part in &mut system.active {
-                // profiling::scope!("Particle");
+            // profiling::scope!("loop", format!("steps = {}", steps).as_str());
 
-                // let (chunk_x, chunk_y) = chunk_handler.pixel_to_chunk_pos(my_pos.x as i64, my_pos.y as i64);
-                // // skip if chunk not active
-                // if !matches!(chunk_handler.get_chunk(chunk_x, chunk_y), Some(c) if c.get_state() == ChunkState::Active) {
-                //     return;
-                // }
+            // let mut last_step_x = pos.x as i64;
+            // let mut last_step_y = pos.y as i64;
+            for s in 0..steps {
+                // profiling::scope!("step");
+                let thru = f64::from(s + 1) / f64::from(steps);
 
-                (&entities, &hitbox, &pos)
-                    .join()
-                    .for_each(|(p_ent, hb, pos)| {
-                        if part.pos.x >= f64::from(hb.x1) + pos.x
-                            && part.pos.y >= f64::from(hb.y1) + pos.y
-                            && part.pos.x < f64::from(hb.x2) + pos.x
-                            && part.pos.y < f64::from(hb.y2) + pos.y
-                        {
-                            let p = vel.get(p_ent).cloned();
-                            let mp = Some(&mut part.vel);
-                            if let (Some(mp), Some(p)) = (mp, p) {
-                                mp.x += (-p.x - mp.x) * 0.5
-                                    + rand::distributions::Uniform::from(-1.0..=1.0)
-                                        .sample(&mut rand::thread_rng());
-                                mp.y += (-p.y - mp.y) * 0.25
-                                    + rand::distributions::Uniform::from(-1.0..=1.0)
-                                        .sample(&mut rand::thread_rng());
+                part.pos.x = lx + dx * thru;
+                part.pos.y = ly + dy * thru;
+
+                // this check does catch repeated steps, but actually makes performance slightly worse
+                // if pos.x as i64 != last_step_x || pos.y as i64 != last_step_y {
+                if let Ok(mat) = chunk_handler.pixel(part.pos.x as i64, part.pos.y as i64) {
+                    if mat.physics == PhysicsType::Air {
+                        part.in_object_state = InObjectState::Outside;
+                    } else {
+                        let is_object = mat.physics == PhysicsType::Object;
+
+                        match part.in_object_state {
+                            InObjectState::FirstFrame => {
+                                if is_object {
+                                    part.in_object_state = InObjectState::Inside;
+                                } else {
+                                    part.in_object_state = InObjectState::Outside;
+                                }
+                            },
+                            InObjectState::Inside => {
+                                if !is_object {
+                                    part.in_object_state = InObjectState::Outside;
+                                }
+                            },
+                            InObjectState::Outside => {},
+                        }
+
+                        if !is_object || part.in_object_state == InObjectState::Outside {
+                            match chunk_handler.pixel(lx as i64, ly as i64) {
+                                Ok(m) if m.physics != PhysicsType::Air => {
+                                    let succeeded = chunk_handler.displace_pixel(
+                                        part.pos.x as i64,
+                                        part.pos.y as i64,
+                                        part.material.clone(),
+                                    );
+
+                                    if succeeded {
+                                        return false;
+                                    }
+
+                                    // upwarp if completely blocked
+                                    part.vel.y = -1.0;
+                                    part.pos.y -= 16.0;
+
+                                    break;
+                                },
+                                _ => {
+                                    if chunk_handler
+                                        .set_pixel(lx as i64, ly as i64, part.material.clone())
+                                        .is_ok()
+                                    {
+                                        return false;
+                                    }
+                                },
                             }
                         }
-                    });
+                    }
+                }
+                // }
+
+                // last_step_x = pos.x as i64;
+                // last_step_y = pos.y as i64;
             }
         }
+
+        true
     }
 }

@@ -145,99 +145,21 @@ impl<C: Chunk + Send + Sync + 'static> World<C> {
             }),
         };
 
-        // add a rigidbody
-
-        let pixels: Vec<_> = (0..40 * 40)
-            .map(|i| {
-                let x: i32 = i % 40;
-                let y: i32 = i / 40;
-                if (x - 20).abs() < 5 || (y - 20).abs() < 5 {
-                    material::TEST.instance(
-                        PhysicsType::Solid,
-                        Color::rgb(
-                            64,
-                            if (x + y) % 4 >= 2 { 191 } else { 64 },
-                            if (x + y) % 4 > 2 { 64 } else { 191 },
-                        ),
-                    )
-                } else {
-                    MaterialInstance::air()
-                }
-            })
-            .collect();
-
-        if let Ok(mut r) = FSRigidBody::make_bodies(&pixels, 40, 40, &mut w.physics, (-1.0, -7.0)) {
-            w.rigidbodies.append(&mut r);
-        }
-
-        // asymmetric
-        let pixels: Vec<_> = (0..40 * 40)
-            .map(|i| {
-                let x: i32 = i % 40;
-                let y: i32 = i / 40;
-                if (y <= 5) || ((x - y).abs() <= 5) {
-                    material::TEST.instance(
-                        PhysicsType::Solid,
-                        Color::rgb(
-                            64,
-                            if (x + y) % 4 >= 2 { 191 } else { 64 },
-                            if (x + y) % 4 > 2 { 64 } else { 191 },
-                        ),
-                    )
-                } else {
-                    MaterialInstance::air()
-                }
-            })
-            .collect();
-
-        if let Ok(mut r) = FSRigidBody::make_bodies(&pixels, 40, 40, &mut w.physics, (-0.0, -10.0))
+        // sample rigidbodies
         {
-            w.rigidbodies.append(&mut r);
-        }
+            // add a rigidbody
 
-        // add another rigidbody
-
-        let pixels: Vec<_> = (0..40 * 40)
-            .map(|i| {
-                let x: i32 = i % 40;
-                let y: i32 = i / 40;
-                let dst = (x - 20) * (x - 20) + (y - 20) * (y - 20);
-                if dst <= 10 * 10 {
-                    material::TEST.instance(PhysicsType::Sand, Color::rgb(255, 64, 255))
-                } else if dst <= 20 * 20 && ((x - 20).abs() >= 5 || y > 20) {
-                    material::TEST.instance(
-                        PhysicsType::Solid,
-                        Color::rgb(
-                            if (x + y) % 4 >= 2 { 191 } else { 64 },
-                            if (x + y) % 4 > 2 { 64 } else { 191 },
-                            64,
-                        ),
-                    )
-                } else {
-                    MaterialInstance::air()
-                }
-            })
-            .collect();
-
-        if let Ok(mut r) = FSRigidBody::make_bodies(&pixels, 40, 40, &mut w.physics, (2.0, -6.5)) {
-            w.rigidbodies.append(&mut r);
-        }
-
-        for n in 0..4 {
-            // add more rigidbodies
-
-            let pixels: Vec<_> = (0..30 * 30)
+            let pixels: Vec<_> = (0..40 * 40)
                 .map(|i| {
-                    let x: i32 = i % 30 + (((i + n * 22) as f32 / 60.0).sin() * 2.0) as i32;
-                    let y: i32 = i / 30;
-                    let dst = (x - 15) * (x - 15) + (y - 15) * (y - 15);
-                    if dst > 5 * 5 && dst <= 10 * 10 {
+                    let x: i32 = i % 40;
+                    let y: i32 = i / 40;
+                    if (x - 20).abs() < 5 || (y - 20).abs() < 5 {
                         material::TEST.instance(
                             PhysicsType::Solid,
                             Color::rgb(
+                                64,
                                 if (x + y) % 4 >= 2 { 191 } else { 64 },
                                 if (x + y) % 4 > 2 { 64 } else { 191 },
-                                if (x + y) % 4 >= 2 { 191 } else { 64 },
                             ),
                         )
                     } else {
@@ -246,14 +168,100 @@ impl<C: Chunk + Send + Sync + 'static> World<C> {
                 })
                 .collect();
 
-            if let Ok(mut r) = FSRigidBody::make_bodies(
-                &pixels,
-                30,
-                30,
-                &mut w.physics,
-                (5.0 + n as f32 * 2.0, -7.0 + n as f32 * -0.75),
-            ) {
+            if let Ok(mut r) =
+                FSRigidBody::make_bodies(&pixels, 40, 40, &mut w.physics, (-1.0, -7.0))
+            {
                 w.rigidbodies.append(&mut r);
+            }
+
+            // asymmetric
+            let pixels: Vec<_> = (0..40 * 40)
+                .map(|i| {
+                    let x: i32 = i % 40;
+                    let y: i32 = i / 40;
+                    if (y <= 5) || ((x - y).abs() <= 5) {
+                        material::TEST.instance(
+                            PhysicsType::Solid,
+                            Color::rgb(
+                                64,
+                                if (x + y) % 4 >= 2 { 191 } else { 64 },
+                                if (x + y) % 4 > 2 { 64 } else { 191 },
+                            ),
+                        )
+                    } else {
+                        MaterialInstance::air()
+                    }
+                })
+                .collect();
+
+            if let Ok(mut r) =
+                FSRigidBody::make_bodies(&pixels, 40, 40, &mut w.physics, (-0.0, -10.0))
+            {
+                w.rigidbodies.append(&mut r);
+            }
+
+            // add another rigidbody
+
+            let pixels: Vec<_> = (0..40 * 40)
+                .map(|i| {
+                    let x: i32 = i % 40;
+                    let y: i32 = i / 40;
+                    let dst = (x - 20) * (x - 20) + (y - 20) * (y - 20);
+                    if dst <= 10 * 10 {
+                        material::TEST.instance(PhysicsType::Sand, Color::rgb(255, 64, 255))
+                    } else if dst <= 20 * 20 && ((x - 20).abs() >= 5 || y > 20) {
+                        material::TEST.instance(
+                            PhysicsType::Solid,
+                            Color::rgb(
+                                if (x + y) % 4 >= 2 { 191 } else { 64 },
+                                if (x + y) % 4 > 2 { 64 } else { 191 },
+                                64,
+                            ),
+                        )
+                    } else {
+                        MaterialInstance::air()
+                    }
+                })
+                .collect();
+
+            if let Ok(mut r) =
+                FSRigidBody::make_bodies(&pixels, 40, 40, &mut w.physics, (2.0, -6.5))
+            {
+                w.rigidbodies.append(&mut r);
+            }
+
+            for n in 0..4 {
+                // add more rigidbodies
+
+                let pixels: Vec<_> = (0..30 * 30)
+                    .map(|i| {
+                        let x: i32 = i % 30 + (((i + n * 22) as f32 / 60.0).sin() * 2.0) as i32;
+                        let y: i32 = i / 30;
+                        let dst = (x - 15) * (x - 15) + (y - 15) * (y - 15);
+                        if dst > 5 * 5 && dst <= 10 * 10 {
+                            material::TEST.instance(
+                                PhysicsType::Solid,
+                                Color::rgb(
+                                    if (x + y) % 4 >= 2 { 191 } else { 64 },
+                                    if (x + y) % 4 > 2 { 64 } else { 191 },
+                                    if (x + y) % 4 >= 2 { 191 } else { 64 },
+                                ),
+                            )
+                        } else {
+                            MaterialInstance::air()
+                        }
+                    })
+                    .collect();
+
+                if let Ok(mut r) = FSRigidBody::make_bodies(
+                    &pixels,
+                    30,
+                    30,
+                    &mut w.physics,
+                    (5.0 + n as f32 * 2.0, -7.0 + n as f32 * -0.75),
+                ) {
+                    w.rigidbodies.append(&mut r);
+                }
             }
         }
 
