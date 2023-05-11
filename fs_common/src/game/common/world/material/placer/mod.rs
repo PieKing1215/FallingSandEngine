@@ -13,7 +13,7 @@ use crate::game::common::{
 
 use self::{lit_colored::LitColoredExt, textured::TexturedPlacer};
 
-use super::{color::Color, MaterialInstance, PhysicsType};
+use super::{color::Color, Material, MaterialInstance, PhysicsType};
 
 pub trait MaterialPlacerSampler: Sync {
     fn pixel(&self, x: i64, y: i64) -> MaterialInstance;
@@ -63,6 +63,34 @@ pub static SMOOTH_DIRT: Lazy<RegistryID<MaterialPlacer>> = Lazy::new(|| "smooth_
 
 pub type MaterialPlacerRegistry = Registry<MaterialPlacer>;
 
+impl MaterialPlacerRegistry {
+    pub fn register_basic_textured(
+        &mut self,
+        id: impl Into<RegistryID<MaterialPlacer>>,
+        material_id: RegistryID<Material>,
+        meta: MaterialPlacerMeta,
+        physics: PhysicsType,
+        tex_name: impl AsRef<str>,
+        file_helper: &FileHelper,
+    ) {
+        self.register(
+            id,
+            MaterialPlacer {
+                meta,
+                sampler: Box::new(TexturedPlacer::new(
+                    material_id,
+                    physics,
+                    &fs::read(
+                        file_helper
+                            .asset_path(format!("texture/material/{}.png", tex_name.as_ref())),
+                    )
+                    .unwrap(),
+                )),
+            },
+        );
+    }
+}
+
 #[allow(clippy::too_many_lines)]
 pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry {
     let mut registry = Registry::new();
@@ -106,96 +134,70 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
         },
     );
 
-    registry.register(
+    registry.register_basic_textured(
         COBBLE_STONE.clone(),
-        MaterialPlacer {
-            meta: MaterialPlacerMeta { display_name: "Cobblestone".to_string() },
-            sampler: Box::new(TexturedPlacer::new(
-                super::COBBLE_STONE.clone(),
-                PhysicsType::Solid,
-                &fs::read(file_helper.asset_path("texture/material/cobble_stone_128x.png"))
-                    .unwrap(),
-            )),
-        },
+        super::COBBLE_STONE.clone(),
+        MaterialPlacerMeta { display_name: "Cobblestone".to_string() },
+        PhysicsType::Solid,
+        "cobble_stone_128x",
+        file_helper,
     );
 
-    registry.register(
+    registry.register_basic_textured(
         COBBLE_DIRT.clone(),
-        MaterialPlacer {
-            meta: MaterialPlacerMeta { display_name: "Cobbledirt".to_string() },
-            sampler: Box::new(TexturedPlacer::new(
-                super::COBBLE_DIRT.clone(),
-                PhysicsType::Solid,
-                &fs::read(file_helper.asset_path("texture/material/cobble_dirt_128x.png")).unwrap(),
-            )),
-        },
+        super::COBBLE_DIRT.clone(),
+        MaterialPlacerMeta { display_name: "Cobbledirt".to_string() },
+        PhysicsType::Solid,
+        "cobble_dirt_128x",
+        file_helper,
     );
 
-    registry.register(
+    registry.register_basic_textured(
         FADED_COBBLE_STONE.clone(),
-        MaterialPlacer {
-            meta: MaterialPlacerMeta { display_name: "Faded Cobblestone".to_string() },
-            sampler: Box::new(TexturedPlacer::new(
-                super::FADED_COBBLE_STONE.clone(),
-                PhysicsType::Solid,
-                &fs::read(file_helper.asset_path("texture/material/flat_cobble_stone_128x.png"))
-                    .unwrap(),
-            )),
-        },
+        super::FADED_COBBLE_STONE.clone(),
+        MaterialPlacerMeta { display_name: "Faded Cobblestone".to_string() },
+        PhysicsType::Solid,
+        "flat_cobble_stone_128x",
+        file_helper,
     );
 
-    registry.register(
+    registry.register_basic_textured(
         FADED_COBBLE_DIRT.clone(),
-        MaterialPlacer {
-            meta: MaterialPlacerMeta { display_name: "Faded Cobbledirt".to_string() },
-            sampler: Box::new(TexturedPlacer::new(
-                super::FADED_COBBLE_DIRT.clone(),
-                PhysicsType::Solid,
-                &fs::read(file_helper.asset_path("texture/material/flat_cobble_dirt_128x.png"))
-                    .unwrap(),
-            )),
-        },
+        super::FADED_COBBLE_DIRT.clone(),
+        MaterialPlacerMeta { display_name: "Faded Cobbledirt".to_string() },
+        PhysicsType::Solid,
+        "flat_cobble_dirt_128x",
+        file_helper,
     );
 
-    registry.register(
+    registry.register_basic_textured(
         SMOOTH_STONE.clone(),
-        MaterialPlacer {
-            meta: MaterialPlacerMeta { display_name: "Smooth Stone".to_string() },
-            sampler: Box::new(TexturedPlacer::new(
-                super::SMOOTH_STONE.clone(),
-                PhysicsType::Solid,
-                &fs::read(file_helper.asset_path("texture/material/smooth_stone_128x.png"))
-                    .unwrap(),
-            )),
-        },
+        super::SMOOTH_STONE.clone(),
+        MaterialPlacerMeta { display_name: "Smooth Stone".to_string() },
+        PhysicsType::Solid,
+        "smooth_stone_128x",
+        file_helper,
     );
 
-    registry.register(
+    registry.register_basic_textured(
         SMOOTH_DIRT.clone(),
-        MaterialPlacer {
-            meta: MaterialPlacerMeta { display_name: "Dirt".to_string() },
-            sampler: Box::new(TexturedPlacer::new(
-                super::SMOOTH_DIRT.clone(),
-                PhysicsType::Solid,
-                &fs::read(file_helper.asset_path("texture/material/smooth_dirt_128x.png")).unwrap(),
-            )),
-        },
+        super::SMOOTH_DIRT.clone(),
+        MaterialPlacerMeta { display_name: "Dirt".to_string() },
+        PhysicsType::Solid,
+        "smooth_dirt_128x",
+        file_helper,
     );
 
     // test placers
 
     let register_test = |color: &str, registry: &mut MaterialPlacerRegistry| {
-        registry.register(
+        registry.register_basic_textured(
             format!("test_{color}"),
-            MaterialPlacer {
-                meta: MaterialPlacerMeta { display_name: format!("Test {color}") },
-                sampler: Box::new(TexturedPlacer::new(
-                    super::COBBLE_STONE.clone(),
-                    PhysicsType::Solid,
-                    &fs::read(file_helper.asset_path(format!("texture/material/test_{color}.png")))
-                        .unwrap(),
-                )),
-            },
+            super::COBBLE_STONE.clone(),
+            MaterialPlacerMeta { display_name: format!("Test {color}") },
+            PhysicsType::Solid,
+            format!("test_{color}"),
+            file_helper,
         );
     };
     register_test("red", &mut registry);

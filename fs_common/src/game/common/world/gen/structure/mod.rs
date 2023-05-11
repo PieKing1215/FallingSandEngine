@@ -264,7 +264,6 @@ impl<'a, H: FSChunkAccess + Send> System<'a> for UpdateStructureNodes<'a, H> {
         WriteStorage<'a, Position>,
     );
 
-    #[allow(clippy::too_many_lines)]
     fn run(&mut self, data: Self::SystemData) {
         profiling::scope!("UpdateStructureNodes::run");
 

@@ -38,7 +38,6 @@ impl ConfiguredStructure {
 
 pub type ConfiguredStructureRegistry = Registry<ConfiguredStructure>;
 
-#[allow(clippy::too_many_lines)]
 pub fn init_configured_structures(_file_helper: &FileHelper) -> ConfiguredStructureRegistry {
     let mut registry = Registry::new();
 

@@ -303,6 +303,7 @@ where
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     fn generate_chunks(
         &mut self,
         ctx: &ChunkTickContext,
@@ -583,6 +584,7 @@ where
     }
 
     // TODO: split this (figure out why were these two tasks combined originally)
+    #[allow(clippy::too_many_lines)]
     fn populate_chunks_and_check_unload_generating(
         &mut self,
         ctx: &mut ChunkTickContext,
@@ -776,6 +778,7 @@ where
         unsafe { self.manager.raw_mut() }.retain(|_, _| *iter.next().unwrap());
     }
 
+    #[allow(clippy::too_many_lines)]
     fn simulate_chunks(&mut self, ctx: &mut ChunkTickContext) {
         profiling::scope!("simulate_chunks");
 

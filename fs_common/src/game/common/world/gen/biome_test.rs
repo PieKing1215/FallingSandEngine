@@ -42,7 +42,6 @@ pub struct BiomeTestGenerator<C: Chunk> {
 }
 
 impl<C: Chunk + 'static> BiomeTestGenerator<C> {
-    #[allow(clippy::new_without_default)]
     #[allow(clippy::too_many_lines)]
     pub fn new() -> Self {
         let mut populators = PopulatorList::new();
@@ -189,6 +188,12 @@ impl<C: Chunk + 'static> BiomeTestGenerator<C> {
         ];
 
         Self { populators, features }
+    }
+}
+
+impl<C: Chunk + 'static> Default for BiomeTestGenerator<C> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -34,7 +34,6 @@ pub struct ExclusionZone {
 
 pub type StructureSetRegistry = Registry<StructureSet>;
 
-#[allow(clippy::too_many_lines)]
 pub fn init_structure_sets(file_helper: &FileHelper) -> StructureSetRegistry {
     let mut registry = Registry::new();
 
