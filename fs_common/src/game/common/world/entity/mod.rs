@@ -92,7 +92,6 @@ impl<'a, H: FSChunkAccess> System<'a> for UpdatePhysicsEntities<'a, H> {
         Write<'a, ParticleSystem>,
     );
 
-    #[allow(clippy::too_many_lines)]
     fn run(&mut self, data: Self::SystemData) {
         profiling::scope!("UpdatePhysicsEntities::run");
 
@@ -108,197 +107,314 @@ impl<'a, H: FSChunkAccess> System<'a> for UpdatePhysicsEntities<'a, H> {
             mut particle_system,
         ) = data;
 
-        let debug_visualize = false;
-
         let mut create_particles: Vec<Particle> = vec![];
 
         // TODO: if I can ever get ChunkHandler to be Send (+ Sync would be ideal), can use par_join and organize a bit for big performance gain
         //       iirc right now, ChunkHandler<ServerChunk> is Send + !Sync and ChunkHandler<ClientChunk> is !Send + !Sync (because of the GPUImage in ChunkGraphics)
-        (&entities, &mut pos, &mut vel, &mut game_ent, &mut phys_ent, persistent.maybe(), &mut hitbox, (&mut collision_detect).maybe()).join().for_each(|(_ent, pos, vel, _game_ent, phys_ent, persistent, hitbox, mut collision_detect): (specs::Entity, &mut Position, &mut Velocity, &mut GameEntity, &mut PhysicsEntity, Option<&Persistent>, &mut Hitbox, Option<&mut CollisionDetector>)| {
+        (
+            &entities,
+            &mut pos,
+            &mut vel,
+            &mut game_ent,
+            &mut phys_ent,
+            persistent.maybe(),
+            &mut hitbox,
+            (&mut collision_detect).maybe(),
+        )
+            .join()
+            .for_each(
+                |(_ent, pos, vel, _game_ent, phys_ent, persistent, hitbox, collision_detect)| {
+                    self.tick_entity(
+                        &mut create_particles,
+                        pos,
+                        vel,
+                        phys_ent,
+                        persistent,
+                        hitbox,
+                        collision_detect,
+                    );
+                },
+            );
 
-            // skip if chunk not active
-            if persistent.is_none() && !matches!(self.chunk_handler.chunk_at_dyn(pixel_to_chunk_pos(pos.x as i64, pos.y as i64)), Some(c) if c.state() == ChunkState::Active) {
-                return;
-            }
+        particle_system.active.append(&mut create_particles);
+    }
+}
 
-            phys_ent.on_ground = false;
+impl<H: FSChunkAccess> UpdatePhysicsEntities<'_, H> {
+    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_lines)]
+    fn tick_entity(
+        &mut self,
+        create_particles: &mut Vec<Particle>,
+        pos: &mut Position,
+        vel: &mut Velocity,
+        phys_ent: &mut PhysicsEntity,
+        persistent: Option<&Persistent>,
+        hitbox: &mut Hitbox,
+        mut collision_detect: Option<&mut CollisionDetector>,
+    ) {
+        const DEBUG_VISUALIZE: bool = false;
 
-            // skip if no collide
-            if !phys_ent.collision {
-                pos.x += vel.x;
-                pos.y += vel.y;
-                return;
-            }
+        // skip if chunk not active
+        if persistent.is_none()
+            && !matches!(self.chunk_handler.chunk_at_dyn(pixel_to_chunk_pos(pos.x as i64, pos.y as i64)), Some(c) if c.state() == ChunkState::Active)
+        {
+            return;
+        }
 
-            // cache coordinates for every point in the hitbox
-            // (basically instead of `for x in 0..w { for y in 0..h {}}` you can do `for (x,y) in r`)
-            // this helps reduce code duplication because normally every use of this would have to be two nested loops
+        phys_ent.on_ground = false;
 
-            let steps_x = ((hitbox.x2 - hitbox.x1).signum() * (hitbox.x2 - hitbox.x1).abs().ceil()) as u16;
-            let steps_y = ((hitbox.y2 - hitbox.y1).signum() * (hitbox.y2 - hitbox.y1).abs().ceil()) as u16;
+        // skip if no collide
+        if !phys_ent.collision {
+            pos.x += vel.x;
+            pos.y += vel.y;
+            return;
+        }
 
-            let r: Vec<(f32, f32)> = (0..=steps_x).flat_map(move |a| (0..=steps_y).map(move |b| (a, b))).map(|(xs, ys)| {
-                ((f32::from(xs) / f32::from(steps_x)) * (hitbox.x2 - hitbox.x1) + hitbox.x1,
-                (f32::from(ys) / f32::from(steps_y)) * (hitbox.y2 - hitbox.y1) + hitbox.y1)
-            }).collect();
+        // cache coordinates for every point in the hitbox
+        // (basically instead of `for x in 0..w { for y in 0..h {}}` you can do `for (x,y) in r`)
+        // this helps reduce code duplication because normally every use of this would have to be two nested loops
 
-            // if currently intersected, try to get out
+        let steps_x =
+            ((hitbox.x2 - hitbox.x1).signum() * (hitbox.x2 - hitbox.x1).abs().ceil()) as u16;
+        let steps_y =
+            ((hitbox.y2 - hitbox.y1).signum() * (hitbox.y2 - hitbox.y1).abs().ceil()) as u16;
 
-            let mut n_intersect = 0;
-            let mut avg_in_x = 0.0;
-            let mut avg_in_y = 0.0;
+        let r: Vec<(f32, f32)> = (0..=steps_x)
+            .flat_map(move |a| (0..=steps_y).map(move |b| (a, b)))
+            .map(|(xs, ys)| {
+                (
+                    (f32::from(xs) / f32::from(steps_x)) * (hitbox.x2 - hitbox.x1) + hitbox.x1,
+                    (f32::from(ys) / f32::from(steps_y)) * (hitbox.y2 - hitbox.y1) + hitbox.y1,
+                )
+            })
+            .collect();
 
+        // if currently intersected, try to get out
+
+        self.unintersect(&r, pos, phys_ent);
+
+        // do collision detection
+        //   split into a number of steps
+        //     each step moves x and y separately so we know which velocities to cancel
+
+        vel.y += phys_ent.gravity;
+
+        let dx = vel.x;
+        let dy = vel.y;
+
+        let mut new_pos_x = pos.x;
+        let mut new_pos_y = pos.y;
+
+        let steps = ((dx.abs() + dy.abs()) as u32 + 1).max(3);
+        for _ in 0..steps {
+            new_pos_x += dx / f64::from(steps);
+            new_pos_y += dy / f64::from(steps);
+
+            // check x motion
+
+            let mut collided_x = false;
             for &(h_dx, h_dy) in &r {
-                if self.check_collide((pos.x + f64::from(h_dx)).floor() as i64, (pos.y + f64::from(h_dy)).floor() as i64, phys_ent).is_some() {
-                    n_intersect += 1;
-                    avg_in_x += h_dx;
-                    avg_in_y += h_dy;
-                }
-            }
+                if let Some(mat) = self
+                    .check_collide(
+                        (new_pos_x + f64::from(h_dx)).floor() as i64,
+                        (pos.y + f64::from(h_dy)).floor() as i64,
+                        phys_ent,
+                    )
+                    .cloned()
+                {
+                    let clip_ceil = (h_dy - hitbox.y1 < phys_ent.edge_clip_distance).then(|| {
+                        ((pos.y + f64::from(h_dy)).floor() + 1.0) - (pos.y + f64::from(hitbox.y1))
+                            + 0.05
+                    });
+                    let clip_floor = (hitbox.y2 - h_dy < phys_ent.edge_clip_distance).then(|| {
+                        (pos.y + f64::from(h_dy)).floor() - (pos.y + f64::from(hitbox.y2)) - 0.05
+                    });
 
-            if n_intersect > 0 {
-                pos.x += f64::from(if avg_in_x == 0.0 { 0.0 } else { -avg_in_x.signum() });
-                pos.y += f64::from(if avg_in_y == 0.0 { 0.0 } else { -avg_in_y.signum() });
-            }
-
-            // do collision detection
-            //   split into a number of steps
-            //     each step moves x and y separately so we know which velocities to cancel
-
-            vel.y += phys_ent.gravity;
-
-            let dx = vel.x;
-            let dy = vel.y;
-
-            let mut new_pos_x = pos.x;
-            let mut new_pos_y = pos.y;
-
-            let steps = ((dx.abs() + dy.abs()) as u32 + 1).max(3);
-            for _ in 0..steps {
-
-                new_pos_x += dx / f64::from(steps);
-                new_pos_y += dy / f64::from(steps);
-
-                // check x motion
-
-                let mut collided_x = false;
-                for &(h_dx, h_dy) in &r {
-                    if let Some(mat) = self.check_collide((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + f64::from(h_dy)).floor() as i64, phys_ent).cloned() {
-
-                        let clip_ceil = (h_dy - hitbox.y1 < phys_ent.edge_clip_distance).then(|| ((pos.y + f64::from(h_dy)).floor() + 1.0) - (pos.y + f64::from(hitbox.y1)) + 0.05);
-                        let clip_floor = (hitbox.y2 - h_dy < phys_ent.edge_clip_distance).then(|| (pos.y + f64::from(h_dy)).floor() - (pos.y + f64::from(hitbox.y2)) - 0.05);
-
-                        if let Some(clip_y) = clip_ceil.or(clip_floor) {
-                            let mut would_clip_collide = false;
-                            for &(h_dx, h_dy) in &r {
-                                if let Some(mat) = self.check_collide((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + clip_y + f64::from(h_dy)).floor() as i64, phys_ent).cloned() {
-                                    would_clip_collide = true;
-                                    if debug_visualize {
-                                        let _ignore = self.chunk_handler.set_pixel((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + clip_y + f64::from(h_dy)).floor() as i64, MaterialInstance {
-                                            color: Color::rgb(255, 255, 0),
-                                            ..mat
-                                        });
-                                    }
-                                    break;
+                    if let Some(clip_y) = clip_ceil.or(clip_floor) {
+                        let mut would_clip_collide = false;
+                        for &(h_dx, h_dy) in &r {
+                            if let Some(mat) = self
+                                .check_collide(
+                                    (new_pos_x + f64::from(h_dx)).floor() as i64,
+                                    (pos.y + clip_y + f64::from(h_dy)).floor() as i64,
+                                    phys_ent,
+                                )
+                                .cloned()
+                            {
+                                would_clip_collide = true;
+                                if DEBUG_VISUALIZE {
+                                    let _ignore = self.chunk_handler.set_pixel(
+                                        (new_pos_x + f64::from(h_dx)).floor() as i64,
+                                        (pos.y + clip_y + f64::from(h_dy)).floor() as i64,
+                                        MaterialInstance { color: Color::rgb(255, 255, 0), ..mat },
+                                    );
                                 }
+                                break;
                             }
+                        }
 
-                            if would_clip_collide {
-                                collided_x = true;
-                            } else {
-                                new_pos_y += clip_y;
-                                pos.y += clip_y;
-
-                                // larger step means more slowdown
-                                // 1.0 -> 0.988
-                                // 2.0 -> 0.8
-                                // 2.5 -> 0.515
-                                // 3.0 -> 0.5 (clamped)
-                                vel.x *= (1.0 - (clip_y.abs() / 3.0).powi(4)).clamp(0.5, 1.0);
-                            }
-                        } else if mat.physics == PhysicsType::Sand && self.chunk_handler.set_pixel((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + f64::from(h_dy)).floor() as i64, MaterialInstance::air()).is_ok() {
-                            create_particles.push(
-                                Particle::new(
-                                    mat,
-                                    Position { x: (new_pos_x + f64::from(h_dx)).floor(), y: (pos.y + f64::from(h_dy)).floor().floor() },
-                                    Velocity { x: rand::thread_rng().gen_range(-0.5..=0.5) + 2.0 * vel.x.signum(), y: rand::thread_rng().gen_range(-0.5..=0.5)},
-                                )
-                            );
-
-                            vel.x *= 0.99;
-                        }else {
+                        if would_clip_collide {
                             collided_x = true;
-                            if debug_visualize {
-                                let _ignore = self.chunk_handler.set_pixel((new_pos_x + f64::from(h_dx)).floor() as i64, (pos.y + f64::from(h_dy)).floor() as i64, MaterialInstance {
-                                    color: Color::rgb(255, 255, 0),
-                                    ..mat
-                                });
-                            }
-                        }
-                    }
-                }
-
-                if collided_x {
-                    vel.x = if vel.x.abs() > 0.25 { vel.x * 0.5 } else { 0.0 };
-                    if let Some(c) = &mut collision_detect {
-                        c.collided = true;
-                    }
-                } else {
-                    pos.x = new_pos_x;
-                }
-
-                // check y motion
-
-                let mut collided_y = false;
-                for &(h_dx, h_dy) in &r {
-                    if let Some(mat) = self.check_collide((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, phys_ent).cloned() {
-                        if (vel.y < -0.001 || vel.y > 1.0) && mat.physics == PhysicsType::Sand && self.chunk_handler.set_pixel((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, MaterialInstance::air()).is_ok() {
-                            create_particles.push(
-                                Particle::new(
-                                    mat,
-                                    Position { x: (pos.x + f64::from(h_dx)).floor(), y: (new_pos_y + f64::from(h_dy)).floor() },
-                                    Velocity { x: rand::thread_rng().gen_range(-0.5..=0.5), y: rand::thread_rng().gen_range(-1.0..=0.0)},
-                                )
-                            );
-
-                            if vel.y > 0.0 {
-                                vel.y *= 0.9;
-                            }
-
-                            vel.y *= 0.99;
                         } else {
-                            collided_y = true;
-                            if debug_visualize {
-                                let _ignore = self.chunk_handler.set_pixel((pos.x + f64::from(h_dx)).floor() as i64, (new_pos_y + f64::from(h_dy)).floor() as i64, MaterialInstance {
-                                    color: Color::rgb(255, 0, 255),
-                                    ..mat
-                                });
-                            }
-                            break;
+                            new_pos_y += clip_y;
+                            pos.y += clip_y;
+
+                            // larger step means more slowdown
+                            // 1.0 -> 0.988
+                            // 2.0 -> 0.8
+                            // 2.5 -> 0.515
+                            // 3.0 -> 0.5 (clamped)
+                            vel.x *= (1.0 - (clip_y.abs() / 3.0).powi(4)).clamp(0.5, 1.0);
+                        }
+                    } else if mat.physics == PhysicsType::Sand
+                        && self
+                            .chunk_handler
+                            .set_pixel(
+                                (new_pos_x + f64::from(h_dx)).floor() as i64,
+                                (pos.y + f64::from(h_dy)).floor() as i64,
+                                MaterialInstance::air(),
+                            )
+                            .is_ok()
+                    {
+                        create_particles.push(Particle::new(
+                            mat,
+                            Position {
+                                x: (new_pos_x + f64::from(h_dx)).floor(),
+                                y: (pos.y + f64::from(h_dy)).floor().floor(),
+                            },
+                            Velocity {
+                                x: rand::thread_rng().gen_range(-0.5..=0.5) + 2.0 * vel.x.signum(),
+                                y: rand::thread_rng().gen_range(-0.5..=0.5),
+                            },
+                        ));
+
+                        vel.x *= 0.99;
+                    } else {
+                        collided_x = true;
+                        if DEBUG_VISUALIZE {
+                            let _ignore = self.chunk_handler.set_pixel(
+                                (new_pos_x + f64::from(h_dx)).floor() as i64,
+                                (pos.y + f64::from(h_dy)).floor() as i64,
+                                MaterialInstance { color: Color::rgb(255, 255, 0), ..mat },
+                            );
                         }
                     }
-                }
-
-                if collided_y {
-                    vel.x *= 0.96;
-
-                    if dy > 0.0 {
-                        phys_ent.on_ground = true;
-                    }
-
-                    vel.y = if vel.y.abs() > 0.5 { vel.y * 0.75 } else { 0.0 };
-
-                    if let Some(c) = &mut collision_detect {
-                        c.collided = true;
-                    }
-                } else {
-                    pos.y = new_pos_y;
                 }
             }
-        });
 
-        for part in create_particles {
-            particle_system.active.push(part);
+            if collided_x {
+                vel.x = if vel.x.abs() > 0.25 { vel.x * 0.5 } else { 0.0 };
+                if let Some(c) = &mut collision_detect {
+                    c.collided = true;
+                }
+            } else {
+                pos.x = new_pos_x;
+            }
+
+            // check y motion
+
+            let mut collided_y = false;
+            for &(h_dx, h_dy) in &r {
+                if let Some(mat) = self
+                    .check_collide(
+                        (pos.x + f64::from(h_dx)).floor() as i64,
+                        (new_pos_y + f64::from(h_dy)).floor() as i64,
+                        phys_ent,
+                    )
+                    .cloned()
+                {
+                    if (vel.y < -0.001 || vel.y > 1.0)
+                        && mat.physics == PhysicsType::Sand
+                        && self
+                            .chunk_handler
+                            .set_pixel(
+                                (pos.x + f64::from(h_dx)).floor() as i64,
+                                (new_pos_y + f64::from(h_dy)).floor() as i64,
+                                MaterialInstance::air(),
+                            )
+                            .is_ok()
+                    {
+                        create_particles.push(Particle::new(
+                            mat,
+                            Position {
+                                x: (pos.x + f64::from(h_dx)).floor(),
+                                y: (new_pos_y + f64::from(h_dy)).floor(),
+                            },
+                            Velocity {
+                                x: rand::thread_rng().gen_range(-0.5..=0.5),
+                                y: rand::thread_rng().gen_range(-1.0..=0.0),
+                            },
+                        ));
+
+                        if vel.y > 0.0 {
+                            vel.y *= 0.9;
+                        }
+
+                        vel.y *= 0.99;
+                    } else {
+                        collided_y = true;
+                        if DEBUG_VISUALIZE {
+                            let _ignore = self.chunk_handler.set_pixel(
+                                (pos.x + f64::from(h_dx)).floor() as i64,
+                                (new_pos_y + f64::from(h_dy)).floor() as i64,
+                                MaterialInstance { color: Color::rgb(255, 0, 255), ..mat },
+                            );
+                        }
+                        break;
+                    }
+                }
+            }
+
+            if collided_y {
+                vel.x *= 0.96;
+
+                if dy > 0.0 {
+                    phys_ent.on_ground = true;
+                }
+
+                vel.y = if vel.y.abs() > 0.5 { vel.y * 0.75 } else { 0.0 };
+
+                if let Some(c) = &mut collision_detect {
+                    c.collided = true;
+                }
+            } else {
+                pos.y = new_pos_y;
+            }
+        }
+    }
+
+    fn unintersect(&self, r: &[(f32, f32)], pos: &mut Position, phys_ent: &mut PhysicsEntity) {
+        let mut n_intersect = 0;
+        let mut avg_in_x = 0.0;
+        let mut avg_in_y = 0.0;
+
+        for &(h_dx, h_dy) in r {
+            if self
+                .check_collide(
+                    (pos.x + f64::from(h_dx)).floor() as i64,
+                    (pos.y + f64::from(h_dy)).floor() as i64,
+                    phys_ent,
+                )
+                .is_some()
+            {
+                n_intersect += 1;
+                avg_in_x += h_dx;
+                avg_in_y += h_dy;
+            }
+        }
+
+        if n_intersect > 0 {
+            pos.x += f64::from(if avg_in_x == 0.0 {
+                0.0
+            } else {
+                -avg_in_x.signum()
+            });
+            pos.y += f64::from(if avg_in_y == 0.0 {
+                0.0
+            } else {
+                -avg_in_y.signum()
+            });
         }
     }
 }

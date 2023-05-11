@@ -226,7 +226,8 @@ impl<H: FSChunkAccess + Send + Sync> UpdateParticles<'_, H> {
         pos: &ReadStorage<Position>,
         vel: &ReadStorage<Velocity>,
     ) {
-        profiling::scope!("ent");
+        profiling::scope!("interact_with_entities");
+
         for part in &mut system.active {
             // profiling::scope!("Particle");
 
