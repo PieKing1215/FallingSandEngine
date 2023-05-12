@@ -54,30 +54,30 @@ impl Direction {
     }
 
     #[must_use]
-    pub fn rotated(self, angle: AngleMod) -> Self {
+    pub fn rotated(self, angle: AngleDiff) -> Self {
         match angle {
-            AngleMod::None => self,
-            AngleMod::Clockwise90 => match self {
+            AngleDiff::None => self,
+            AngleDiff::Clockwise90 => match self {
                 Direction::Up => Direction::Right,
                 Direction::Down => Direction::Left,
                 Direction::Left => Direction::Up,
                 Direction::Right => Direction::Down,
             },
-            AngleMod::CounterClockwise90 => match self {
+            AngleDiff::CounterClockwise90 => match self {
                 Direction::Up => Direction::Left,
                 Direction::Down => Direction::Right,
                 Direction::Left => Direction::Down,
                 Direction::Right => Direction::Up,
             },
-            AngleMod::Angle180 => self.opposite(),
+            AngleDiff::Angle180 => self.opposite(),
         }
     }
 
-    pub fn angle(self, other: Self) -> AngleMod {
+    pub fn angle(self, other: Self) -> AngleDiff {
         // TODO: there's probably a better way to implement this
 
         if self == other {
-            return AngleMod::None;
+            return AngleDiff::None;
         }
 
         if other
@@ -88,7 +88,7 @@ impl Direction {
                 Direction::Right => Direction::Down,
             }
         {
-            return AngleMod::Clockwise90;
+            return AngleDiff::Clockwise90;
         }
 
         if other
@@ -99,10 +99,10 @@ impl Direction {
                 Direction::Right => Direction::Up,
             }
         {
-            return AngleMod::CounterClockwise90;
+            return AngleDiff::CounterClockwise90;
         }
 
-        AngleMod::Angle180
+        AngleDiff::Angle180
     }
 
     pub fn vec(&self) -> (i8, i8) {
@@ -115,16 +115,15 @@ impl Direction {
     }
 }
 
-// TODO: think of better names
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum AngleMod {
+pub enum AngleDiff {
     None,
     Clockwise90,
     CounterClockwise90,
     Angle180,
 }
 
-impl AngleMod {
+impl AngleDiff {
     pub fn degrees(&self) -> f32 {
         match self {
             Self::None => 0.0,

@@ -10,7 +10,6 @@ pub enum InputEvent<'a> {
     GlutinEvent(&'a WindowEvent<'a>),
 }
 
-// TODO: make/use a new fn instead
 pub struct Controls {
     pub cur_modifiers: ModifiersState,
     pub cursor_pos: PhysicalPosition<f64>,
@@ -61,6 +60,147 @@ impl Controls {
         self.cut.process(event, &self.cur_modifiers);
         self.paste.process(event, &self.cur_modifiers);
         self.clipboard_action.process(event, &self.cur_modifiers);
+    }
+}
+
+impl Default for Controls {
+    fn default() -> Self {
+        Self {
+            cur_modifiers: ModifiersState::empty(),
+            cursor_pos: PhysicalPosition { x: 0.0, y: 0.0 },
+            up: Box::new(MultiControl::new(
+                MultiControlMode::Or,
+                vec![
+                    Box::new(KeyControl::new(
+                        VirtualKeyCode::W,
+                        KeyControlMode::Momentary,
+                        ModifiersState::empty(),
+                    )),
+                    Box::new(KeyControl::new(
+                        VirtualKeyCode::Up,
+                        KeyControlMode::Momentary,
+                        ModifiersState::empty(),
+                    )),
+                ],
+            )),
+            down: Box::new(MultiControl::new(
+                MultiControlMode::Or,
+                vec![
+                    Box::new(KeyControl::new(
+                        VirtualKeyCode::S,
+                        KeyControlMode::Momentary,
+                        ModifiersState::empty(),
+                    )),
+                    Box::new(KeyControl::new(
+                        VirtualKeyCode::Down,
+                        KeyControlMode::Momentary,
+                        ModifiersState::empty(),
+                    )),
+                ],
+            )),
+            left: Box::new(MultiControl::new(
+                MultiControlMode::Or,
+                vec![
+                    Box::new(KeyControl::new(
+                        VirtualKeyCode::A,
+                        KeyControlMode::Momentary,
+                        ModifiersState::empty(),
+                    )),
+                    Box::new(KeyControl::new(
+                        VirtualKeyCode::Left,
+                        KeyControlMode::Momentary,
+                        ModifiersState::empty(),
+                    )),
+                ],
+            )),
+            right: Box::new(MultiControl::new(
+                MultiControlMode::Or,
+                vec![
+                    Box::new(KeyControl::new(
+                        VirtualKeyCode::D,
+                        KeyControlMode::Momentary,
+                        ModifiersState::empty(),
+                    )),
+                    Box::new(KeyControl::new(
+                        VirtualKeyCode::Right,
+                        KeyControlMode::Momentary,
+                        ModifiersState::empty(),
+                    )),
+                ],
+            )),
+            jump: Box::new(MultiControl::new(
+                MultiControlMode::Or,
+                vec![
+                    Box::new(KeyControl::new(
+                        VirtualKeyCode::Space,
+                        KeyControlMode::Momentary,
+                        ModifiersState::empty(),
+                    )),
+                    Box::new(KeyControl::new(
+                        VirtualKeyCode::C,
+                        KeyControlMode::Momentary,
+                        ModifiersState::empty(),
+                    )),
+                ],
+            )),
+            launch: Box::new(MultiControl::new(
+                MultiControlMode::Or,
+                vec![
+                    Box::new(KeyControl::new(
+                        VirtualKeyCode::LShift,
+                        KeyControlMode::Momentary,
+                        ModifiersState::empty(),
+                    )),
+                    Box::new(KeyControl::new(
+                        VirtualKeyCode::X,
+                        KeyControlMode::Momentary,
+                        ModifiersState::empty(),
+                    )),
+                ],
+            )),
+            grapple: Box::new(MultiControl::new(
+                MultiControlMode::Or,
+                vec![Box::new(KeyControl::new(
+                    VirtualKeyCode::Z,
+                    KeyControlMode::Momentary,
+                    ModifiersState::empty(),
+                ))],
+            )),
+            free_fly: Box::new(KeyControl::new(
+                VirtualKeyCode::Numpad1,
+                KeyControlMode::Rising,
+                ModifiersState::empty(),
+            )),
+            copy: Box::new(MultiControl::new(
+                MultiControlMode::Or,
+                vec![Box::new(KeyControl::new(
+                    VirtualKeyCode::C,
+                    KeyControlMode::Rising,
+                    ModifiersState::CTRL,
+                ))],
+            )),
+            cut: Box::new(MultiControl::new(
+                MultiControlMode::Or,
+                vec![Box::new(KeyControl::new(
+                    VirtualKeyCode::X,
+                    KeyControlMode::Rising,
+                    ModifiersState::CTRL,
+                ))],
+            )),
+            paste: Box::new(MultiControl::new(
+                MultiControlMode::Or,
+                vec![Box::new(KeyControl::new(
+                    VirtualKeyCode::V,
+                    KeyControlMode::Rising,
+                    ModifiersState::CTRL,
+                ))],
+            )),
+            clipboard_action: Box::new(MouseButtonControl::new(
+                MouseButton::Left,
+                MouseButtonControlMode::Momentary,
+                ModifiersState::CTRL,
+            )),
+        }
     }
 }
 

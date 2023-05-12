@@ -1,10 +1,13 @@
 use chunksystem::ChunkQuery;
 use core::slice;
-use fs_common::game::common::world::{
-    chunk_handler::ChunkHandler,
-    chunk_index::{ChunkLocalIndex, ChunkLocalPosition},
-    material::PhysicsType,
-    Chunk, CHUNK_AREA,
+use fs_common::game::common::{
+    world::{
+        chunk_handler::ChunkHandler,
+        chunk_index::{ChunkLocalIndex, ChunkLocalPosition},
+        material::PhysicsType,
+        Chunk, CHUNK_AREA,
+    },
+    ChunkCollisionOverlay,
 };
 use std::{borrow::Cow, convert::TryInto, sync::Arc};
 
@@ -662,7 +665,8 @@ impl ClientChunk {
     }
 
     pub fn render(&mut self, target: &mut RenderTarget, settings: &Settings) {
-        if settings.debug && settings.draw_chunk_collision == 1 {
+        if settings.debug && settings.draw_chunk_collision == ChunkCollisionOverlay::MarchingSquares
+        {
             if let Some(f) = &self.mesh {
                 let colors = vec![
                     Color::rgb(32, 255, 32),
@@ -706,7 +710,9 @@ impl ClientChunk {
                     },
                 );
             }
-        } else if settings.debug && settings.draw_chunk_collision == 2 {
+        } else if settings.debug
+            && settings.draw_chunk_collision == ChunkCollisionOverlay::RamerDouglasPeucker
+        {
             if let Some(f) = &self.data.mesh_simplified {
                 let colors = vec![
                     Color::rgb(32, 255, 32),
@@ -744,7 +750,8 @@ impl ClientChunk {
                     },
                 );
             }
-        } else if settings.debug && settings.draw_chunk_collision == 3 {
+        } else if settings.debug && settings.draw_chunk_collision == ChunkCollisionOverlay::Earcutr
+        {
             if let Some(t) = &self.tris {
                 let mut tris = vec![];
 

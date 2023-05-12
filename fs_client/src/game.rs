@@ -682,7 +682,6 @@ impl ClientGame {
                             self.data.fps_counter.tick_physics_times
                                 [self.data.fps_counter.tick_physics_times.len() - 1] =
                                 Instant::now().saturating_duration_since(st).as_nanos() as f32;
-                            renderer.world_renderer.mark_liquid_dirty();
                         }
                     }
                     do_tick_physics_next = can_tick

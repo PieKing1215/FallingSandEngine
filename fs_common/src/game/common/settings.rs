@@ -8,7 +8,7 @@ pub struct Settings {
     pub draw_chunk_state_overlay_alpha: f32,
     pub draw_chunk_dirty_rects: bool,
     pub draw_chunk_grid: bool,
-    pub draw_chunk_collision: usize, // TODO: enum
+    pub draw_chunk_collision: ChunkCollisionOverlay,
     pub draw_origin: bool,
     pub draw_load_zones: bool,
     pub draw_structure_bounds: bool,
@@ -45,6 +45,25 @@ pub struct Settings {
     pub pause_on_lost_focus: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChunkCollisionOverlay {
+    None,
+    MarchingSquares,
+    RamerDouglasPeucker,
+    Earcutr,
+}
+
+impl ChunkCollisionOverlay {
+    pub fn values() -> &'static [Self] {
+        &[
+            Self::None,
+            Self::MarchingSquares,
+            Self::RamerDouglasPeucker,
+            Self::Earcutr,
+        ]
+    }
+}
+
 impl Default for Settings {
     fn default() -> Self {
         Self {
@@ -53,7 +72,7 @@ impl Default for Settings {
             draw_chunk_state_overlay_alpha: 0.5,
             draw_chunk_dirty_rects: false,
             draw_chunk_grid: false,
-            draw_chunk_collision: 0,
+            draw_chunk_collision: ChunkCollisionOverlay::None,
             draw_origin: true,
             draw_load_zones: false,
             draw_structure_bounds: false,

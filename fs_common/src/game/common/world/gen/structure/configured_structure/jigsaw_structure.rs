@@ -25,7 +25,6 @@ impl StructureType for JigsawFeatureType {}
 pub struct ConfiguredJigsawFeature {
     pub start_pool: RegistryID<StructurePool>,
     pub depth: u8,
-    // TODO: implement
     pub max_distance: u16,
     pub override_dir: Option<Direction>,
 }

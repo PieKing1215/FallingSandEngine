@@ -1,6 +1,6 @@
 use std::{borrow::Borrow, sync::Arc};
 
-use fs_common::game::common::{Registries, Settings};
+use fs_common::game::common::{ChunkCollisionOverlay, Registries, Settings};
 
 pub trait DebugUI {
     fn debug_ui(&mut self, ui: &mut egui::Ui, registries: Arc<Registries>);
@@ -59,19 +59,12 @@ impl DebugUI for Settings {
 
             ui.checkbox(&mut self.cull_chunks, "cull_chunks");
 
-            let opt = [
-                "none",
-                "marching squares",
-                "ramer douglas peucker",
-                "earcutr",
-            ];
             egui::ComboBox::from_label("draw_chunk_collision")
-                .selected_text(opt[self.draw_chunk_collision])
+                .selected_text(format!("{:?}", self.draw_chunk_collision))
                 .show_ui(ui, |ui| {
-                    ui.selectable_value(&mut self.draw_chunk_collision, 0, opt[0]);
-                    ui.selectable_value(&mut self.draw_chunk_collision, 1, opt[1]);
-                    ui.selectable_value(&mut self.draw_chunk_collision, 2, opt[2]);
-                    ui.selectable_value(&mut self.draw_chunk_collision, 3, opt[3]);
+                    for v in ChunkCollisionOverlay::values() {
+                        ui.selectable_value(&mut self.draw_chunk_collision, *v, format!("{v:?}"));
+                    }
                 });
 
             ui.checkbox(&mut self.physics_dbg_draw, "physics_dbg_draw");

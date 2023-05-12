@@ -26,13 +26,11 @@ use crate::{
 
 use super::{chunk_data::tile_entity::ClientTileEntityExt, ClientChunk, ClientWorld};
 
-pub struct WorldRenderer {
-    physics_dirty: bool,
-}
+pub struct WorldRenderer {}
 
 impl WorldRenderer {
     pub fn new() -> Self {
-        Self { physics_dirty: false }
+        Self {}
     }
 
     #[allow(clippy::unused_self)]
@@ -135,18 +133,14 @@ impl WorldRenderer {
 
         target.draw_chunks(&chunk_tex_data);
 
-        // draw liquids
-        // TODO: remove
-        if self.physics_dirty {
-            self.physics_dirty = false;
-        }
-
+        // draw tile entities
         for ch in world.chunk_handler.manager.chunks_iter_mut() {
             for te in ch.sided_tile_entities_mut() {
                 te.render(target);
             }
         }
 
+        // draw rigidbodies
         self.draw_rigidbodies(world, target);
 
         // draw physics debug
@@ -1052,10 +1046,6 @@ impl WorldRenderer {
                 ..Default::default()
             },
         );
-    }
-
-    pub fn mark_liquid_dirty(&mut self) {
-        self.physics_dirty = true;
     }
 }
 

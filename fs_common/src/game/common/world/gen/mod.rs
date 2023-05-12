@@ -131,13 +131,8 @@ impl<'a> GenBuffers<'a> {
 }
 
 pub trait WorldGenerator<C: Chunk>: Send + Sync {
-    #[allow(clippy::cast_lossless)]
-    #[warn(clippy::too_many_arguments)] // TODO
     fn generate(&self, chunk_pos: ChunkKey, buf: GenBuffers, ctx: GenContext);
-
     fn max_gen_stage(&self) -> u8;
-
     fn populators(&self) -> &PopulatorList<C>;
-
     fn features(&self) -> &[PlacedFeature<C>];
 }

@@ -5,7 +5,7 @@ use asefile::AsepriteFile;
 use crate::game::common::{
     registry::RegistryID,
     world::{
-        chunk_access::FSChunkAccess, chunk_handler::ChunkHandler, gen::structure::AngleMod, Chunk,
+        chunk_access::FSChunkAccess, chunk_handler::ChunkHandler, gen::structure::AngleDiff, Chunk,
     },
     Rect,
 };
@@ -204,9 +204,9 @@ impl MaterialBuf {
     }
 
     #[must_use]
-    pub fn rotated(&self, angle: AngleMod) -> Self {
+    pub fn rotated(&self, angle: AngleDiff) -> Self {
         let (new_w, new_h) = match angle {
-            AngleMod::Clockwise90 | AngleMod::CounterClockwise90 => (self.height, self.width),
+            AngleDiff::Clockwise90 | AngleDiff::CounterClockwise90 => (self.height, self.width),
             _ => (self.width, self.height),
         };
 
@@ -219,10 +219,10 @@ impl MaterialBuf {
         for new_x in 0..new_w {
             for new_y in 0..new_h {
                 let (old_x, old_y) = match angle {
-                    AngleMod::None => (new_x, new_y),
-                    AngleMod::Clockwise90 => (new_y, new_w - new_x - 1),
-                    AngleMod::CounterClockwise90 => (new_h - new_y - 1, new_x),
-                    AngleMod::Angle180 => (new_w - new_x - 1, new_h - new_y - 1),
+                    AngleDiff::None => (new_x, new_y),
+                    AngleDiff::Clockwise90 => (new_y, new_w - new_x - 1),
+                    AngleDiff::CounterClockwise90 => (new_h - new_y - 1, new_x),
+                    AngleDiff::Angle180 => (new_w - new_x - 1, new_h - new_y - 1),
                 };
                 new.set(
                     new_x,

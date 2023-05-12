@@ -121,7 +121,7 @@ impl<'a, H: FSChunkAccess + Send + Sync> System<'a> for UpdateParticles<'a, H> {
 
         if tick_time.0 % 29 == 0 {
             profiling::scope!("active->sleep");
-            // TODO: we want to use the std version once it is stable
+            // TODO: use std version once stable
             use drain_filter_polyfill::VecExt;
             #[allow(unstable_name_collisions)]
             let mut removed = system.active.drain_filter(|p| {
@@ -130,7 +130,7 @@ impl<'a, H: FSChunkAccess + Send + Sync> System<'a> for UpdateParticles<'a, H> {
             system.sleeping.append(&mut removed);
         } else if tick_time.0 % 29 == 10 {
             profiling::scope!("sleep->active");
-            // TODO: we want to use the std version once it is stable
+            // TODO: use std version once stable
             use drain_filter_polyfill::VecExt;
             #[allow(unstable_name_collisions)]
             let mut removed = system.sleeping.drain_filter(|p| {

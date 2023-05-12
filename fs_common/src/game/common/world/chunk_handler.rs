@@ -100,8 +100,6 @@ where
     const SLOW_JOIN_PER_TICK: usize = 8;
     const FAST_JOIN_PER_TICK: usize = 32;
 
-    // #[profiling::function] // breaks clippy
-    #[warn(clippy::too_many_arguments)] // TODO
     #[allow(clippy::needless_pass_by_value)]
     pub fn tick(&mut self, mut ctx: ChunkTickContext) {
         profiling::scope!("tick");

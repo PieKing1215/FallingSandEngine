@@ -228,7 +228,7 @@ pub trait ChunkQuery {
 
     fn is_chunk_loaded(&self, chunk_pos: (i32, i32)) -> bool;
 
-    // TODO: use ATs since impl can't be used here
+    // TODO: could use AT, or RPITIT when eventually stable
     fn chunks_iter(&self) -> BoxedIterator<&Chunk<Self::D>>;
     fn chunks_iter_mut(&mut self) -> BoxedIterator<&mut Chunk<Self::D>>;
     fn kv_iter(&self) -> BoxedIterator<(ChunkKey, &Chunk<Self::D>)>;
@@ -253,7 +253,7 @@ pub trait ChunkQuery {
         &self,
         chunk_pos: (i32, i32),
     ) -> Option<(&Chunk<Self::D>, BoxedIterator<&Chunk<Self::D>>)> {
-        // TODO: is there a way to partition into two iterators or something instead of collecting?
+        // TODO: is there a way to partition into two iterators or something instead of collecting? (split-iter crate)
         let (one, others) = self
             .chunks_iter()
             .partition::<Vec<_>, _>(|ch| ch.chunk_x == chunk_pos.0 && ch.chunk_y == chunk_pos.1);

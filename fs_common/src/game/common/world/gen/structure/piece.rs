@@ -7,7 +7,7 @@ use crate::game::common::{
     registry::{Registry, RegistryID},
     world::{
         chunk_access::FSChunkAccess,
-        gen::structure::AngleMod,
+        gen::structure::AngleDiff,
         material::{self, buf::MaterialBuf, color::Color, MaterialInstance, PhysicsType},
     },
     FileHelper, Rect,
@@ -88,7 +88,7 @@ impl StructurePiece {
     )> {
         #[inline]
         #[must_use]
-        fn rotated(rect: Rect<i64>, pivot: (i64, i64), angle: AngleMod) -> Rect<i64> {
+        fn rotated(rect: Rect<i64>, pivot: (i64, i64), angle: AngleDiff) -> Rect<i64> {
             let (x1_r, y1_r) = angle.rotate_point((rect.x1, rect.y1), pivot);
             let (x2_r, y2_r) = angle.rotate_point((rect.x2, rect.y2), pivot);
 

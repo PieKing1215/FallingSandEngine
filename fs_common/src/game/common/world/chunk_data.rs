@@ -22,7 +22,6 @@ pub trait SidedChunkData {
     type TileEntityData;
 }
 
-#[allow(clippy::missing_safety_doc)] // TODO
 impl<S: SidedChunkData> CommonChunkData<S> {
     pub fn new(chunk_x: i32, chunk_y: i32) -> Self {
         Self {
@@ -58,6 +57,8 @@ impl<S: SidedChunkData> CommonChunkData<S> {
         Err("Chunk is not ready yet.".to_string())
     }
 
+    /// # Safety
+    /// Assumes the chunk is loaded (unchecked). Use [`Self::set`] if this is not known.
     pub unsafe fn set_unchecked(&mut self, pos: impl Into<ChunkLocalIndex>, mat: MaterialInstance) {
         self.pixels.as_mut().unwrap_unchecked()[pos.into()] = mat;
 
@@ -72,6 +73,8 @@ impl<S: SidedChunkData> CommonChunkData<S> {
         }
     }
 
+    /// # Safety
+    /// Assumes the chunk is loaded (unchecked). Use [`Self::pixel`] if this is not known.
     pub unsafe fn pixel_unchecked(&self, pos: impl Into<ChunkLocalIndex>) -> &MaterialInstance {
         &self.pixels.as_ref().unwrap_unchecked()[pos.into()]
     }
@@ -123,9 +126,10 @@ impl<S: SidedChunkData> CommonChunkData<S> {
         }
     }
 
+    /// # Safety
+    /// Assumes the chunk is loaded (unchecked). Use [`Self::set_light`] if this is not known.
     pub unsafe fn set_light_unchecked(&mut self, pos: impl Into<ChunkLocalIndex>, light: [f32; 3]) {
-        // TODO: should this unwrap be unchecked?
-        self.light.as_mut().unwrap()[pos.into()] = light;
+        self.light.as_mut().unwrap_unchecked()[pos.into()] = light;
     }
 
     pub fn light(&self, pos: impl Into<ChunkLocalIndex>) -> Result<&[f32; 3], String> {
@@ -136,9 +140,10 @@ impl<S: SidedChunkData> CommonChunkData<S> {
         }
     }
 
+    /// # Safety
+    /// Assumes the chunk is loaded (unchecked). Use [`Self::light`] if this is not known.
     pub unsafe fn light_unchecked(&self, pos: impl Into<ChunkLocalIndex>) -> &[f32; 3] {
-        // TODO: should this unwrap be unchecked?
-        &self.light.as_ref().unwrap()[pos.into()]
+        &self.light.as_ref().unwrap_unchecked()[pos.into()]
     }
 
     pub fn set_pixels(&mut self, pixels: Box<[MaterialInstance; CHUNK_AREA]>) {
@@ -162,13 +167,14 @@ impl<S: SidedChunkData> CommonChunkData<S> {
         }
     }
 
+    /// # Safety
+    /// Assumes the chunk is loaded (unchecked). Use [`Self::set_background`] if this is not known.
     pub unsafe fn set_background_unchecked(
         &mut self,
         pos: impl Into<ChunkLocalIndex>,
         mat: MaterialInstance,
     ) {
-        // TODO: should this unwrap be unchecked?
-        self.background.as_mut().unwrap()[pos.into()] = mat;
+        self.background.as_mut().unwrap_unchecked()[pos.into()] = mat;
     }
 
     pub fn background(&self, pos: impl Into<ChunkLocalIndex>) -> Result<&MaterialInstance, String> {
@@ -179,11 +185,12 @@ impl<S: SidedChunkData> CommonChunkData<S> {
         }
     }
 
+    /// # Safety
+    /// Assumes the chunk is loaded (unchecked). Use [`Self::background`] if this is not known.
     pub unsafe fn background_unchecked(
         &self,
         pos: impl Into<ChunkLocalIndex>,
     ) -> &MaterialInstance {
-        // TODO: should this unwrap be unchecked?
-        &self.background.as_ref().unwrap()[pos.into()]
+        &self.background.as_ref().unwrap_unchecked()[pos.into()]
     }
 }
