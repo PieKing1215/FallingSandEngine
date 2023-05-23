@@ -6,6 +6,7 @@ use rapier2d::prelude::Shape;
 use specs::{Join, ReadStorage, WorldExt};
 
 use fs_common::game::common::{
+    modding::ModManager,
     world::{
         entity::{
             GameEntity, Hitbox, PhysicsEntity, Player, PlayerGrappleState, PlayerMovementMode,
@@ -183,6 +184,10 @@ impl WorldRenderer {
 
         if ctx.settings.debug && ctx.settings.draw_load_zones {
             self.draw_load_zones(loader_pos, Some(camera_pos.into()), world, target);
+        }
+
+        for m in ctx.mod_manager.mods_mut() {
+            m.post_world_render(target);
         }
 
         target.transform.pop();
@@ -1062,4 +1067,5 @@ pub struct RenderContext<'a> {
     pub partial_ticks: f64,
     pub registries: Arc<Registries>,
     pub file_helper: &'a FileHelper,
+    pub mod_manager: &'a mut ModManager,
 }

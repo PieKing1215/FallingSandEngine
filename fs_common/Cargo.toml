@@ -41,6 +41,7 @@ asefile = "0.3"
 once_cell = "1.17"
 ron = "0.8"
 static_assertions = "1.1"
+extism = "0.4"
 
 # mesh generation
 contour = "0.7"

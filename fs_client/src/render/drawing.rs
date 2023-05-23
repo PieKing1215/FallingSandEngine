@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use fs_common::game::common::{
+    modding::PostWorldRenderTarget,
     world::{material::color::Color, particle::Particle, CHUNK_SIZE},
     Rect,
 };
@@ -665,5 +666,20 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
                 tex: data.lighting_dst.sampled().magnify_filter(if lighting_linear_blend { glium::uniforms::MagnifySamplerFilter::Linear } else { glium::uniforms::MagnifySamplerFilter::Nearest }),
             }, &params).unwrap();
         }
+    }
+}
+
+impl PostWorldRenderTarget for RenderTarget<'_, '_> {
+    fn rectangle(&mut self, rect: Rect<f32>, color: Color) {
+        self.rectangle(
+            rect,
+            color,
+            DrawParameters {
+                polygon_mode: PolygonMode::Fill,
+                line_width: Some(1.0),
+                blend: Blend::alpha_blending(),
+                ..Default::default()
+            },
+        );
     }
 }

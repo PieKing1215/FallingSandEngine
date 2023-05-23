@@ -1,0 +1,18 @@
+[package]
+name = "test_mod"
+version = "0.1.0"
+authors = ["PieKing1215"]
+description = "Falling Sand Engine test mod"
+repository = "https://github.com/PieKing1215/FallingSandEngine"
+readme = "README.md"
+license = "ARR"
+keywords = ["game", "falling-sand", "2d"]
+categories = ["game-engines", "games"]
+edition = "2021"
+
+[lib]
+crate_type = ["cdylib"]
+
+[dependencies]
+extism-pdk = "0.3"
+wasm-timer = "0.2"

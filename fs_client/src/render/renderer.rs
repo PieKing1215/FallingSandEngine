@@ -352,6 +352,7 @@ impl<'a> Renderer<'a> {
                                 DebugUIsContext {
                                     registries: &game.registries,
                                     local_player: player,
+                                    mod_manager: &mut game.mod_manager,
                                 },
                             );
                         }
@@ -459,6 +460,7 @@ impl<'a> Renderer<'a> {
                     partial_ticks,
                     registries: game.registries.clone(),
                     file_helper: &game.file_helper,
+                    mod_manager: &mut game.mod_manager,
                 },
             );
         }

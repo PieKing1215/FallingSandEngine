@@ -42,8 +42,8 @@ impl ServerGame {
         args: &CLArgs,
         term: &mut Terminal<TB>,
     ) -> Result<(), String> {
-        tui_logger::init_logger(log::LevelFilter::Trace).unwrap();
-        tui_logger::set_default_level(log::LevelFilter::Trace);
+        tui_logger::init_logger(log::LevelFilter::Debug).unwrap();
+        tui_logger::set_default_level(log::LevelFilter::Debug);
         if !self.0.file_helper.game_path("logs/").exists() {
             info!("logs dir missing, creating it...");
             std::fs::create_dir_all(self.0.file_helper.game_path("logs/"))

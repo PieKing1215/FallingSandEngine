@@ -1,6 +1,7 @@
 use crate::game::common::world::World;
 use crate::game::common::Settings;
 
+use super::common::modding::ModManager;
 use super::common::world::Chunk;
 use super::common::{FileHelper, Registries};
 use std::sync::Arc;
@@ -16,6 +17,7 @@ pub struct GameData<C: Chunk> {
     pub file_helper: FileHelper,
     pub registries: Arc<Registries>,
     pub build_data: BuildData,
+    pub mod_manager: ModManager,
 }
 
 pub struct BuildData {
@@ -59,6 +61,7 @@ impl<C: Chunk + Send + Sync + 'static> GameData<C> {
             process_stats: ProcessStats { cpu_usage: None, memory: None },
             settings: Settings::default(),
             registries: Arc::new(Registries::init(&file_helper)),
+            mod_manager: ModManager::init(&file_helper),
             file_helper,
             build_data,
         }

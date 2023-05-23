@@ -3,6 +3,7 @@ pub mod world;
 
 pub mod cli;
 pub mod hashmap_ext;
+pub mod modding;
 mod registries;
 pub mod registry;
 mod settings;

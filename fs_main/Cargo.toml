@@ -10,6 +10,7 @@ keywords = ["game", "falling-sand", "2d"]
 categories = ["game-engines", "games"]
 edition = "2021"
 build = "src/build.rs"
+default-run = "fs_main"
 
 [dependencies]
 fs_common = { path = "../fs_common" }

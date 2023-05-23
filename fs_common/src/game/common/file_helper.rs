@@ -39,4 +39,16 @@ impl FileHelper {
                 .map_or(false, |ext| ext.eq_ignore_ascii_case(extension))
         }))
     }
+
+    pub fn mod_files<'a>(&'a self) -> Box<dyn Iterator<Item = PathBuf> + '_> {
+        Box::new(
+            fs::read_dir(self.game_path("mods"))
+                .into_iter()
+                .flat_map(|dir| dir.flatten().map(|entry| entry.path()).collect::<Vec<_>>())
+                .filter(move |p| {
+                    p.extension()
+                        .map_or(false, |ext| ext.eq_ignore_ascii_case("wasm"))
+                }),
+        )
+    }
 }
