@@ -1,6 +1,7 @@
 pub mod bindings;
 #[allow(non_snake_case)]
 pub mod draw;
+pub mod util;
 
 pub use fs_common_types;
 pub use fs_modding_api_macros::*;

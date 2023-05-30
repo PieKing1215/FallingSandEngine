@@ -19,6 +19,7 @@ impl ModManager {
 
             let mut plugin = WasmPluginBuilder::from_file(&path)
                 .expect("WasmPluginBuilder::from_file failed")
+                .import_function("get_time", std::time::SystemTime::now)
                 .import_function_with_context(
                     "RenderTarget_width",
                     call_ctx.post_world_render_target.clone(),
