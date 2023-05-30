@@ -1,6 +1,7 @@
 
 gamedir/logs/*
 gamedir/saves/*
+gamedir/mods/*
 !gamedir/saves/template
 package/*
 push_steam_nightly.sh

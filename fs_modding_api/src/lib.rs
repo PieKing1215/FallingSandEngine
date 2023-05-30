@@ -3,6 +3,8 @@ pub mod bindings;
 pub mod draw;
 
 pub use fs_common_types;
+pub use fs_modding_api_macros::*;
+pub use static_assertions;
 pub use wasm_plugin_guest;
 
 use draw::RenderTarget;
