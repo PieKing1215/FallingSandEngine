@@ -1,6 +1,6 @@
-use std::{cell::RefCell, sync::Arc};
-
-use extism::{CurrentPlugin, Plugin, PluginBuilder, UserData, Val, ValType};
+use fs_common_types::modding::ModMeta;
+use std::sync::{Arc, RwLock};
+use wasm_plugin_host::{WasmPlugin, WasmPluginBuilder};
 
 use super::{world::material::color::Color, FileHelper, Rect};
 
@@ -14,25 +14,57 @@ impl ModManager {
 
         let call_ctx = ModCallContext { post_world_render_target: Arc::default() };
 
-        let fns = vec![extism::Function::new(
-            "draw_rect",
-            [ValType::F32, ValType::F32, ValType::F32, ValType::F32],
-            [],
-            Some(UserData::new(call_ctx.post_world_render_target.clone())),
-            draw_rect,
-        )];
-
         for path in file_helper.mod_files() {
             log::info!("Loading mod {path:?}");
-            let wasm =
-                std::fs::read(&path).expect(format!("Failed to read mod file: {path:?}").as_str());
-            let plugin = PluginBuilder::new_with_module(wasm)
-                .with_wasi(true)
-                .with_functions(fns.clone())
-                .build(None)
-                .expect(format!("Failed to instantiate mod: {path:?}").as_str());
 
-            mods.push(Mod { call_ctx: call_ctx.clone(), plugin });
+            let mut plugin = WasmPluginBuilder::from_file(&path)
+                .expect("WasmPluginBuilder::from_file failed")
+                .import_function_with_context(
+                    "RenderTarget_width",
+                    call_ctx.post_world_render_target.clone(),
+                    |rt: &CtxStorage<dyn PostWorldRenderTarget>| {
+                        let rt = unsafe { &mut *rt.write().unwrap().as_mut().unwrap().value };
+
+                        rt.width()
+                    },
+                )
+                .import_function_with_context(
+                    "RenderTarget_height",
+                    call_ctx.post_world_render_target.clone(),
+                    |rt: &CtxStorage<dyn PostWorldRenderTarget>| {
+                        let rt = unsafe { &mut *rt.write().unwrap().as_mut().unwrap().value };
+
+                        rt.height()
+                    },
+                )
+                .import_function_with_context(
+                    "RenderTarget_rectangle",
+                    call_ctx.post_world_render_target.clone(),
+                    |rt: &CtxStorage<dyn PostWorldRenderTarget>,
+                     (rect, color): (Rect<f32>, Color)| {
+                        let rt = unsafe { &mut *rt.write().unwrap().as_mut().unwrap().value };
+
+                        rt.rectangle(rect, color);
+                    },
+                )
+                .import_function_with_context(
+                    "RenderTarget_rectangle_filled",
+                    call_ctx.post_world_render_target.clone(),
+                    |rt: &CtxStorage<dyn PostWorldRenderTarget>,
+                     (rect, color): (Rect<f32>, Color)| {
+                        let rt = unsafe { &mut *rt.write().unwrap().as_mut().unwrap().value };
+
+                        rt.rectangle_filled(rect, color);
+                    },
+                )
+                .finish()
+                .expect("WasmPluginBuilder::finish failed");
+
+            let meta = plugin.call_function::<ModMeta>("init").unwrap();
+
+            log::info!("Initialized mod: {meta:?}");
+
+            mods.push(Mod { meta, call_ctx: call_ctx.clone(), plugin });
         }
 
         Self { mods }
@@ -47,10 +79,19 @@ impl ModManager {
     }
 }
 
+type CtxStorage<T> = Arc<RwLock<Option<UnsafeSendSync<*mut T>>>>;
+
 #[derive(Clone)]
 pub struct ModCallContext {
-    post_world_render_target: Arc<RefCell<Option<*mut dyn PostWorldRenderTarget>>>,
+    post_world_render_target: CtxStorage<dyn PostWorldRenderTarget>,
 }
+
+struct UnsafeSendSync<T> {
+    pub value: T,
+}
+
+unsafe impl<T> Send for UnsafeSendSync<T> {}
+unsafe impl<T> Sync for UnsafeSendSync<T> {}
 
 impl ModCallContext {
     #[allow(clippy::transmute_ptr_to_ptr)]
@@ -61,57 +102,36 @@ impl ModCallContext {
     ) {
         // TODO: this transmute could easily be UB, but I couldn't figure out any other way to do this
         // it's only being used to extend the lifetime of `t`, which will never be stored in `post_world_render_target` after this function returns
-        *self.post_world_render_target.borrow_mut() =
+        *self.post_world_render_target.write().unwrap() =
             Some(unsafe { std::mem::transmute(t as *mut dyn PostWorldRenderTarget) });
         f(self);
-        *self.post_world_render_target.borrow_mut() = None;
+        *self.post_world_render_target.write().unwrap() = None;
     }
 }
 
 pub struct Mod {
+    meta: ModMeta,
     call_ctx: ModCallContext,
-    plugin: Plugin<'static>,
+    plugin: WasmPlugin,
 }
 
 pub trait PostWorldRenderTarget {
+    fn width(&self) -> u32;
+    fn height(&self) -> u32;
     fn rectangle(&mut self, rect: Rect<f32>, color: Color);
+    fn rectangle_filled(&mut self, rect: Rect<f32>, color: Color);
 }
 
 impl Mod {
-    pub fn test_fn(&mut self) -> String {
-        self.plugin
-            .call_map("test", [], |bytes| {
-                String::from_utf8(bytes.to_vec()).map_err(Into::into)
-            })
-            .expect("call_map test failed")
+    pub fn meta(&self) -> &ModMeta {
+        &self.meta
     }
 
     pub fn post_world_render<T: PostWorldRenderTarget>(&mut self, target: &mut T) {
         self.call_ctx.with_post_world_render_target(target, |_| {
-            self.plugin.call("post_world_render", []).unwrap();
+            self.plugin
+                .call_function::<()>("post_world_render")
+                .unwrap();
         });
     }
-}
-
-#[allow(clippy::unnecessary_wraps)]
-#[allow(clippy::needless_pass_by_value)]
-fn draw_rect(
-    _plugin: &mut CurrentPlugin,
-    inputs: &[Val],
-    _outputs: &mut [Val],
-    user_data: UserData,
-) -> Result<(), extism::Error> {
-    let rt: &mut Arc<RefCell<Option<*mut dyn PostWorldRenderTarget>>> =
-        unsafe { &mut *user_data.as_ptr().cast() };
-    let rt = unsafe { &mut *rt.borrow_mut().unwrap() };
-
-    let rect = Rect::new_wh(
-        inputs[0].unwrap_f32(),
-        inputs[1].unwrap_f32(),
-        inputs[2].unwrap_f32(),
-        inputs[3].unwrap_f32(),
-    );
-    rt.rectangle(rect, Color::CYAN);
-
-    Ok(())
 }

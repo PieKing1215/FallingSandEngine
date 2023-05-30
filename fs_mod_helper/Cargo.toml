@@ -1,0 +1,16 @@
+[package]
+name = "fs_mod_helper"
+version = "0.1.0"
+authors = ["PieKing1215"]
+description = "Falling Sand Engine mod helper"
+repository = "https://github.com/PieKing1215/FallingSandEngine"
+readme = "README.md"
+license = "ARR"
+keywords = ["game", "falling-sand", "2d"]
+categories = ["game-engines", "games"]
+edition = "2021"
+
+[dependencies]
+fs_common_types = { path = "../fs_common_types" }
+wasm_plugin_guest = { version = "0.1.5", default-features = false, features = ["serialize_bincode"] }
+once_cell = { version = "1", default-features = false }

@@ -151,9 +151,7 @@ pub fn main() -> Result<(), String> {
                         })
                         .set_level_padding(simplelog::LevelPadding::Right)
                         .set_target_level(LevelFilter::Off)
-                        .add_filter_ignore_str("extism")
                         .add_filter_ignore_str("cranelift_codegen")
-                        .add_filter_ignore_str("wasmtime")
                         .set_time_offset_to_local()
                         .unwrap()
                         .build(),
@@ -166,6 +164,7 @@ pub fn main() -> Result<(), String> {
                         .set_location_level(LevelFilter::Error)
                         .set_level_padding(simplelog::LevelPadding::Right)
                         .set_target_level(LevelFilter::Off)
+                        .add_filter_ignore_str("cranelift_codegen")
                         .set_time_offset_to_local()
                         .unwrap()
                         .build(),

@@ -670,7 +670,28 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
 }
 
 impl PostWorldRenderTarget for RenderTarget<'_, '_> {
+    fn width(&self) -> u32 {
+        self.width()
+    }
+
+    fn height(&self) -> u32 {
+        self.height()
+    }
+
     fn rectangle(&mut self, rect: Rect<f32>, color: Color) {
+        self.rectangle(
+            rect,
+            color,
+            DrawParameters {
+                polygon_mode: PolygonMode::Line,
+                line_width: Some(1.0),
+                blend: Blend::alpha_blending(),
+                ..Default::default()
+            },
+        );
+    }
+
+    fn rectangle_filled(&mut self, rect: Rect<f32>, color: Color) {
         self.rectangle(
             rect,
             color,

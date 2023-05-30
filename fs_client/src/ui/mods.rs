@@ -23,8 +23,8 @@ impl ModsUI {
             .resizable(false)
             .show(egui_ctx, |ui| {
                 for m in ctx.mod_manager.mods_mut() {
-                    let v = m.test_fn();
-                    ui.label(v);
+                    let v = m.meta();
+                    ui.label(format!("{v:?}"));
                 }
             });
     }

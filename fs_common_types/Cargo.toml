@@ -1,8 +1,8 @@
 [package]
-name = "test_mod"
+name = "fs_common_types"
 version = "0.1.0"
 authors = ["PieKing1215"]
-description = "Falling Sand Engine test mod"
+description = "Falling Sand Engine common types"
 repository = "https://github.com/PieKing1215/FallingSandEngine"
 readme = "README.md"
 license = "ARR"
@@ -10,9 +10,6 @@ keywords = ["game", "falling-sand", "2d"]
 categories = ["game-engines", "games"]
 edition = "2021"
 
-[lib]
-crate_type = ["cdylib"]
-
 [dependencies]
-fs_mod_helper = { path = "../fs_mod_helper" }
-wasm-timer = "0.2"
+derive-getters = "0.3"
+serde = { version = "1.0", features = ["derive"] }

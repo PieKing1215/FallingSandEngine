@@ -1,23 +1,28 @@
 use std::f32::consts::PI;
 
-use extism_pdk::*;
+use fs_mod_helper::{
+    draw::RenderTarget,
+    fs_common_types::{color::Color, modding::ModMeta, rect::Rect},
+    wasm_plugin_guest, Mod,
+};
+use wasm_plugin_guest::*;
 
-#[plugin_fn]
-pub fn test(_: ()) -> FnResult<String> {
-    Ok("Hello test_fn!".into())
+#[export_function]
+pub fn init() -> ModMeta {
+    fs_mod_helper::init(TestMod {})
 }
 
-#[plugin_fn]
-pub fn post_world_render(_: ()) -> FnResult<()> {
-    let time = (std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .expect("duration_since")
-        .as_millis()
-        % 2000) as f32;
-    unsafe { draw_rect(0.0, (time / 1000.0 * PI).sin() * 20.0, 20.0, 20.0) };
-    Ok(())
-}
+struct TestMod {}
 
-extern "C" {
-    fn draw_rect(x: f32, y: f32, w: f32, h: f32);
+impl Mod for TestMod {
+    fn meta(&self) -> ModMeta {
+        ModMeta::new("test").with_display_name("Test Mod")
+    }
+
+    fn post_world_render(&self, draw_ctx: &mut RenderTarget) {
+        draw_ctx.rectangle(
+            Rect::new_wh(0.0, (0.0 / 1000.0 * PI).sin() * 20.0, 20.0, 20.0),
+            Color::CHARTREUSE_GREEN,
+        );
+    }
 }
