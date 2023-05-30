@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use fs_mod_helper::{
+use fs_modding_api::{
     draw::RenderTarget,
     fs_common_types::{color::Color, modding::ModMeta, rect::Rect},
     wasm_plugin_guest, Mod,
@@ -9,7 +9,7 @@ use wasm_plugin_guest::*;
 
 #[export_function]
 pub fn init() -> ModMeta {
-    fs_mod_helper::init(TestMod {})
+    fs_modding_api::init(TestMod {})
 }
 
 struct TestMod {}

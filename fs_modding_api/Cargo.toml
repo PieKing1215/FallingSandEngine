@@ -1,5 +1,5 @@
 [package]
-name = "fs_mod_helper"
+name = "fs_modding_api"
 version = "0.1.0"
 authors = ["PieKing1215"]
 description = "Falling Sand Engine mod helper"
