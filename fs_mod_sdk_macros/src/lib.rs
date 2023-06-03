@@ -8,13 +8,13 @@ pub fn fs_mod(_args: TokenStream, input: TokenStream) -> TokenStream {
 
     let ident = input.ident.clone();
     let output = quote! {
-        fs_modding_api::static_assertions::assert_impl_all!(#ident: Default);
-        mod _fs_modding_api_impl {
+        fs_mod_sdk::static_assertions::assert_impl_all!(#ident: Default);
+        mod _fs_mod_sdk_impl {
             use super::#ident;
-            use fs_modding_api::wasm_plugin_guest as wasm_plugin_guest;
+            use fs_mod_sdk::wasm_plugin_guest as wasm_plugin_guest;
             #[wasm_plugin_guest::export_function]
-            fn init() -> fs_modding_api::fs_common_types::modding::ModMeta {
-                fs_modding_api::init(#ident::default())
+            fn init() -> fs_mod_sdk::fs_common_types::modding::ModMeta {
+                fs_mod_sdk::init(#ident::default())
             }
         }
 

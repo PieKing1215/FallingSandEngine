@@ -14,6 +14,6 @@ edition = "2021"
 crate_type = ["cdylib"]
 
 [dependencies]
-fs_modding_api = { path = "../fs_modding_api" }
+fs_mod_sdk = { path = "../fs_mod_sdk" }
 wasm-timer = "0.2"
 log = "0.4"

@@ -1,5 +1,5 @@
 [package]
-name = "fs_modding_api"
+name = "fs_mod_sdk"
 version = "0.1.0"
 authors = ["PieKing1215"]
 description = "Falling Sand Engine mod helper"
@@ -11,7 +11,7 @@ categories = ["game-engines", "games"]
 edition = "2021"
 
 [dependencies]
-fs_modding_api_macros = { path = "../fs_modding_api_macros" }
+fs_mod_sdk_macros = { path = "../fs_mod_sdk_macros" }
 fs_common_types = { path = "../fs_common_types" }
 wasm_plugin_guest = { git = "https://github.com/PieKing1215/wasm_plugin.git", branch = "wasmer3", default-features = false, features = ["serialize_bincode"] }
 once_cell = { version = "1", default-features = false }

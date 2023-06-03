@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use fs_modding_api::{
+use fs_mod_sdk::{
     draw::RenderTarget,
     fs_common_types::{color::Color, modding::ModMeta, rect::Rect},
     fs_mod,

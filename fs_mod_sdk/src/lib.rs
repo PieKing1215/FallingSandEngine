@@ -6,7 +6,7 @@ pub mod util;
 
 use backtrace::Backtrace;
 pub use fs_common_types;
-pub use fs_modding_api_macros::*;
+pub use fs_mod_sdk_macros::*;
 use log::LevelFilter;
 use logging::FSModLogger;
 pub use static_assertions;
