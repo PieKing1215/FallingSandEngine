@@ -4,8 +4,6 @@ pub mod draw;
 mod logging;
 pub mod util;
 
-use std::panic::PanicInfo;
-
 use backtrace::Backtrace;
 pub use fs_common_types;
 pub use fs_modding_api_macros::*;

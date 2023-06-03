@@ -1,9 +1,4 @@
-use std::{
-    cell::UnsafeCell,
-    fmt::Debug,
-    path::PathBuf,
-    sync::{Arc, Mutex, RwLock},
-};
+use std::{cell::UnsafeCell, fmt::Debug, path::PathBuf, sync::Arc};
 
 use asefile::AsepriteFile;
 use chunksystem::{ChunkKey, ChunkManager, ChunkQuery};
