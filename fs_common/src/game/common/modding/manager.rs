@@ -4,7 +4,7 @@ use fs_common_types::{color::Color, modding::ModMeta, rect::Rect};
 use wasm_plugin_host::WasmPluginBuilder;
 
 use crate::game::common::{
-    modding::{CtxStorage, PostWorldRenderTarget},
+    modding::{CtxStorage, api::render::PostWorldRenderTarget},
     FileHelper,
 };
 

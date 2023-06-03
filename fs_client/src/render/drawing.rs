@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
 use fs_common::game::common::{
-    modding::PostWorldRenderTarget,
     world::{material::color::Color, particle::Particle, CHUNK_SIZE},
-    Rect,
+    Rect, modding::api::render::PostWorldRenderTarget,
 };
 use glium::{
     implement_vertex, index::NoIndices, texture::Texture2dArray, uniform, Blend, Display,

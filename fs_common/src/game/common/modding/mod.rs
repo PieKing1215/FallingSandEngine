@@ -1,4 +1,5 @@
 mod manager;
+pub mod api;
 pub use manager::*;
 
 use fs_common_types::{chunk::PostTickChunk, modding::ModMeta};
@@ -8,24 +9,25 @@ use std::{
 };
 use wasm_plugin_host::WasmPlugin;
 
+use self::api::render::PostWorldRenderTarget;
+
 use super::{
     world::{material::color::Color, CHUNK_AREA},
-    Rect,
 };
 
-type CtxStorage<T> = Arc<RwLock<Option<UnsafeSendSync<*mut T>>>>;
+type CtxStorage<T> = Arc<RwLock<Option<SendSyncRawPtr<T>>>>;
+
+struct SendSyncRawPtr<T: ?Sized> {
+    pub value: *mut T,
+}
+
+unsafe impl Send for SendSyncRawPtr<dyn PostWorldRenderTarget> {}
+unsafe impl Sync for SendSyncRawPtr<dyn PostWorldRenderTarget> {}
 
 #[derive(Clone)]
 pub struct ModCallContext {
     post_world_render_target: CtxStorage<dyn PostWorldRenderTarget>,
 }
-
-struct UnsafeSendSync<T> {
-    pub value: T,
-}
-
-unsafe impl<T> Send for UnsafeSendSync<T> {}
-unsafe impl<T> Sync for UnsafeSendSync<T> {}
 
 impl ModCallContext {
     #[allow(clippy::transmute_ptr_to_ptr)]
@@ -49,24 +51,9 @@ pub struct Mod {
     plugin: WasmPlugin,
 }
 
-pub trait PostWorldRenderTarget {
-    fn width(&self) -> u32;
-    fn height(&self) -> u32;
-    fn rectangle(&mut self, rect: Rect<f32>, color: Color);
-    fn rectangle_filled(&mut self, rect: Rect<f32>, color: Color);
-}
-
 impl Mod {
     pub fn meta(&self) -> &ModMeta {
         &self.meta
-    }
-
-    pub fn post_world_render<T: PostWorldRenderTarget>(&mut self, target: &mut T) {
-        self.call_ctx.with_post_world_render_target(target, |_| {
-            self.plugin
-                .call_function::<()>("post_world_render")
-                .unwrap();
-        });
     }
 
     pub fn post_chunk_simulate(&mut self, colors: &[UnsafeCell<Color>; CHUNK_AREA]) {
