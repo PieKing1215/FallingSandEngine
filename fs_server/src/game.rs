@@ -456,6 +456,7 @@ impl ServerGame {
                 &self.0.settings,
                 self.0.registries.clone(),
                 &self.0.file_helper,
+                &mut self.0.mod_manager,
             );
         }
     }

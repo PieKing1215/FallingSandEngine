@@ -7,6 +7,7 @@ use std::{
 };
 
 use crate::game::common::{
+    modding::ModManager,
     world::{physics::PHYSICS_SCALE, ChunkRigidBodyState},
     FileHelper, Registries, Settings,
 };
@@ -403,6 +404,7 @@ where
         settings: &Settings,
         registries: Arc<Registries>,
         file_helper: &FileHelper,
+        mod_manager: &mut ModManager,
     ) {
         *self.ecs.write_resource::<TickTime>() = TickTime(tick_time);
 
@@ -671,6 +673,7 @@ where
             registries: &registries,
             seed: self.seed,
             file_helper,
+            mod_manager,
         });
 
         if settings.simulate_particles {

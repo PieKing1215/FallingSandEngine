@@ -5,6 +5,7 @@ pub use chunk::*;
 #[cfg(test)]
 mod tests {
     use chunksystem::ChunkQuery;
+    use fs_common::game::common::modding::ModManager;
     use fs_common::game::common::world::chunk_access::FSChunkAccess;
     use fs_common::game::common::world::chunk_handler::{ChunkHandler, ChunkTickContext};
     use fs_common::game::common::world::physics::Physics;
@@ -64,6 +65,8 @@ mod tests {
 
         let mut phys = Physics::new();
 
+        let mut mod_manager = ModManager::empty();
+
         ch.tick(ChunkTickContext {
             tick_time: 0,
             settings: &Settings::default(),
@@ -72,6 +75,7 @@ mod tests {
             registries: &registries,
             seed: 2,
             file_helper: &file_helper,
+            mod_manager: &mut mod_manager,
         });
         while !ch.load_queue.is_empty() {
             ch.tick(ChunkTickContext {
@@ -82,6 +86,7 @@ mod tests {
                 registries: &registries,
                 seed: 2,
                 file_helper: &file_helper,
+                mod_manager: &mut mod_manager,
             });
         }
 
@@ -119,6 +124,7 @@ mod tests {
             registries: &registries,
             seed: 2,
             file_helper: &file_helper,
+            mod_manager: &mut mod_manager,
         });
 
         assert!(!ch.is_chunk_loaded((11, -12)));

@@ -28,4 +28,10 @@ impl Mod for TestMod {
             Color::CHARTREUSE_GREEN,
         );
     }
+
+    fn post_chunk_simulate(&self, colors: &mut [Color; 10000]) {
+        for ele in colors {
+            (ele.r, ele.g) = (ele.g, ele.r);
+        }
+    }
 }

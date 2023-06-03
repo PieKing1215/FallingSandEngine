@@ -781,6 +781,7 @@ impl ClientGame {
                 &self.data.settings,
                 self.data.registries.clone(),
                 &self.data.file_helper,
+                &mut self.data.mod_manager,
             );
             w.chunk_handler.update_chunk_graphics(&renderer.shaders);
         }

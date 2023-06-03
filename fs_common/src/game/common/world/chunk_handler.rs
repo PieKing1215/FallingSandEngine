@@ -1,4 +1,9 @@
-use std::{cell::UnsafeCell, fmt::Debug, path::PathBuf, sync::Arc};
+use std::{
+    cell::UnsafeCell,
+    fmt::Debug,
+    path::PathBuf,
+    sync::{Arc, Mutex, RwLock},
+};
 
 use asefile::AsepriteFile;
 use chunksystem::{ChunkKey, ChunkManager, ChunkQuery};
@@ -10,6 +15,7 @@ use specs::{Join, ReadStorage, RunNow, WorldExt};
 
 use crate::game::common::{
     hashmap_ext::HashMapExt,
+    modding::ModManager,
     world::{
         chunk_index, chunk_update_order,
         gen::{populator::ChunkContext, structure::UpdateStructureNodes, GenBuffers, GenContext},
@@ -78,6 +84,7 @@ pub struct ChunkTickContext<'a> {
     pub registries: &'a Arc<Registries>,
     pub seed: i32,
     pub file_helper: &'a FileHelper,
+    pub mod_manager: &'a mut ModManager,
 }
 
 struct Zones {
@@ -873,6 +880,8 @@ where
             if !to_exec.is_empty() {
                 profiling::scope!("run simulation");
 
+                // let mods = Mutex::new(ctx.mod_manager.mods_mut());
+
                 #[allow(clippy::type_complexity)]
                 let b: Vec<(
                     (i32, i32),
@@ -895,6 +904,12 @@ where
                                 &mut particles,
                                 reg.clone(),
                             );
+
+                            // yeah waiting for this mutex is too laggy
+                            // let mut mutex = mods.lock().unwrap();
+                            // for m in mutex.iter_mut() {
+                            //     m.post_chunk_simulate(chunk_data[4].colors);
+                            // }
 
                             let dirty_info = chunk_data.map(|d| (d.dirty, d.dirty_rect));
                             (ch_pos, dirty_info, particles)

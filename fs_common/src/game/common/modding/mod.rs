@@ -1,14 +1,24 @@
-use fs_common_types::modding::ModMeta;
-use std::sync::{Arc, RwLock};
+use fs_common_types::{chunk::PostTickChunk, modding::ModMeta};
+use std::{
+    cell::UnsafeCell,
+    sync::{Arc, Mutex, RwLock},
+};
 use wasm_plugin_host::{WasmPlugin, WasmPluginBuilder};
 
-use super::{world::material::color::Color, FileHelper, Rect};
+use super::{
+    world::{material::color::Color, CHUNK_AREA},
+    FileHelper, Rect,
+};
 
 pub struct ModManager {
     mods: Vec<Mod>,
 }
 
 impl ModManager {
+    pub fn empty() -> Self {
+        Self { mods: vec![] }
+    }
+
     pub fn init(file_helper: &FileHelper) -> Self {
         let mut mods = vec![];
 
@@ -19,6 +29,21 @@ impl ModManager {
 
             let mut plugin = WasmPluginBuilder::from_file(&path)
                 .expect("WasmPluginBuilder::from_file failed")
+                .import_function("panic", |p: String| {
+                    panic!("{p}");
+                })
+                .import_function("log_debug", |msg: String| {
+                    log::debug!("{msg}");
+                })
+                .import_function("log_info", |msg: String| {
+                    log::info!("{msg}");
+                })
+                .import_function("log_warn", |msg: String| {
+                    log::warn!("{msg}");
+                })
+                .import_function("log_error", |msg: String| {
+                    log::error!("{msg}");
+                })
                 .import_function("get_time", std::time::SystemTime::now)
                 .import_function_with_context(
                     "RenderTarget_width",
@@ -134,5 +159,31 @@ impl Mod {
                 .call_function::<()>("post_world_render")
                 .unwrap();
         });
+    }
+
+    pub fn post_chunk_simulate(&mut self, colors: &[UnsafeCell<Color>; CHUNK_AREA]) {
+        profiling::scope!("post_chunk_simulate");
+
+        let in_colors = colors
+            .iter()
+            .map(|uc| unsafe { *uc.get() })
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap();
+        let pt = PostTickChunk { colors: in_colors };
+
+        let res = {
+            profiling::scope!("call_function_with_argument");
+            self.plugin
+                .call_function_with_argument::<PostTickChunk, PostTickChunk>(
+                    "post_chunk_simulate",
+                    &pt,
+                )
+                .unwrap()
+        };
+
+        for (i, c) in res.colors.into_iter().enumerate() {
+            unsafe { *colors[i].get() = c };
+        }
     }
 }

@@ -16,3 +16,4 @@ crate_type = ["cdylib"]
 [dependencies]
 fs_modding_api = { path = "../fs_modding_api" }
 wasm-timer = "0.2"
+log = "0.4"
