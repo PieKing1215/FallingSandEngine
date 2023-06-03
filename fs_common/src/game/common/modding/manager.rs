@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
-use fs_common_types::{color::Color, modding::ModMeta, rect::Rect};
+use fs_mod_common::{
+    color::Color,
+    modding::{render::RenderTarget, ModMeta},
+    rect::Rect,
+};
 use wasm_plugin_host::WasmPluginBuilder;
 
-use crate::game::common::{
-    modding::{CtxStorage, api::render::PostWorldRenderTarget},
-    FileHelper,
-};
+use crate::game::common::{modding::CtxStorage, FileHelper};
 
 use super::{Mod, ModCallContext};
 
@@ -48,7 +49,7 @@ impl ModManager {
                 .import_function_with_context(
                     "RenderTarget_width",
                     call_ctx.post_world_render_target.clone(),
-                    |rt: &CtxStorage<dyn PostWorldRenderTarget>| {
+                    |rt: &CtxStorage<dyn RenderTarget>| {
                         let rt = unsafe { &mut *rt.write().unwrap().as_mut().unwrap().value };
 
                         rt.width()
@@ -57,7 +58,7 @@ impl ModManager {
                 .import_function_with_context(
                     "RenderTarget_height",
                     call_ctx.post_world_render_target.clone(),
-                    |rt: &CtxStorage<dyn PostWorldRenderTarget>| {
+                    |rt: &CtxStorage<dyn RenderTarget>| {
                         let rt = unsafe { &mut *rt.write().unwrap().as_mut().unwrap().value };
 
                         rt.height()
@@ -66,8 +67,7 @@ impl ModManager {
                 .import_function_with_context(
                     "RenderTarget_rectangle",
                     call_ctx.post_world_render_target.clone(),
-                    |rt: &CtxStorage<dyn PostWorldRenderTarget>,
-                     (rect, color): (Rect<f32>, Color)| {
+                    |rt: &CtxStorage<dyn RenderTarget>, (rect, color): (Rect<f32>, Color)| {
                         let rt = unsafe { &mut *rt.write().unwrap().as_mut().unwrap().value };
 
                         rt.rectangle(rect, color);
@@ -76,8 +76,7 @@ impl ModManager {
                 .import_function_with_context(
                     "RenderTarget_rectangle_filled",
                     call_ctx.post_world_render_target.clone(),
-                    |rt: &CtxStorage<dyn PostWorldRenderTarget>,
-                     (rect, color): (Rect<f32>, Color)| {
+                    |rt: &CtxStorage<dyn RenderTarget>, (rect, color): (Rect<f32>, Color)| {
                         let rt = unsafe { &mut *rt.write().unwrap().as_mut().unwrap().value };
 
                         rt.rectangle_filled(rect, color);

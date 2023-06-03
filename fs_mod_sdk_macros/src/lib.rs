@@ -13,7 +13,7 @@ pub fn fs_mod(_args: TokenStream, input: TokenStream) -> TokenStream {
             use super::#ident;
             use fs_mod_sdk::wasm_plugin_guest as wasm_plugin_guest;
             #[wasm_plugin_guest::export_function]
-            fn init() -> fs_mod_sdk::fs_common_types::modding::ModMeta {
+            fn init() -> fs_mod_sdk::fs_mod_common::modding::ModMeta {
                 fs_mod_sdk::init(#ident::default())
             }
         }

@@ -17,3 +17,4 @@ crate_type = ["cdylib"]
 fs_mod_sdk = { path = "../fs_mod_sdk" }
 wasm-timer = "0.2"
 log = "0.4"
+once_cell = { version = "1", default-features = false }

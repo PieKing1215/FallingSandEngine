@@ -1,5 +1,5 @@
 [package]
-name = "fs_common_types"
+name = "fs_mod_common"
 version = "0.1.0"
 authors = ["PieKing1215"]
 description = "Falling Sand Engine common types"

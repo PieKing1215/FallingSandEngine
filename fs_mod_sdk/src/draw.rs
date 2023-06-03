@@ -1,4 +1,4 @@
-use fs_common_types::{color::Color, rect::Rect};
+use fs_mod_common::{color::Color, modding::render::RenderTarget, rect::Rect};
 
 wasm_plugin_guest::import_functions! {
     fn RenderTarget_width() -> u32;
@@ -7,28 +7,30 @@ wasm_plugin_guest::import_functions! {
     fn RenderTarget_rectangle_filled(v: (Rect<f32>, Color));
 }
 
-pub struct RenderTarget {
+pub(crate) struct DummyRT {
     _private: (),
 }
 
-impl RenderTarget {
+impl DummyRT {
     pub(crate) fn new() -> Self {
         Self { _private: () }
     }
+}
 
-    pub fn width(&self) -> u32 {
+impl RenderTarget for DummyRT {
+    fn width(&self) -> u32 {
         RenderTarget_width()
     }
 
-    pub fn height(&self) -> u32 {
+    fn height(&self) -> u32 {
         RenderTarget_height()
     }
 
-    pub fn rectangle(&mut self, rect: Rect<f32>, color: Color) {
+    fn rectangle(&mut self, rect: Rect<f32>, color: Color) {
         RenderTarget_rectangle((rect, color));
     }
 
-    pub fn rectangle_filled(&mut self, rect: Rect<f32>, color: Color) {
+    fn rectangle_filled(&mut self, rect: Rect<f32>, color: Color) {
         RenderTarget_rectangle_filled((rect, color));
     }
 }

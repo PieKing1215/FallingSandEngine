@@ -12,7 +12,7 @@ edition = "2021"
 
 [dependencies]
 chunksystem = { path = "../chunksystem" }
-fs_common_types = { path = "../fs_common_types" }
+fs_mod_common = { path = "../fs_mod_common" }
 profiling = "1.0"
 rand = "0.8"
 simdnoise = "3.1"

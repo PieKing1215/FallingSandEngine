@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use chunksystem::ChunkQuery;
+use fs_mod_common::modding::Mod;
 use glium::{Blend, DrawParameters, PolygonMode};
 use rapier2d::prelude::Shape;
 use specs::{Join, ReadStorage, WorldExt};

@@ -1,4 +1,5 @@
 use egui::{collapsing_header::CollapsingState, Id};
+use fs_mod_common::modding::Mod;
 
 use super::DebugUIsContext;
 

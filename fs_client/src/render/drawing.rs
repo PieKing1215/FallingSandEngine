@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use fs_common::game::common::{
     world::{material::color::Color, particle::Particle, CHUNK_SIZE},
-    Rect, modding::api::render::PostWorldRenderTarget,
+    Rect,
 };
 use glium::{
     implement_vertex, index::NoIndices, texture::Texture2dArray, uniform, Blend, Display,
@@ -668,7 +668,7 @@ impl<'a, 'b> RenderTarget<'a, 'b> {
     }
 }
 
-impl PostWorldRenderTarget for RenderTarget<'_, '_> {
+impl fs_mod_common::modding::render::RenderTarget for RenderTarget<'_, '_> {
     fn width(&self) -> u32 {
         self.width()
     }

@@ -14,4 +14,4 @@ pub mod commands;
 mod file_helper;
 pub use file_helper::*;
 
-pub use fs_common_types::rect::Rect;
+pub use fs_mod_common::rect::Rect;

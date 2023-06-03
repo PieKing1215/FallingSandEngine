@@ -1,23 +1,28 @@
 use std::f32::consts::PI;
 
 use fs_mod_sdk::{
-    draw::RenderTarget,
-    fs_common_types::{color::Color, modding::ModMeta, rect::Rect},
     fs_mod,
+    fs_mod_common::{
+        color::Color,
+        modding::{render::RenderTarget, Mod, ModMeta},
+        rect::Rect,
+    },
     util::get_time,
-    Mod,
 };
+use once_cell::sync::Lazy;
 
 #[fs_mod]
 #[derive(Default)]
 struct TestMod {}
 
 impl Mod for TestMod {
-    fn meta(&self) -> ModMeta {
-        ModMeta::new("test").with_display_name("Test Mod")
+    fn meta(&self) -> &ModMeta {
+        static META: Lazy<ModMeta> =
+            Lazy::new(|| ModMeta::new("test").with_display_name("Test Mod"));
+        &META
     }
 
-    fn post_world_render(&self, draw_ctx: &mut RenderTarget) {
+    fn post_world_render(&mut self, draw_ctx: &mut dyn RenderTarget) {
         let time = (get_time()
             .duration_since(std::time::UNIX_EPOCH)
             .expect("duration_since")
@@ -29,7 +34,7 @@ impl Mod for TestMod {
         );
     }
 
-    fn post_chunk_simulate(&self, colors: &mut [Color; 10000]) {
+    fn post_chunk_simulate(&mut self, colors: &mut [Color; 10000]) {
         for ele in colors {
             (ele.r, ele.g) = (ele.g, ele.r);
         }

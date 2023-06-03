@@ -6,7 +6,7 @@ members = [
     "fs_client",
     "fs_server",
     "chunksystem",
-    "fs_common_types",
+    "fs_mod_common",
     "fs_mod_sdk",
     "fs_mod_sdk_macros",
     "test_mod",
