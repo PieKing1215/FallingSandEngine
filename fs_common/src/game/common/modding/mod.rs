@@ -31,10 +31,11 @@ impl ModCallContext {
         t: &mut dyn RenderTarget,
         f: impl FnOnce(&mut Self),
     ) {
-        // TODO: this transmute could easily be UB, but I couldn't figure out any other way to do this
-        // it's only being used to extend the lifetime of `t`, which will never be stored in `post_world_render_target` after this function returns
-        *self.post_world_render_target.write().unwrap() =
-            Some(unsafe { std::mem::transmute(t as *mut dyn RenderTarget) });
+        // SAFETY: `transmute` is only used to extend the lifetime of `t`, since we need to store it in `self` while calling `f`.
+        // Since we had &mut of it and don't use it here while it is stored, I don't think this is UB.
+        *self.post_world_render_target.write().unwrap() = Some(SendSyncRawPtr {
+            value: unsafe { std::mem::transmute(t as *mut dyn RenderTarget) },
+        });
         f(self);
         *self.post_world_render_target.write().unwrap() = None;
     }

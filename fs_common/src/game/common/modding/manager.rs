@@ -23,67 +23,14 @@ impl ModManager {
     pub fn init(file_helper: &FileHelper) -> Self {
         let mut mods = vec![];
 
-        let call_ctx = ModCallContext { post_world_render_target: Arc::default() };
-
         for path in file_helper.mod_files() {
             log::info!("Loading mod {path:?}");
 
-            let mut plugin = WasmPluginBuilder::from_file(&path)
-                .expect("WasmPluginBuilder::from_file failed")
-                .import_function("panic", |p: String| {
-                    panic!("{p}");
-                })
-                .import_function("log_debug", |msg: String| {
-                    log::debug!("{msg}");
-                })
-                .import_function("log_info", |msg: String| {
-                    log::info!("{msg}");
-                })
-                .import_function("log_warn", |msg: String| {
-                    log::warn!("{msg}");
-                })
-                .import_function("log_error", |msg: String| {
-                    log::error!("{msg}");
-                })
-                .import_function("get_time", std::time::SystemTime::now)
-                .import_function_with_context(
-                    "RenderTarget_width",
-                    call_ctx.post_world_render_target.clone(),
-                    |rt: &CtxStorage<dyn RenderTarget>| {
-                        let rt = unsafe { &mut *rt.write().unwrap().as_mut().unwrap().value };
+            let builder =
+                WasmPluginBuilder::from_file(&path).expect("WasmPluginBuilder::from_file failed");
+            let (builder, call_ctx) = register_fns(builder);
 
-                        rt.width()
-                    },
-                )
-                .import_function_with_context(
-                    "RenderTarget_height",
-                    call_ctx.post_world_render_target.clone(),
-                    |rt: &CtxStorage<dyn RenderTarget>| {
-                        let rt = unsafe { &mut *rt.write().unwrap().as_mut().unwrap().value };
-
-                        rt.height()
-                    },
-                )
-                .import_function_with_context(
-                    "RenderTarget_rectangle",
-                    call_ctx.post_world_render_target.clone(),
-                    |rt: &CtxStorage<dyn RenderTarget>, (rect, color): (Rect<f32>, Color)| {
-                        let rt = unsafe { &mut *rt.write().unwrap().as_mut().unwrap().value };
-
-                        rt.rectangle(rect, color);
-                    },
-                )
-                .import_function_with_context(
-                    "RenderTarget_rectangle_filled",
-                    call_ctx.post_world_render_target.clone(),
-                    |rt: &CtxStorage<dyn RenderTarget>, (rect, color): (Rect<f32>, Color)| {
-                        let rt = unsafe { &mut *rt.write().unwrap().as_mut().unwrap().value };
-
-                        rt.rectangle_filled(rect, color);
-                    },
-                )
-                .finish()
-                .expect("WasmPluginBuilder::finish failed");
+            let mut plugin = builder.finish().expect("WasmPluginBuilder::finish failed");
 
             let meta = plugin.call_function::<ModMeta>("init").unwrap();
 
@@ -102,4 +49,75 @@ impl ModManager {
     pub fn mods_mut(&mut self) -> &mut [Mod] {
         &mut self.mods
     }
+}
+
+fn register_fns(mut builder: WasmPluginBuilder) -> (WasmPluginBuilder, ModCallContext) {
+    let call_ctx = ModCallContext { post_world_render_target: Arc::default() };
+
+    macro_rules! import {
+        ($(fn $i:ident($( $pi:ident: $t:ty )*) $(-> $ret:ty)? $b:block)*) => {
+            $(builder = builder.import_function(stringify!($i), |$($pi: $t)*| $b);)*
+        };
+    }
+
+    macro_rules! import_ctx {
+        ($get_ctx:expr => $ctx_ty:ty; $(fn $i:ident($ctx_v:ident $($(, $pi:ident: $t:ty )+)?) $(-> $ret:ty)? $b:block)*) => {
+            $(builder = builder.import_function_with_context(
+                stringify!($i),
+                $get_ctx,
+                |$ctx_v: &CtxStorage<$ctx_ty>$(, ($($pi,)+) : ($($t,)+))?| {
+                    let $ctx_v = unsafe { &mut *$ctx_v.write().unwrap().as_mut().unwrap().value };
+                    $b
+                },
+            );)*
+        };
+    }
+
+    import! {
+        fn panic(p: String) {
+            panic!("{p}");
+        }
+
+        fn log_debug(msg: String) {
+            log::debug!("{msg}");
+        }
+
+        fn log_info(msg: String) {
+            log::info!("{msg}");
+        }
+
+        fn log_warn(msg: String) {
+            log::warn!("{msg}");
+        }
+
+        fn log_error(msg: String) {
+            log::error!("{msg}");
+        }
+
+        fn get_time() -> std::time::SystemTime {
+            std::time::SystemTime::now()
+        }
+    }
+
+    import_ctx! {
+        call_ctx.post_world_render_target.clone() => dyn RenderTarget;
+
+        fn RenderTarget_width(rt) -> u32 {
+            rt.width()
+        }
+
+        fn RenderTarget_height(rt) -> u32 {
+            rt.height()
+        }
+
+        fn RenderTarget_rectangle(rt, rect: Rect<f32>, color: Color) {
+            rt.rectangle(rect, color);
+        }
+
+        fn RenderTarget_rectangle_filled(rt, rect: Rect<f32>, color: Color) {
+            rt.rectangle_filled(rect, color);
+        }
+    }
+
+    (builder, call_ctx)
 }
