@@ -1,6 +1,7 @@
 pub mod networking;
 pub mod world;
 
+pub mod asset_pack;
 pub mod cli;
 pub mod hashmap_ext;
 pub mod modding;

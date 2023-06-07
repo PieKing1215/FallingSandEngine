@@ -46,7 +46,11 @@ pub fn main() -> Result<(), String> {
 
     let cl_args = CLArgs::parse_args();
 
-    let file_helper = FileHelper::new(cl_args.game_dir.clone(), cl_args.assets_dir.clone());
+    let mut file_helper = FileHelper::new(
+        cl_args.game_dir.clone(),
+        cl_args.assets_dir.clone(),
+        cl_args.asset_packs_dir.clone(),
+    );
 
     if !file_helper.game_path("").exists() {
         info!("game dir missing, creating it...");
@@ -56,6 +60,12 @@ pub fn main() -> Result<(), String> {
     if !file_helper.asset_path("").exists() {
         info!("asset dir missing, creating it...");
         std::fs::create_dir_all(file_helper.asset_path("")).expect("Failed to create asset dir:");
+    }
+
+    if !file_helper.asset_packs_path("").exists() {
+        info!("asset packs dir missing, creating it...");
+        std::fs::create_dir_all(file_helper.asset_packs_path(""))
+            .expect("Failed to create asset packs dir:");
     }
 
     let server = matches!(cl_args.subcommand, Some(CLSubcommand::Server { .. }));
@@ -106,6 +116,9 @@ pub fn main() -> Result<(), String> {
         }));
 
         let res = std::panic::catch_unwind(move || {
+            info!("Loading asset packs...");
+            file_helper.load_asset_packs();
+
             println!("Starting server...");
             let mut game: ServerGame = ServerGame::new(file_helper, build_data);
 
@@ -184,6 +197,9 @@ pub fn main() -> Result<(), String> {
                 Backtrace::new()
             );
         }));
+
+        info!("Loading asset packs...");
+        file_helper.load_asset_packs();
 
         info!("Starting client...");
 

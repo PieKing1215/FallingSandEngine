@@ -1,5 +1,3 @@
-use std::fs;
-
 use egui::{plot::HLine, Align2, RichText, WidgetText};
 use fs_common::game::{
     common::{
@@ -67,8 +65,9 @@ impl<'a> Renderer<'a> {
 
         let shaders = Shaders::new(&display, file_helper);
 
-        let pixel_operator =
-            fs::read(file_helper.asset_path("font/pixel_operator/PixelOperator.ttf")).unwrap();
+        let pixel_operator = file_helper
+            .read_asset("font/pixel_operator/PixelOperator.ttf")
+            .expect("Missing asset: font/pixel_operator/PixelOperator.ttf");
         let pixel_operator_font = FontVec::try_from_vec(pixel_operator).unwrap();
 
         let glyph_brush = GlyphBrushBuilder::using_font(pixel_operator_font).build(&display);

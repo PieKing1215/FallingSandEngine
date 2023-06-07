@@ -1,5 +1,3 @@
-use std::fs;
-
 use asefile::AsepriteFile;
 use image::{DynamicImage, GenericImageView};
 
@@ -246,9 +244,9 @@ pub fn init_structure_pieces(file_helper: &FileHelper) -> StructurePieceRegistry
         ),
     );
 
-    let ase =
-        AsepriteFile::read_file(&file_helper.asset_path("data/structure/piece/corner/corner.ase"))
-            .unwrap();
+    let ase = file_helper
+        .read_asset_to_aseprite("data/structure/piece/corner/corner.ase")
+        .expect("Missing data/structure/piece/corner/corner.ase");
     registry.register(
         "b2",
         load_from_ase(
@@ -270,9 +268,9 @@ pub fn init_structure_pieces(file_helper: &FileHelper) -> StructurePieceRegistry
         ),
     );
 
-    let ase =
-        AsepriteFile::read_file(&file_helper.asset_path("data/structure/piece/stairs/stairs.ase"))
-            .unwrap();
+    let ase = file_helper
+        .read_asset_to_aseprite("data/structure/piece/stairs/stairs.ase")
+        .expect("Missing data/structure/piece/stairs/stairs.ase");
     registry.register(
         "stairs",
         load_from_ase(
@@ -296,7 +294,9 @@ pub fn init_structure_pieces(file_helper: &FileHelper) -> StructurePieceRegistry
         ),
     );
 
-    let data = &fs::read(file_helper.asset_path("data/structure/piece/end_carve.png")).unwrap();
+    let data = &file_helper
+        .read_asset("data/structure/piece/end_carve.png")
+        .expect("Missing data/structure/piece/end_carve.png");
     let img = image::load_from_memory(data).unwrap();
     registry.register(
         "end_carve",
@@ -309,10 +309,9 @@ pub fn init_structure_pieces(file_helper: &FileHelper) -> StructurePieceRegistry
         ),
     );
 
-    let ase = AsepriteFile::read_file(
-        &file_helper.asset_path("data/structure/piece/yellow_thing/yellow_thing.ase"),
-    )
-    .unwrap();
+    let ase = file_helper
+        .read_asset_to_aseprite("data/structure/piece/yellow_thing/yellow_thing.ase")
+        .expect("Missing data/structure/piece/yellow_thing/yellow_thing.ase");
     registry.register(
         "yellow_thing",
         load_from_ase(
@@ -324,9 +323,9 @@ pub fn init_structure_pieces(file_helper: &FileHelper) -> StructurePieceRegistry
         ),
     );
 
-    let ase =
-        AsepriteFile::read_file(&file_helper.asset_path("data/structure/piece/torch/torch.ase"))
-            .unwrap();
+    let ase = file_helper
+        .read_asset_to_aseprite("data/structure/piece/torch/torch.ase")
+        .expect("Missing data/structure/piece/torch/torch.ase");
     registry.register(
         "torch",
         load_from_ase(
@@ -338,9 +337,9 @@ pub fn init_structure_pieces(file_helper: &FileHelper) -> StructurePieceRegistry
         ),
     );
 
-    let ase =
-        AsepriteFile::read_file(&file_helper.asset_path("data/structure/piece/torch/torch2.ase"))
-            .unwrap();
+    let ase = file_helper
+        .read_asset_to_aseprite("data/structure/piece/torch/torch2.ase")
+        .expect("Missing data/structure/piece/torch/torch2.ase");
     registry.register(
         "torch2",
         load_from_ase(

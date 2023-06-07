@@ -1,6 +1,5 @@
 use std::{cell::UnsafeCell, fmt::Debug, path::PathBuf, sync::Arc};
 
-use asefile::AsepriteFile;
 use chunksystem::{ChunkKey, ChunkManager, ChunkQuery};
 use futures::channel::oneshot::Receiver;
 use rand::{rngs::StdRng, SeedableRng};
@@ -213,10 +212,10 @@ where
             if let Some(to_load) = self.load_queue.pop() {
                 let c = self.load_chunk(to_load.0, to_load.1);
                 if to_load == (0, 0) {
-                    let ase = AsepriteFile::read_file(
-                        &ctx.file_helper.asset_path("data/tile_entity/test/test.ase"),
-                    )
-                    .unwrap();
+                    let ase = ctx
+                        .file_helper
+                        .read_asset_to_aseprite("data/tile_entity/test/test.ase")
+                        .expect("Missing data/tile_entity/test/test.ase");
                     c.add_tile_entity(TileEntityCommon {
                         material_rect: MaterialRect::load_from_ase(&ase, (-40, -40)),
                     });

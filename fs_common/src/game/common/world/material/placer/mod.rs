@@ -2,8 +2,6 @@ pub mod lit;
 pub mod lit_colored;
 pub mod textured;
 
-use std::fs;
-
 use once_cell::sync::Lazy;
 
 use crate::game::common::{
@@ -80,11 +78,11 @@ impl MaterialPlacerRegistry {
                 sampler: Box::new(TexturedPlacer::new(
                     material_id,
                     physics,
-                    &fs::read(
-                        file_helper
-                            .asset_path(format!("texture/material/{}.png", tex_name.as_ref())),
-                    )
-                    .unwrap(),
+                    &file_helper
+                        .read_asset(format!("texture/material/{}.png", tex_name.as_ref()))
+                        .unwrap_or_else(|| {
+                            panic!("Missing texture/material/{}.png", tex_name.as_ref())
+                        }),
                 )),
             },
         );
@@ -119,7 +117,9 @@ pub fn init_material_placers(file_helper: &FileHelper) -> MaterialPlacerRegistry
                 TexturedPlacer::new(
                     super::TEST.clone(),
                     PhysicsType::Sand,
-                    &fs::read(file_helper.asset_path("texture/material/test.png")).unwrap(),
+                    &file_helper
+                        .read_asset("texture/material/test.png")
+                        .expect("Missing texture/material/test.png"),
                 )
                 .lit_colored(0.5),
             ),

@@ -1,5 +1,3 @@
-use std::fs;
-
 use fs_common::game::common::FileHelper;
 use glium::{
     program::{ComputeShader, ProgramChooserCreationError},
@@ -89,8 +87,14 @@ impl ShaderFileHelper<'_> {
     ) -> Result<glium::Program, ProgramChooserCreationError> {
         use glium::program;
 
-        let vert = fs::read_to_string(self.file_helper.asset_path(vert)).unwrap();
-        let frag = fs::read_to_string(self.file_helper.asset_path(frag)).unwrap();
+        let vert = self
+            .file_helper
+            .read_asset_to_string(vert)
+            .unwrap_or_else(|| panic!("Missing vertex shader {vert}"));
+        let frag = self
+            .file_helper
+            .read_asset_to_string(frag)
+            .unwrap_or_else(|| panic!("Missing fragment shader {frag}"));
 
         program!(self.display,
             version => {
@@ -106,7 +110,10 @@ impl ShaderFileHelper<'_> {
         &self,
         src: &str,
     ) -> Result<glium::program::ComputeShader, ProgramCreationError> {
-        let src = fs::read_to_string(self.file_helper.asset_path(src)).unwrap();
+        let src = self
+            .file_helper
+            .read_asset_to_string(src)
+            .unwrap_or_else(|| panic!("Missing compute shader {src}"));
 
         ComputeShader::from_source(self.display, &src)
     }

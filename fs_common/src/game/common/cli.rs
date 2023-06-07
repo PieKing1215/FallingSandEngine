@@ -43,6 +43,15 @@ pub struct CLArgs {
     )]
     pub assets_dir: PathBuf,
 
+    #[arg(
+        long = "assets-dir",
+        value_name = "PATH",
+        action,
+        default_value = "./gamedir/asset_packs/",
+        help = "Set the asset packs directory"
+    )]
+    pub asset_packs_dir: PathBuf,
+
     #[command(subcommand)]
     pub subcommand: Option<CLSubcommand>,
 }
