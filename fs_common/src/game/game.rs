@@ -44,6 +44,7 @@ pub struct FPSCounter {
 impl<C: Chunk + Send + Sync + 'static> GameData<C> {
     #[profiling::function]
     pub fn new(file_helper: FileHelper, build_data: BuildData) -> Self {
+        let mod_manager = ModManager::init(&file_helper);
         GameData {
             world: Some(World::create(None, Some(3))), // TODO: non constant seed
             tick_time: 0,
@@ -61,7 +62,7 @@ impl<C: Chunk + Send + Sync + 'static> GameData<C> {
             process_stats: ProcessStats { cpu_usage: None, memory: None },
             settings: Settings::default(),
             registries: Arc::new(Registries::init(&file_helper)),
-            mod_manager: ModManager::init(&file_helper),
+            mod_manager,
             file_helper,
             build_data,
         }

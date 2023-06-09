@@ -23,11 +23,13 @@ impl ModManager {
     pub fn init(file_helper: &FileHelper) -> Self {
         let mut mods = vec![];
 
-        for path in file_helper.mod_files() {
-            log::info!("Loading mod {path:?}");
+        for root in file_helper.mod_files() {
+            log::info!("Loading mod {:?}", root.path());
 
-            let builder =
-                WasmPluginBuilder::from_file(&path).expect("WasmPluginBuilder::from_file failed");
+            let wasm = root.read_wasm().expect("Mod missing mod.wasm file");
+
+            let builder = WasmPluginBuilder::from_source(&wasm)
+                .expect("WasmPluginBuilder::from_source failed");
             let (builder, call_ctx) = register_fns(builder);
 
             let mut plugin = builder.finish().expect("WasmPluginBuilder::finish failed");
@@ -36,7 +38,7 @@ impl ModManager {
 
             log::info!("Initialized mod: {meta:?}");
 
-            mods.push(Mod { meta, call_ctx: call_ctx.clone(), plugin });
+            mods.push(Mod { meta, call_ctx: call_ctx.clone(), plugin, root });
         }
 
         Self { mods }
