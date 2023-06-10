@@ -9,7 +9,7 @@ use itertools::Itertools;
 
 use super::{
     asset_pack::AssetPack,
-    dir_or_zip::{DirOrZip, DirOrZipError, PathBufExt, ReadFile},
+    dir_or_zip::{DirOrZip, DirOrZipError, PathBufExt, ReadEntry},
     modding::ModManager,
 };
 
@@ -37,7 +37,7 @@ impl FileHelper {
             .flatten()
             .filter_map(|e| {
                 let p = e.path();
-                (p.is_dir()
+                (std::path::Path::is_dir(&p)
                     || std::path::Path::extension(&p).and_then(OsStr::to_str) == Some("zip"))
                 .then_some(p)
             })
@@ -110,7 +110,7 @@ impl FileHelper {
     pub fn files_in_dir<'a, P: AsRef<Path> + 'a>(
         &'a self,
         path: P,
-    ) -> Box<dyn Iterator<Item = Box<dyn ReadFile + '_>> + '_> {
+    ) -> Box<dyn Iterator<Item = Box<dyn ReadEntry + '_>> + '_> {
         let path2 = path.as_ref().to_path_buf();
         let asset_packs = self
             .asset_packs
@@ -132,7 +132,7 @@ impl FileHelper {
         &'a self,
         path: P,
         extension: &'a str,
-    ) -> Box<dyn Iterator<Item = Box<dyn ReadFile + '_>> + '_> {
+    ) -> Box<dyn Iterator<Item = Box<dyn ReadEntry + '_>> + '_> {
         Box::new(self.files_in_dir(path).filter_map(move |mut p| {
             p.extension()
                 .map_or(false, |ext| ext.eq_ignore_ascii_case(extension))
@@ -145,6 +145,10 @@ impl FileHelper {
             fs::read_dir(self.game_path("mods"))
                 .into_iter()
                 .flat_map(|dir| dir.flatten().map(|entry| entry.path()).collect::<Vec<_>>())
+                .filter(|p| {
+                    !p.ends_with(".disabled")
+                        && std::path::Path::extension(p).and_then(OsStr::to_str) != Some("disabled")
+                })
                 .filter_map(move |p| match DirOrZip::try_from(p) {
                     Ok(mr) => Some(mr),
                     Err(DirOrZipError::NotDirOrZip(_)) => None,

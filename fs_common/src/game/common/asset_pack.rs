@@ -3,7 +3,7 @@ use std::path::Path;
 use serde::Deserialize;
 use thiserror::Error;
 
-use super::dir_or_zip::{DirOrZip, ReadFile, RelativePathBuf};
+use super::dir_or_zip::{DirOrZip, ReadEntry, RelativePathBuf};
 
 pub struct AssetPack {
     root: DirOrZip,
@@ -41,14 +41,14 @@ impl AssetPack {
         &self.meta
     }
 
-    pub fn file<P: AsRef<Path>>(&self, path: P) -> Option<Box<dyn ReadFile + '_>> {
+    pub fn file<P: AsRef<Path>>(&self, path: P) -> Option<Box<dyn ReadEntry + '_>> {
         self.root.file(path)
     }
 
     pub fn iter_dir<'a, P: AsRef<Path> + 'a>(
         &'a self,
         path: P,
-    ) -> Box<dyn Iterator<Item = (Box<dyn ReadFile + '_>, RelativePathBuf)> + '_> {
+    ) -> Box<dyn Iterator<Item = (Box<dyn ReadEntry + '_>, RelativePathBuf)> + '_> {
         self.root.iter_dir(path)
     }
 }

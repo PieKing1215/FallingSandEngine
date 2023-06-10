@@ -5,7 +5,11 @@ use fs_mod_common::{
     chunk::PostTickChunk,
     modding::{render::RenderTarget, ModMeta},
 };
-use std::sync::{Arc, RwLock};
+use std::{
+    io::Cursor,
+    sync::{Arc, RwLock},
+};
+use zip::ZipArchive;
 
 use wasm_plugin_host::WasmPlugin;
 
@@ -55,14 +59,34 @@ pub struct Mod {
 
 impl Mod {
     pub fn load_asset_packs(&self) -> Vec<AssetPack> {
-        // TODO: finish
-
-        // self.root
-        //     .iter_dir("asset_packs")
-        //     .map(|(f, path)| {
-        //         AssetPack::load(path)
-        //     })
-        vec![]
+        self.root
+            .iter_dir("asset_packs")
+            .filter_map(|(mut f, _path)| {
+                // TODO: this does not work for non-zip asset packs in mods
+                if !f.is_dir() && f.extension() == Some("zip".to_string()) {
+                    log::debug!("{:?}.{:?}", f.file_stem(), f.extension());
+                    let zip_data = f.read().expect("Failed to read asset pack file");
+                    let zip = ZipArchive::new(Box::new(Cursor::new(zip_data)) as _)
+                        .expect("Failed to read asset pack zip");
+                    Some(AssetPack::load(DirOrZip::Zip {
+                        path: self.root.path().clone(),
+                        zip: RwLock::new(zip),
+                    }))
+                } else {
+                    None
+                }
+            })
+            .filter_map(|res| match res {
+                Ok(ap) => Some(ap),
+                Err(err) => {
+                    log::error!(
+                        "Error loading mod asset pack from {:?}: {err:?}",
+                        self.root.path()
+                    );
+                    None
+                },
+            })
+            .collect()
     }
 }
 
