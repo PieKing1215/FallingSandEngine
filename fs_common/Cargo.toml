@@ -44,6 +44,7 @@ ron = "0.8"
 static_assertions = "1.1"
 wasm_plugin_host = { git = "https://github.com/PieKing1215/wasm_plugin.git", branch = "wasmer3", default-features = false, features = ["serialize_bincode"] }
 thiserror = "1"
+zip = "0.6"
 
 # mesh generation
 contour = "0.7"

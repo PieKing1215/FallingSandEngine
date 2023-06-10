@@ -26,7 +26,9 @@ impl ModManager {
         for root in file_helper.mod_files() {
             log::info!("Loading mod {:?}", root.path());
 
-            let wasm = root.read_wasm().expect("Mod missing mod.wasm file");
+            let wasm = root
+                .read_file("mod.wasm")
+                .expect("Mod missing mod.wasm file");
 
             let builder = WasmPluginBuilder::from_source(&wasm)
                 .expect("WasmPluginBuilder::from_source failed");

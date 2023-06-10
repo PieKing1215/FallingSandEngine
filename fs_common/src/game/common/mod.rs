@@ -3,6 +3,7 @@ pub mod world;
 
 pub mod asset_pack;
 pub mod cli;
+pub mod dir_or_zip;
 pub mod hashmap_ext;
 pub mod modding;
 mod registries;

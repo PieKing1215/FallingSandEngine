@@ -1,5 +1,3 @@
-use std::fs;
-
 use serde::Deserialize;
 
 use crate::game::common::{
@@ -27,9 +25,9 @@ pub type StructurePoolRegistry = Registry<StructurePool>;
 pub fn init_structure_pools(file_helper: &FileHelper) -> StructurePoolRegistry {
     let mut registry = Registry::new();
 
-    for path in file_helper.files_in_dir_with_ext("data/structure/pool", "ron") {
-        let name = path.file_stem().unwrap().to_string_lossy().to_string();
-        let bytes = fs::read(path).unwrap();
+    for mut file in file_helper.files_in_dir_with_ext("data/structure/pool", "ron") {
+        let name = file.file_stem().unwrap();
+        let bytes = file.read().unwrap();
         let set: StructurePool = ron::de::from_bytes(&bytes).unwrap();
 
         registry.register(name, set);

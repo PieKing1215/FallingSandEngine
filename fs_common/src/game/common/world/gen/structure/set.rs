@@ -1,6 +1,5 @@
 use std::{
     collections::hash_map::DefaultHasher,
-    fs,
     hash::{Hash, Hasher},
 };
 
@@ -37,9 +36,9 @@ pub type StructureSetRegistry = Registry<StructureSet>;
 pub fn init_structure_sets(file_helper: &FileHelper) -> StructureSetRegistry {
     let mut registry = Registry::new();
 
-    for path in file_helper.files_in_dir_with_ext("data/structure/set", "ron") {
-        let name = path.file_stem().unwrap().to_string_lossy().to_string();
-        let bytes = fs::read(path).unwrap();
+    for mut file in file_helper.files_in_dir_with_ext("data/structure/set", "ron") {
+        let name = file.file_stem().unwrap();
+        let bytes = file.read().unwrap();
         let set: StructureSet = ron::de::from_bytes(&bytes).unwrap();
 
         registry.register(name, set);

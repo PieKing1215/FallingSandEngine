@@ -1,13 +1,12 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::path::Path;
 
 use serde::Deserialize;
 use thiserror::Error;
 
+use super::dir_or_zip::{DirOrZip, ReadFile, RelativePathBuf};
+
 pub struct AssetPack {
-    dir: PathBuf,
+    root: DirOrZip,
     meta: AssetPackMeta,
 }
 
@@ -22,6 +21,8 @@ pub struct AssetPackMeta {
 
 #[derive(Error, Debug)]
 pub enum AssetPackLoadError {
+    #[error("missing pack.ron")]
+    MissingPackMeta,
     #[error("io error")]
     IOError(#[from] std::io::Error),
     #[error("meta deserialize error")]
@@ -29,38 +30,25 @@ pub enum AssetPackLoadError {
 }
 
 impl AssetPack {
-    pub fn load(dir: &Path) -> Result<Self, AssetPackLoadError> {
-        let meta = fs::read(dir.join("pack.ron"))?;
-        Ok(AssetPack {
-            meta: ron::de::from_bytes(&meta)?,
-            dir: dir.to_path_buf(),
-        })
+    pub fn load(root: DirOrZip) -> Result<Self, AssetPackLoadError> {
+        let meta = root
+            .read_file("pack.ron")
+            .ok_or(AssetPackLoadError::MissingPackMeta)?;
+        Ok(AssetPack { meta: ron::de::from_bytes(&meta)?, root })
     }
 
     pub fn meta(&self) -> &AssetPackMeta {
         &self.meta
     }
 
-    pub fn asset_path<P: AsRef<Path>>(&self, path: P) -> PathBuf {
-        self.dir.join(path)
+    pub fn file<P: AsRef<Path>>(&self, path: P) -> Option<Box<dyn ReadFile + '_>> {
+        self.root.file(path)
     }
 
-    /// First `PathBuf` is absolute, second is relative to pack root
-    pub fn files_in_dir<P: AsRef<Path>>(
-        &self,
+    pub fn iter_dir<'a, P: AsRef<Path> + 'a>(
+        &'a self,
         path: P,
-    ) -> Box<dyn Iterator<Item = (PathBuf, PathBuf)> + '_> {
-        Box::new(
-            fs::read_dir(self.asset_path(path))
-                .into_iter()
-                .flat_map(|dir| {
-                    dir.flatten()
-                        .flat_map(|entry| {
-                            let p = entry.path();
-                            p.strip_prefix(&self.dir).map(|rel| (p.clone(), rel.into()))
-                        })
-                        .collect::<Vec<_>>()
-                }),
-        )
+    ) -> Box<dyn Iterator<Item = (Box<dyn ReadFile + '_>, RelativePathBuf)> + '_> {
+        self.root.iter_dir(path)
     }
 }
