@@ -8,6 +8,8 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
+const ENGINE_NAMESPACE: &str = "fse";
+
 #[derive(Serialize, Deserialize)]
 #[serde(from = "String")]
 pub struct RegistryID<T> {
@@ -28,7 +30,6 @@ impl<T> Display for RegistryID<T> {
     }
 }
 
-// allows calling `Registry<RegistryID<_>, _>::get` with a `&str` as argument
 impl<T> Borrow<str> for RegistryID<T> {
     fn borrow(&self) -> &str {
         let s: &String = self.value.borrow();
@@ -72,10 +73,12 @@ impl<T> Clone for RegistryID<T> {
 
 impl<S: Into<String>, T> From<S> for RegistryID<T> {
     fn from(value: S) -> Self {
-        Self {
-            value: Arc::new(value.into()),
-            _phantom: PhantomData,
+        let mut v = value.into();
+        if !v.contains(':') {
+            v = format!("{ENGINE_NAMESPACE}:{v}");
         }
+
+        Self { value: Arc::new(v), _phantom: PhantomData }
     }
 }
 
@@ -94,11 +97,7 @@ impl<V> Registry<V> {
     }
 
     #[inline]
-    pub fn get<Q>(&self, key: &Q) -> Option<&V>
-    where
-        RegistryID<V>: Borrow<Q>,
-        Q: std::hash::Hash + Eq + ?Sized,
-    {
+    pub fn get(&self, key: &RegistryID<V>) -> Option<&V> {
         self.map.get(key)
     }
 }
