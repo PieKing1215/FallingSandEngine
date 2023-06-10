@@ -352,6 +352,7 @@ impl<'a> Renderer<'a> {
                                     registries: &game.registries,
                                     local_player: player,
                                     mod_manager: &mut game.mod_manager,
+                                    file_helper: &game.file_helper,
                                 },
                             );
                         }

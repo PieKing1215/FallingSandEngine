@@ -64,7 +64,6 @@ impl Mod {
             .filter_map(|(mut f, _path)| {
                 // TODO: this does not work for non-zip asset packs in mods
                 if !f.is_dir() && f.extension() == Some("zip".to_string()) {
-                    log::debug!("{:?}.{:?}", f.file_stem(), f.extension());
                     let zip_data = f.read().expect("Failed to read asset pack file");
                     let zip = ZipArchive::new(Box::new(Cursor::new(zip_data)) as _)
                         .expect("Failed to read asset pack zip");

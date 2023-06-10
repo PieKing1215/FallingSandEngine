@@ -67,6 +67,10 @@ impl FileHelper {
         }
     }
 
+    pub fn asset_packs(&self) -> &[AssetPack] {
+        &self.asset_packs
+    }
+
     pub fn game_path<P: AsRef<Path>>(&self, path: P) -> PathBuf {
         self.game_dir.join(path)
     }
