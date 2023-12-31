@@ -78,7 +78,7 @@ Some points of interest:
 
 ## Download
 
-Automatic builds can be found here (requires GitHub account to download): https://github.com/PieKing1215/FallingSandEngine/actions/workflows/autobuild.yml
+Automatic builds for Windows x64 can be found here (requires GitHub account to download): https://github.com/PieKing1215/FallingSandEngine/actions/workflows/autobuild.yml
 
 ## Building
 
@@ -90,6 +90,8 @@ To run locally you should be able to just do `cargo run`/`cargo run --release`<b
 You can also add `-- -d` to enable debug UI<br>
 (there's also a `profile` feature which enables profiling with Tracy)
 
-There's also a bash script which will collect everything needed to run the game into the package/ folder (builds for release, copies assets, and generates a dependency licences file)<br>
+I haven't built it to linux in a while but it should work
+
+There's also a bash script which can bundle everything needed to run the game into the package/ folder (builds for release, copies assets, and generates a dependency licences file)<br>
 It requires cargo-lichking: `cargo install cargo-lichking`<br>
 To run: `sh package.sh`
