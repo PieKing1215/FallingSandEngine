@@ -95,3 +95,11 @@ I haven't built it to linux in a while but it should work
 There's also a bash script which can bundle everything needed to run the game into the package/ folder (builds for release, copies assets, and generates a dependency licences file)<br>
 It requires cargo-lichking: `cargo install cargo-lichking`<br>
 To run: `sh package.sh`
+
+## Licensing
+
+### Code
+All original code files are licensed under the [BSD 3-Clause License](LICENSE).
+
+### Assets
+All art assets (everything in gamedir/assets/texture/) are licensed under the [Creative Commons Attribution-NonCommercial 4.0 International License](https://creativecommons.org/licenses/by-nc/4.0/).
