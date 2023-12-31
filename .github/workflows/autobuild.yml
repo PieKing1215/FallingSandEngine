@@ -63,8 +63,8 @@ jobs:
       uses: game-ci/steam-deploy@v3.0.0
       with:
         username: ${{ secrets.STEAM_USERNAME }}
-        configVdf: ${{ secrets.STEAM_CONFIG_VDF}}
-        appId: 1284340
+        configVdf: ${{ secrets.STEAM_CONFIG_VDF }}
+        appId: ${{ secrets.STEAM_APP_ID }}
         buildDescription: "nightly-${{ steps.short-sha.outputs.sha }}"
         rootPath: package
         depot1Path: .
