@@ -80,6 +80,8 @@ Some points of interest:
 
 Automatic builds for Windows x64 can be found here (requires GitHub account to download): https://github.com/PieKing1215/FallingSandEngine/actions/workflows/autobuild.yml
 
+Controls are (arrow keys/C/X/Z) or (WASD/space/shift/Z)
+
 ## Building
 
 Install rust/cargo
