@@ -1,11 +1,13 @@
 # FallingSandEngine (Rust rewrite)
 
-An experimental falling sand engine written in Rust, successor to [the C++ version](https://github.com/PieKing1215/FallingSandSurvival)
+_Note: Development in this repo has stopped.<br/>
+After doing some gameplay design, I decided I wanted some features that would require a lot of rewriting to retrofit into this engine.<br/>
+Instead I decided to take the lessons learned from this repo and start a new version with the features I need baked in from the start.<br/>
+I've been working on it for a while and it's got some cool stuff, it'll be announced when it's ready :)_
 
-_Note: development of this project is on hiatus._<br>
-It's a bit messy since it was one of my first Rust projects and it's not built on a framework or anything.<br>
-(if I continue development I would probably want to overhaul how it's structured)<br>
-I haven't worked on it for a while but the folks working on [Astratomic](https://github.com/spicylobstergames/astratomic) were interested in seeing how I did certain things.
+---
+
+An experimental falling sand engine written in Rust, successor to [the C++ version](https://github.com/PieKing1215/FallingSandSurvival)
 
 Some features:
 - Chunk based infinite world
