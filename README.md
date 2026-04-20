@@ -1,8 +1,8 @@
 # FallingSandEngine (Rust rewrite)
 
 _Note: Development in this repo has stopped.<br/>
-After doing some gameplay design, I decided I wanted some features that would require a lot of rewriting to retrofit into this engine.<br/>
-Instead I decided to take the lessons learned from this repo and start a new version with the features I need baked in from the start.<br/>
+After designing some gameplay, I decided I want some features that would require large rewrites to retrofit into this engine.<br/>
+Instead I took some learnings from this repo and started a new version with the features I need baked in from the start.<br/>
 I've been working on it for a while and it's got some cool stuff, it'll be announced when it's ready :)_
 
 ---
